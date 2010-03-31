@@ -1,25 +1,26 @@
 (ns cascalog.workflow
-  (:refer-clojure :exclude (count first filter mapcat map identity))
+  (:refer-clojure :exclude [count first filter mapcat map identity])
   (:use [clojure.contrib.seq-utils :only [find-first indexed]])
-  (:import (cascading.tuple Tuple TupleEntry Fields)
-           (cascading.scheme TextLine SequenceFile)
-           (cascading.flow Flow FlowConnector)
-           (cascading.cascade Cascades)
-           (cascading.operation Identity Insert)
-           (cascading.operation.regex RegexGenerator RegexFilter)
-           (cascading.operation.aggregator First Count)
-           (cascading.pipe Pipe Each Every GroupBy CoGroup)
-           (cascading.pipe.cogroup InnerJoin OuterJoin LeftJoin RightJoin)
-           (cascading.scheme Scheme)
-           (cascading.tap Hfs Lfs Tap)
-           (org.apache.hadoop.io Text)
-           (org.apache.hadoop.mapred TextInputFormat TextOutputFormat
-                                     OutputCollector JobConf)
-           (java.util Properties Map UUID)
-           (cascalog ClojureFilter ClojureMapcat ClojureMap
-                              ClojureAggregator Util ClojureBuffer)
-           (java.io File)
-           (java.lang RuntimeException Comparable)))
+  (:use cascalog.util)
+  (:import [cascading.tuple Tuple TupleEntry Fields]
+           [cascading.scheme TextLine SequenceFile]
+           [cascading.flow Flow FlowConnector]
+           [cascading.cascade Cascades]
+           [cascading.operation Identity Insert Debug]
+           [cascading.operation.regex RegexGenerator RegexFilter]
+           [cascading.operation.aggregator First Count]
+           [cascading.pipe Pipe Each Every GroupBy CoGroup]
+           [cascading.pipe.cogroup InnerJoin OuterJoin LeftJoin RightJoin]
+           [cascading.scheme Scheme]
+           [cascading.tap Hfs Lfs Tap]
+           [org.apache.hadoop.io Text]
+           [org.apache.hadoop.mapred TextInputFormat TextOutputFormat
+                                     OutputCollector JobConf]
+           [java.util Properties Map UUID]
+           [cascalog ClojureFilter ClojureMapcat ClojureMap
+                              ClojureAggregator Util ClojureBuffer]
+           [java.io File]
+           [java.lang RuntimeException Comparable]))
 
 (defn ns-fn-name-pair [v]
   (let [m (meta v)]
@@ -43,9 +44,6 @@
     :else
       (throw (IllegalArgumentException. (str v-or-coll)))))
 
-(defn- collectify [obj]
-  (if (sequential? obj) obj [obj]))
-
 (defn fields
   {:tag Fields}
   [obj]
@@ -62,7 +60,7 @@
   (into-array Pipe pipes))
 
 (defn- fields-obj? [obj]
-  "Returns true for a Fileds instance, a string, or an array of strings."
+  "Returns true for a Fields instance, a string, or an array of strings."
   (or
     (instance? Fields obj)
     (string? obj)
@@ -100,7 +98,6 @@
         result              [in-fields (fields (:fn> options)) spec (fields (:> options))]]
 
         result )))
-
 
 (defn uuid []
   (str (UUID/randomUUID)))
@@ -176,6 +173,9 @@
   ([arg1] (fn [p] (Each. p arg1)))
   ([arg1 arg2] (fn [p] (Each. p arg1 arg2)))
   ([arg1 arg2 arg3] (fn [p] (Each. p arg1 arg2 arg3))))
+
+(defn debug []
+  (raw-each (Debug. true)))
 
 (defn raw-every
   ([arg1] (fn [p] (Every. p arg1)))
@@ -297,10 +297,8 @@
 (defn inner-join [fields-seq declared-fields]
   (join-assembly fields-seq declared-fields (InnerJoin.)))
 
-
 (defn outer-join [fields-seq declared-fields]
   (join-assembly fields-seq declared-fields (OuterJoin.)))
-
 
 ;;TODO create join abstractions. http://en.wikipedia.org/wiki/Join_(SQL)
 ;;"join and drop" is called a natural join - inner join, followed by select to remove duplicate join keys.
@@ -308,8 +306,6 @@
 ;;another kind of join and dop is to drop all the join keys - for example, when you have extracted a specil join key jsut for grouping, you typicly want to get rid of it after the group operation.
 
 ;;another kind of "join and drop" is an outer-join followed by dropping the nils
-
-
 
 (defn taps-map [pipes taps]
   (Cascades/tapsMap (into-array Pipe pipes) (into-array Tap taps)))
@@ -339,8 +335,8 @@
   (apply = objs))
 
 (defn compose-straight-assemblies [& all]
-  (fn [p]
-    (apply assemble p all)))
+  (fn [& input]
+    (apply assemble input all)))
 
 (defn path
   {:tag String}

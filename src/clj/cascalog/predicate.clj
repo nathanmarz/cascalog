@@ -12,7 +12,7 @@
 (defstruct generator-predicate :type :sources :assembly :outfields)
 (defstruct predicate-variables :in :out)
 
-(defn- parse-variables
+(defn parse-variables
   "parses variables of the form ['?a' '?b' :> '!!c']
    If there is no :>, defaults to in-or-out-default (:in or :out)"
   [vars in-or-out-default]
@@ -47,6 +47,7 @@
 
 (defmulti build-predicate-specific predicate-dispatcher)
 
+;; TODO: should have a (generator :only ?a ?b) syntax for generators (only select those fields, filter the rest)
 (defmethod build-predicate-specific ::tap [tap _ infields outfields]
   (let
     [assembly (w/identity Fields/ALL :fn> outfields :> Fields/RESULTS)]
@@ -86,8 +87,8 @@
 (defmethod build-predicate-specific :buffer [& args]
   (apply standard-build-predicate args))
 
-
 ;; TODO: better to use UUIDs to avoid name collisions with client code?
+;; Are the size of fields an issue in the actual flow execution perf-wise?
 (let [i (atom 0)]
   (defn- gen-nullable-var [] (str "!__gen" (swap! i inc))))
 
@@ -107,23 +108,29 @@
 (w/deffilterop non-null? [& objs]
   (every? (complement nil?) objs))
 
+(defn mk-insertion-assembly [subs]
+  (when (not-empty subs)
+    (apply w/insert (transpose (seq subs)))))
+
+(defn- replace-ignored-vars [vars]
+  (map #(if (= "_" %) (gen-nullable-var) %) vars))
+
 (defn build-predicate
   "Build a predicate. Calls down to build-predicate-specific for predicate-specific building 
   and adds constant substitution and null checking of ? vars."
   [op opvar & variables-args]
   (let [{infields :in outfields :out} (parse-variables variables-args (predicate-default-var op))
+       outfields                      (replace-ignored-vars outfields)
        [infields infield-subs]        (variable-substitution infields)
        [outfields outfield-subs]      (variable-substitution outfields)
        predicate                      (build-predicate-specific op opvar infields outfields)
        [newsubs equalities]           (output-substitution outfield-subs)
        new-outfields                  (concat outfields (keys newsubs))
-       in-insertion-assembly          (when (not-empty infield-subs)
-                                        (apply w/insert (transpose (seq infield-subs))))
-       out-insertion-assembly         (when (not-empty newsubs)
-                                        (apply w/insert (transpose (seq newsubs))))
-       non-null-fields                 (map non-nullable-var? new-outfields)
+       in-insertion-assembly          (mk-insertion-assembly infield-subs)
+       out-insertion-assembly         (mk-insertion-assembly newsubs)
+       non-null-fields                (map non-nullable-var? new-outfields)
        null-check                     (when (not-empty non-null-fields)
-                                        (non-null? (map non-nullable-var? new-outfields)))
+                                        (non-null? non-null-fields))
        equality-assemblies            (map w/equal equalities)
        newassem                       (apply w/compose-straight-assemblies
                                           (filter (complement nil?)

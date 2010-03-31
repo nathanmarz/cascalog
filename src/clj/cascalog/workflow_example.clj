@@ -61,20 +61,6 @@
         flow           (w/mk-flow [phrase-source] sink example-assembly)]
     (w/exec flow)))
 
-
-
-(comment
-  (use 'cascading.clojure.api-example)
-  (def root "/Users/mmcgrana/remote/cascading-clojure/")
-  (def example-args
-    [(str root "cascading-clojure-standalone.jar")
-     (str root "data/api-example.dot")
-     (str root "data/phrases")
-     (str root "data/white")
-     (str root "data/output")])
-  (apply run-example example-args)
-)
-
 (comment
   (use 'cascading.clojure.api-example)
   (def root "/Users/marz/opensource/cascading-clojure/")

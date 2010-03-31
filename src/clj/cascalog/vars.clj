@@ -10,5 +10,10 @@
 
 (def nullable-var? (complement non-nullable-var?))
 
+(defn unground-var?
+  "!! vars that cause outer joins"
+  [sym-or-str]
+  (.startsWith (str sym-or-str) "!!"))
+
 (defn vars2str [vars]
   (map #(if (cascalog-var? %) (str %) %) vars))

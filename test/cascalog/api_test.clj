@@ -28,20 +28,20 @@
 (deftest test-fn-spec-simple
   (let [fs (w/fn-spec #'inc1)]
     (is (instance? obj-array-class fs))
-    (is (= '("cascading.clojure.api-test" "inc1") (seq fs)))))
+    (is (= '("cascalog.api-test" "inc1") (seq fs)))))
 
 (deftest test-fn-spec-hof
   (let [fs (w/fn-spec [#'incn 3])]
     (is (instance? obj-array-class fs))
-    (is (= `("cascading.clojure.api-test" "incn" 3) (seq fs)))))
+    (is (= `("cascalog.api-test" "incn" 3) (seq fs)))))
 
 (deftest test-boot-fn-simple
-  (let [spec (into-array Object `("cascading.clojure.api-test" "inc1"))
+  (let [spec (into-array Object `("cascalog.api-test" "inc1"))
         f    (Util/bootFn spec)]
     (is (= [2] (f 1)))))
 
 (deftest test-boot-fn-hof
-  (let [spec (into-array Object '("cascading.clojure.api-test" "incn" 3))
+  (let [spec (into-array Object '("cascalog.api-test" "incn" 3))
         f    (Util/bootFn spec)]
   (is (= [4] (f 1)))))
 
