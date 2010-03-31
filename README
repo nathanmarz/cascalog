@@ -1,0 +1,1 @@
+Cascalog allows you to create large-scale data processing and querying with an expressive Datalog language built on top of Cascading and Clojure.
