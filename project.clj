@@ -9,5 +9,7 @@
   :dev-dependencies [[lein-javac "0.0.2-SNAPSHOT"]]
   :namespaces [cascalog.workflow
                cascalog.core
+               cascalog.vars
+               cascalog.predicate
                cascalog.workflow-example
                cascalog.testing])
