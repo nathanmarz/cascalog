@@ -8,21 +8,27 @@
 ;; 
 ;; 4. Enforce !! rules -> only allowed in generators or output of operations, ungrounds whatever it's in
 
-(defn build-rule [out-vars predicates]
-  predicates
-  )
+;; TODO: make it possible to create ungrounded rules that take in input vars (for composition)
+;; i.e. (<- [?a ?b :> ])
+(defn build-rule [out-vars raw-predicates]
+  (let [[out-vars vmap] (uniquify-vars out-vars {})
+        update-fn       (fn [[preds vmap] [op opvar vars]]
+                          (let [[newvars vmap] (uniquify-vars vars vmap)]
+                            [(conj preds [op opvar newvars]) vmap] ))
+        [raw-predicates _] (reduce update-fn [[] vmap] raw-predicates)
+        predicates         (map (partial apply p/build-predicate) raw-predicates) ]
+        predicates
+    ))
 
-
-;; probably not going to work to refer to build-predicate since user hasn't necessarily required it
-(defn- make-predicate-builder [pred]
+(defn- mk-raw-predicate [pred]
   (let [[op-sym & vars] pred
         str-vars (vars2str vars)]
-  (cons 'cascalog.predicate/build-predicate (cons op-sym (cons (try-resolve op-sym) str-vars)))))
+    [op-sym (try-resolve op-sym) str-vars]))
 
 (defmacro <-
   "Constructs a rule from a list of predicates"
   [outvars & predicates]
-  (let [predicate-builders (vec (map make-predicate-builder predicates))
+  (let [predicate-builders (vec (map mk-raw-predicate predicates))
         outvars-str (vars2str outvars)]
         `(cascalog.core/build-rule ~outvars-str ~predicate-builders)))
 

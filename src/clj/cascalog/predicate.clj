@@ -87,11 +87,6 @@
 (defmethod build-predicate-specific :buffer [& args]
   (apply standard-build-predicate args))
 
-;; TODO: better to use UUIDs to avoid name collisions with client code?
-;; Are the size of fields an issue in the actual flow execution perf-wise?
-(let [i (atom 0)]
-  (defn- gen-nullable-var [] (str "!__gen" (swap! i inc))))
-
 (defn- variable-substitution
   "Returns [newvars {map of newvars to values to substitute}]"
   [vars]
@@ -108,17 +103,23 @@
 (w/deffilterop non-null? [& objs]
   (every? (complement nil?) objs))
 
-(defn mk-insertion-assembly [subs]
+(defn- mk-insertion-assembly [subs]
   (when (not-empty subs)
     (apply w/insert (transpose (seq subs)))))
 
 (defn- replace-ignored-vars [vars]
   (map #(if (= "_" %) (gen-nullable-var) %) vars))
 
+(defn- mk-null-check [fields]
+  (let [non-null-fields (filter non-nullable-var? fields)]
+    (when (not-empty non-null-fields)
+      (non-null? non-null-fields))))
+
+;; TODO: need to null check inputs
 (defn build-predicate
   "Build a predicate. Calls down to build-predicate-specific for predicate-specific building 
   and adds constant substitution and null checking of ? vars."
-  [op opvar & variables-args]
+  [op opvar variables-args]
   (let [{orig-infields :in outfields :out} (parse-variables variables-args (predicate-default-var op))
        outfields                      (replace-ignored-vars outfields)
        [infields infield-subs]        (variable-substitution orig-infields)
@@ -128,16 +129,16 @@
        new-outfields                  (concat outfields (keys newsubs) (keys infield-subs))
        in-insertion-assembly          (mk-insertion-assembly infield-subs)
        out-insertion-assembly         (mk-insertion-assembly newsubs)
-       non-null-fields                (filter non-nullable-var? new-outfields)
-       null-check                     (when (not-empty non-null-fields)
-                                        (non-null? non-null-fields))
+       null-check-in                  (mk-null-check infields)
+       null-check-out                 (mk-null-check new-outfields)
        equality-assemblies            (map w/equal equalities)
        newassem                       (apply w/compose-straight-assemblies
                                           (filter (complement nil?)
                                             (concat [in-insertion-assembly
+                                                    null-check-in
                                                     (:assembly predicate)
                                                     out-insertion-assembly
-                                                    null-check]
+                                                    null-check-out]
                                           equality-assemblies)))]
         (merge predicate {:assembly newassem
                           :outfields new-outfields

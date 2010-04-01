@@ -10,3 +10,13 @@
     (test-assembly source-data sink-data
       (w/map #'inc "a" :fn> "c" :> ["b" "c"]))
     ))
+
+(deftest test-filter-filter)
+
+(deftest test-filter-map)
+
+(deftest test-join)
+
+(deftest test-buffer)
+
+(deftest test-aggregator)

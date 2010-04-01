@@ -20,7 +20,7 @@
   (inc (* a b)))
 
 (deftest test-map-pred
-  (let [pred (build-predicate timesplusone (var timesplusone) "?f1" "?f2" :> "?q")
+  (let [pred (build-predicate timesplusone (var timesplusone) ["?f1" "?f2" :> "?q"])
         source-data {:fields ["?a" "?b" "?f1" "?f2" "?c"] :tuples [[1 2 1 1 10]
                                                                     [0 0 2 6 9]
                                                                     [0 0 9 1 0]]}
@@ -35,7 +35,7 @@
   [(inc (apply + all)) (first all)])
 
 (deftest test-variable-substitution
-  (let [pred (build-predicate addplusone (var addplusone) "?f1" "?f2" 3 4 "?f3" :> "?s" 6)
+  (let [pred (build-predicate addplusone (var addplusone) ["?f1" "?f2" 3 4 "?f3" :> "?s" 6])
         source-data {:fields ["?f1" "?f2" "?f3"] :tuples [[6 2 3]
                                                           [8 12 19]
                                                           [6 7 12]
@@ -52,7 +52,7 @@
   (if (not= a 1) [a nil] [nil a]))
 
 (deftest test-nil-filtering
-  (let [pred (build-predicate nilop (var nilop) "?i" :> "?o1" "!o2")
+  (let [pred (build-predicate nilop (var nilop) ["?i" :> "?o1" "!o2"])
         source-data {:fields ["?i"] :tuples [[1]
                                              [2]
                                              [3]
