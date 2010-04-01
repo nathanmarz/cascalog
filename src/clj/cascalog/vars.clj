@@ -30,11 +30,11 @@
 (defn gen-nullable-var [] (str "!" (gen-unique-suffix)))
 
 (defn uniquify-vars
-  "Uniques the cascalog vars according to mappings, generates new names if no mapping"
-  [vars mappings]
+  "Uniques the cascalog vars, equal vars get put into same set in map"
+  [vars equalities]
   (reduce (fn [[p m] v]
             (if (cascalog-var? v)
-              (let [newv (or (m v) (str v (gen-unique-suffix)))]
-                [(conj p newv) (assoc m v newv)])
+              (let [newv (str v (gen-unique-suffix))]
+                [(conj p newv) (assoc m v (conj (get m v #{}) newv))])
               [(conj p v) m] ))
-    [[] mappings] vars))
+    [[] equalities] vars))

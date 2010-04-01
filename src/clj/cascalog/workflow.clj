@@ -8,7 +8,7 @@
            [cascading.cascade Cascades]
            [cascading.operation Identity Insert Debug]
            [cascading.operation.regex RegexGenerator RegexFilter]
-           [cascading.operation.aggregator First Count]
+           [cascading.operation.aggregator First Count Sum]
            [cascading.pipe Pipe Each Every GroupBy CoGroup]
            [cascading.pipe.cogroup InnerJoin OuterJoin LeftJoin RightJoin]
            [cascading.scheme Scheme]
@@ -150,6 +150,10 @@
   (fn [previous]
     (Every. previous (Count. (fields count-fields)))))
 
+(defn sum [#^String in-fields #^String sum-fields]
+  (fn [previous]
+    (Every. previous (fields in-fields) (Sum. (fields sum-fields)))))
+
 (defn first []
   (fn [previous]
     (Every. previous (First.) Fields/RESULTS)))
@@ -164,6 +168,10 @@
     (let [[in-fields func-fields _ out-fields] (parse-args (cons #'+ args) Fields/RESULTS)]
     (Each. previous in-fields
       (Identity. func-fields) out-fields))))
+
+(defn pipe-name [name]
+  (fn [p]
+    (Pipe. name p)))
 
 (defn insert [newfields vals]
   (fn [previous]
@@ -279,7 +287,7 @@
                               forms
                               (cons 'cascalog.workflow/assemble forms)))
           return (pipify return)
-          bindings (vec (clojure.core/map #(%1 %2) (cycle [identity pipify]) bindings))]
+          bindings (vec (clojure.core/map #(%1 %2) (cycle [clojure.core/identity pipify]) bindings))]
       `(fn ~args
           (let ~bindings
             ~return)))))

@@ -5,11 +5,12 @@
   (:import [cascading.tap Tap])
   (:import [cascading.tuple Fields]))
 
-(defstruct generator :sources :assembly)
 ;;  type is one of :operation :aggregator
 (defstruct operation-predicate :type :assembly :infields :outfields)
 ;;  type is :generator
 (defstruct generator-predicate :type :sources :assembly :outfields)
+
+
 (defstruct predicate-variables :in :out)
 
 (defn parse-variables
