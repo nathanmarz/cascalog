@@ -100,8 +100,11 @@
 (defn mk-test-sink [spec path]
   (mk-test-tap (:fields spec) path))
 
-(defn test-assembly [source-specs sink-specs assembly]
-    (with-log-level :warn
+(defn test-assembly
+  ([source-specs sink-specs assembly]
+    (test-assembly :warn source-specs sink-specs assembly))
+  ([log-level source-specs sink-specs assembly]
+    (with-log-level log-level
       (with-tmp-files [source-path (temp-dir "sources")
                        sink-path (temp-path "sinks")]
             (let
@@ -114,4 +117,4 @@
                out-tuples     (doall (map get-tuples sinks))
                expected-data  (map :tuples sink-specs)]
                (is (= (map multi-set expected-data) (map multi-set out-tuples)))
-               ))))
+               )))))

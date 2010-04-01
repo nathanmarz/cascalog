@@ -34,7 +34,7 @@
 (w/defmapop addplusone ["blah" "blah2"] [& all]
   [(inc (apply + all)) (first all)])
 
-(deftest test-map-constants
+(deftest test-variable-substitution
   (let [pred (build-predicate addplusone (var addplusone) "?f1" "?f2" 3 4 "?f3" :> "?s" 6)
         source-data {:fields ["?f1" "?f2" "?f3"] :tuples [[6 2 3]
                                                           [8 12 19]
@@ -60,6 +60,8 @@
         sink-data   {:fields ["?o1" "!o2"] :tuples [[2 nil] [3 nil]]} ]
      (test-assembly source-data sink-data (:assembly pred))
      ))
+
+(deftest test-mapcat-pred)
 
 (deftest test-filter-pred)
 

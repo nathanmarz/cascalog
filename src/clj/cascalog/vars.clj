@@ -16,4 +16,4 @@
   (.startsWith (str sym-or-str) "!!"))
 
 (defn vars2str [vars]
-  (map #(if (cascalog-var? %) (str %) %) vars))
+  (vec (map #(if (cascalog-var? %) (str %) %) vars)))
