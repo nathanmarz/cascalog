@@ -68,7 +68,7 @@
     (struct operation-predicate :operation assembly infields outfields)))
 
 (defn- standard-build-predicate [op _ infields outfields]
-    (struct operation-predicate :operation (op infields :fn> outfields :> Fields/ALL)))
+    (struct operation-predicate :operation (op infields :fn> outfields :> Fields/ALL) infields outfields))
 
 (defmethod build-predicate-specific :map [& args]
   (apply standard-build-predicate args))
@@ -119,16 +119,16 @@
   "Build a predicate. Calls down to build-predicate-specific for predicate-specific building 
   and adds constant substitution and null checking of ? vars."
   [op opvar & variables-args]
-  (let [{infields :in outfields :out} (parse-variables variables-args (predicate-default-var op))
+  (let [{orig-infields :in outfields :out} (parse-variables variables-args (predicate-default-var op))
        outfields                      (replace-ignored-vars outfields)
-       [infields infield-subs]        (variable-substitution infields)
+       [infields infield-subs]        (variable-substitution orig-infields)
        [outfields outfield-subs]      (variable-substitution outfields)
        predicate                      (build-predicate-specific op opvar infields outfields)
        [newsubs equalities]           (output-substitution outfield-subs)
-       new-outfields                  (concat outfields (keys newsubs))
+       new-outfields                  (concat outfields (keys newsubs) (keys infield-subs))
        in-insertion-assembly          (mk-insertion-assembly infield-subs)
        out-insertion-assembly         (mk-insertion-assembly newsubs)
-       non-null-fields                (map non-nullable-var? new-outfields)
+       non-null-fields                (filter non-nullable-var? new-outfields)
        null-check                     (when (not-empty non-null-fields)
                                         (non-null? non-null-fields))
        equality-assemblies            (map w/equal equalities)
@@ -139,4 +139,6 @@
                                                     out-insertion-assembly
                                                     null-check]
                                           equality-assemblies)))]
-        (merge predicate {:assembly newassem :outfields new-outfields})))
+        (merge predicate {:assembly newassem
+                          :outfields new-outfields
+                          :infields (filter cascalog-var? orig-infields)})))

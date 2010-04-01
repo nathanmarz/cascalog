@@ -113,5 +113,5 @@
                _              (w/exec flow)
                out-tuples     (doall (map get-tuples sinks))
                expected-data  (map :tuples sink-specs)]
-               (is (= (multi-set expected-data) (multi-set out-tuples)))
+               (is (= (map multi-set expected-data) (map multi-set out-tuples)))
                ))))

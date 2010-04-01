@@ -2,8 +2,7 @@
   (:use clojure.test
         cascalog.testing)
   (:import [cascading.tuple Fields])
-  (:require [cascalog [workflow :as w]])
-  )
+  (:require [cascalog [workflow :as w]]))
 
 (deftest test-simple-assembly
   (let [source-data {:fields ["a" "b"] :tuples [[2 1] [11 10]]}
