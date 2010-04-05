@@ -40,21 +40,48 @@
 ;; pipe approach requires pipe renaming and sometimes won't work (joining pipes that originate from same source 
 ;;   and haven't been through any reducing)
 ;; the bad case is aggregating off a source, and then doing 2 branches without reducing and self-joining
-;; for most queries doesn't matter... byt connected-influencers would be bad -> would cascaing duplicate
+;; for most queries doesn't matter... but connected-influencers would be bad -> would cascaing duplicate
 ;; the computation anyway?
 ;; ideally just thread one pipe from each source & branch and merge
 ;; need to deal with self-join problem with renaming
 ;; what do do about self-join with no reduces in branches?, i.e. (age ?p ?a) (age ?p2 ?a)
 ;;                        (friend ?p1 ?p2) (friend ?p2 ?p3)
 ;; every rule has a reduce (at least a distinct). just need to detect self-joins within a rule
+
+;; (<- age(?p :> ?a1) (> ?a2 5) (= ?a1 ?a2))
+;; (<- part1 [?p] ...)
+;; (<- part2 [?p] (part1 ?p) (somefilter ?p))
+;; (?- [part1 ... part2...]) ... won't even be connected w/ assembly approach- what will happen - it works
+;;  check flow test
+;; don't even support this, just have:
+;; (?- tap assem)
+;; (?<- tap vars preds) -> 
+;;    (?- tap (<- vars preds))
+;; what if i just uniquify and not keep an equality index?
+;; age(?p :> ?a) (> ?a 5)
 (defn build-rule [out-vars raw-predicates]
-  (let [[out-vars vmap] (uniquify-vars out-vars {})
+  (let [[out-vars vmap]       (uniquify-vars out-vars {})
         update-fn             (fn [[preds vmap] [op opvar vars]]
                                 (let [[newvars vmap] (uniquify-vars vars vmap)]
                                   [(conj preds [op opvar newvars]) vmap] ))
         [raw-predicates vmap] (reduce update-fn [[] vmap] raw-predicates)
         predicates            (map (partial apply p/build-predicate) raw-predicates)]
-        ;; TODO: add equality predicates into vmap
+        ;; make a graph
+
+        ;; now, need to make a generator predicate (defstruct generator-predicate :type :sources :assembly :outfields)
+        ;; start with existing generators, stack functions, filters, and add joins or equality filters according to 
+        ;;  the var index
+        ;; make a graph, final being a projection operation to out-vars
+        ;; can add additional analysis to the graph (for example, dead variable analysis and projections)
+        ;; should i make a stateful graph? how to do functional graphs?
+        ;; project output tuple according to 
+        ;; want to push functions up and push filters down
+        ;; 1. add functions and filters to fixed point
+        ;; 2. 
+        ;; 1. start with all generators as separate nodes 
+        ;; 2. Add filters
+        ;; 3. search for a join, applying functions as necessary for a maximal join
+        (println vmap)
         predicates
     ))
 

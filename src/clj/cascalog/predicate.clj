@@ -5,10 +5,16 @@
   (:import [cascading.tap Tap])
   (:import [cascading.tuple Fields]))
 
-;;  type is one of :operation :aggregator
+;;  type is :operation, for map, mapcat, filter
 (defstruct operation-predicate :type :assembly :infields :outfields)
+
+;; type is one of aggregator or buffer
+;; pre-group assembly is for prep stuff like variable sub, null checking, and fast aggregators (counting/summing)
+(defstruct aggregator-predicate :type :pregroup-assembly :postgroup-assembly :infields :outfields)
+
 ;;  type is :generator
-(defstruct generator-predicate :type :sources :assembly :outfields)
+;; automatically generates source pipes and attaches to sources
+(defstruct generator-predicate :type :sourcemap :pipe :outfields)
 
 
 (defstruct predicate-variables :in :out)
@@ -116,7 +122,6 @@
     (when (not-empty non-null-fields)
       (non-null? non-null-fields))))
 
-;; TODO: need to null check inputs
 (defn build-predicate
   "Build a predicate. Calls down to build-predicate-specific for predicate-specific building 
   and adds constant substitution and null checking of ? vars."
@@ -130,17 +135,18 @@
        new-outfields                  (concat outfields (keys newsubs) (keys infield-subs))
        in-insertion-assembly          (mk-insertion-assembly infield-subs)
        out-insertion-assembly         (mk-insertion-assembly newsubs)
-       null-check-in                  (mk-null-check infields)
        null-check-out                 (mk-null-check new-outfields)
        equality-assemblies            (map w/equal equalities)
-       newassem                       (apply w/compose-straight-assemblies
-                                          (filter (complement nil?)
-                                            (concat [in-insertion-assembly
-                                                    null-check-in
-                                                    (:assembly predicate)
-                                                    out-insertion-assembly
-                                                    null-check-out]
-                                          equality-assemblies)))]
-        (merge predicate {:assembly newassem
-                          :outfields new-outfields
-                          :infields (filter cascalog-var? orig-infields)})))
+       outassembly                    (apply w/compose-straight-assemblies
+                                        (filter (complement nil?)
+                                          (concat [out-insertion-assembly
+                                                  null-check-out]
+                                        equality-assemblies)))]
+        (if (= :generator (:type predicate))
+          (merge predicate {:pipe (outassembly (:pipe predicate))
+                            :outfields new-outfields})
+          (merge predicate {:assembly (apply w/compose-straight-assemblies (filter (complement nil?)
+                                      [in-insertion-assembly (:assembly predicate) outassembly]
+                                      ))
+                            :outfields new-outfields
+                            :infields (filter cascalog-var? orig-infields)}))))
