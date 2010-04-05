@@ -14,7 +14,7 @@
 
 (defn update-extra-data [obj kw afn]
   (swap! (::extra-data obj) (fn [curr]
-    (assoc curr (afn (curr kw))))))
+    (assoc curr kw (afn (curr kw))))))
 
 (defn mk-graph []
   (DefaultDirectedGraph.

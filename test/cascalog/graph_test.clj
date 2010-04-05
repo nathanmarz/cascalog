@@ -38,6 +38,8 @@
         (is (= nil (get-extra-data n1 :c)))
         (is (= 1 (get-extra-data e :a)))
         (add-extra-data e :a 101)
+        (update-extra-data n2 :b inc)
+        (is (= 4 (get-extra-data n2 :b)))
         (is (= 101 (get-extra-data (first (get-outbound-edges n1)) :a)))
       ))
 
