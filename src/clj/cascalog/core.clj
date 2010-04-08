@@ -45,19 +45,19 @@
   (let [{ops :operation
          aggs :aggregator
          gens :generator} (merge {:operation [] :aggregator [] :generator []}
-                                (group-by predicates :type))]
-    (when (and (> (count aggs 1)) (some (complement :composable) aggs))
+                                (group-by :type predicates))]
+    (when (and (> (count aggs) 1) (some (complement :composable) aggs))
       (throw (IllegalArgumentException. "Cannot use both aggregators and buffers in same grouping")))
     [gens ops aggs] ))
 
 
-(defstruct tail :operations :available-fields :node)
+(defstruct tailstruct :operations :available-fields :node)
 
 (defn- add-op [tail op]
   (let [new-node (connect-value (:node tail) op)
         new-outfields (concat (:available-fields tail) (:outfields op))
         new-ops (remove-first (partial = op) (:operations tail))]
-        (struct tail new-ops new-outfields new-node)))
+        (struct tailstruct new-ops new-outfields new-node)))
 
 (defn- op-allowed? [available-fields op]
   (let [infields-set (set (:infields op))]
@@ -97,7 +97,7 @@
         ; TODO: eventually should specify the join fields and type of join in the edge
         ;;  for ungrounding vars & when move to full variable renaming and equality sets
         (dorun (map #(create-edge % join-node) join-set))
-        (recur graph (cons (struct tail new-ops available-fields join-node) rest-tails))
+        (recur graph (cons (struct tailstruct new-ops available-fields join-node) rest-tails))
         ))))
 
 (defn- agg-available-fields [grouping-fields aggs]
@@ -107,7 +107,7 @@
   (seq (apply union (map :infields aggs))))
 
 (defn- build-agg-tail [prev-tail grouping-fields aggs]
-  (let [prev-node    (get-value prev-tail)
+  (let [prev-node    (:node prev-tail)
         assem        (apply w/compose-straight-assemblies (concat
                        (map :pregroup-assembly aggs)
                        [(w/group-by grouping-fields)]
@@ -117,7 +117,7 @@
         node         (create-node (get-graph prev-node)
                         (p/predicate group assem (agg-infields aggs) total-fields))]
      (create-edge prev-node node)
-     (struct tail (:operations prev-tail) total-fields node)))
+     (struct tailstruct (:operations prev-tail) total-fields node)))
 
 (defn projection-fields [needed-vars allfields]
   (let [needed-set (set needed-vars)
@@ -183,10 +183,14 @@
                                   [(conj preds [op opvar newvars]) vmap] ))
         [raw-predicates _]    (reduce update-fn [[] vmap] raw-predicates)
         [gens ops aggs]       (split-predicates (map (partial apply p/build-predicate) raw-predicates))
+        _                     (println gens)
+        _                     (println ops)
+        _                     (println aggs)
         rule-graph            (mk-graph)
-        tails                 (map #(struct tail ops (:outfields %) (create-node rule-graph %)) gens)
+        tails                 (map (fn [g] (struct tailstruct ops (:outfields g) (create-node rule-graph g))) gens)
         joined                (merge-tails rule-graph tails)
-        grouping-fields       (intersection (set (:available-fields joined)) (set out-vars))
+        _                     (println joined)
+        grouping-fields       (seq (intersection (set (:available-fields joined)) (set out-vars)))
         agg-tail              (build-agg-tail joined grouping-fields aggs)
         tail                  (add-ops-fixed-point agg-tail)]
       (when (not-empty (:operations tail))

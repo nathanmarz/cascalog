@@ -118,3 +118,17 @@
                expected-data  (map :tuples sink-specs)]
                (is (= (map multi-set expected-data) (map multi-set out-tuples)))
                )))))
+
+;; bindings are name {:fields :tuples}
+(defmacro with-tmp-sources [bindings & body]
+  (let [parts     (partition 2 bindings)
+        names     (map first parts)
+        specs     (map second parts)
+        tmpfiles  (take (count parts) (repeatedly (fn [] (gensym "source"))))
+        tmpforms  (vec (mapcat (fn [f] [f `(cascalog.io/temp-dir ~(str f))]) tmpfiles))
+        tmptaps   (vec (mapcat (fn [n t s] [n `(cascalog.testing/mk-test-source ~s ~t)])
+                    names tmpfiles specs))]
+        `(cascalog.io/with-tmp-files ~tmpforms
+           (let ~tmptaps
+              ~@body
+            ))))

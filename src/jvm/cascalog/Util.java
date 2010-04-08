@@ -50,7 +50,8 @@ public class Util {
       Object[] arr = ((Collection)obj).toArray();
       // Comparable[] arr = new Comparable[raw_arr.length];
       // System.arraycopy(raw_arr, 0, arr, 0, raw_arr.length);
-      return new Tuple(arr);
+
+      return new Tuple(arr);      
     } else {
       // return new Tuple((Comparable) obj);
       return new Tuple(obj);

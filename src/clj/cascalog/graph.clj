@@ -1,5 +1,6 @@
 (ns cascalog.graph
   (:import [org.jgrapht.graph DefaultDirectedGraph])
+  (:import [cascalog SimplePrintDirectedGraph])
   (:import [org.jgrapht EdgeFactory])
   )
 
@@ -17,12 +18,12 @@
     (assoc curr kw (afn (curr kw))))))
 
 (defn mk-graph []
-  (DefaultDirectedGraph.
+  (SimplePrintDirectedGraph.
     (proxy [EdgeFactory] []
       (createEdge [source target]
         (struct edge source target (atom {}))))))
 
-(defn create-node [#^DefaultDirectedGraph graph value]
+(defn create-node [graph value]
   (let [ret (struct node graph value (atom {}))]
     (.addVertex graph ret)
     ret ))
@@ -53,5 +54,5 @@
   (map :target (get-outbound-edges node)))
 
 (defn get-inbound-nodes [node]
-  (map :target (get-inbound-edges node)))
+  (map :source (get-inbound-edges node)))
 
