@@ -67,6 +67,7 @@
 (defn- add-ops-fixed-point
   "Adds operations to tail until can't anymore. Returns new tail"
   [tail]
+  (println "opsadder: " tail)
   (if-let [op (find-first (partial op-allowed? (:available-fields tail)) (:operations tail))]
     (recur (add-op tail op))
     tail ))
@@ -92,8 +93,8 @@
       (first tails)
       (let [[join-set rest-tails] (select-join tails)
             join-node             (create-node (p/predicate join (seq join-set)))
-            available-fields      (seq (union (map #(set (:available-fields %)) join-set)))
-            new-ops               (intersection (map #(set (:operations %)) join-set))]
+            available-fields      (vec (set (apply concat (map :available-fields join-set))))
+            new-ops               (vec (apply intersection (map #(set (:operations %)) join-set)))]
         ; TODO: eventually should specify the join fields and type of join in the edge
         ;;  for ungrounding vars & when move to full variable renaming and equality sets
         (dorun (map #(create-edge % join-node) join-set))
@@ -101,10 +102,10 @@
         ))))
 
 (defn- agg-available-fields [grouping-fields aggs]
-  (seq (union (set grouping-fields) (apply union (map :outfields aggs)))))
+  (vec (union (set grouping-fields) (apply union (map :outfields aggs)))))
 
 (defn- agg-infields [aggs]
-  (seq (apply union (map :infields aggs))))
+  (vec (apply union (map :infields aggs))))
 
 (defn- build-agg-tail [prev-tail grouping-fields aggs]
   (let [prev-node    (:node prev-tail)
@@ -125,8 +126,9 @@
     (seq (intersection needed-set all-set))))
 
 (defn- mk-projection-assembly [projection-fields allfields]
-    (if (= (set projection-fields) (set allfields)) identity
-      (w/select projection-fields)))
+    (if (= (set projection-fields) (set allfields))
+      (do (println "identity projection") identity)
+      (do (println "actual projection") (w/select projection-fields))))
 
 (defmulti node->generator (fn [pred & rest] (:type pred)))
 
@@ -158,28 +160,33 @@
     (throw (RuntimeException. "Planner exception: operation has multiple inbound generators")))
   (let [prevpred (first prevgens)]
     (println "oppred" prevpred)
-    (merge {:outfields (concat (:outfields pred) (:outfields prevpred))
-            :pipe ((:assembly pred) (:pipe prevpred))} prevpred)))
+    (println "prevgenout: " (:outfields prevpred))
+    (println "opmakeout: " (:outfields pred))
+    (merge prevpred {:outfields (concat (:outfields pred) (:outfields prevpred))
+            :pipe ((:assembly pred) (:pipe prevpred))})))
 
 (defmethod node->generator :group [pred prevgens]
   (when-not (= 1 (count prevgens))
     (throw (RuntimeException. "Planner exception: group has multiple inbound generators")))
   (let [prevpred (first prevgens)]
-    (merge {:outfields (:totaloutfields group)
-            :pipe ((:assembly pred) (:pipe prevpred))} prevpred)))
+    (merge prevpred {:outfields (:totaloutfields pred)
+            :pipe ((:assembly pred) (:pipe prevpred))})))
 
 (defn build-generator [needed-vars node]
   (let [pred           (get-value node)
-        my-needed      (seq (union (concat (:infields pred) needed-vars)))
-        _              (println "buildpred" pred)
-        _              (println "seq?" (sequential? (:pipe pred)))
+        my-needed      (vec (set (concat (:infields pred) needed-vars)))
         prev-gens      (doall (map (partial build-generator my-needed) (get-inbound-nodes node)))
         newgen         (node->generator pred prev-gens)
         project-fields (projection-fields needed-vars (:outfields newgen))
-        _ (println "needed: " needed-vars)
+        _              (println "myneeded: " my-needed)
+        _              (println "buildpred" pred)
+        _              (println "newgen" newgen)
+        _              (println "seq?" (sequential? (:pipe pred)))
+        _              (println "needed: " needed-vars)
+        _ (println "myout: " (:outfields newgen))
         _ (println "project: " project-fields)]
-        (merge {:pipe ((mk-projection-assembly project-fields (:outfields newgen)) (:pipe newgen))
-                :outfields project-fields} newgen)))
+        (merge newgen {:pipe ((mk-projection-assembly project-fields (:outfields newgen)) (:pipe newgen))
+                :outfields project-fields})))
 
 (defn build-rule [out-vars raw-predicates]
   (let [[out-vars vmap]       (uniquify-vars out-vars {})
@@ -197,6 +204,7 @@
         _                     (println joined)
         grouping-fields       (seq (intersection (set (:available-fields joined)) (set out-vars)))
         agg-tail              (build-agg-tail joined grouping-fields aggs)
+        _                     (println "agg-tail: " agg-tail)
         tail                  (add-ops-fixed-point agg-tail)]
       (when (not-empty (:operations tail))
         (throw (RuntimeException. (str "Could not apply all operations " (:operations tail)))))
