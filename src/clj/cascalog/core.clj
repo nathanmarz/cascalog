@@ -85,19 +85,23 @@
                                         (set (:available-fields t2))))
                       pairs)
         max-join  (last (sort-by count sections))]
-      (separate #(subset? max-join (set (:available-fields %))) tails)))
+      (cons (vec max-join) (separate #(subset? max-join (set (:available-fields %))) tails))
+    ))
 
 (defn- merge-tails [graph tails]
   (let [tails (map add-ops-fixed-point tails)]
     (if (= 1 (count tails))
       (first tails)
-      (let [[join-set rest-tails] (select-join tails)
-            join-node             (create-node (p/predicate join (seq join-set)))
+      (let [[join-fields join-set rest-tails] (select-join tails)
+            join-node             (create-node graph (p/predicate join join-fields))
             available-fields      (vec (set (apply concat (map :available-fields join-set))))
             new-ops               (vec (apply intersection (map #(set (:operations %)) join-set)))]
         ; TODO: eventually should specify the join fields and type of join in the edge
         ;;  for ungrounding vars & when move to full variable renaming and equality sets
-        (dorun (map #(create-edge % join-node) join-set))
+        (println "join-fields:" join-fields)
+        (println "rest set: " rest-tails)
+        (println "join set:" join-set)
+        (dorun (map #(create-edge (:node %) join-node) join-set))
         (recur graph (cons (struct tailstruct new-ops available-fields join-node) rest-tails))
         ))))
 
@@ -109,6 +113,7 @@
 
 (defn- build-agg-tail [prev-tail grouping-fields aggs]
   (let [prev-node    (:node prev-tail)
+        _ (println "group-fields: " grouping-fields)
         assem        (apply w/compose-straight-assemblies (concat
                        (map :pregroup-assembly aggs)
                        [(w/group-by grouping-fields)]
@@ -123,7 +128,7 @@
 (defn projection-fields [needed-vars allfields]
   (let [needed-set (set needed-vars)
         all-set    (set allfields)]
-    (seq (intersection needed-set all-set))))
+    (vec (intersection needed-set all-set))))
 
 (defn- mk-projection-assembly [projection-fields allfields]
     (if (= (set projection-fields) (set allfields))
@@ -148,9 +153,9 @@
         sourcemap   (apply merge (map :sourcemap prevgens))
         infields    (map :outfields prevgens)
         inpipes     (map (fn [p f] ((w/select f) p)) (map :pipe prevgens) infields)
-        join-fields (apply concat (first infields) (map (partial rename-join-fields join-fields) (rest infields)))
-        keep-fields (apply concat (first infields) (filter (complement (set join-fields)) (rest infields)))
-        joined      (w/assemble inpipes (w/inner-join (repeat (count inpipes) join-fields) join-fields)
+        rename-fields (apply concat (first infields) (map (partial rename-join-fields join-fields) (rest infields)))
+        keep-fields (vec (set (apply concat infields)))
+        joined      (w/assemble inpipes (w/inner-join (repeat (count inpipes) join-fields) rename-fields)
                                         (w/select keep-fields))]
         (p/predicate p/generator  sourcemap joined keep-fields)
     ))
