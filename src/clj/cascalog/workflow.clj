@@ -16,7 +16,7 @@
            [org.apache.hadoop.io Text]
            [org.apache.hadoop.mapred TextInputFormat TextOutputFormat
                                      OutputCollector JobConf]
-           [java.util Properties Map UUID]
+           [java.util Properties Map]
            [cascalog ClojureFilter ClojureMapcat ClojureMap
                               ClojureAggregator Util ClojureBuffer]
            [java.io File]
@@ -66,15 +66,6 @@
     (string? obj)
     (and (sequential? obj) (every? string? obj))))
 
-
-; in-fields: subset of fields from incoming pipe that are passed to function
-;   defaults to all
-; func-fields: fields declared to be returned by the function
-;   must be given in meta data or as [override-fields #'func-var]
-;   no default, error if missing
-; out-fields: subset of (union in-fields func-fields) that flow out of the pipe
-  ;   defaults to func-fields
-
 (defn parse-args
   "
   arr => func-spec in-fields? :fn> func-fields :> out-fields
@@ -99,9 +90,6 @@
 
         result )))
 
-(defn uuid []
-  (str (UUID/randomUUID)))
-
 (defn pipe
   "Returns a Pipe of the given name, or if one is not supplied with a
    unique random name."
@@ -109,6 +97,10 @@
    (Pipe. (uuid)))
   ([#^String name]
    (Pipe. name)))
+
+(defn pipe-rename [#^String name]
+  (fn [p]
+    (Pipe. name p)))
 
 (defn- as-pipes
   [pipe-or-pipes]
@@ -190,12 +182,11 @@
   ([arg1 arg2] (fn [p] (Every. p arg1 arg2)))
   ([arg1 arg2 arg3] (fn [p] (Every. p arg1 arg2 arg3))))
 
-;; we shouldn't need a seq for fields
 (defn aggregate [& args]
   (fn [#^Pipe previous]
-  (let [[#^Fields in-fields func-fields specs #^Fields out-fields] (parse-args args Fields/ALL)]
-    (Every. previous in-fields
-      (ClojureAggregator. func-fields specs) out-fields))))
+    (let [[#^Fields in-fields func-fields specs #^Fields out-fields] (parse-args args Fields/ALL)]
+      (Every. previous in-fields
+        (ClojureAggregator. func-fields specs) out-fields))))
 
 (defn buffer [& args]
   (fn [#^Pipe previous]
@@ -216,6 +207,7 @@
 
 ;; creates an op that has metadata embedded within it, hack to work around fact that clojure
 ;; doesn't allow metadata on functions. call (op :meta) to get metadata
+;; this is so you can pass operations around and dynamically create flows
 (defn- defop-helper [type spec declared-fields bindings code]
   (let  [[fname func-args]     (if (sequential? spec)
                                 [(clojure.core/first spec) (second spec)]

@@ -30,12 +30,28 @@
 (defn create-edge [node1 node2]
   (.addEdge (::graph node1) node1 node2))
 
+(defn connect-value
+  "Creates a node for val and creates an edge from node -> new node. Returns new node"
+  [node val]
+  (let [n2 (create-node (::graph node) val)]
+    (create-edge node n2)
+    n2 ))
+
+(defn get-graph [node]
+  (::graph node))
+
 (defn get-value [node]
   (::value node))
 
 (defn get-outbound-edges [node]
   (if-let [s (seq (.outgoingEdgesOf (::graph node) node))] s []))
 
+(defn get-inbound-edges [node]
+  (if-let [s (seq (.incomingEdgesOf (::graph node) node))] s []))
+
 (defn get-outbound-nodes [node]
   (map :target (get-outbound-edges node)))
+
+(defn get-inbound-nodes [node]
+  (map :target (get-inbound-edges node)))
 

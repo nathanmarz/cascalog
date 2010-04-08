@@ -5,17 +5,34 @@
   (:import [cascading.tap Tap])
   (:import [cascading.tuple Fields]))
 
-;;  type is :operation, for map, mapcat, filter
-(defstruct operation-predicate :type :assembly :infields :outfields)
+;; doing it this way b/c pain to put metadata directly on a function
+(defstruct complex-aggregator :assembly-maker)
 
-;; type is one of aggregator or buffer
+(defmacro defcomplexagg [name & restfunc]
+  `(def ~name (struct cascalog.predicate/complex-aggregator (fn ~@restfunc))))
+
+;; ids are so they can be used in sets safely
+(defmacro defpredicate [name & attrs]
+  `(defstruct ~name :type :id ~@attrs))
+
+(defmacro predicate [aname & attrs]
+  `(struct ~aname ~(keyword (name aname)) (uuid) ~@attrs))
+
+;; for map, mapcat, and filter
+(defpredicate operation :assembly :infields :outfields)
 ;; pre-group assembly is for prep stuff like variable sub, null checking, and fast aggregators (counting/summing)
-(defstruct aggregator-predicate :type :pregroup-assembly :postgroup-assembly :infields :outfields)
-
-;;  type is :generator
+(defpredicate aggregator :composable :pregroup-assembly :postgroup-assembly :infields :outfields)
 ;; automatically generates source pipes and attaches to sources
-(defstruct generator-predicate :type :sourcemap :pipe :outfields)
+(defpredicate generator :sourcemap :pipe :outfields)
 
+(defn generator? [pred]
+  (= (:type pred) :generator))
+
+(defn aggregator? [pred]
+  (= (:type pred) :aggregator))
+
+(defn operation? [pred]
+  (= (:type pred) :operation))
 
 (defstruct predicate-variables :in :out)
 
@@ -31,12 +48,14 @@
               true      (throw (IllegalArgumentException. (str "Bad variables inputted " vars))))
         ))
 
-;; hacky, but best way to do it given restrictions of needing a var for regular functions and needing 
-;; to seemlessly integrate with normal workflows
+;; hacky, but best way to do it given restrictions of needing a var for regular functions, needing 
+;; to seemlessly integrate with normal workflows, and lack of function metadata in clojure (until 1.2 anyway)
+;; uses hacky function metadata so that operations can be passed in as arguments when constructing cascalog
+;; rules
 (defn- predicate-dispatcher [op & rest]
   (cond (instance? Tap op) ::tap
-        (map? op) ::generator
-        (not (nil? (w/get-op-metadata op))) (:type (w/get-op-metadata op))
+        (map? op) (if (= :generator (:type op)) ::generator ::complex-aggregator)
+        (w/get-op-metadata op) (:type (w/get-op-metadata op))
         (fn? op) ::vanilla-function
         true (throw (IllegalArgumentException. "Bad predicate"))
         ))
@@ -45,6 +64,7 @@
 
 (defmethod predicate-default-var ::tap [& args] :out)
 (defmethod predicate-default-var ::generator [& args] :out)
+(defmethod predicate-default-var ::complex-aggregator [& args] :out)
 (defmethod predicate-default-var ::vanilla-function [& args] :out)
 (defmethod predicate-default-var :map [& args] :out)
 (defmethod predicate-default-var :mapcat [& args] :out)
@@ -57,42 +77,49 @@
 ;; TODO: should have a (generator :only ?a ?b) syntax for generators (only select those fields, filter the rest)
 (defmethod build-predicate-specific ::tap [tap _ infields outfields]
   (let
-    [assembly (w/identity Fields/ALL :fn> outfields :> Fields/RESULTS)]
+    [pname (uuid)
+     pipe (w/assemble (w/pipe pname) (w/identity Fields/ALL :fn> outfields :> Fields/RESULTS))]
     (when-not (empty? infields) (throw (IllegalArgumentException. "Cannot use :> in a taps vars declaration")))
-    (struct generator-predicate :generator [tap] assembly outfields)
+    (predicate generator {pname tap} pipe outfields)
   ))
 
 (defmethod build-predicate-specific ::generator [gen _ infields outfields]
-  (let [gen-assembly (:assembly gen)
-        assem (w/compose-straight-assemblies gen-assembly (w/identity Fields/ALL :fn> outfields :> Fields/RESULTS))]
-  (struct generator-predicate :generator (:sources gen) assem outfields)))
+  (let [gen-pipe (w/assemble (:pipe gen) (w/pipe-rename (uuid)) (w/identity Fields/ALL :fn> outfields :> Fields/RESULTS))]
+  (predicate generator (:sourcemap gen) gen-pipe outfields)))
 
 (defmethod build-predicate-specific ::vanilla-function [_ opvar infields outfields]
   (when (nil? opvar) (throw (RuntimeException. "Functions must have vars associated with them")))
   (let
     [[func-fields out-selector] (if (not-empty outfields) [outfields Fields/ALL] [nil nil])
      assembly (w/filter opvar infields :fn> func-fields :> out-selector)]
-    (struct operation-predicate :operation assembly infields outfields)))
+    (predicate operation assembly infields outfields)))
 
-(defn- standard-build-predicate [op _ infields outfields]
-    (struct operation-predicate :operation (op infields :fn> outfields :> Fields/ALL) infields outfields))
+(defn- simpleop-build-predicate [op _ infields outfields]
+    (predicate operation (op infields :fn> outfields :> Fields/ALL) infields outfields))
 
 (defmethod build-predicate-specific :map [& args]
-  (apply standard-build-predicate args))
+  (apply simpleop-build-predicate args))
 
 (defmethod build-predicate-specific :mapcat [& args]
-  (apply standard-build-predicate args))
+  (apply simpleop-build-predicate args))
 
 (defmethod build-predicate-specific :filter [op _ infields outfields]
   (let [[func-fields out-selector] (if (not-empty outfields) [outfields Fields/ALL] [nil nil])
      assembly (op infields :fn> func-fields :> out-selector)]
-    (struct operation-predicate :operation assembly infields outfields)))
+    (predicate operation assembly infields outfields)))
+
+(defmethod build-predicate-specific ::complex-aggregator [cagg _ infields outfields]
+  (let [[preassem postassem] ((:assembly-maker cagg) infields outfields)]
+    (predicate aggregator true preassem postassem infields outfields)))
+
+(defn- simpleagg-build-predicate [composable op _ infields outfields]
+  (predicate aggregator composable identity (op infields :fn> outfields :> Fields/ALL) infields outfields))
 
 (defmethod build-predicate-specific :aggregate [& args]
-  (apply standard-build-predicate args))
+  (apply simpleagg-build-predicate true args))
 
 (defmethod build-predicate-specific :buffer [& args]
-  (apply standard-build-predicate args))
+  (apply simpleagg-build-predicate false args))
 
 (defn- variable-substitution
   "Returns [newvars {map of newvars to values to substitute}]"
@@ -122,6 +149,41 @@
     (when (not-empty non-null-fields)
       (non-null? non-null-fields))))
 
+(defmulti enhance-predicate (fn [pred & rest] (:type pred)))
+
+(defn- identity-if-nil [a]
+  (if a a identity))
+
+(defmethod enhance-predicate :operation [pred infields inassem outfields outassem]
+  (let [inassem (identity-if-nil inassem)
+        outassem (identity-if-nil outassem)]
+    (merge pred {:assembly (w/compose-straight-assemblies inassem (:assembly pred) outassem)
+                 :outfields outfields
+                 :infields infields})))
+
+(defmethod enhance-predicate :aggregator [pred infields inassem outfields outassem]
+  (let [inassem (identity-if-nil inassem)
+        outassem (identity-if-nil outassem)]
+    (merge pred {:pregroup-assembly (w/compose-straight-assemblies inassem (:pregroup-assembly pred))
+                 :postgroup-assembly (w/compose-straight-assemblies (:postgroup-assembly pred) outassem)
+                 :outfields outfields
+                 :infields infields})))
+
+(defmethod enhance-predicate :generator [pred infields inassem outfields outassem]
+  (when inassem
+    (throw (RuntimeException. "Something went wrong in planner - generator received an input modifier")))
+  (merge pred {:pipe (outassem (:pipe pred))
+               :outfields outfields}))
+
+(defmethod predicate-default-var ::generator [& args] :out)
+(defmethod predicate-default-var ::vanilla-function [& args] :out)
+(defmethod predicate-default-var ::complex-aggregator [& args] :out)
+(defmethod predicate-default-var :map [& args] :out)
+(defmethod predicate-default-var :mapcat [& args] :out)
+(defmethod predicate-default-var :aggregate [& args] :out)
+(defmethod predicate-default-var :buffer [& args] :out)
+(defmethod predicate-default-var :filter [& args] :in)
+
 (defn build-predicate
   "Build a predicate. Calls down to build-predicate-specific for predicate-specific building 
   and adds constant substitution and null checking of ? vars."
@@ -142,11 +204,8 @@
                                           (concat [out-insertion-assembly
                                                   null-check-out]
                                         equality-assemblies)))]
-        (if (= :generator (:type predicate))
-          (merge predicate {:pipe (outassembly (:pipe predicate))
-                            :outfields new-outfields})
-          (merge predicate {:assembly (apply w/compose-straight-assemblies (filter (complement nil?)
-                                      [in-insertion-assembly (:assembly predicate) outassembly]
-                                      ))
-                            :outfields new-outfields
-                            :infields (filter cascalog-var? orig-infields)}))))
+        (enhance-predicate predicate
+                           (filter cascalog-var? orig-infields)
+                           in-insertion-assembly
+                           new-outfields
+                           outassembly)))

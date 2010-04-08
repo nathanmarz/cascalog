@@ -1,4 +1,6 @@
-(ns cascalog.util)
+(ns cascalog.util
+  (:use [clojure.contrib.seq-utils :only [find-first indexed]])
+  (:import [java.util UUID]))
 
 (defn transpose [m]
   (apply map list m))
@@ -26,3 +28,22 @@
     (let [count (inc (or (m elem) 0))]
       (assoc m elem count)))]
     (reduce update-fn {} aseq)))
+
+(defn remove-first [f coll]
+  (let [i (indexed coll)
+        ri (find-first #(f (second %)) i)]
+        (when-not ri (throw (IllegalArgumentException. "Couldn't find an item to remove")))
+        (map second (remove (partial = ri) i))
+      ))
+
+(defn uuid []
+  (str (UUID/randomUUID)))
+
+(defn all-pairs
+  "[1 2 3] -> [[1 2] [1 3] [2 3]]"
+  [coll]
+  (let [pair-up (fn [v vals]
+                  (map (partial vector v) vals))]
+    (apply concat (for [i (range (dec (count coll)))]
+      (pair-up (nth coll i) (drop (inc i) coll))
+    ))))

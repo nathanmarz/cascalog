@@ -29,7 +29,6 @@
 
 (defn gen-nullable-var [] (str "!" (gen-unique-suffix)))
 
-
 (defn uniquify-vars
   "Uniques the cascalog vars, same vars still have the same name"
   [vars equalities]
