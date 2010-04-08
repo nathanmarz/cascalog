@@ -300,13 +300,6 @@
 (defn outer-join [fields-seq declared-fields]
   (join-assembly fields-seq declared-fields (OuterJoin.)))
 
-;;TODO create join abstractions. http://en.wikipedia.org/wiki/Join_(SQL)
-;;"join and drop" is called a natural join - inner join, followed by select to remove duplicate join keys.
-
-;;another kind of join and dop is to drop all the join keys - for example, when you have extracted a specil join key jsut for grouping, you typicly want to get rid of it after the group operation.
-
-;;another kind of "join and drop" is an outer-join followed by dropping the nils
-
 (defn taps-map [pipes taps]
   (Cascades/tapsMap (into-array Pipe pipes) (into-array Tap taps)))
 

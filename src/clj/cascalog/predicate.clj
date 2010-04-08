@@ -65,7 +65,7 @@
 (defmethod predicate-default-var ::tap [& args] :out)
 (defmethod predicate-default-var ::generator [& args] :out)
 (defmethod predicate-default-var ::complex-aggregator [& args] :out)
-(defmethod predicate-default-var ::vanilla-function [& args] :out)
+(defmethod predicate-default-var ::vanilla-function [& args] :in)
 (defmethod predicate-default-var :map [& args] :out)
 (defmethod predicate-default-var :mapcat [& args] :out)
 (defmethod predicate-default-var :aggregate [& args] :out)
@@ -174,15 +174,6 @@
     (throw (RuntimeException. "Something went wrong in planner - generator received an input modifier")))
   (merge pred {:pipe (outassem (:pipe pred))
                :outfields outfields}))
-
-(defmethod predicate-default-var ::generator [& args] :out)
-(defmethod predicate-default-var ::vanilla-function [& args] :out)
-(defmethod predicate-default-var ::complex-aggregator [& args] :out)
-(defmethod predicate-default-var :map [& args] :out)
-(defmethod predicate-default-var :mapcat [& args] :out)
-(defmethod predicate-default-var :aggregate [& args] :out)
-(defmethod predicate-default-var :buffer [& args] :out)
-(defmethod predicate-default-var :filter [& args] :in)
 
 (defn build-predicate
   "Build a predicate. Calls down to build-predicate-specific for predicate-specific building 
