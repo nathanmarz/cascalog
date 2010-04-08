@@ -92,7 +92,7 @@
       (first tails)
       (let [[join-set rest-tails] (select-join tails)
             join-node             (create-node (p/predicate join (seq join-set)))
-            available-fields           (seq (union (map #(set (:available-fields %)) join-set)))
+            available-fields      (seq (union (map #(set (:available-fields %)) join-set)))
             new-ops               (intersection (map #(set (:operations %)) join-set))]
         ; TODO: eventually should specify the join fields and type of join in the edge
         ;;  for ungrounding vars & when move to full variable renaming and equality sets
@@ -157,6 +157,7 @@
   (when-not (= 1 (count prevgens))
     (throw (RuntimeException. "Planner exception: operation has multiple inbound generators")))
   (let [prevpred (first prevgens)]
+    (println "oppred" prevpred)
     (merge {:outfields (concat (:outfields pred) (:outfields prevpred))
             :pipe ((:assembly pred) (:pipe prevpred))} prevpred)))
 
@@ -170,9 +171,13 @@
 (defn build-generator [needed-vars node]
   (let [pred           (get-value node)
         my-needed      (seq (union (concat (:infields pred) needed-vars)))
-        prev-gens      (map (partial build-generator my-needed) (get-inbound-nodes node))
+        _              (println "buildpred" pred)
+        _              (println "seq?" (sequential? (:pipe pred)))
+        prev-gens      (doall (map (partial build-generator my-needed) (get-inbound-nodes node)))
         newgen         (node->generator pred prev-gens)
-        project-fields (projection-fields needed-vars (:outfields newgen))]
+        project-fields (projection-fields needed-vars (:outfields newgen))
+        _ (println "needed: " needed-vars)
+        _ (println "project: " project-fields)]
         (merge {:pipe ((mk-projection-assembly project-fields (:outfields newgen)) (:pipe newgen))
                 :outfields project-fields} newgen)))
 

@@ -79,6 +79,7 @@
   (let
     [pname (uuid)
      pipe (w/assemble (w/pipe pname) (w/identity Fields/ALL :fn> outfields :> Fields/RESULTS))]
+     (println "tapgen: " pipe)
     (when-not (empty? infields) (throw (IllegalArgumentException. "Cannot use :> in a taps vars declaration")))
     (predicate generator {pname tap} pipe outfields)
   ))
