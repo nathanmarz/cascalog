@@ -14,4 +14,5 @@
                cascalog.predicate
                cascalog.workflow-example
                cascalog.testing
-               cascalog.graph])
+               cascalog.graph
+               cascalog.api])

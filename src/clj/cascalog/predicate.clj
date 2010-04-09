@@ -25,14 +25,14 @@
 ;; automatically generates source pipes and attaches to sources
 (defpredicate generator :sourcemap :pipe :outfields)
 
-(defn generator? [pred]
-  (= (:type pred) :generator))
-
-(defn aggregator? [pred]
-  (= (:type pred) :aggregator))
-
-(defn operation? [pred]
-  (= (:type pred) :operation))
+; (defn generator? [pred]
+;   (= (:type pred) :generator))
+; 
+; (defn aggregator? [pred]
+;   (= (:type pred) :aggregator))
+; 
+; (defn operation? [pred]
+;   (= (:type pred) :operation))
 
 (defstruct predicate-variables :in :out)
 

@@ -1,4 +1,4 @@
-(ns cascalog.core
+(ns cascalog.rules
   (:use [cascalog vars util graph])
   (:use clojure.contrib.set)
   (:use [clojure.set :only [intersection union]])
@@ -15,8 +15,14 @@
 
 ;; TODO:
 ;; 
-;; 4. Enforce !! rules -> only allowed in generators or output of operations, ungrounds whatever it's in
-
+;; 1. distinct when no aggregator
+;; 2. thorough tests
+;; 3. add ability to disable distinct (some sort of options map)
+;; 4. Enforce !! rules -> only allowed in generators, ungrounds whatever it's in
+;; 5. rework joins and var uniquing to create equality sets - filter when possible, otherwise use joins
+;; 6. parameterized rules? - how does aggregation & joins work in this context? ->
+;;    -> maybe just creates a generator...?
+;; 
 ;; TODO: make it possible to create ungrounded rules that take in input vars (for composition)
 ;; i.e. (<- [?a ?b :> ?c] (func1 ?a :> ?c) (func2 ?b :> ?c))
 ;; (<- [?p] (data ?p ?a ?b) (func1 ?a :> ?c1) (func2 ?b :> ?c2) (= ?c1 ?c2))
@@ -36,9 +42,6 @@
 ;; infields for a join are the names of the join fields
 (p/defpredicate join :infields)
 (p/defpredicate group :assembly :infields :totaloutfields)
-
-(defn join? [pred]
-  (= :join (:type pred)))
 
 ;; returns [generators operations aggregators]
 (defn- split-predicates [predicates]
@@ -215,19 +218,12 @@
         (throw (RuntimeException. (str "Could not apply all operations " (:operations tail)))))
       (build-generator out-vars (:node tail))))
 
-(defn- mk-raw-predicate [pred]
+(defn mk-raw-predicate [pred]
   (let [[op-sym & vars] pred
         str-vars (vars2str vars)]
     [op-sym (try-resolve op-sym) str-vars]))
 
-(defmacro <-
-  "Constructs a rule from a list of predicates"
-  [outvars & predicates]
-  (let [predicate-builders (vec (map mk-raw-predicate predicates))
-        outvars-str (vars2str outvars)]
-        `(cascalog.core/build-rule ~outvars-str ~predicate-builders)))
-
-(defn- connect-to-sink [gen sink]
+(defn connect-to-sink [gen sink]
     (let [sink-fields (.getSinkFields sink)
           pipe        (:pipe gen)
           pipe        (if-not (.isDefined sink-fields)
@@ -237,21 +233,4 @@
                             "Cannot sink to a sink with meta fields defined besides Fields/ALL")))
                         ((w/identity (:outfields gen) :fn> sink-fields) pipe))]
           ((w/pipe-rename (uuid)) pipe)))
-
-;; TODO: add ability to specify sorting of output, specify whether or not to distinct on map-only
-(defn ?-
-  "Builds and executes a flow based on the sinks binded to the rules. 
-  Bindings are of form: sink rule"
-  [& bindings]
-  (when (odd? (count bindings)) (throw (IllegalArgumentException. "Need even number of args to ?-")))
-  (let [sinks           (take-nth 2 bindings)
-        gens            (take-nth 2 (rest bindings))
-        sourcemap       (apply merge (map :sourcemap gens))
-        tails           (map connect-to-sink gens sinks)
-        sinkmap         (w/taps-map tails sinks)
-        flow            (.connect (FlowConnector.) sourcemap sinkmap (into-array Pipe tails))]
-        (.complete flow)))
-
-(defmacro ?<- [output outvars & predicates]
-  `(?- ~output (<- ~outvars ~@predicates)))
 
