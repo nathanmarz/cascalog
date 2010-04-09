@@ -16,3 +16,10 @@
      (test?<- [["j"] ["n"]] [?p] (age ?p ?a) (< ?a 25))
      (test?<- [["j"] ["n"] ["n"]] {:distinct false} [?p] (age ?p ?a) (< ?a 25))
     ))
+
+(deftest test-larger-tuples
+  (with-tmp-sources [stats [["n" 6 190 nil] ["n" 6 195 nil] ["i" 5 180 31] ["g" 5 150 60]]
+                     friends [["n" "i" 6] ["n" "g" 20] ["g" "i" nil]]]
+     (test?<- [["g" 60]] [?p ?a] (stats ?p _ _ ?a) (friends ?p _ _))
+     (test?<- [] [?p ?a] (stats ?p 1000 _ ?a))
+    ))

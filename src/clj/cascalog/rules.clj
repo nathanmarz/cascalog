@@ -15,11 +15,13 @@
 
 ;; TODO:
 ;; 
+;; 0. implement aggregators and make sure they work (in conjunction with post-group functions/filters too)
 ;; 1. thorough tests
 ;; 2. Enforce !! rules -> only allowed in generators, ungrounds whatever it's in
 ;; 3. rework joins and var uniquing to create equality sets - filter when possible, otherwise use joins
 ;; 4. parameterized rules? - how does aggregation & joins work in this context? ->
 ;;    -> maybe just creates a generator...?
+;; 5. need helpers to create sink taps that just take in Fields/ALL
 ;; 
 ;; TODO: make it possible to create ungrounded rules that take in input vars (for composition)
 ;; i.e. (<- [?a ?b :> ?c] (func1 ?a :> ?c) (func2 ?b :> ?c))
@@ -112,8 +114,6 @@
 (defn- agg-infields [aggs]
   (vec (apply union (map :infields aggs))))
 
-
-
 (defn- normalize-grouping
   "Returns [new-grouping-fields inserter-assembly]"
   [grouping-fields]
@@ -148,11 +148,14 @@
 
 (defn projection-fields [needed-vars allfields]
   (let [needed-set (set needed-vars)
-        all-set    (set allfields)]
-    (vec (intersection needed-set all-set))))
+        all-set    (set allfields)
+        inter      (intersection needed-set all-set)]
+        (if (= inter needed-set)
+          needed-vars  ; maintain ordering when =, this is for output of generators to match declared ordering
+         (vec (intersection needed-set all-set)))))
 
-(defn- mk-projection-assembly [projection-fields allfields]
-    (if (= (set projection-fields) (set allfields))
+(defn- mk-projection-assembly [forceproject projection-fields allfields]
+    (if (and (not forceproject) (= (set projection-fields) (set allfields)))
       identity
       (w/select projection-fields)))
 
@@ -198,10 +201,12 @@
     (merge prevpred {:outfields (:totaloutfields pred)
             :pipe ((:assembly pred) (:pipe prevpred))})))
 
-(defn build-generator [needed-vars node]
+
+;; forceproject necessary b/c *must* reorder last set of fields coming out to match declared ordering
+(defn build-generator [forceproject needed-vars node]
   (let [pred           (get-value node)
         my-needed      (vec (set (concat (:infields pred) needed-vars)))
-        prev-gens      (doall (map (partial build-generator my-needed) (get-inbound-nodes node)))
+        prev-gens      (doall (map (partial build-generator false my-needed) (get-inbound-nodes node)))
         newgen         (node->generator pred prev-gens)
         project-fields (projection-fields needed-vars (:outfields newgen))
         ; _              (println "myneeded: " my-needed)
@@ -212,7 +217,7 @@
         ; _ (println "myout: " (:outfields newgen))
         ; _ (println "project: " project-fields)
         ]
-        (merge newgen {:pipe ((mk-projection-assembly project-fields (:outfields newgen)) (:pipe newgen))
+        (merge newgen {:pipe ((mk-projection-assembly forceproject project-fields (:outfields newgen)) (:pipe newgen))
                 :outfields project-fields})))
 
 (defn build-rule [options out-vars raw-predicates]
@@ -235,7 +240,7 @@
         tail                  (add-ops-fixed-point agg-tail)]
       (when (not-empty (:operations tail))
         (throw (RuntimeException. (str "Could not apply all operations " (:operations tail)))))
-      (build-generator out-vars (:node tail))))
+      (build-generator true out-vars (:node tail))))
 
 (defn mk-raw-predicate [pred]
   (let [[op-sym & vars] pred

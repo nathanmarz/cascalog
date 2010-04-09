@@ -93,7 +93,7 @@
 (defn- mapify-spec [spec]
   (if (map? spec)
     spec
-    {:fields (gen-fake-fields (count (first spec))) :tuples spec} ))
+    {:fields Fields/ALL :tuples spec} ))
 
 (defn mk-test-source [spec path]
   (let [spec (mapify-spec spec)
