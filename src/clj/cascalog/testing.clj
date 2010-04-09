@@ -2,7 +2,8 @@
   (:use clojure.test
         clojure.contrib.java-utils
         cascalog.io
-        cascalog.util)
+        cascalog.util
+        cascalog.api)
   (:import [cascading.tuple Fields Tuple TupleEntry TupleEntryCollector]
            [cascading.pipe Pipe]
            [cascading.operation ConcreteCall]
@@ -86,19 +87,23 @@
   (with-open [it (.openForRead sink (JobConf.))]
        (doall (map #(Util/coerceFromTuple (Tuple. (.getTuple %))) (iterator-seq it)))))
 
-(defstruct tap-spec :fields :tuples)
+(defn- gen-fake-fields [amt]
+  (take amt (map str (iterate inc 1))))
+
+(defn- mapify-spec [spec]
+  (if (map? spec)
+    spec
+    {:fields (gen-fake-fields (count (first spec))) :tuples spec} ))
 
 (defn mk-test-source [spec path]
-  (let [source (mk-test-tap (:fields spec) path)]
+  (let [spec (mapify-spec spec)
+        source (mk-test-tap (:fields spec) path)]
     (with-open [collector (.openForWrite source (JobConf.))]
       (doall (map #(.add collector (Util/coerceToTuple %)) (:tuples spec))))
     source ))
 
-(defn mk-test-sink [[fields-def data] path]
-  [(mk-test-tap fields-def path) data])
-
 (defn mk-test-sink [spec path]
-  (mk-test-tap (:fields spec) path))
+  (mk-test-tap (:fields (mapify-spec spec)) path))
 
 (defn test-assembly
   ([source-specs sink-specs assembly]
@@ -119,16 +124,37 @@
                (is (= (map multi-set expected-data) (map multi-set out-tuples)))
                )))))
 
+(defn- mk-tmpfiles+forms [amt]
+  (let [tmpfiles  (take amt (repeatedly (fn [] (gensym "tap"))))
+        tmpforms  (vec (mapcat (fn [f] [f `(cascalog.io/temp-dir ~(str f))]) tmpfiles))]
+    [tmpfiles tmpforms]
+  ))
+
 ;; bindings are name {:fields :tuples}
 (defmacro with-tmp-sources [bindings & body]
   (let [parts     (partition 2 bindings)
         names     (map first parts)
         specs     (map second parts)
-        tmpfiles  (take (count parts) (repeatedly (fn [] (gensym "source"))))
-        tmpforms  (vec (mapcat (fn [f] [f `(cascalog.io/temp-dir ~(str f))]) tmpfiles))
+        [tmpfiles tmpforms] (mk-tmpfiles+forms (count parts))
         tmptaps   (vec (mapcat (fn [n t s] [n `(cascalog.testing/mk-test-source ~s ~t)])
                     names tmpfiles specs))]
         `(cascalog.io/with-tmp-files ~tmpforms
            (let ~tmptaps
               ~@body
             ))))
+
+(defn test?- [& bindings]
+  (let [[log-level bindings] (if (keyword? (first bindings))
+                                [(first bindings) (rest bindings)]
+                                [:warn bindings])]
+    (with-log-level log-level
+      (with-tmp-files [sink-path (temp-dir "sink")]
+        (let [[specs rules]  (unweave bindings)
+              sinks          (map mk-test-sink specs (unique-rooted-paths sink-path))
+              _              (apply ?- (interleave sinks rules))
+              out-tuples     (doall (map get-tuples sinks))
+              ]
+              (is (= (map multi-set specs) (map multi-set out-tuples))))))))
+
+(defmacro test?<- [sink-spec & body]
+  `(test?- ~sink-spec (<- ~@body)))

@@ -5,8 +5,13 @@
   (:import [cascading.tuple Fields])
   (:require [cascalog [workflow :as w]]))
 
-(deftest test-basic-query
-  (with-tmp-sources [friends {:fields ["p1" "p2"] :tuples [["n" "j"] ["j" "m"] ["m" "a"]]}
-                     age {:fields ["p" "a"] :tuples [["n" nil] ["m" 30] ["j" 26]]}]
-    (?<- (w/lfs-tap (w/text-line ["p1" "p2"]) "/tmp/aaa") [?p1 ?p3] (age ?p1 ?a) (friends ?p1 ?p2) (friends ?p2 ?p3))
-   ))
+; (deftest test-basic-query
+;   (with-tmp-sources [friends [["n" "j"] ["n" "a"] ["m" "a"]]
+;                      age     [["n" 22] ["m" 30] ["j" 26]] ]
+;     (?<- (w/lfs-tap (w/text-line ["p1"]) "/tmp/aaa") [?p1] (age ?p1 ?a) (friends ?p1 _) (< ?a 27))
+;    ))
+
+(deftest test-maponly-query
+  (with-tmp-sources [age [["n" 24] ["i" 31] ["c" 30] ["j" 21] ["q" nil]]]
+    (test?<- [["j"] ["n"]] [?p] (age ?p ?a) (< ?a 25))
+    ))

@@ -47,3 +47,9 @@
     (apply concat (for [i (range (dec (count coll)))]
       (pair-up (nth coll i) (drop (inc i) coll))
     ))))
+
+(defn unweave
+  "[1 2 3 4 5 6] -> [[1 3 5] [2 4 6]]"
+  [coll]
+  (when (odd? (count coll)) (throw (IllegalArgumentException. "Need even number of args to unweave")))
+  [(take-nth 2 coll) (take-nth 2 (rest coll))])

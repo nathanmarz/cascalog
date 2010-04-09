@@ -25,9 +25,7 @@
   "Builds and executes a flow based on the sinks binded to the rules. 
   Bindings are of form: sink rule"
   [& bindings]
-  (when (odd? (count bindings)) (throw (IllegalArgumentException. "Need even number of args to ?-")))
-  (let [sinks           (take-nth 2 bindings)
-        gens            (take-nth 2 (rest bindings))
+  (let [[sinks gens]    (unweave bindings)
         sourcemap       (apply merge (map :sourcemap gens))
         tails           (map cascalog.rules/connect-to-sink gens sinks)
         sinkmap         (w/taps-map tails sinks)

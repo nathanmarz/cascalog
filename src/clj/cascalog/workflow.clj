@@ -127,7 +127,6 @@
 (defn map [& args]
   (fn [previous]
     (let [[in-fields func-fields spec out-fields] (parse-args args)]
-      (println "Args: " args)
     (Each. previous in-fields
       (ClojureMap. func-fields spec) out-fields))))
 
@@ -153,16 +152,12 @@
 
 (defn select [keep-fields]
   (fn [previous]
-    (println "prev: " previous)
-    (println "select: " keep-fields)
     (let [ret (Each. previous (fields keep-fields) (Identity.))]
-      (println "select2")
       ret
     )))
 
 (defn identity [& args]
   (fn [previous]
-    (println "identity: " args)
     ;;  + is a hack. TODO: split up parse-args into parse-args and parse-selector-args
     (let [[in-fields func-fields _ out-fields] (parse-args (cons #'+ args) Fields/RESULTS)]
     (Each. previous in-fields
