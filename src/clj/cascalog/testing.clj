@@ -152,8 +152,7 @@
         (let [[specs rules]  (unweave bindings)
               sinks          (map mk-test-sink specs (unique-rooted-paths sink-path))
               _              (apply ?- (interleave sinks rules))
-              out-tuples     (doall (map get-tuples sinks))
-              ]
+              out-tuples     (doall (map get-tuples sinks))]
               (is (= (map multi-set specs) (map multi-set out-tuples))))))))
 
 (defmacro test?<- [sink-spec & body]

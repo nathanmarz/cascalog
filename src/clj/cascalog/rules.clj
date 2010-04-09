@@ -15,12 +15,10 @@
 
 ;; TODO:
 ;; 
-;; 1. distinct when no aggregator
-;; 2. thorough tests
-;; 3. add ability to disable distinct (some sort of options map)
-;; 4. Enforce !! rules -> only allowed in generators, ungrounds whatever it's in
-;; 5. rework joins and var uniquing to create equality sets - filter when possible, otherwise use joins
-;; 6. parameterized rules? - how does aggregation & joins work in this context? ->
+;; 1. thorough tests
+;; 2. Enforce !! rules -> only allowed in generators, ungrounds whatever it's in
+;; 3. rework joins and var uniquing to create equality sets - filter when possible, otherwise use joins
+;; 4. parameterized rules? - how does aggregation & joins work in this context? ->
 ;;    -> maybe just creates a generator...?
 ;; 
 ;; TODO: make it possible to create ungrounded rules that take in input vars (for composition)
@@ -114,10 +112,29 @@
 (defn- agg-infields [aggs]
   (vec (apply union (map :infields aggs))))
 
-(defn- build-agg-tail [prev-tail grouping-fields aggs]
-  (let [prev-node    (:node prev-tail)
+
+
+(defn- normalize-grouping
+  "Returns [new-grouping-fields inserter-assembly]"
+  [grouping-fields]
+  (if-not (empty? grouping-fields)
+          [grouping-fields identity]
+          (let [newvar (gen-nullable-var)]
+            [[newvar] (w/insert newvar 1)]
+            )))
+
+(defn- build-agg-tail [options prev-tail grouping-fields aggs]
+  ;; if no aggs -> if options:distinct is false, return prev-tail. otherwise, insert a distinct
+  ;; insert arbitrary grouping field if no grouping fields
+  (if (and (not (:distinct options)) (empty? aggs))
+    prev-tail
+    (let [aggs              (if-not (empty? aggs) aggs [p/distinct-aggregator])
+          [grouping-fields
+           inserter]        (normalize-grouping grouping-fields)
+          prev-node    (:node prev-tail)
         ; _ (println "group-fields: " grouping-fields)
         assem        (apply w/compose-straight-assemblies (concat
+                       [inserter]
                        (map :pregroup-assembly aggs)
                        [(w/group-by grouping-fields)]
                        (map :postgroup-assembly aggs)
@@ -126,7 +143,8 @@
         node         (create-node (get-graph prev-node)
                         (p/predicate group assem (agg-infields aggs) total-fields))]
      (create-edge prev-node node)
-     (struct tailstruct (:operations prev-tail) total-fields node)))
+     (struct tailstruct (:operations prev-tail) total-fields node))
+    ))
 
 (defn projection-fields [needed-vars allfields]
   (let [needed-set (set needed-vars)
@@ -197,7 +215,7 @@
         (merge newgen {:pipe ((mk-projection-assembly project-fields (:outfields newgen)) (:pipe newgen))
                 :outfields project-fields})))
 
-(defn build-rule [out-vars raw-predicates]
+(defn build-rule [options out-vars raw-predicates]
   (let [[out-vars vmap]       (uniquify-vars out-vars {})
         update-fn             (fn [[preds vmap] [op opvar vars]]
                                 (let [[newvars vmap] (uniquify-vars vars vmap)]
@@ -212,7 +230,7 @@
         joined                (merge-tails rule-graph tails)
         ; _                     (println joined)
         grouping-fields       (seq (intersection (set (:available-fields joined)) (set out-vars)))
-        agg-tail              (build-agg-tail joined grouping-fields aggs)
+        agg-tail              (build-agg-tail options joined grouping-fields aggs)
         ; _                     (println "agg-tail: " agg-tail)
         tail                  (add-ops-fixed-point agg-tail)]
       (when (not-empty (:operations tail))

@@ -25,6 +25,8 @@
 ;; automatically generates source pipes and attaches to sources
 (defpredicate generator :sourcemap :pipe :outfields)
 
+
+(def distinct-aggregator (predicate aggregator false identity (w/first) [] []))
 ; (defn generator? [pred]
 ;   (= (:type pred) :generator))
 ; 

@@ -11,7 +11,8 @@
 ;     (?<- (w/lfs-tap (w/text-line ["p1"]) "/tmp/aaa") [?p1] (age ?p1 ?a) (friends ?p1 _) (< ?a 27))
 ;    ))
 
-(deftest test-maponly-query
-  (with-tmp-sources [age [["n" 24] ["i" 31] ["c" 30] ["j" 21] ["q" nil]]]
-    (test?<- [["j"] ["n"]] [?p] (age ?p ?a) (< ?a 25))
+(deftest test-simple-query
+  (with-tmp-sources [age [["n" 24] ["n" 23] ["i" 31] ["c" 30] ["j" 21] ["q" nil]]]
+     (test?<- [["j"] ["n"]] [?p] (age ?p ?a) (< ?a 25))
+     (test?<- [["j"] ["n"] ["n"]] {:distinct false} [?p] (age ?p ?a) (< ?a 25))
     ))

@@ -8,8 +8,9 @@
                  [org.clojure/clojure-contrib "1.1.0"]]
   :dev-dependencies [[lein-javac "0.0.2-SNAPSHOT"]]
   :namespaces [cascalog.workflow
-               cascalog.core
+               cascalog.api
                cascalog.util
+               cascalog.rules
                cascalog.vars
                cascalog.predicate
                cascalog.workflow-example

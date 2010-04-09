@@ -13,14 +13,21 @@
 ; (p/defcomplexagg sum [infields outfields]
 ;   )
 
+(def DEFAULT-OPTIONS
+  {:distinct true})
+
 (defmacro <-
   "Constructs a rule from a list of predicates"
-  [outvars & predicates]
-  (let [predicate-builders (vec (map cascalog.rules/mk-raw-predicate predicates))
+  [& args]
+  (let [[farg & rargs] args
+        [options outvars predicates] (if (map? farg)
+                                      [(merge DEFAULT-OPTIONS farg) (first rargs) (rest rargs)]
+                                      [DEFAULT-OPTIONS farg rargs])
+        predicate-builders (vec (map cascalog.rules/mk-raw-predicate predicates))
         outvars-str (vars2str outvars)]
-        `(cascalog.rules/build-rule ~outvars-str ~predicate-builders)))
+        `(cascalog.rules/build-rule ~options ~outvars-str ~predicate-builders)))
 
-;; TODO: add ability to specify sorting of output, specify whether or not to distinct on map-only
+;; TODO: add ability to specify sorting of output (should this be specified in query or in <- options?)
 (defn ?-
   "Builds and executes a flow based on the sinks binded to the rules. 
   Bindings are of form: sink rule"
@@ -32,5 +39,5 @@
         flow            (.connect (FlowConnector.) sourcemap sinkmap (into-array Pipe tails))]
         (.complete flow)))
 
-(defmacro ?<- [output outvars & predicates]
-  `(?- ~output (<- ~outvars ~@predicates)))
+(defmacro ?<- [output & body]
+  `(?- ~output (<- ~@body)))
