@@ -6,6 +6,8 @@
   (:import [cascading.tuple Fields]))
 
 ;; doing it this way b/c pain to put metadata directly on a function
+;; assembly-maker is a function that takes in infields & outfields and returns
+;; [preassembly postassembly]
 (defstruct complex-aggregator :assembly-maker)
 
 (defmacro defcomplexagg [name & restfunc]
@@ -20,21 +22,13 @@
 
 ;; for map, mapcat, and filter
 (defpredicate operation :assembly :infields :outfields)
-;; pre-group assembly is for prep stuff like variable sub, null checking, and fast aggregators (counting/summing)
-(defpredicate aggregator :composable :pregroup-assembly :postgroup-assembly :infields :outfields)
+;; pre-group assembly is for fast aggregators (counting/summing)
+(defpredicate aggregator :composable :pregroup-assembly :postgroup-assembly :post-assembly :infields :outfields)
 ;; automatically generates source pipes and attaches to sources
 (defpredicate generator :sourcemap :pipe :outfields)
 
 
-(def distinct-aggregator (predicate aggregator false identity (w/first) [] []))
-; (defn generator? [pred]
-;   (= (:type pred) :generator))
-; 
-; (defn aggregator? [pred]
-;   (= (:type pred) :aggregator))
-; 
-; (defn operation? [pred]
-;   (= (:type pred) :operation))
+(def distinct-aggregator (predicate aggregator false identity (w/first) identity [] []))
 
 (defstruct predicate-variables :in :out)
 
@@ -112,10 +106,10 @@
 
 (defmethod build-predicate-specific ::complex-aggregator [cagg _ infields outfields]
   (let [[preassem postassem] ((:assembly-maker cagg) infields outfields)]
-    (predicate aggregator true preassem postassem infields outfields)))
+    (predicate aggregator true preassem postassem identity infields outfields)))
 
 (defn- simpleagg-build-predicate [composable op _ infields outfields]
-  (predicate aggregator composable identity (op infields :fn> outfields :> Fields/ALL) infields outfields))
+  (predicate aggregator composable identity (op infields :fn> outfields :> Fields/ALL) identity infields outfields))
 
 (defmethod build-predicate-specific :aggregate [& args]
   (apply simpleagg-build-predicate true args))
@@ -167,7 +161,7 @@
   (let [inassem (identity-if-nil inassem)
         outassem (identity-if-nil outassem)]
     (merge pred {:pregroup-assembly (w/compose-straight-assemblies inassem (:pregroup-assembly pred))
-                 :postgroup-assembly (w/compose-straight-assemblies (:postgroup-assembly pred) outassem)
+                 :post-assembly outassem
                  :outfields outfields
                  :infields infields})))
 

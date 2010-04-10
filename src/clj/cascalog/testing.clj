@@ -85,7 +85,7 @@
 
 (defn get-tuples [sink]
   (with-open [it (.openForRead sink (JobConf.))]
-       (doall (map #(Util/coerceFromTuple (Tuple. (.getTuple %))) (iterator-seq it)))))
+       (doall (map #(vec (Util/coerceFromTuple (Tuple. (.getTuple %)))) (iterator-seq it)))))
 
 (defn- gen-fake-fields [amt]
   (take amt (map str (iterate inc 1))))
@@ -144,6 +144,10 @@
               ~@body
             ))))
 
+(defn- doublify [tuples]
+  (for [t tuples]
+  (map (fn [v] (if (number? v) (double v) v)) t)))
+
 (defn test?- [& bindings]
   (let [[log-level bindings] (if (keyword? (first bindings))
                                 [(first bindings) (rest bindings)]
@@ -153,8 +157,10 @@
         (let [[specs rules]  (unweave bindings)
               sinks          (map mk-test-sink specs (unique-rooted-paths sink-path))
               _              (apply ?- (interleave sinks rules))
-              out-tuples     (doall (map get-tuples sinks))]
-              (is (= (map multi-set specs) (map multi-set out-tuples))))))))
+              out-tuples     (doall (map get-tuples sinks))
+              spec-sets      (map multi-set (map doublify specs))
+              out-sets       (map multi-set (map doublify out-tuples))]
+              (is (= spec-sets out-sets)))))))
 
 (defmacro test?<- [& args]
   (let [[begin body] (if (keyword? (first args))

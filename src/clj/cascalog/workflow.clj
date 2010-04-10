@@ -138,9 +138,9 @@
   ([group-fields sort-fields reverse-order]
     (fn [& previous] (GroupBy. (as-pipes previous) (fields group-fields) (fields sort-fields) reverse-order))))
 
-(defn count [#^String count-fields]
+(defn count [#^String count-field]
   (fn [previous]
-    (Every. previous (Count. (fields count-fields)))))
+    (Every. previous (Count. (fields count-field)))))
 
 (defn sum [#^String in-fields #^String sum-fields]
   (fn [previous]

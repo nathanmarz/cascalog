@@ -4,13 +4,6 @@
         cascalog.predicate)
   (:require [cascalog [workflow :as w]]))
 
-; (defstruct generator :sources :assembly)
-; ;;  type is one of :operation :aggregator
-; (defstruct operation-predicate :type :assembly :infields :outfields)
-; ;;  type is :generator
-; (defstruct generator-predicate :type :sources :assembly :outfields)
-; (defstruct predicate-variables :in :out)
-
 ; (defn build-predicate
 ;   "Build a predicate. Calls down to build-predicate-specific for predicate-specific building 
 ;   and adds constant substitution and null checking of ? vars."

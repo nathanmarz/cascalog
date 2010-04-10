@@ -41,15 +41,35 @@
                      interest   [["n" "bball"] ["n" "dl"] ["j" "tennis"] ["z" "stuff"] ["a" "shoes"]]
                      friends    [["n" "j"] ["n" "m"] ["n" "a"] ["j" "a"] ["a" "z"] ["z" "a"]]
                      age        [["z" 20] ["a" 10] ["n" 15]]]
-        (test?<- [["n" "bball" 15 "male"] ["n" "dl" 15 "male"] ["a" "shoes" 10 nil]
-                        ["z" "stuff" 20 "female"]]
+        (test?<- [["n" "bball" 15 "male"] ["n" "dl" 15 "male"]
+                  ["a" "shoes" 10 nil] ["z" "stuff" 20 "female"]]
           [!p !interest !age !gender] (friends !p _) (age !p !age) (interest !p !interest) (gender !p !gender))
         ))
 
+(w/defmapcatop split [#^String words]
+  (seq (.split words "\\s+")))
+
 (deftest test-multi-sink)
 
-(deftest test-count)
+(deftest test-countall
+  (with-tmp-sources [sentence [["hello this is a"] ["say hello hello to the man"] ["this is the cool beans man"]]]
+    (test?<- [["hello" 3] ["this" 2] ["is" 2]
+              ["a" 1] ["say" 1] ["to" 1] ["the" 2]
+              ["man" 2] ["cool" 1] ["beans" 1]]
+          [?w ?c] (sentence ?s) (split ?s :> ?w) (countall ?c))
+    ))
+
+(deftest test-complex-agg
+  (with-tmp-sources [value [["a" 1] ["a" 2] ["b" 10] ["c" 3] ["b" 2] ["a" 6]] ]
+    (test?<- [["a" 12] ["b" 14] ["c" 4]] [?v ?a] (value ?v ?n) (countall ?c) (sum ?n :> ?s) (+ ?s ?c :> ?a))
+    ))
 
 (deftest test-multi-agg)
 
 (deftest test-no-agg-distinct)
+
+(deftest test-only-one-buffer)
+
+(deftest test-error-on-lacking-output)
+
+(deftest test-multi-line-aggregate)

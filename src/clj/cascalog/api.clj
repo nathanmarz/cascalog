@@ -1,17 +1,9 @@
 (ns cascalog.api
   (:use [cascalog vars util graph])
   (:require cascalog.rules)
-  (:require [cascalog [workflow :as w]])
+  (:require [cascalog [workflow :as w] [predicate :as p]])
   (:import [cascading.flow Flow FlowConnector])
   (:import  [cascading.pipe Pipe]))
-
-;; TODO: add builtins here like fast count (what to call it?), !count, sum, min, max, etc.
-
-; (p/defcomplexagg count [infields outfields]
-;   )
-; 
-; (p/defcomplexagg sum [infields outfields]
-;   )
 
 (def DEFAULT-OPTIONS
   {:distinct true})
@@ -41,3 +33,15 @@
 
 (defmacro ?<- [output & body]
   `(?- ~output (<- ~@body)))
+
+;; TODO: add builtins here like fast count (what to call it?), !count, sum, min, max, etc.
+
+(p/defcomplexagg countall [infields outfields]
+  (when (or (not-empty infields) (not= 1 (count outfields)))
+    (throw (IllegalArgumentException. (str "Invalid args to countall " infields outfields))))
+  [identity (w/count (first outfields))])
+
+(p/defcomplexagg sum [infields outfields]
+  (when (or (not= 1 (count infields)) (not= 1 (count outfields)))
+    (throw (IllegalArgumentException. (str "Invalid args to sum " infields outfields))))
+  [identity (w/sum (first infields) (first outfields))])

@@ -138,6 +138,7 @@
                        (map :pregroup-assembly aggs)
                        [(w/group-by grouping-fields)]
                        (map :postgroup-assembly aggs)
+                       (map :post-assembly aggs)
                        ))
         total-fields (agg-available-fields grouping-fields aggs)
         node         (create-node (get-graph prev-node)

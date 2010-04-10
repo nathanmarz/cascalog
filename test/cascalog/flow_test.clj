@@ -48,10 +48,8 @@
                                               (w/select ["k" "v" "v2"])))]
         (test-assembly source-data sink-data assembly)))
 
-;; conclusion: pipe joining against self with no reduces in branches gives undefined behavior
 ;; TODO: can I join against something else and then rejoin against source?
 
-;; need the extra group-by in that second branch
 (deftest self-join-after-agg-test
     (let [source-data {:fields ["a" "b"] :tuples [["a" 1] ["b" 2] ["a" 3] ["c" 4]]}
           sink-data   {:fields ["a" "s" "z"] :tuples [["a" 4.0 5.0] ["b" 2.0 3.0] ["c" 4.0 5.0]]}
