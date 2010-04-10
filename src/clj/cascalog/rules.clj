@@ -146,9 +146,10 @@
   (let [needed-set (set needed-vars)
         all-set    (set allfields)
         inter      (intersection needed-set all-set)]
-        (if (= inter needed-set)
-          needed-vars  ; maintain ordering when =, this is for output of generators to match declared ordering
-         (vec (intersection needed-set all-set)))))
+        (cond (= inter needed-set) needed-vars  ; maintain ordering when =, this is for output of generators to match declared ordering
+              (empty? inter) [(first allfields)]  ; this happens during global aggregation, need to keep one field in
+              true (vec inter)
+        )))
 
 (defn- mk-projection-assembly [forceproject projection-fields allfields]
     (if (and (not forceproject) (= (set projection-fields) (set allfields)))

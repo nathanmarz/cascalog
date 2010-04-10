@@ -71,6 +71,12 @@
     (test?<- [["n"] ["j"]] [?p] (age ?p _) (friend ?p _) (countall ?c) (> ?c 2))
     ))
 
+(deftest test-global-agg
+   (with-tmp-sources [num [[1] [2] [5] [6] [10] [12]] ]
+     (test?<- [[6]] [?c] (num _) (countall ?c))
+     (test?<- [[6 72]] [?c ?s2] (num ?n) (countall ?c) (sum ?n :> ?s) (* 2 ?s :> ?s2))
+  ))
+
 (deftest test-no-agg-distinct)
 
 (deftest test-only-one-buffer)

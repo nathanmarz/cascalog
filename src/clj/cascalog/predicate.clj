@@ -28,6 +28,7 @@
 (defpredicate generator :sourcemap :pipe :outfields)
 
 
+;; TODO: change this to use fast first buffer
 (def distinct-aggregator (predicate aggregator false identity (w/first) identity [] []))
 
 (defstruct predicate-variables :in :out)
@@ -62,8 +63,8 @@
 (defmethod predicate-default-var ::generator [& args] :out)
 (defmethod predicate-default-var ::complex-aggregator [& args] :out)
 (defmethod predicate-default-var ::vanilla-function [& args] :in)
-(defmethod predicate-default-var :map [& args] :out)
-(defmethod predicate-default-var :mapcat [& args] :out)
+(defmethod predicate-default-var :map [& args] :out)  ; doesn't matter
+(defmethod predicate-default-var :mapcat [& args] :out)  ; doesn't matter
 (defmethod predicate-default-var :aggregate [& args] :out)
 (defmethod predicate-default-var :buffer [& args] :out)
 (defmethod predicate-default-var :filter [& args] :in)
