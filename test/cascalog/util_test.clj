@@ -2,12 +2,6 @@
   (:use clojure.test)
   (:use cascalog.util))
 
-; (defn transpose [m]
-; (defn substitute-if [pred subfn aseq]
-; (defn try-resolve [obj]
-; (defn collectify [obj]
-; (defn multi-set [aseq]
-
 (def p 5)
 
 (deftest test-try-resolve
@@ -43,4 +37,12 @@
   (is (= [] (all-pairs [1])))
   (is (= [[1 2] [1 3] [2 3]] (all-pairs [1 2 3])))
   (is (= [[1 :a] [1 :a] [1 2] [:a :a] [:a 2] [:a 2]] (all-pairs [1 :a :a 2])))
+  )
+
+(deftest test-unweave
+  (is (= [[1 3 5] [2 4 6]] (unweave [1 2 3 4 5 6])))
+  (is (= [["a" "q"] [99 "c"]] (unweave ["a" 99 "q" "c"])))
+  (is (= [[] []] (unweave [])))
+  (throws? IllegalArgumentException (unweave ["a" "b" "c"]))
+  (throws? IllegalArgumentException (unweave [100]))
   )

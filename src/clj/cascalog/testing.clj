@@ -81,7 +81,7 @@
   (w/lfs-tap (w/sequence-file fields-def) path))
 
 (defn unique-rooted-paths [root]
-  (map str (cycle [(str root "/")]) (iterate inc 0)))
+  (map str (cycle [(str root "/")]) (repeatedly uuid)))
 
 (defn get-tuples [sink]
   (with-open [it (.openForRead sink (JobConf.))]
@@ -98,6 +98,7 @@
 (defn mk-test-source [spec path]
   (let [spec (mapify-spec spec)
         source (mk-test-tap (:fields spec) path)]
+    ;; unable to use with-log-level here for some reason
     (with-open [collector (.openForWrite source (JobConf.))]
       (doall (map #(.add collector (Util/coerceToTuple %)) (:tuples spec))))
     source ))
@@ -107,7 +108,7 @@
 
 (defn test-assembly
   ([source-specs sink-specs assembly]
-    (test-assembly :warn source-specs sink-specs assembly))
+    (test-assembly :fatal source-specs sink-specs assembly))
   ([log-level source-specs sink-specs assembly]
     (with-log-level log-level
       (with-tmp-files [source-path (temp-dir "sources")
@@ -146,7 +147,7 @@
 (defn test?- [& bindings]
   (let [[log-level bindings] (if (keyword? (first bindings))
                                 [(first bindings) (rest bindings)]
-                                [:warn bindings])]
+                                [:fatal bindings])]
     (with-log-level log-level
       (with-tmp-files [sink-path (temp-dir "sink")]
         (let [[specs rules]  (unweave bindings)

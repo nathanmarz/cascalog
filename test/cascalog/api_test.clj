@@ -24,3 +24,20 @@
      (test?<- [] [?p ?a] (stats ?p 1000 _ ?a))
      (test?<- [["n"] ["n"]] {:distinct false} [?p] (stats ?p _ _ nil))
     ))
+
+(deftest test-multi-join
+  (with-tmp-sources [age [["n" 24] ["a" 15] ["j" 24] ["d" 24] ["b" 15] ["z" 62] ["q" 24]]
+                     friends [["n" "a" 16] ["n" "j" 12] ["j" "n" 10] ["j" "d" nil]
+                              ["d" "q" nil] ["b" "a" nil] ["j" "a" 1] ["a" "z" 1]]]
+        (test?<- [["n" "j"] ["j" "n"] ["j" "d"] ["d" "q"] ["b" "a"]]
+          [?p ?p2] (age ?p ?a) (age ?p2 ?a) (friends ?p ?p2 _))
+        ))
+
+(deftest test-many-joins
+  (with-tmp-sources [age-prizes [[10 "toy"] [20 "animal"] [30 "car"] [40 "house"]]
+                     friends    [["n" "j"] ["n" "m"] ["n" "a"] ["j" "a"] ["a" "z"]]
+                     age         [["z" 20] ["a" 10] ["n" 15]]]
+        (test?<-  [["n" "animal-!!"] ["n" "house-!!"] ["j" "house-!!"]]
+          [?p ?prize] (friends ?p ?p2) (friends ?p2 ?p3) (age ?p3 ?a)
+                          (* 2 ?a :> ?a2) (age-prizes ?a2 ?prize2) (str ?prize2 "-!!" :> ?prize))
+        ))
