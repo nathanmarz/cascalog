@@ -22,4 +22,5 @@
                      friends [["n" "i" 6] ["n" "g" 20] ["g" "i" nil]]]
      (test?<- [["g" 60]] [?p ?a] (stats ?p _ _ ?a) (friends ?p _ _))
      (test?<- [] [?p ?a] (stats ?p 1000 _ ?a))
+     (test?<- [["n"] ["n"]] {:distinct false} [?p] (stats ?p _ _ nil))
     ))
