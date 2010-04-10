@@ -45,3 +45,11 @@
                         ["z" "stuff" 20 "female"]]
           [!p !interest !age !gender] (friends !p _) (age !p !age) (interest !p !interest) (gender !p !gender))
         ))
+
+(deftest test-multi-sink)
+
+(deftest test-count)
+
+(deftest test-multi-agg)
+
+(deftest test-no-agg-distinct)

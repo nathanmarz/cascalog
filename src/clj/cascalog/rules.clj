@@ -217,6 +217,8 @@
         ; _ (println "myout: " (:outfields newgen))
         ; _ (println "project: " project-fields)
         ]
+        (when (and forceproject (not= project-fields needed-vars))
+          (throw (RuntimeException. (str "Only able to build to " project-fields " but need " needed-vars))))
         (merge newgen {:pipe ((mk-projection-assembly forceproject project-fields (:outfields newgen)) (:pipe newgen))
                 :outfields project-fields})))
 
