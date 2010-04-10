@@ -156,5 +156,8 @@
               out-tuples     (doall (map get-tuples sinks))]
               (is (= (map multi-set specs) (map multi-set out-tuples))))))))
 
-(defmacro test?<- [sink-spec & body]
-  `(test?- ~sink-spec (<- ~@body)))
+(defmacro test?<- [& args]
+  (let [[begin body] (if (keyword? (first args))
+                      (split-at 2 args)
+                      (split-at 1 args))]
+  `(test?- ~@begin (<- ~@body))))

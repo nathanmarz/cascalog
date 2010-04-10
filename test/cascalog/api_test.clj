@@ -5,12 +5,6 @@
   (:import [cascading.tuple Fields])
   (:require [cascalog [workflow :as w]]))
 
-; (deftest test-basic-query
-;   (with-tmp-sources [friends [["n" "j"] ["n" "a"] ["m" "a"]]
-;                      age     [["n" 22] ["m" 30] ["j" 26]] ]
-;     (?<- (w/lfs-tap (w/text-line ["p1"]) "/tmp/aaa") [?p1] (age ?p1 ?a) (friends ?p1 _) (< ?a 27))
-;    ))
-
 (deftest test-simple-query
   (with-tmp-sources [age [["n" 24] ["n" 23] ["i" 31] ["c" 30] ["j" 21] ["q" nil]]]
      (test?<- [["j"] ["n"]] [?p] (age ?p ?a) (< ?a 25))
@@ -37,7 +31,17 @@
   (with-tmp-sources [age-prizes [[10 "toy"] [20 "animal"] [30 "car"] [40 "house"]]
                      friends    [["n" "j"] ["n" "m"] ["n" "a"] ["j" "a"] ["a" "z"]]
                      age         [["z" 20] ["a" 10] ["n" 15]]]
-        (test?<-  [["n" "animal-!!"] ["n" "house-!!"] ["j" "house-!!"]]
+        (test?<- [["n" "animal-!!"] ["n" "house-!!"] ["j" "house-!!"]]
           [?p ?prize] (friends ?p ?p2) (friends ?p2 ?p3) (age ?p3 ?a)
                           (* 2 ?a :> ?a2) (age-prizes ?a2 ?prize2) (str ?prize2 "-!!" :> ?prize))
+        ))
+
+(deftest test-bloated-join
+  (with-tmp-sources [gender     [["n" "male"] ["j" "male"] ["a" nil] ["z" "female"]]
+                     interest   [["n" "bball"] ["n" "dl"] ["j" "tennis"] ["z" "stuff"] ["a" "shoes"]]
+                     friends    [["n" "j"] ["n" "m"] ["n" "a"] ["j" "a"] ["a" "z"] ["z" "a"]]
+                     age        [["z" 20] ["a" 10] ["n" 15]]]
+        (test?<- [["n" "bball" 15 "male"] ["n" "dl" 15 "male"] ["a" "shoes" 10 nil]
+                        ["z" "stuff" 20 "female"]]
+          [!p !interest !age !gender] (friends !p _) (age !p !age) (interest !p !interest) (gender !p !gender))
         ))
