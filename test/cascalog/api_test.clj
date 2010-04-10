@@ -59,12 +59,17 @@
           [?w ?c] (sentence ?s) (split ?s :> ?w) (countall ?c))
     ))
 
-(deftest test-complex-agg
+(deftest test-multi-agg
   (with-tmp-sources [value [["a" 1] ["a" 2] ["b" 10] ["c" 3] ["b" 2] ["a" 6]] ]
     (test?<- [["a" 12] ["b" 14] ["c" 4]] [?v ?a] (value ?v ?n) (countall ?c) (sum ?n :> ?s) (+ ?s ?c :> ?a))
     ))
 
-(deftest test-multi-agg)
+
+(deftest test-joins-aggs
+  (with-tmp-sources [friend [["n" "a"] ["n" "j"] ["n" "q"] ["j" "n"] ["j" "a"] ["j" "z"] ["z" "t"]]
+                     age    [["n" 25] ["z" 26] ["j" 20]] ]
+    (test?<- [["n"] ["j"]] [?p] (age ?p _) (friend ?p _) (countall ?c) (> ?c 2))
+    ))
 
 (deftest test-no-agg-distinct)
 
