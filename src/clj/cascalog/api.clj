@@ -3,6 +3,7 @@
   (:require cascalog.rules)
   (:require [cascalog [workflow :as w] [predicate :as p]])
   (:import [cascading.flow Flow FlowConnector])
+  (:import [cascading.tuple Fields])
   (:import [cascalog StdoutTap])
   (:import  [cascading.pipe Pipe]))
 
@@ -37,3 +38,15 @@
   `(?- ~output (<- ~@body)))
 
 (defn stdout [] (StdoutTap.))
+
+(defn hfs-textline [path]
+  (w/hfs-tap (w/text-line ["line"] Fields/ALL) path))
+
+(defn lfs-textline [path]
+  (w/hfs-tap (w/text-line ["line"] Fields/ALL) path))
+
+(defn hfs-seqfile [path]
+  (w/hfs-tap (w/sequence-file Fields/ALL) path))
+
+(defn lfs-seqfile [path]
+  (w/hfs-tap (w/sequence-file Fields/ALL) path))
