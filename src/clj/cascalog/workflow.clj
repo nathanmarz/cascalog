@@ -321,7 +321,10 @@
  ([]
   (TextLine.))
  ([field-names]
-  (TextLine. (fields field-names) (fields field-names))))
+  (TextLine. (fields field-names) (fields field-names)))
+ ([source-fields sink-fields]
+  (TextLine. (fields source-fields) (fields sink-fields)))
+  )
 
 (defn sequence-file [field-names]
   (SequenceFile. (fields field-names)))

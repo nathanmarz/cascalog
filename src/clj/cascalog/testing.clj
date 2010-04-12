@@ -8,8 +8,9 @@
            [cascading.pipe Pipe]
            [cascading.operation ConcreteCall]
            [cascading.flow FlowProcess]
-           [cascalog Util ClojureMap]
+           [cascalog Util ClojureMap MemorySourceTap]
            [java.lang Comparable]
+           [java.util ArrayList]
            [clojure.lang IPersistentCollection]
            [org.apache.hadoop.mapred JobConf])
   (:require [cascalog [workflow :as w]]))
@@ -167,3 +168,7 @@
                       (split-at 2 args)
                       (split-at 1 args))]
   `(test?- ~@begin (<- ~@body))))
+
+(defn memory-source-tap [tuples]
+  (let [tuples (ArrayList. (map #(Util/coerceToTuple %) tuples))]
+    (MemorySourceTap. tuples)))

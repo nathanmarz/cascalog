@@ -3,6 +3,7 @@
   (:require cascalog.rules)
   (:require [cascalog [workflow :as w] [predicate :as p]])
   (:import [cascading.flow Flow FlowConnector])
+  (:import [cascalog StdoutTap])
   (:import  [cascading.pipe Pipe]))
 
 (def DEFAULT-OPTIONS
@@ -33,6 +34,9 @@
 
 (defmacro ?<- [output & body]
   `(?- ~output (<- ~@body)))
+
+
+(defn stdout [] (StdoutTap.))
 
 ;; TODO: add builtins here like fast count (what to call it?), !count, sum, min, max, etc.
 

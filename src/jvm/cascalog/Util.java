@@ -16,7 +16,7 @@ public class Util {
     try {
       RT.load(root_path);
     } catch (Exception e) {
-      throw new RuntimeException(e);
+      //if playing from the repl and defining functions, file won't exist
     }
     return (IFn) RT.var(ns_name, fn_name).deref();
   }

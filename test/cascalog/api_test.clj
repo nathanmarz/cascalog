@@ -49,8 +49,6 @@
 (w/defmapcatop split [#^String words]
   (seq (.split words "\\s+")))
 
-(deftest test-multi-sink)
-
 (deftest test-countall
   (with-tmp-sources [sentence [["hello this is a"] ["say hello hello to the man"] ["this is the cool beans man"]]]
     (test?<- [["hello" 3] ["this" 2] ["is" 2]
@@ -58,6 +56,8 @@
               ["man" 2] ["cool" 1] ["beans" 1]]
           [?w ?c] (sentence ?s) (split ?s :> ?w) (countall ?c))
     ))
+
+(deftest test-multi-sink)
 
 (deftest test-multi-agg
   (with-tmp-sources [value [["a" 1] ["a" 2] ["b" 10] ["c" 3] ["b" 2] ["a" 6]] ]

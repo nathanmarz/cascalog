@@ -6,6 +6,6 @@ public class SimplePrintDirectedGraph extends org.jgrapht.graph.DefaultDirectedG
     }
     
     public String toString() {
-        return "Graph";
+        return "Graph"; //this avoids infinite printing issue in Clojure node -> graph -> node -> ...
     }
 }
