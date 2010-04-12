@@ -11,6 +11,7 @@
   :dev-dependencies [[lein-javac "0.0.2-SNAPSHOT"]]
   :namespaces [cascalog.workflow
                cascalog.api
+               cascalog.playground
                cascalog.util
                cascalog.rules
                cascalog.vars
