@@ -19,4 +19,5 @@
                cascalog.workflow-example
                cascalog.testing
                cascalog.graph
-               cascalog.api])
+               cascalog.api
+               cascalog.ops])

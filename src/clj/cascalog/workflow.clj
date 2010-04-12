@@ -1,5 +1,5 @@
 (ns cascalog.workflow
-  (:refer-clojure :exclude [count first filter mapcat map identity])
+  (:refer-clojure :exclude [count first filter mapcat map identity min max])
   (:use [clojure.contrib.seq-utils :only [find-first indexed]])
   (:use cascalog.util)
   (:import [cascading.tuple Tuple TupleEntry Fields]
@@ -8,7 +8,7 @@
            [cascading.cascade Cascades]
            [cascading.operation Identity Insert Debug]
            [cascading.operation.regex RegexGenerator RegexFilter]
-           [cascading.operation.aggregator First Count Sum]
+           [cascading.operation.aggregator First Count Sum Min Max]
            [cascading.pipe Pipe Each Every GroupBy CoGroup]
            [cascading.pipe.cogroup InnerJoin OuterJoin LeftJoin RightJoin]
            [cascading.scheme Scheme]
@@ -145,6 +145,14 @@
 (defn sum [#^String in-fields #^String sum-fields]
   (fn [previous]
     (Every. previous (fields in-fields) (Sum. (fields sum-fields)))))
+
+(defn min [#^String in-fields #^String min-fields]
+  (fn [previous]
+    (Every. previous (fields in-fields) (Min. (fields min-fields)))))
+
+(defn max [#^String in-fields #^String max-fields]
+  (fn [previous]
+    (Every. previous (fields in-fields) (Max. (fields max-fields)))))
 
 (defn first []
   (fn [previous]

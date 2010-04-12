@@ -3,7 +3,7 @@
         cascalog.testing
         cascalog.api)
   (:import [cascading.tuple Fields])
-  (:require [cascalog [workflow :as w]]))
+  (:require [cascalog [workflow :as w] [ops :as c]]))
 
 (deftest test-simple-query
   (with-tmp-sources [age [["n" 24] ["n" 23] ["i" 31] ["c" 30] ["j" 21] ["q" nil]]]
@@ -54,27 +54,27 @@
     (test?<- [["hello" 3] ["this" 2] ["is" 2]
               ["a" 1] ["say" 1] ["to" 1] ["the" 2]
               ["man" 2] ["cool" 1] ["beans" 1]]
-          [?w ?c] (sentence ?s) (split ?s :> ?w) (countall ?c))
+          [?w ?c] (sentence ?s) (split ?s :> ?w) (c/count ?c))
     ))
 
 (deftest test-multi-sink)
 
 (deftest test-multi-agg
   (with-tmp-sources [value [["a" 1] ["a" 2] ["b" 10] ["c" 3] ["b" 2] ["a" 6]] ]
-    (test?<- [["a" 12] ["b" 14] ["c" 4]] [?v ?a] (value ?v ?n) (countall ?c) (sum ?n :> ?s) (+ ?s ?c :> ?a))
+    (test?<- [["a" 12] ["b" 14] ["c" 4]] [?v ?a] (value ?v ?n) (c/count ?c) (c/sum ?n :> ?s) (+ ?s ?c :> ?a))
     ))
 
 
 (deftest test-joins-aggs
   (with-tmp-sources [friend [["n" "a"] ["n" "j"] ["n" "q"] ["j" "n"] ["j" "a"] ["j" "z"] ["z" "t"]]
                      age    [["n" 25] ["z" 26] ["j" 20]] ]
-    (test?<- [["n"] ["j"]] [?p] (age ?p _) (friend ?p _) (countall ?c) (> ?c 2))
+    (test?<- [["n"] ["j"]] [?p] (age ?p _) (friend ?p _) (c/count ?c) (> ?c 2))
     ))
 
 (deftest test-global-agg
    (with-tmp-sources [num [[1] [2] [5] [6] [10] [12]] ]
-     (test?<- [[6]] [?c] (num _) (countall ?c))
-     (test?<- [[6 72]] [?c ?s2] (num ?n) (countall ?c) (sum ?n :> ?s) (* 2 ?s :> ?s2))
+     (test?<- [[6]] [?c] (num _) (c/count ?c))
+     (test?<- [[6 72]] [?c ?s2] (num ?n) (c/count ?c) (c/sum ?n :> ?s) (* 2 ?s :> ?s2))
   ))
 
 (deftest test-no-agg-distinct)

@@ -1,12 +1,11 @@
 (ns cascalog.playground
   (:use [cascalog api testing]))
 
-
 (defmacro bootstrap []
   '(do
     (use (quote [clojure.contrib.seq-utils :only [find-first]]))
     (use (quote cascalog.api))
-    (require (quote [cascalog [workflow :as w]]))
+    (require (quote [cascalog [workflow :as w] [ops :as c]]))
   ))
 
 (def age (memory-source-tap [
@@ -18,6 +17,7 @@
   ["george" 31]
   ["gary" 28]
   ["harold" 27]
+  ["kumar" 27]
   ["luanne" 36]
   ]))
 

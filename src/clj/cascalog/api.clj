@@ -36,17 +36,4 @@
 (defmacro ?<- [output & body]
   `(?- ~output (<- ~@body)))
 
-
 (defn stdout [] (StdoutTap.))
-
-;; TODO: add builtins here like fast count (what to call it?), !count, sum, min, max, etc.
-
-(p/defcomplexagg countall [infields outfields]
-  (when (or (not-empty infields) (not= 1 (count outfields)))
-    (throw (IllegalArgumentException. (str "Invalid args to countall " infields outfields))))
-  [identity (w/count (first outfields))])
-
-(p/defcomplexagg sum [infields outfields]
-  (when (or (not= 1 (count infields)) (not= 1 (count outfields)))
-    (throw (IllegalArgumentException. (str "Invalid args to sum " infields outfields))))
-  [identity (w/sum (first infields) (first outfields))])
