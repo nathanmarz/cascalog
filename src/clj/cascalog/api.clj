@@ -29,7 +29,8 @@
         sourcemap       (apply merge (map :sourcemap gens))
         tails           (map cascalog.rules/connect-to-sink gens sinks)
         sinkmap         (w/taps-map tails sinks)
-        flow            (.connect (FlowConnector.) sourcemap sinkmap (into-array Pipe tails))]
+        flow            (.connect (FlowConnector. {"cascading.flow.job.pollinginterval" 100})
+                          sourcemap sinkmap (into-array Pipe tails))]
         (.complete flow)))
 
 (defmacro ?<- [output & body]
