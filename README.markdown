@@ -22,10 +22,15 @@ See [http://nathanmarz.com/blog/introducing-cascalog](http://nathanmarz.com/blog
 1. Launch a repl with "lein repl"
 2. (use 'cascalog.playground) (bootstrap) to play with test datasets defined in playground.clj.
 
+# TODO
+
+1. Make queries that use a single aggregator lightning fast
+2. Make predicates such as (like ?p ?p) work
+3. "Logical outer joins"
 
 # Limitations
 
-1. Predicates like (likes ?p ?p) don't work yet, this will be fixed shortly
+1. Predicates such as (likes ?p ?p) don't work yet, this will be fixed shortly
 2. Query planner doesn't optimize across subqeries yet
 3. No way to order your results yet
 4. No recursion - I want to see concrete use cases people have for recursion in production first
