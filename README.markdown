@@ -25,9 +25,13 @@ See http://nathanmarz.com/blog/introducing-cascalog for a tutorial
 
 # Limitations
 
-- talk about limitiations in README... things like (likes ?p ?p) don't work yet, query planner doesn't optimize across rules yet, working on providing a way to order your results, no recursion yet, no negation yet
+1. Predicates like (likes ?p ?p) don't work yet, this will be fixed shortly
+2. Query planner doesn't optimize across subqeries yet
+3. No way to order your results yet
+4. No recursion - I want to see concrete use cases people have for recursion in production first
+5. No negation
 
 
 # Acknowledgements
 
-Cascalog is based off of a very early branch of cascading-clojure project (http://github.com/clj-sys/cascading-clojure). Special thanks to Bradford Cross and Mark McGranaghan for their work on that project, particularly with the code that allows Clojure functions to be used within Cascading flows.
+Cascalog is based off of a very early branch of cascading-clojure project (http://github.com/clj-sys/cascading-clojure). Special thanks to Bradford Cross and Mark McGranaghan for their work on that project. Much of that code appears within Cascalog in either its original form or a modified form.
