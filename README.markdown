@@ -6,7 +6,7 @@ Cascalog also features a wrapper around Cascading to define dataflows. Custom op
 # Getting started
 
 1. Make sure you have java 1.6
-2. Set JAVA_OPTS environment variable to 768m (export JAVA_OPTS=-Xmx768m)
+2. export JAVA_OPTS=-Xmx768m
 3. install [leiningen](http://github.com/technomancy/leiningen)
 4. lein deps
 5. lein compile-java && lein compile
