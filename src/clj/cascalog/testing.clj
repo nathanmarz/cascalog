@@ -147,7 +147,8 @@
     [tmpfiles tmpforms]
   ))
 
-;; bindings are name {:fields :tuples}
+;; bindings are name spec, where spec is either {:fields :tuples} or vector of tuples
+;; TODO: should rewrite this to use in memory tap
 (defmacro with-tmp-sources [bindings & body]
   (let [parts     (partition 2 bindings)
         names     (map first parts)

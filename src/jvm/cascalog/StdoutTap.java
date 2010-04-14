@@ -34,7 +34,7 @@ public class StdoutTap extends Lfs implements FlowListener {
     public static String getTempDir() {
         final File temp;
         try {
-        temp = File.createTempFile("temp", Long.toString(System.nanoTime()));
+            temp = File.createTempFile("temp", Long.toString(System.nanoTime()));
         } catch(IOException e) {
             throw new RuntimeException(e);
         }

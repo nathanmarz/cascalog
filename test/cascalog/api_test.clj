@@ -81,6 +81,6 @@
 
 (deftest test-only-one-buffer)
 
-(deftest test-error-on-lacking-output)
+(deftest test-error-on-lacking-output-fields)
 
-(deftest test-multi-line-aggregate)
+(deftest test-multi-rule-aggregate)

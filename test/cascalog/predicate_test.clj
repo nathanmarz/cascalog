@@ -54,12 +54,36 @@
      (test-assembly source-data sink-data (:assembly pred))
      ))
 
-(deftest test-mapcat-pred)
+(w/defmapcatop many-vals ["val"] [n]
+  (cond (odd? n) [(* n 2) (* 3 n) (* n n)]
+        (= n 2)  []
+        true     [(inc n)]
+    ))
+
+(deftest test-mapcat-pred
+  (let [pred (build-predicate many-vals nil ["?a" :> "?b"])
+        source-data {:fields ["?a"] :tuples [[1] [2] [3] [4]]}
+        sink-data   {:fields ["?b"] :tuples [[2] [3] [1] [6] [9] [9] [5]]} ]
+        (test-assembly source-data sink-data (:assembly pred))
+    ))
 
 (deftest test-filter-pred)
 
-(deftest test-vanilla-filter)
+(deftest test-vanilla-filter
+  (let [pred (build-predicate odd? (var odd?) ["?f"])
+        source-data {:fields ["?f"] :tuples [[1] [2] [3] [4] [6] [9] [10]]}
+        sink-data   {:fields ["?f"] :tuples [[1] [3] [9]]} ]
+        (test-assembly source-data sink-data (:assembly pred))
+        ))
 
-(deftest test-vanilla-func)
+(deftest test-filter-func
+  (let [pred (build-predicate odd? (var odd?) ["?f" :> "?o"])
+        source-data {:fields ["?f"] :tuples [[1] [2] [3] [4] [6] [9] [10]]}
+        sink-data   {:fields ["?f" "?o"] :tuples [[1 true] [2 false] [3 true]
+                                                [4 false] [6 false] [9 true]
+                                                [10 false]]} ]
+        (test-assembly source-data sink-data (:assembly pred))
+        ))
+
 
 (deftest test-generator)
