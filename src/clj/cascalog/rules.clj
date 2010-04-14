@@ -36,7 +36,6 @@
 ;; 3. rework joins and var uniquing to create equality sets - filter when possible, otherwise use joins
 ;; 4. parameterized rules? - how does aggregation & joins work in this context? ->
 ;;    -> maybe just creates a generator...?
-;; 5. need helpers to create sink taps that just take in Fields/ALL
 ;; 
 ;; TODO: make it possible to create ungrounded rules that take in input vars (for composition)
 ;; i.e. (<- [?a ?b :> ?c] (func1 ?a :> ?c) (func2 ?b :> ?c))
@@ -47,11 +46,6 @@
 ;; -> do filter equalities as you can, then do joins when they're valid
 ;; (<- [?p1 ?p2] (age ?p1 ?a) (age ?p2 ?a) (friend ?p1 ?p2))
 ;; (<- [?p1 ?p2] (age ?p1 ?a) (age ?p2 ?a1) (friend ?p1 ?p2) (= ?a ?a1))
-;; TODO: what's the example of needing a maximal join?
-;; second-degree-age (<- [?a ?p :> ?p2] (friend ?p ?p1) (friend ?p1 ?p2) (age ?p2 :> ?a))
-;; TODO: variable renaming needs to create extra equality relationships (everything is uniqued)
-
-;; every rule has a reduce (at least a distinct). just need to detect self-joins within a rule
 
 
 ;; infields for a join are the names of the join fields
