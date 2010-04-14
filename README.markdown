@@ -1,6 +1,6 @@
 Cascalog allows you to query Hadoop in Clojure with an expressive language inspired by Datalog.
 
-Cascalog also features a wrapper around Cascading to define dataflows. Custom operations defined in Cascalog can be used both for Cascalog queries and Cascalog dataflows.
+Cascalog also features a wrapper around Cascading to define dataflows in cascalog.workflow . Custom operations defined in Cascalog can be used both for Cascalog queries and Cascalog dataflows.
 
 
 # Getting started
@@ -24,8 +24,8 @@ See [http://nathanmarz.com/blog/introducing-cascalog](http://nathanmarz.com/blog
 
 # TODO
 
-1. Make queries that use a single aggregator lightning fast
-2. Make predicates such as (like ?p ?p) work
+1. Make queries that use only aggregators that are associative & commutative lightning fast (count, sum, etc.)
+2. Make predicates such as (like ?p ?p) work.
 3. "Logical outer joins"
 
 # Limitations
@@ -33,7 +33,7 @@ See [http://nathanmarz.com/blog/introducing-cascalog](http://nathanmarz.com/blog
 1. Predicates such as (likes ?p ?p) don't work yet, this will be fixed shortly
 2. Query planner doesn't optimize across subqeries yet
 3. No way to order your results yet
-4. No recursion - I want to see concrete use cases people have for recursion in production first
+4. No recursion - I want to see concrete use cases people have for recursion first
 5. No negation
 
 
