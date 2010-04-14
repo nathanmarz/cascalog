@@ -28,6 +28,12 @@ See [http://nathanmarz.com/blog/introducing-cascalog](http://nathanmarz.com/blog
 2. Make predicates such as (like ?p ?p) work.
 3. "Logical outer joins"
 
+# Notes on running Cascalog queries on a real Hadoop cluster
+
+1. Cascalog includes hadoop as a dependency so that you can experiment with it easily. Don't include Hadoop jars within your jar that has Cascalog.
+2. Cascalog requires Cascading 1.1 rc3
+3. Any custom operations must be compiled into the jar you give to Hadoop for running jobs
+
 # Limitations
 
 1. Predicates such as (likes ?p ?p) don't work yet, this will be fixed shortly
