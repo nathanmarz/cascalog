@@ -1,4 +1,4 @@
-Cascalog allows you to query Hadoop in Clojure with an expressive language inspired by Datalog.
+Cascalog allows you to query Hadoop in Clojure with an expressive language inspired by Datalog. Follow the getting started steps, check out the tutorial, and you'll be running Cascalog queries locally within 5 minutes.
 
 Cascalog also features a wrapper around Cascading to define dataflows in cascalog.workflow . Custom operations defined in Cascalog can be used both for Cascalog queries and Cascalog dataflows.
 
