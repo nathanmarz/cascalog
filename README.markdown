@@ -21,6 +21,10 @@ See [http://nathanmarz.com/blog/introducing-cascalog](http://nathanmarz.com/blog
 1. Launch a repl with "lein repl"
 2. (use 'cascalog.playground) (bootstrap) to play with test datasets defined in playground.clj.
 
+# Questions or Concerns?
+
+Send an email to nathan.marz@gmail.com, open on issue on Github, or come chat in the #cascading room on freenode
+
 # Query planner highlights
 
 1. Automatically drops fields when they're no longer needed to minimize amount of data pushed around
