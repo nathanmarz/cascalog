@@ -88,16 +88,34 @@
        [?a ?c ?e ?s] (num ?a ?n) (c/count ?c) (c/sum ?n :> ?s) (evens-vs-odds ?n :> ?e))
   ))
 
+(defn mk-agg-test-tuples []
+  (conj (vec (take 12000 (iterate (fn [[a b]] [(inc a) b]) [0 1]))) [0 10]))
+
+(defn mk-agg-test-results []
+  (conj (vec (take 11999 (iterate (fn [[a b c]] [(inc a) b c]) [1 1 1]))) [0 11 2]))
+
+(deftest test-complex-agg-more-than-10000
+  (with-tmp-sources [num (mk-agg-test-tuples)]
+     (test?<- (mk-agg-test-results)
+       [?n ?s ?c] (num ?n ?v) (c/sum ?v :> ?s) (c/count ?c))))
+
+(deftest test-multi-rule
+  (with-tmp-sources [age [["n" 24] ["c" 40] ["j" 23] ["g" 50]]
+                     interest [["n" "bb" nil] ["n" "fb" 20] ["g" "ck" 30] ["j" "nz" 10] ["j" "hk" 1] ["jj" "ee" nil]]
+                     follows [["n" "j"] ["j" "n"] ["j" "a"] ["n" "a"] ["g" "q"]] ]
+      (let [many-follow (<- [?p] (follows ?p _) (c/count ?c) (> ?c 1))
+            active-follows (<- [?p ?p2] (many-follow ?p) (many-follow ?p2) (follows ?p ?p2))
+            unknown-interest (<- [?p] (age ?p ?a) (interest ?p _ !i) (nil? !i))
+            weird-follows (<- [?p ?p2] (active-follows ?p ?p2) (unknown-interest ?p2))]
+          (test?- [["n" "j"] ["j" "n"]] active-follows
+                  [["j" "n"]] weird-follows
+                  [["n"]] unknown-interest)
+        )))
+
 (deftest test-only-complex-agg)
 
-(deftest test-complex-agg-more-than-1000)
-
 (deftest test-only-noncomplex-agg)
-
-(deftest test-no-agg-distinct)
 
 (deftest test-only-one-buffer)
 
 (deftest test-error-on-lacking-output-fields)
-
-(deftest test-multi-rule-aggregate)
