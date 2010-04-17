@@ -25,6 +25,7 @@ See [http://nathanmarz.com/blog/introducing-cascalog](http://nathanmarz.com/blog
 
 1. Automatically drops fields when they're no longer needed to minimize amount of data pushed around
 2. Auto-combiners - operations like min, max, count, sum are aggregated map-side in preparation for actual aggregation when possible
+3. Filters data as early as possible within a query definition
 
 # TODO
 
