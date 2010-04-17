@@ -16,17 +16,21 @@ Cascalog also features a wrapper around Cascading to define dataflows in cascalo
 
 See [http://nathanmarz.com/blog/introducing-cascalog](http://nathanmarz.com/blog/introducing-cascalog) for a tutorial
 
-
 # Experiment
 
 1. Launch a repl with "lein repl"
 2. (use 'cascalog.playground) (bootstrap) to play with test datasets defined in playground.clj.
 
+# Query planner highlights
+
+1. Automatically drops fields when they're no longer needed to minimize amount of data pushed around
+2. Auto-combiners - operations like min, max, count, sum are aggregated map-side in preparation for actual aggregation when possible
+
 # TODO
 
-1. Make queries that use only aggregators that are associative & commutative lightning fast (count, sum, etc.)
-2. Make predicates such as (like ?p ?p) work.
-3. "Logical outer joins"
+1. Make predicates such as (like ?p ?p) work
+2. "Logical outer joins"
+3. Combine join with aggregation using MultiGroupBy grouping fields and join fields are the same
 
 # Notes on running Cascalog queries on a real Hadoop cluster
 
