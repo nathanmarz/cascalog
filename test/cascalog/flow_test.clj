@@ -11,9 +11,25 @@
       (w/map #'inc "a" :fn> "c" :> ["b" "c"]))
     ))
 
-(deftest test-map-op)
+(w/defmapop add-double [v1 v2]
+  (* 2 (+ v1 v2)))
 
-(deftest test-mapcat-op)
+(deftest test-map-op
+  (let [source-data {:fields ["n1" "n2"] :tuples [[1 0] [2 -3] [5 7]]}
+        sink-data {:fields ["v"] :tuples [[2] [-2] [24]]}]
+     (test-assembly source-data sink-data
+        (add-double ["n1" "n2"] :fn> "v" :> "v"))))
+
+(w/defmapcatop keeper-dropper "a" [v]
+  (cond (= v 1) [v]
+        (odd? v) []
+        true    [v (inc v)]))
+
+(deftest test-mapcat-op
+  (let [source-data {:fields ["n"] :tuples [[1] [2] [3] [4] [9]]}
+        sink-data {:fields ["a"] :tuples [[1] [2] [3] [4] [5]]}]
+     (test-assembly source-data sink-data
+        (keeper-dropper "n" :> "a"))))
 
 (deftest test-filter-filter)
 
@@ -21,9 +37,29 @@
 
 (deftest test-join)
 
-(deftest test-buffer)
+(deftest test-higher-order-op)
 
-(deftest test-aggregator)
+(w/defbufferop emit-odd "e" [vals]
+  (filter #(odd? (first %)) vals))
+
+(deftest test-buffer
+   (let [source-data {:fields ["f1" "f2"] :tuples [["a" 1] ["a" 2] ["b" 3] ["a" 4] ["b" 8] ["a" 7] ["c" 7] ["d" 6]]}
+    sink-data {:fields ["f1" "q"] :tuples [["a" 1] ["a" 7] ["b" 3] ["c" 7]]}]
+    (test-assembly :info source-data sink-data
+      (w/assembly [p] (p (w/group-by "f1") (emit-odd "f2" :fn> "q"))))
+   ))
+
+(w/defaggregateop sum-even-2out
+  ([] 0)
+  ([v n] (if (odd? n) v (+ v n)))
+  ([v] [v (inc v)]))
+
+(deftest test-aggregator
+  (let [source-data {:fields ["f1" "f2"] :tuples [["a" 1] ["a" 2] ["b" 3] ["a" 4] ["b" 9] ["a" 7] ["c" 8]]}
+      sink-data {:fields ["f1" "t"] :tuples [["a" 6] ["a" 7] ["b" 0] ["b" 1] ["c" 8] ["c" 9]]}]
+    (test-assembly source-data sink-data
+      (w/assembly [p] (p (w/group-by "f1") (sum-even-2out "f2" :fn> "t"))))
+   ))
 
 ;; need to rename pipes coming from same source
 (deftest self-join-test

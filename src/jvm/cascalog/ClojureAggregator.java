@@ -66,7 +66,9 @@ public class ClojureAggregator extends BaseOperation<Object>
   public void complete(FlowProcess flow_process, AggregatorCall<Object> ag_call) {
     try {
       Collection coll = (Collection) this.fn.invoke(ag_call.getContext());
-      ag_call.getOutputCollector().add(Util.coerceToTuple(coll));
+      for(Object o: coll) {
+          ag_call.getOutputCollector().add(Util.coerceToTuple(o));
+      }
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

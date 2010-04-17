@@ -80,5 +80,4 @@
         (test-assembly source-data sink-data (:assembly pred))
         ))
 
-
 (deftest test-generator)
