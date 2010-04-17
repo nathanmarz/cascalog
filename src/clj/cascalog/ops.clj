@@ -19,37 +19,26 @@
   (:import [cascading.tuple Fields])
   (:require [cascalog [workflow :as w] [predicate :as p]]))
 
-;; TODO: do the pre-group "fake combiners" optimization for everything here
+(defn one [] 1)
 
-(defn- verify-args [opname infields outfields expected-in expected-out]
-  (when (or (not= expected-in (clojure.core/count infields))
-            (not= expected-out (clojure.core/count outfields)))
-    (throw (IllegalArgumentException. (str "Invalid args to " opname infields outfields))))
-  )
+(p/defparallelagg count :init-var #'one
+                        :combine-var #'+
+                        :args 0)
 
-(p/defcomplexagg count [infields outfields]
-  (verify-args "count" infields outfields 0 1)
-  [identity (w/count (first outfields))])
+(p/defparallelagg sum :init-var #'identity
+                      :combine-var #'+
+                      :args 1)
 
-(p/defcomplexagg sum [infields outfields]
-  (verify-args "sum" infields outfields 1 1)
-  [identity (w/sum (first infields) (first outfields))])
+(p/defparallelagg min :init-var #'identity
+                      :combine-var #'clojure.core/min
+                      :args 1)
 
-(p/defcomplexagg min [infields outfields]
-  (verify-args "min" infields outfields 1 1)
-  [identity (w/min (first infields) (first outfields))])
+(p/defparallelagg max :init-var #'identity
+                      :combine-var #'clojure.core/max
+                      :args 1)
 
-(p/defcomplexagg max [infields outfields]
-  (verify-args "max" infields outfields 1 1)
-  [identity (w/max (first infields) (first outfields))])
+(defn existence-int [v] (if v 1 0))
 
-(w/defmapop existence?-int [v]
-  (if v 1 0))
-
-;; TODO: this would be more efficient with a custom aggregator
-(p/defcomplexagg !count [infields outfields]
-  (verify-args "!count" infields outfields 1 1)
-  (let [val-var (gen-nullable-var)]
-    [(existence?-int (first infields) :fn> val-var :> Fields/ALL)
-     (w/sum val-var (first outfields))]
-    ))
+(p/defparallelagg !count :init-var #'existence-int
+                         :combine-var #'+
+                         :args 1)

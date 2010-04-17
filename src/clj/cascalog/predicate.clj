@@ -18,15 +18,16 @@
   (:use [cascalog vars util])
   (:require [cascalog [workflow :as w]])
   (:import [cascading.tap Tap])
-  (:import [cascading.tuple Fields]))
+  (:import [cascading.tuple Fields])
+  (:import [cascalog ClojureParallelAggregator]))
 
 ;; doing it this way b/c pain to put metadata directly on a function
 ;; assembly-maker is a function that takes in infields & outfields and returns
 ;; [preassembly postassembly]
-(defstruct complex-aggregator :assembly-maker)
+(defstruct parallel-aggregator :init-var :combine-var :args)
 
-(defmacro defcomplexagg [name & restfunc]
-  `(def ~name (struct cascalog.predicate/complex-aggregator (fn ~@restfunc))))
+(defmacro defparallelagg [name & body]
+  `(def ~name (struct-map cascalog.predicate/parallel-aggregator ~@body)))
 
 ;; ids are so they can be used in sets safely
 (defmacro defpredicate [name & attrs]
@@ -37,14 +38,15 @@
 
 ;; for map, mapcat, and filter
 (defpredicate operation :assembly :infields :outfields)
-;; pre-group assembly is for fast aggregators (counting/summing)
-(defpredicate aggregator :composable :pregroup-assembly :postgroup-assembly :post-assembly :infields :outfields)
+
+;; return a :post-assembly, a :parallel-agg, and a :serial-agg-assembly
+(defpredicate aggregator :composable :parallel-agg :pregroup-assembly :serial-agg-assembly :post-assembly :infields :outfields)
 ;; automatically generates source pipes and attaches to sources
 (defpredicate generator :sourcemap :pipe :outfields)
 
 
 ;; TODO: change this to use fast first buffer
-(def distinct-aggregator (predicate aggregator false identity (w/first) identity [] []))
+(def distinct-aggregator (predicate aggregator false nil identity (w/first) identity [] []))
 
 (defstruct predicate-variables :in :out)
 
@@ -66,7 +68,7 @@
 ;; rules
 (defn- predicate-dispatcher [op & rest]
   (cond (instance? Tap op) ::tap
-        (map? op) (if (= :generator (:type op)) ::generator ::complex-aggregator)
+        (map? op) (if (= :generator (:type op)) ::generator ::parallel-aggregator)
         (w/get-op-metadata op) (:type (w/get-op-metadata op))
         (fn? op) ::vanilla-function
         true (throw (IllegalArgumentException. "Bad predicate"))
@@ -76,7 +78,7 @@
 
 (defmethod predicate-default-var ::tap [& args] :out)
 (defmethod predicate-default-var ::generator [& args] :out)
-(defmethod predicate-default-var ::complex-aggregator [& args] :out)
+(defmethod predicate-default-var ::parallel-aggregator [& args] :out)
 (defmethod predicate-default-var ::vanilla-function [& args] :in)
 (defmethod predicate-default-var :map [& args] :out)  ; doesn't matter
 (defmethod predicate-default-var :mapcat [& args] :out)  ; doesn't matter
@@ -120,12 +122,22 @@
      assembly (op infields :fn> func-fields :> out-selector)]
     (predicate operation assembly infields outfields)))
 
-(defmethod build-predicate-specific ::complex-aggregator [cagg _ infields outfields]
-  (let [[preassem postassem] ((:assembly-maker cagg) infields outfields)]
-    (predicate aggregator true preassem postassem identity infields outfields)))
+(defmethod build-predicate-specific ::parallel-aggregator [pagg _ infields outfields]
+  (when (or (not= (count infields) (:args pagg)) (not= 1 (count outfields)))
+    (throw (IllegalArgumentException. (str "Invalid # input fields to aggregator " pagg))))
+  (let [init-spec (w/fn-spec (:init-var pagg))
+        combine-spec (w/fn-spec (:combine-var pagg))
+        cascading-agg (ClojureParallelAggregator. (w/fields outfields) init-spec combine-spec (:args pagg))
+        serial-assem (if (empty? infields)
+                        (w/raw-every cascading-agg Fields/ALL)
+                        (w/raw-every (w/fields infields)
+                                  cascading-agg
+                                  Fields/ALL))]
+    (predicate aggregator true pagg identity serial-assem identity infields outfields)))
+
 
 (defn- simpleagg-build-predicate [composable op _ infields outfields]
-  (predicate aggregator composable identity (op infields :fn> outfields :> Fields/ALL) identity infields outfields))
+  (predicate aggregator composable nil identity (op infields :fn> outfields :> Fields/ALL) identity infields outfields))
 
 (defmethod build-predicate-specific :aggregate [& args]
   (apply simpleagg-build-predicate true args))
@@ -177,7 +189,7 @@
   (let [inassem (identity-if-nil inassem)
         outassem (identity-if-nil outassem)]
     (merge pred {:pregroup-assembly (w/compose-straight-assemblies inassem (:pregroup-assembly pred))
-                 :post-assembly outassem
+                 :post-assembly (w/compose-straight-assemblies (:post-assembly pred) outassem)
                  :outfields outfields
                  :infields infields})))
 

@@ -141,7 +141,7 @@
                        [inserter]
                        (map :pregroup-assembly aggs)
                        [(w/group-by grouping-fields)]
-                       (map :postgroup-assembly aggs)
+                       (map :serial-agg-assembly aggs)
                        (map :post-assembly aggs)
                        ))
         total-fields (agg-available-fields grouping-fields aggs)
