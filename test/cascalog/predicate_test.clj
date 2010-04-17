@@ -4,11 +4,6 @@
         cascalog.predicate)
   (:require [cascalog [workflow :as w]]))
 
-; (defn build-predicate
-;   "Build a predicate. Calls down to build-predicate-specific for predicate-specific building 
-;   and adds constant substitution and null checking of ? vars."
-;   [op opvar & variables-args]
-
 (w/defmapop timesplusone "blahfield" [a b]
   (inc (* a b)))
 

@@ -23,7 +23,9 @@
   (:import [cascading.tap Tap])
   (:import [cascading.tuple Fields])
   (:import [cascading.flow Flow FlowConnector])
-  (:import  [cascading.pipe Pipe]))
+  (:import [cascading.pipe Pipe])
+  (:import [cascalog CombinerSpec ClojureCombiner ClojureCombinedAggregator])
+  (:import [java.util ArrayList]))
 
 ;; algorithm here won't work for (gen1 ?p ?a) (gen2 ?p ?b) (gen3 ?p ?c) (func ?a ?b :> ?c)
 ;; need to do whole equality set thing (and probably not use explicit = for joins to give user control)
@@ -128,6 +130,31 @@
             [[newvar] (w/insert newvar 1)]
             )))
 
+(defn- specify-parallel-agg [agg]
+  (let [pagg (:parallel-agg agg)]
+    (CombinerSpec. (w/fn-spec (:init-var pagg)) (w/fn-spec (:combine-var pagg)))))
+
+(defn- mk-combined-aggregator [combiner-spec arg outfield]
+  (w/raw-every (w/fields arg) (ClojureCombinedAggregator. outfield (. combiner-spec combiner_spec)) Fields/ALL))
+
+(defn mk-agg-arg-fields [fields]
+  (if (empty? fields) nil (w/fields fields)))
+
+(defn- build-agg-assemblies
+  "returns [pregroup vec, postgroup vec]"
+  [grouping-fields aggs]
+  (if (every? :parallel-agg aggs)
+    (let [argfields (map #(mk-agg-arg-fields (:infields %)) aggs)
+          tempfields (take (count aggs) (repeatedly gen-nullable-var))
+          specs (map specify-parallel-agg aggs)
+          combiner (ClojureCombiner. (w/fields grouping-fields)
+                                     argfields
+                                     tempfields
+                                     specs)]
+          [[(w/raw-each Fields/ALL combiner Fields/RESULTS)]
+           (map mk-combined-aggregator specs tempfields (map #(:outfield (:parallel-agg %)) aggs))] )
+    [[identity] (map :serial-agg-assembly aggs)] ))
+
 (defn- build-agg-tail [options prev-tail grouping-fields aggs]
   ;; if no aggs -> if options:distinct is false, return prev-tail. otherwise, insert a distinct
   ;; insert arbitrary grouping field if no grouping fields
@@ -137,12 +164,14 @@
           [grouping-fields
            inserter]        (normalize-grouping grouping-fields)
           prev-node    (:node prev-tail)
-        assem        (apply w/compose-straight-assemblies (concat
-                       [inserter]
-                       (map :pregroup-assembly aggs)
-                       [(w/group-by grouping-fields)]
-                       (map :serial-agg-assembly aggs)
-                       (map :post-assembly aggs)
+          [prep-aggs postgroup-aggs] (build-agg-assemblies grouping-fields aggs)
+          assem        (apply w/compose-straight-assemblies (concat
+                         [inserter]
+                         (map :pregroup-assembly aggs)
+                         prep-aggs
+                         [(w/group-by grouping-fields)]
+                         postgroup-aggs
+                         (map :post-assembly aggs)
                        ))
         total-fields (agg-available-fields grouping-fields aggs)
         node         (create-node (get-graph prev-node)

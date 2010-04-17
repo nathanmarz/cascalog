@@ -53,6 +53,8 @@
 (defmacro ?<- [output & body]
   `(?- ~output (<- ~@body)))
 
+(defn div [f & rest] (apply / (double f) rest))
+
 (defn stdout [] (StdoutTap.))
 
 (defn hfs-textline [path]

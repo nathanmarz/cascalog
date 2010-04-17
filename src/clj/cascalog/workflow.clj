@@ -233,7 +233,7 @@
 ;; creates an op that has metadata embedded within it, hack to work around fact that clojure
 ;; doesn't allow metadata on functions. call (op :meta) to get metadata
 ;; this is so you can pass operations around and dynamically create flows
-(defn- defop-helper [type spec declared-fields bindings code]
+(defn- defop-helper [type spec declared-fields & funcdef]
   (let  [[fname func-args]     (if (sequential? spec)
                                 [(clojure.core/first spec) (second spec)]
                                 [spec nil])
@@ -243,8 +243,8 @@
          args-sym-all         (gensym "argsall")
          casclojure-type      (keyword (name type))
          runner-body          (if (nil? func-args)
-                                  `(~bindings ~code)
-                                  `(~func-args (fn ~bindings ~code)))
+                                  funcdef
+                                  `(~func-args (fn ~@funcdef)))
          assembly-args        (if (nil? func-args)
                                   `[ & ~args-sym]
                                   `[~func-args & ~args-sym])]
@@ -281,9 +281,9 @@
     (defop-helper 'cascalog.workflow/filter spec declared-fields bindings code)))
 
 (defmacro defaggregateop
-  ([spec bindings code] (defaggregateop spec nil bindings code))
-  ([spec declared-fields bindings code]
-    (defop-helper 'cascalog.workflow/aggregate spec declared-fields bindings code)))
+  ([spec code1 code2 code3] (defaggregateop spec nil code1 code2 code3))
+  ([spec declared-fields code1 code2 code3]
+    (defop-helper 'cascalog.workflow/aggregate spec declared-fields code1 code2 code3)))
 
 (defmacro defbufferop
   ([spec bindings code] (defbufferop spec nil bindings code))

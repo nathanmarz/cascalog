@@ -77,6 +77,23 @@
      (test?<- [[6 72]] [?c ?s2] (num ?n) (c/count ?c) (c/sum ?n :> ?s) (* 2 ?s :> ?s2))
   ))
 
+(w/defaggregateop evens-vs-odds
+  ([] 0)
+  ([context val] (if (odd? val) (dec context) (inc context)))
+  ([context] [context]))
+
+(deftest test-complex-noncomplex-agg-mix
+  (with-tmp-sources [num [["a" 1] ["a" 2] ["a" 5] ["c" 6] ["d" 9] ["a" 12] ["c" 16] ["e" 16]] ]
+     (test?<- [["a" 4 0 20] ["c" 2 2 22] ["d" 1 -1 9] ["e" 1 1 16]]
+       [?a ?c ?e ?s] (num ?a ?n) (c/count ?c) (c/sum ?n :> ?s) (evens-vs-odds ?n :> ?e))
+  ))
+
+(deftest test-only-complex-agg)
+
+(deftest test-complex-agg-more-than-1000)
+
+(deftest test-only-noncomplex-agg)
+
 (deftest test-no-agg-distinct)
 
 (deftest test-only-one-buffer)

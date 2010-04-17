@@ -127,7 +127,7 @@
     (throw (IllegalArgumentException. (str "Invalid # input fields to aggregator " pagg))))
   (let [init-spec (w/fn-spec (:init-var pagg))
         combine-spec (w/fn-spec (:combine-var pagg))
-        cascading-agg (ClojureParallelAggregator. (w/fields outfields) init-spec combine-spec (:args pagg))
+        cascading-agg (ClojureParallelAggregator. (first outfields) init-spec combine-spec (:args pagg))
         serial-assem (if (empty? infields)
                         (w/raw-every cascading-agg Fields/ALL)
                         (w/raw-every (w/fields infields)

@@ -11,6 +11,10 @@
       (w/map #'inc "a" :fn> "c" :> ["b" "c"]))
     ))
 
+(deftest test-map-op)
+
+(deftest test-mapcat-op)
+
 (deftest test-filter-filter)
 
 (deftest test-filter-map)
