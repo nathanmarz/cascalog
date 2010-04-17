@@ -133,7 +133,7 @@
                         (w/raw-every (w/fields infields)
                                   cascading-agg
                                   Fields/ALL))]
-    (predicate aggregator true pagg identity serial-assem identity infields outfields)))
+    (predicate aggregator true (assoc pagg :outfield (first outfields)) identity serial-assem identity infields outfields)))
 
 
 (defn- simpleagg-build-predicate [composable op _ infields outfields]
