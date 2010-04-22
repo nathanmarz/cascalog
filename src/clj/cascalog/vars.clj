@@ -45,46 +45,24 @@
 (defn vars2str [vars]
   (vec (map #(if (cascalog-var? %) (extract-varname %) %) vars)))
 
-(defn uniquify-vars
-  "Uniques the cascalog vars, same vars still have the same name"
-  [invars outvars equalities]
-  (let [update-fn (fn [[p m] v]
-                    (if (cascalog-var? v)
-                      (let [newname (if-let [existing (m v)]
-                        existing (str v (gen-unique-suffix)))]
-                        [(conj p newname) (assoc m v newname)])
-                      [(conj p v) m]))
-        [invars equalities]  (reduce update-fn [[] equalities] invars)
-        [outvars equalities] (reduce update-fn [[] equalities] outvars)]
-   [invars outvars equalities]))
+(defn- var-updater-fn [outfield?]
+  (fn [[all equalities] v]
+    (if (cascalog-var? v)
+      (let [existing (get equalities v [])
+            varlist  (if (or (empty? existing) outfield?)
+                      (conj existing (str v (gen-unique-suffix)))
+                      existing)
+            newname  (if outfield? (last varlist) (first varlist))]
+            [(conj all newname) (assoc equalities v varlist)] )
+      [(conj all v) equalities] )))
 
-; (defn uniquify-vars
-;   "Uniques the cascalog vars, equal vars get put into same set in map"
-;   [vars equalities]
-;   (reduce (fn [[p m] v]
-;             (if (cascalog-var? v)
-;               (let [newv (str v (gen-unique-suffix))]
-;                 [(conj p newv) (assoc m v (conj (get m v #{}) newv))])
-;               [(conj p v) m] ))
-;     [[] equalities] vars))
+(defn uniquify-vars [invars outvars equalities]
+  (let [[invars equalities] (reduce (var-updater-fn false) [[] equalities] invars)
+        [outvars equalities] (reduce (var-updater-fn true) [[] equalities] outvars)]
+      [invars outvars equalities] ))
 
-;; Operations on variable equivalences
-
-; (defstruct var-index :var2super :super2vars)
-; (defn mk-var-index [equality-map]
-;   (let [update-fn (fn [m [k vals]]
-;                     (reduce #(assoc %1 %2 k) m vals))
-;         reversemap (reduce update-fn {} equality-map)]
-;     (struct var-index reversemap equality-map)))
-; 
-; (defn- get-super-var [index v]
-;   ((:var2super index) v))
-; 
-; (defn var-equiv-set [index v]
-;   ((get-super-var index v) (:super2vars index)))
-; 
-; (defn remove-indexed-var [index v]
-;   (let [super (get-super-var index v)
-;         newvar2super (dissoc (:var2super index) v)
-;         newsuper2vars (assoc (:super2vars index) super (disj (var-equiv-set index v) v))]
-;     (struct var-index newvar2super newsuper2vars)))
+(defn mk-drift-map [vmap]
+  (let [update-fn (fn [m [_ vals]]
+                     (let [target (first vals)]
+                       (reduce #(assoc %1 %2 target) m (rest vals))))]
+      (reduce update-fn {} (seq vmap))))

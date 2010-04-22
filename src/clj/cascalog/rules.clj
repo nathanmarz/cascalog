@@ -58,25 +58,63 @@
     [gens ops aggs] ))
 
 
-(defstruct tailstruct :operations :available-fields :node)
+(defstruct tailstruct :operations :drift-map :available-fields :node)
+
+(defn- connect-op [tail op]
+  (let [new-node (connect-value (:node tail) op)
+        new-outfields (concat (:available-fields tail) (:outfields op))]
+        (struct tailstruct (:operations tail) (:drift-map tail) new-outfields new-node)))
 
 (defn- add-op [tail op]
-  (let [new-node (connect-value (:node tail) op)
-        new-outfields (concat (:available-fields tail) (:outfields op))
+  (let [tail (connect-op tail op)
         new-ops (remove-first (partial = op) (:operations tail))]
-        (struct tailstruct new-ops new-outfields new-node)))
+        (merge tail {:operations new-ops})))
 
 (defn- op-allowed? [available-fields op]
   (let [infields-set (set (:infields op))]
     (subset? infields-set (set available-fields))
     ))
 
-(defn- add-ops-fixed-point
+(defn- fixed-point-operations
   "Adds operations to tail until can't anymore. Returns new tail"
   [tail]
   (if-let [op (find-first (partial op-allowed? (:available-fields tail)) (:operations tail))]
     (recur (add-op tail op))
     tail ))
+
+(defn- add-drift-op [tail equality-sets rename-map new-drift-map]
+  (let [eq-assemblies (map #(apply w/equal %) equality-sets)
+        outfields (vec (keys rename-map))
+        rename-in (vec (vals rename-map))
+        rename-assembly (w/identity rename-in :fn> outfields :> Fields/ALL)
+        assembly   (apply w/compose-straight-assemblies (concat eq-assemblies [rename-assembly]))
+        infields (vec (apply concat rename-in equality-sets))
+        tail (connect-op tail (p/predicate p/operation assembly infields outfields))]
+        (merge tail {:drift-map new-drift-map} )))
+
+(defn- determine-drift [drift-map available-fields]
+  (let [available-set (set available-fields)
+        rename-map  (reduce (fn [m f]
+                      (let [drift (drift-map f)]
+                        (if (and drift (not (available-set drift)))
+                          (assoc m drift f)
+                          m )))
+                      {} available-fields)
+        eqmap      (select-keys (reverse-map (select-keys drift-map available-fields)) available-fields)
+        equality-sets (map (fn [[k v]] (conj v k)) eqmap)
+        new-drift-map (apply dissoc drift-map (apply concat (vals rename-map) equality-sets))]
+    [new-drift-map equality-sets rename-map] ))
+
+(defn- add-ops-fixed-point
+  "Adds operations to tail until can't anymore. Returns new tail"
+  [tail]
+  (let [tail (fixed-point-operations tail)
+        drift-map (:drift-map tail)
+        [new-drift-map equality-sets rename-map] (determine-drift drift-map (:available-fields tail))]
+    (if (and (empty? equality-sets) (empty? rename-map))
+      tail
+      (recur (add-drift-op tail equality-sets rename-map new-drift-map)))
+    ))
 
 (defn- tail-fields-intersection [& tails]
   (intersection (map #(set (:available-fields %)) tails)))
@@ -94,6 +132,11 @@
       (cons (vec max-join) (separate #(subset? max-join (set (:available-fields %))) tails))
     ))
 
+(defn- intersect-drift-maps [drift-maps]
+  (let [drift-sets (map #(set (seq %)) drift-maps)
+        tokeep     (apply intersection drift-sets)]
+    (pairs2map (seq tokeep))))
+
 (defn- merge-tails [graph tails]
   (let [tails (map add-ops-fixed-point tails)]
     (if (= 1 (count tails))
@@ -101,11 +144,12 @@
       (let [[join-fields join-set rest-tails] (select-join tails)
             join-node             (create-node graph (p/predicate join join-fields))
             available-fields      (vec (set (apply concat (map :available-fields join-set))))
-            new-ops               (vec (apply intersection (map #(set (:operations %)) join-set)))]
+            new-ops               (vec (apply intersection (map #(set (:operations %)) join-set)))
+            new-drift-map         (intersect-drift-maps (map :drift-map join-set))]
         ; TODO: eventually should specify the join fields and type of join in the edge
         ;;  for ungrounding vars & when move to full variable renaming and equality sets
         (dorun (map #(create-edge (:node %) join-node) join-set))
-        (recur graph (cons (struct tailstruct new-ops available-fields join-node) rest-tails))
+        (recur graph (cons (struct tailstruct new-ops new-drift-map available-fields join-node) rest-tails))
         ))))
 
 (defn- agg-available-fields [grouping-fields aggs]
@@ -170,7 +214,7 @@
         node         (create-node (get-graph prev-node)
                         (p/predicate group assem (agg-infields aggs) total-fields))]
      (create-edge prev-node node)
-     (struct tailstruct (:operations prev-tail) total-fields node))
+     (struct tailstruct (:operations prev-tail) (:drift-map prev-tail) total-fields node))
     ))
 
 (defn projection-fields [needed-vars allfields]
@@ -244,10 +288,11 @@
                                 (let [{invars :in outvars :out} (p/parse-variables vars (p/predicate-default-var op))
                                       [invars outvars vmap] (uniquify-vars invars outvars vmap)]
                                   [(conj preds [op opvar invars outvars]) vmap] ))
-        [raw-predicates _]    (reduce update-fn [[] vmap] raw-predicates)
+        [raw-predicates vmap] (reduce update-fn [[] vmap] raw-predicates)
+        drift-map             (mk-drift-map vmap)
         [gens ops aggs]       (split-predicates (map (partial apply p/build-predicate) raw-predicates))
         rule-graph            (mk-graph)
-        tails                 (map (fn [g] (struct tailstruct ops (:outfields g) (create-node rule-graph g))) gens)
+        tails                 (map (fn [g] (struct tailstruct ops drift-map (:outfields g) (create-node rule-graph g))) gens)
         joined                (merge-tails rule-graph tails)
         grouping-fields       (seq (intersection (set (:available-fields joined)) (set out-vars)))
         agg-tail              (build-agg-tail options joined grouping-fields aggs)

@@ -14,7 +14,7 @@
  ;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (ns cascalog.util
-  (:use [clojure.contrib.seq-utils :only [find-first indexed]])
+  (:use [clojure.contrib.seq-utils :only [find-first indexed flatten]])
   (:import [java.util UUID]))
 
 (defn transpose [m]
@@ -68,3 +68,15 @@
   [coll]
   (when (odd? (count coll)) (throw (IllegalArgumentException. "Need even number of args to unweave")))
   [(take-nth 2 coll) (take-nth 2 (rest coll))])
+
+(defn pairs2map [pairs]
+  (apply hash-map (flatten pairs)))
+
+(defn reverse-map
+  "{:a 1 :b 1 :c 2} -> {1 [:a :b] 2 :c}"
+  [amap]
+  (reduce (fn [m [k v]]
+    (let [existing (get m v [])]
+      (assoc m v (conj existing k))))
+    {} amap))
+
