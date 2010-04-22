@@ -79,11 +79,14 @@
 
 (def nums (memory-source-tap [
   [1 2]
+  [0 0]
   [1 1]
   [4 4]
   [5 10]
   [2 7]
   [3 6]
+  [8 3]
+  [4 0]
   ]))
 
 (def sentence (memory-source-tap [
