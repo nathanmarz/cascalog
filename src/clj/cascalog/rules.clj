@@ -27,16 +27,9 @@
   (:import [cascalog CombinerSpec ClojureCombiner ClojureCombinedAggregator])
   (:import [java.util ArrayList]))
 
-;; algorithm here won't work for (gen1 ?p ?a) (gen2 ?p ?b) (gen3 ?p ?c) (func ?a ?b :> ?c)
-;; need to do whole equality set thing (and probably not use explicit = for joins to give user control)
-
 ;; TODO:
-;; 
-;; 0. implement aggregators and make sure they work (in conjunction with post-group functions/filters too)
-;; 1. thorough tests
-;; 2. Enforce !! rules -> only allowed in generators, ungrounds whatever it's in
-;; 3. rework joins and var uniquing to create equality sets - filter when possible, otherwise use joins
-;; 4. parameterized rules? - how does aggregation & joins work in this context? ->
+
+;; 1. parameterized rules? - how does aggregation & joins work in this context? ->
 ;;    -> maybe just creates a generator...?
 ;; 
 ;; TODO: make it possible to create ungrounded rules that take in input vars (for composition)
@@ -233,7 +226,6 @@
     (merge prevpred {:outfields (:totaloutfields pred)
             :pipe ((:assembly pred) (:pipe prevpred))})))
 
-
 ;; forceproject necessary b/c *must* reorder last set of fields coming out to match declared ordering
 (defn build-generator [forceproject needed-vars node]
   (let [pred           (get-value node)
@@ -247,10 +239,11 @@
                 :outfields project-fields})))
 
 (defn build-rule [options out-vars raw-predicates]
-  (let [[out-vars vmap]       (uniquify-vars out-vars {})
+  (let [[_ out-vars vmap]     (uniquify-vars [] out-vars {})
         update-fn             (fn [[preds vmap] [op opvar vars]]
-                                (let [[newvars vmap] (uniquify-vars vars vmap)]
-                                  [(conj preds [op opvar newvars]) vmap] ))
+                                (let [{invars :in outvars :out} (p/parse-variables vars (p/predicate-default-var op))
+                                      [invars outvars vmap] (uniquify-vars invars outvars vmap)]
+                                  [(conj preds [op opvar invars outvars]) vmap] ))
         [raw-predicates _]    (reduce update-fn [[] vmap] raw-predicates)
         [gens ops aggs]       (split-predicates (map (partial apply p/build-predicate) raw-predicates))
         rule-graph            (mk-graph)

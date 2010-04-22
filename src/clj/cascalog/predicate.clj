@@ -54,7 +54,7 @@
   "parses variables of the form ['?a' '?b' :> '!!c']
    If there is no :>, defaults to in-or-out-default (:in or :out)"
   [vars in-or-out-default]
-  (let [split (partition-by keyword? vars)
+  (let [split (partition-by (partial = :>) vars)
         amt   (count split)
         var-base (struct predicate-variables [] [])]
         (cond (= amt 1) (merge var-base {in-or-out-default (first split)})
@@ -202,19 +202,18 @@
 (defn build-predicate
   "Build a predicate. Calls down to build-predicate-specific for predicate-specific building 
   and adds constant substitution and null checking of ? vars."
-  [op opvar variables-args]
-  (let [{orig-infields :in outfields :out} (parse-variables variables-args (predicate-default-var op))
-       outfields                      (replace-ignored-vars outfields)
-       [infields infield-subs]        (variable-substitution orig-infields)
-       [outfields outfield-subs]      (variable-substitution outfields)
-       predicate                      (build-predicate-specific op opvar infields outfields)
-       [newsubs equalities]           (output-substitution outfield-subs)
-       new-outfields                  (concat outfields (keys newsubs) (keys infield-subs))
-       in-insertion-assembly          (mk-insertion-assembly infield-subs)
-       out-insertion-assembly         (mk-insertion-assembly newsubs)
-       null-check-out                 (mk-null-check new-outfields)
-       equality-assemblies            (map w/equal equalities)
-       outassembly                    (apply w/compose-straight-assemblies
+  [op opvar orig-infields outfields]
+  (let [outfields                      (replace-ignored-vars outfields)
+        [infields infield-subs]        (variable-substitution orig-infields)
+        [outfields outfield-subs]      (variable-substitution outfields)
+        predicate                      (build-predicate-specific op opvar infields outfields)
+        [newsubs equalities]           (output-substitution outfield-subs)
+        new-outfields                  (concat outfields (keys newsubs) (keys infield-subs))
+        in-insertion-assembly          (mk-insertion-assembly infield-subs)
+        out-insertion-assembly         (mk-insertion-assembly newsubs)
+        null-check-out                 (mk-null-check new-outfields)
+        equality-assemblies            (map w/equal equalities)
+        outassembly                    (apply w/compose-straight-assemblies
                                         (filter (complement nil?)
                                           (concat [out-insertion-assembly
                                                   null-check-out]

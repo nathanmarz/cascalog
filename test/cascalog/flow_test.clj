@@ -45,7 +45,7 @@
 (deftest test-buffer
    (let [source-data {:fields ["f1" "f2"] :tuples [["a" 1] ["a" 2] ["b" 3] ["a" 4] ["b" 8] ["a" 7] ["c" 7] ["d" 6]]}
     sink-data {:fields ["f1" "q"] :tuples [["a" 1] ["a" 7] ["b" 3] ["c" 7]]}]
-    (test-assembly :info source-data sink-data
+    (test-assembly source-data sink-data
       (w/assembly [p] (p (w/group-by "f1") (emit-odd "f2" :fn> "q"))))
    ))
 

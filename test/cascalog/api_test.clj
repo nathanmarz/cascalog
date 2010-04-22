@@ -112,6 +112,8 @@
                   [["n"]] unknown-interest)
         )))
 
+(deftest test-funcs)
+
 (deftest test-only-complex-agg)
 
 (deftest test-only-noncomplex-agg)

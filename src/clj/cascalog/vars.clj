@@ -47,14 +47,16 @@
 
 (defn uniquify-vars
   "Uniques the cascalog vars, same vars still have the same name"
-  [vars equalities]
-  (reduce (fn [[p m] v]
-            (if (cascalog-var? v)
-              (let [newname (if-let [existing (m v)]
-                existing (str v (gen-unique-suffix)))]
-                [(conj p newname) (assoc m v newname)])
-              [(conj p v) m]))
-    [[] equalities] vars))
+  [invars outvars equalities]
+  (let [update-fn (fn [[p m] v]
+                    (if (cascalog-var? v)
+                      (let [newname (if-let [existing (m v)]
+                        existing (str v (gen-unique-suffix)))]
+                        [(conj p newname) (assoc m v newname)])
+                      [(conj p v) m]))
+        [invars equalities]  (reduce update-fn [[] equalities] invars)
+        [outvars equalities] (reduce update-fn [[] equalities] outvars)]
+   [invars outvars equalities]))
 
 ; (defn uniquify-vars
 ;   "Uniques the cascalog vars, equal vars get put into same set in map"
