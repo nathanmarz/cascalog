@@ -82,11 +82,12 @@
     (recur (add-op tail op))
     tail ))
 
+;; TODO: refactor and simplify drift algorithm
 (defn- add-drift-op [tail equality-sets rename-map new-drift-map]
-  (let [eq-assemblies (map #(apply w/equal %) equality-sets)
+  (let [eq-assemblies (map w/equal equality-sets)
         outfields (vec (keys rename-map))
         rename-in (vec (vals rename-map))
-        rename-assembly (w/identity rename-in :fn> outfields :> Fields/ALL)
+        rename-assembly (if-not (empty? rename-in) (w/identity rename-in :fn> outfields :> Fields/ALL) identity)
         assembly   (apply w/compose-straight-assemblies (concat eq-assemblies [rename-assembly]))
         infields (vec (apply concat rename-in equality-sets))
         tail (connect-op tail (p/predicate p/operation assembly infields outfields))]

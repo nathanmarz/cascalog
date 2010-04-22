@@ -77,6 +77,15 @@
   ["luanne" "gary"]
   ]))
 
+(def nums (memory-source-tap [
+  [1 2]
+  [1 1]
+  [4 4]
+  [5 10]
+  [2 7]
+  [3 6]
+  ]))
+
 (def sentence (memory-source-tap [
   ["Four score and seven years ago our fathers brought forth on this continent a new nation"]
   ["conceived in Liberty and dedicated to the proposition that all men are created equal"]
