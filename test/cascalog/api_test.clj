@@ -112,6 +112,16 @@
                   [["n"]] unknown-interest)
         )))
 
+(deftest test-filter-same-field
+  (with-tmp-sources [nums [[1 1] [0 0] [1 2] [3 7] [8 64] [7 1] [2 4] [6 6]]]
+    (test?<- [[1] [0] [6]] [?n] (nums ?n ?n))
+    (test?<- [[1 1] [0 0] [8 64] [2 4]] [?n ?n2] (nums ?n ?n2) (* ?n ?n :> ?n2))
+    (test?<- [[0]] [?n] (nums ?n ?n) (* ?n ?n :> ?n) (+ ?n ?n :> ?n))
+    (test?<- [[1 1] [1 2] [0 0] [6 6]] [?n ?n2] (nums ?n ?n) (nums ?n ?n2))
+    (test?<- [[14]] [?s] (nums ?n ?n) (* 2 ?n :> ?n2) (c/sum ?n2 :> ?s))
+    (test?<- [[6] [0]] [?n2] (nums ?n ?n) (nums ?n2 ?n2) (* 6 ?n :> ?n2))
+    ))
+
 (deftest test-funcs)
 
 (deftest test-only-complex-agg)

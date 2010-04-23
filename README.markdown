@@ -33,8 +33,8 @@ Send an email to nathan.marz@gmail.com, open on issue on Github, or come chat in
 
 # TODO
 
-1. Make predicates such as (like ?p ?p) work
-2. "Logical outer joins"
+1. "Logical outer joins"
+2. Ungrounded rules
 3. Combine join with aggregation using MultiGroupBy grouping fields and join fields are the same
 
 # Notes on running Cascalog queries on a real Hadoop cluster
@@ -45,11 +45,10 @@ Send an email to nathan.marz@gmail.com, open on issue on Github, or come chat in
 
 # Limitations
 
-1. Predicates such as (likes ?p ?p) don't work yet, this will be fixed shortly
-2. Query planner doesn't optimize across subqeries yet
-3. No way to order your results yet
-4. No recursion - I want to see concrete use cases people have for recursion first
-5. No negation
+1. Query planner doesn't optimize across subqeries yet
+2. No way to order your results yet
+3. No recursion - I want to see concrete use cases people have for recursion first
+4. No negation
 
 
 # Acknowledgements
