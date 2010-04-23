@@ -219,7 +219,6 @@
   "Build a predicate. Calls down to build-predicate-specific for predicate-specific building 
   and adds constant substitution and null checking of ? vars."
   [op opvar orig-infields outfields]
-  ;; TODO: if same var appears multiple times in infields, duplicate the field & add it as an outfield
   (let [outfields                      (replace-ignored-vars outfields)
         [infields infield-subs]        (variable-substitution orig-infields)
         [infields dupvars
