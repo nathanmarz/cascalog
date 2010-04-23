@@ -162,16 +162,18 @@
   (every? (complement nil?) objs))
 
 (defn- mk-insertion-assembly [subs]
-  (when (not-empty subs)
-    (apply w/insert (transpose (seq subs)))))
+  (if (not-empty subs)
+    (apply w/insert (transpose (seq subs)))
+    identity ))
 
 (defn- replace-ignored-vars [vars]
   (map #(if (= "_" %) (gen-nullable-var) %) vars))
 
 (defn- mk-null-check [fields]
   (let [non-null-fields (filter non-nullable-var? fields)]
-    (when (not-empty non-null-fields)
-      (non-null? non-null-fields))))
+    (if (not-empty non-null-fields)
+      (non-null? non-null-fields)
+      identity )))
 
 (defmulti enhance-predicate (fn [pred & rest] (:type pred)))
 
@@ -199,25 +201,43 @@
   (merge pred {:pipe (outassem (:pipe pred))
                :outfields outfields}))
 
+(defn- fix-duplicate-infields
+  "Workaround to Cascading not allowing same field multiple times as input to an operation.
+   Copies values as a workaround"
+  [infields]
+  (let [update-fn (fn [[newfields dupvars assem] f]
+                    (if ((set newfields) f)
+                      (let [newfield (gen-nullable-var)
+                            idassem (w/identity f :fn> newfield :> Fields/ALL)]
+                        [(conj newfields newfield)
+                         (conj dupvars newfield)
+                         (w/compose-straight-assemblies assem idassem)])
+                      [(conj newfields f) dupvars assem]))]
+    (reduce update-fn [[] [] identity] infields)))
+
 (defn build-predicate
   "Build a predicate. Calls down to build-predicate-specific for predicate-specific building 
   and adds constant substitution and null checking of ? vars."
   [op opvar orig-infields outfields]
+  ;; TODO: if same var appears multiple times in infields, duplicate the field & add it as an outfield
   (let [outfields                      (replace-ignored-vars outfields)
         [infields infield-subs]        (variable-substitution orig-infields)
+        [infields dupvars
+          duplicate-assem]             (fix-duplicate-infields infields)
         [outfields outfield-subs]      (variable-substitution outfields)
         predicate                      (build-predicate-specific op opvar infields outfields)
         [newsubs equalities]           (output-substitution outfield-subs)
-        new-outfields                  (concat outfields (keys newsubs) (keys infield-subs))
-        in-insertion-assembly          (mk-insertion-assembly infield-subs)
+        new-outfields                  (concat outfields (keys newsubs) (keys infield-subs) dupvars)
+        in-insertion-assembly          (when-not (empty? infields) (w/compose-straight-assemblies
+                                          (mk-insertion-assembly infield-subs)
+                                          duplicate-assem))
         out-insertion-assembly         (mk-insertion-assembly newsubs)
         null-check-out                 (mk-null-check new-outfields)
         equality-assemblies            (map w/equal equalities)
         outassembly                    (apply w/compose-straight-assemblies
-                                        (filter (complement nil?)
                                           (concat [out-insertion-assembly
                                                   null-check-out]
-                                        equality-assemblies)))]
+                                        equality-assemblies))]
         (enhance-predicate predicate
                            (filter cascalog-var? orig-infields)
                            in-insertion-assembly
