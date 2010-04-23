@@ -8,7 +8,7 @@
 (deftest test-simple-query
   (with-tmp-sources [age [["n" 24] ["n" 23] ["i" 31] ["c" 30] ["j" 21] ["q" nil]]]
      (test?<- [["j"] ["n"]] [?p] (age ?p ?a) (< ?a 25))
-     (test?<- [["j"] ["n"] ["n"]] {:distinct false} [?p] (age ?p ?a) (< ?a 25))
+     (test?<- [["j"] ["n"] ["n"]] [?p] (age ?p ?a) (< ?a 25) (:distinct false))
     ))
 
 (deftest test-larger-tuples
@@ -16,7 +16,7 @@
                      friends [["n" "i" 6] ["n" "g" 20] ["g" "i" nil]]]
      (test?<- [["g" 60]] [?p ?a] (stats ?p _ _ ?a) (friends ?p _ _))
      (test?<- [] [?p ?a] (stats ?p 1000 _ ?a))
-     (test?<- [["n"] ["n"]] {:distinct false} [?p] (stats ?p _ _ nil))
+     (test?<- [["n"] ["n"]] [?p] (stats ?p _ _ nil) (:distinct false))
     ))
 
 (deftest test-multi-join
@@ -120,6 +120,15 @@
     (test?<- [[1 1] [1 2] [0 0] [6 6]] [?n ?n2] (nums ?n ?n) (nums ?n ?n2))
     (test?<- [[14]] [?s] (nums ?n ?n) (* 2 ?n :> ?n2) (c/sum ?n2 :> ?s))
     (test?<- [[6] [0]] [?n2] (nums ?n ?n) (nums ?n2 ?n2) (* 6 ?n :> ?n2))
+    ))
+
+(w/defbufferop select-first [tuples]
+  [(first tuples)])
+
+(deftest test-sort
+  (with-tmp-sources [pairs [["a" 1] ["a" 2] ["a" 3] ["b" 10] ["b" 20]]]
+    (test?<- [["a" 1] ["b" 10]] [?f1 ?f2] (pairs ?f1 ?v) (:sort ?v) (select-first ?v :> ?f2))
+    (test?<- [["a" 3] ["b" 20]] [?f1 ?f2] (pairs ?f1 ?v) (:sort ?v) (:reverse true) (select-first ?v :> ?f2))
     ))
 
 (deftest test-funcs)

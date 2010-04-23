@@ -51,12 +51,12 @@
 (defn- split-predicates [predicates]
   (let [{ops :operation
          aggs :aggregator
-         gens :generator} (merge {:operation [] :aggregator [] :generator []}
+         gens :generator
+         opts :option} (merge {:operation [] :aggregator [] :generator [] :option []}
                                 (group-by :type predicates))]
     (when (and (> (count aggs) 1) (some (complement :composable) aggs))
       (throw (IllegalArgumentException. "Cannot use both aggregators and buffers in same grouping")))
-    [gens ops aggs] ))
-
+    [gens ops aggs opts] ))
 
 (defstruct tailstruct :operations :drift-map :available-fields :node)
 
@@ -193,9 +193,15 @@
            (map mk-combined-aggregator specs tempfields (map #(:outfield (:parallel-agg %)) aggs))] )
     [[identity] (map :serial-agg-assembly aggs)] ))
 
+(defn- mk-group-by [grouping-fields options]
+  (let [s (:sort options)]
+   (if s
+      (w/group-by grouping-fields (:sort options) (:reverse options))
+      (w/group-by grouping-fields))))
+
 (defn- build-agg-tail [options prev-tail grouping-fields aggs]
-  ;; if no aggs -> if options:distinct is false, return prev-tail. otherwise, insert a distinct
-  ;; insert arbitrary grouping field if no grouping fields
+  (when (and (empty? aggs) (:sort options))
+    (throw (IllegalArgumentException. "Cannot specify a sort when there are no aggregators" )))
   (if (and (not (:distinct options)) (empty? aggs))
     prev-tail
     (let [aggs              (if-not (empty? aggs) aggs [p/distinct-aggregator])
@@ -207,7 +213,7 @@
                          [inserter]
                          (map :pregroup-assembly aggs)
                          prep-aggs
-                         [(w/group-by grouping-fields)]
+                         [(mk-group-by grouping-fields options)]
                          postgroup-aggs
                          (map :post-assembly aggs)
                        ))
@@ -283,7 +289,15 @@
         (merge newgen {:pipe ((mk-projection-assembly forceproject project-fields (:outfields newgen)) (:pipe newgen))
                 :outfields project-fields})))
 
-(defn build-rule [options out-vars raw-predicates]
+(def DEFAULT-OPTIONS
+  {:distinct true
+   :sort nil
+   :reverse false})
+
+(defn- mk-options [opt-predicates]
+  (apply merge DEFAULT-OPTIONS (map (fn [p] {(:key p) (:val p)}) opt-predicates)))
+
+(defn build-rule [out-vars raw-predicates]
   (let [[_ out-vars vmap]     (uniquify-vars [] out-vars {})
         update-fn             (fn [[preds vmap] [op opvar vars]]
                                 (let [{invars :in outvars :out} (p/parse-variables vars (p/predicate-default-var op))
@@ -291,7 +305,9 @@
                                   [(conj preds [op opvar invars outvars]) vmap] ))
         [raw-predicates vmap] (reduce update-fn [[] vmap] raw-predicates)
         drift-map             (mk-drift-map vmap)
-        [gens ops aggs]       (split-predicates (map (partial apply p/build-predicate) raw-predicates))
+        [gens ops aggs
+          opt-predicates]     (split-predicates (map (partial apply p/build-predicate) raw-predicates))
+        options               (mk-options opt-predicates)
         rule-graph            (mk-graph)
         tails                 (map (fn [g] (struct tailstruct ops drift-map (:outfields g) (create-node rule-graph g))) gens)
         joined                (merge-tails rule-graph tails)

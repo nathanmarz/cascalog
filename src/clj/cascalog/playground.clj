@@ -77,7 +77,7 @@
   ["luanne" "gary"]
   ]))
 
-(def nums (memory-source-tap [
+(def num-pair (memory-source-tap [
   [1 2]
   [0 0]
   [1 1]
@@ -88,6 +88,20 @@
   [8 64]
   [8 3]
   [4 0]
+  ]))
+
+(def integer (memory-source-tap [
+  [-1]
+  [0]
+  [1]
+  [2]
+  [3]
+  [4]
+  [5]
+  [6]
+  [7]
+  [8]
+  [9]
   ]))
 
 (def sentence (memory-source-tap [

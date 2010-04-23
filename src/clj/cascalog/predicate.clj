@@ -44,6 +44,8 @@
 ;; automatically generates source pipes and attaches to sources
 (defpredicate generator :sourcemap :pipe :outfields)
 
+(defpredicate option :key :val)
+
 
 ;; TODO: change this to use fast first buffer
 (def distinct-aggregator (predicate aggregator false nil identity (w/first) identity [] []))
@@ -67,7 +69,8 @@
 ;; uses hacky function metadata so that operations can be passed in as arguments when constructing cascalog
 ;; rules
 (defn- predicate-dispatcher [op & rest]
-  (cond (instance? Tap op) ::tap
+  (cond (keyword? op) ::option
+        (instance? Tap op) ::tap
         (map? op) (if (= :generator (:type op)) ::generator ::parallel-aggregator)
         (w/get-op-metadata op) (:type (w/get-op-metadata op))
         (fn? op) ::vanilla-function
@@ -76,6 +79,7 @@
 
 (defmulti predicate-default-var predicate-dispatcher)
 
+(defmethod predicate-default-var ::option [& args] :in)
 (defmethod predicate-default-var ::tap [& args] :out)
 (defmethod predicate-default-var ::generator [& args] :out)
 (defmethod predicate-default-var ::parallel-aggregator [& args] :out)
@@ -215,30 +219,36 @@
                       [(conj newfields f) dupvars assem]))]
     (reduce update-fn [[] [] identity] infields)))
 
+(defn mk-option-predicate [op infields]
+  (let [val (if (= 1 (count infields)) (first infields) infields)]
+    (predicate option op val)))
+
 (defn build-predicate
   "Build a predicate. Calls down to build-predicate-specific for predicate-specific building 
   and adds constant substitution and null checking of ? vars."
   [op opvar orig-infields outfields]
-  (let [outfields                      (replace-ignored-vars outfields)
-        [infields infield-subs]        (variable-substitution orig-infields)
-        [infields dupvars
-          duplicate-assem]             (fix-duplicate-infields infields)
-        [outfields outfield-subs]      (variable-substitution outfields)
-        predicate                      (build-predicate-specific op opvar infields outfields)
-        [newsubs equalities]           (output-substitution outfield-subs)
-        new-outfields                  (concat outfields (keys newsubs) (keys infield-subs) dupvars)
-        in-insertion-assembly          (when-not (empty? infields) (w/compose-straight-assemblies
-                                          (mk-insertion-assembly infield-subs)
-                                          duplicate-assem))
-        out-insertion-assembly         (mk-insertion-assembly newsubs)
-        null-check-out                 (mk-null-check new-outfields)
-        equality-assemblies            (map w/equal equalities)
-        outassembly                    (apply w/compose-straight-assemblies
-                                          (concat [out-insertion-assembly
-                                                  null-check-out]
-                                        equality-assemblies))]
-        (enhance-predicate predicate
-                           (filter cascalog-var? orig-infields)
-                           in-insertion-assembly
-                           new-outfields
-                           outassembly)))
+  (if (keyword? op)
+    (mk-option-predicate op orig-infields)
+    (let [outfields                      (replace-ignored-vars outfields)
+          [infields infield-subs]        (variable-substitution orig-infields)
+          [infields dupvars
+            duplicate-assem]             (fix-duplicate-infields infields)
+          [outfields outfield-subs]      (variable-substitution outfields)
+          predicate                      (build-predicate-specific op opvar infields outfields)
+          [newsubs equalities]           (output-substitution outfield-subs)
+          new-outfields                  (concat outfields (keys newsubs) (keys infield-subs) dupvars)
+          in-insertion-assembly          (when-not (empty? infields) (w/compose-straight-assemblies
+                                            (mk-insertion-assembly infield-subs)
+                                            duplicate-assem))
+          out-insertion-assembly         (mk-insertion-assembly newsubs)
+          null-check-out                 (mk-null-check new-outfields)
+          equality-assemblies            (map w/equal equalities)
+          outassembly                    (apply w/compose-straight-assemblies
+                                            (concat [out-insertion-assembly
+                                                    null-check-out]
+                                          equality-assemblies))]
+          (enhance-predicate predicate
+                             (filter cascalog-var? orig-infields)
+                             in-insertion-assembly
+                             new-outfields
+                             outassembly))))
