@@ -58,12 +58,12 @@
       (throw (IllegalArgumentException. "Cannot use both aggregators and buffers in same grouping")))
     [gens ops aggs opts] ))
 
-(defstruct tailstruct :operations :drift-map :available-fields :node)
+(defstruct tailstruct :ground? :operations :drift-map :available-fields :node)
 
 (defn- connect-op [tail op]
   (let [new-node (connect-value (:node tail) op)
         new-outfields (concat (:available-fields tail) (:outfields op))]
-        (struct tailstruct (:operations tail) (:drift-map tail) new-outfields new-node)))
+        (struct tailstruct true (:operations tail) (:drift-map tail) new-outfields new-node)))
 
 (defn- add-op [tail op]
   (let [tail (connect-op tail op)
@@ -121,15 +121,23 @@
   (intersection (map #(set (:available-fields %)) tails)))
 
 (defn- select-join
-  "Splits tails into [{join set} {rest of tails}]
+  "Splits tails into [join-fields {join set} {rest of tails}]
    this is unoptimal. it's better to rewrite this as a search problem to find optimal joins"
   [tails]
   (let [pairs     (all-pairs tails)
         sections  (map (fn [[t1 t2]]
+                          ;; TODO: check that rest of fields are either all ungrounded or all not ungrounded
+                          ;; if not, emit empty set, one must be grounded and not have any unground vars?
+                          ;; need to keep track of groundedness. generators with no unground vars start ground
+                          ;; need to defer all operations until a tail is ground
+                          ;; unground var may only be used as an outfield in generator ONE time
+                          ;; (age ?p ?a) (record ?p ?a !!g) (blue ?p !!b)
+                          ;; (person ?p) (age ?p !!a) (age2 ?p !!a)
                           (intersection (set (:available-fields t1))
                                         (set (:available-fields t2))))
                       pairs)
         max-join  (last (sort-by count sections))]
+      (when (empty? max-join) (throw (IllegalArgumentException. "Unable to join predicates together")))
       (cons (vec max-join) (separate #(subset? max-join (set (:available-fields %))) tails))
     ))
 
@@ -150,7 +158,7 @@
         ; TODO: eventually should specify the join fields and type of join in the edge
         ;;  for ungrounding vars & when move to full variable renaming and equality sets
         (dorun (map #(create-edge (:node %) join-node) join-set))
-        (recur graph (cons (struct tailstruct new-ops new-drift-map available-fields join-node) rest-tails))
+        (recur graph (cons (struct tailstruct true new-ops new-drift-map available-fields join-node) rest-tails))
         ))))
 
 (defn- agg-available-fields [grouping-fields aggs]
@@ -221,7 +229,7 @@
         node         (create-node (get-graph prev-node)
                         (p/predicate group assem (agg-infields aggs) total-fields))]
      (create-edge prev-node node)
-     (struct tailstruct (:operations prev-tail) (:drift-map prev-tail) total-fields node))
+     (struct tailstruct true (:operations prev-tail) (:drift-map prev-tail) total-fields node))
     ))
 
 (defn projection-fields [needed-vars allfields]
@@ -260,7 +268,7 @@
         keep-fields (vec (set (apply concat infields)))
         joined      (w/assemble inpipes (w/inner-join (repeat (count inpipes) join-fields) rename-fields)
                                         (w/select keep-fields))]
-        (p/predicate p/generator  sourcemap joined keep-fields)
+        (p/predicate p/generator sourcemap joined keep-fields)
     ))
 
 (defmethod node->generator :operation [pred prevgens]
@@ -309,7 +317,8 @@
           opt-predicates]     (split-predicates (map (partial apply p/build-predicate) raw-predicates))
         options               (mk-options opt-predicates)
         rule-graph            (mk-graph)
-        tails                 (map (fn [g] (struct tailstruct ops drift-map (:outfields g) (create-node rule-graph g))) gens)
+        tails                 (map (fn [g] (struct tailstruct true ops drift-map (:outfields g)
+                                              (create-node rule-graph g))) gens)
         joined                (merge-tails rule-graph tails)
         grouping-fields       (seq (intersection (set (:available-fields joined)) (set out-vars)))
         agg-tail              (build-agg-tail options joined grouping-fields aggs)
