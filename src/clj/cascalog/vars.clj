@@ -42,6 +42,8 @@
   [sym-or-str]
   (.startsWith (extract-varname sym-or-str) "!!"))
 
+(def ground-var? (complement unground-var?))
+
 (defn vars2str [vars]
   (vec (map #(if (cascalog-var? %) (extract-varname %) %) vars)))
 
@@ -49,7 +51,7 @@
   (fn [[all equalities] v]
     (if (cascalog-var? v)
       (let [existing (get equalities v [])
-            varlist  (if (or (empty? existing) outfield?)
+            varlist  (if (or (empty? existing) (and outfield? (ground-var? v)))
                       (conj existing (str v (gen-unique-suffix)))
                       existing)
             newname  (if outfield? (last varlist) (first varlist))]

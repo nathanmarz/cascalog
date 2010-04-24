@@ -25,7 +25,7 @@
            [cascading.operation.regex RegexGenerator RegexFilter]
            [cascading.operation.aggregator First Count Sum Min Max]
            [cascading.pipe Pipe Each Every GroupBy CoGroup]
-           [cascading.pipe.cogroup InnerJoin OuterJoin LeftJoin RightJoin]
+           [cascading.pipe.cogroup InnerJoin OuterJoin LeftJoin RightJoin MixedJoin]
            [cascading.scheme Scheme]
            [cascading.tap Hfs Lfs Tap]
            [org.apache.hadoop.io Text]
@@ -229,6 +229,9 @@
   	  (fields-array fields-seq)
   	  (fields declared-fields)
   	  joiner)))
+
+(defn mixed-joiner [bool-seq]
+  (MixedJoin. (boolean-array bool-seq)))
 
 ;; creates an op that has metadata embedded within it, hack to work around fact that clojure
 ;; doesn't allow metadata on functions. call (op :meta) to get metadata

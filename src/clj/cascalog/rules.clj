@@ -16,7 +16,7 @@
 (ns cascalog.rules
   (:use [cascalog vars util graph])
   (:use clojure.contrib.set)
-  (:use [clojure.set :only [intersection union]])
+  (:use [clojure.set :only [intersection union difference]])
   (:use [clojure.contrib.set :only [subset?]])
   (:use [clojure.contrib.seq-utils :only [group-by find-first separate]])
   (:require [cascalog [workflow :as w] [predicate :as p]])
@@ -56,6 +56,8 @@
                                 (group-by :type predicates))]
     (when (and (> (count aggs) 1) (some (complement :composable) aggs))
       (throw (IllegalArgumentException. "Cannot use both aggregators and buffers in same grouping")))
+    (when (every? (complement :ground?) gens)
+      (throw (IllegalArgumentException. "Must have at least one ground predicate")))
     [gens ops aggs opts] ))
 
 (defstruct tailstruct :ground? :operations :drift-map :available-fields :node)
@@ -63,7 +65,7 @@
 (defn- connect-op [tail op]
   (let [new-node (connect-value (:node tail) op)
         new-outfields (concat (:available-fields tail) (:outfields op))]
-        (struct tailstruct true (:operations tail) (:drift-map tail) new-outfields new-node)))
+        (struct tailstruct (:ground? tail) (:operations tail) (:drift-map tail) new-outfields new-node)))
 
 (defn- add-op [tail op]
   (let [tail (connect-op tail op)
@@ -78,20 +80,23 @@
 (defn- fixed-point-operations
   "Adds operations to tail until can't anymore. Returns new tail"
   [tail]
-  (if-let [op (find-first (partial op-allowed? (:available-fields tail)) (:operations tail))]
-    (recur (add-op tail op))
-    tail ))
+  (if-not (:ground? tail)
+    tail  ; TODO: allow filters in this case
+    (if-let [op (find-first (partial op-allowed? (:available-fields tail)) (:operations tail))]
+      (recur (add-op tail op))
+      tail )))
 
 ;; TODO: refactor and simplify drift algorithm
 (defn- add-drift-op [tail equality-sets rename-map new-drift-map]
   (let [eq-assemblies (map w/equal equality-sets)
         outfields (vec (keys rename-map))
         rename-in (vec (vals rename-map))
-        rename-assembly (if-not (empty? rename-in) (w/identity rename-in :fn> outfields :> Fields/ALL) identity)
+        rename-assembly (if-not (empty? rename-in) (w/identity rename-in :fn> outfields :> Fields/SWAP) identity)
         assembly   (apply w/compose-straight-assemblies (concat eq-assemblies [rename-assembly]))
         infields (vec (apply concat rename-in equality-sets))
-        tail (connect-op tail (p/predicate p/operation assembly infields outfields))]
-        (merge tail {:drift-map new-drift-map} )))
+        tail (connect-op tail (p/predicate p/operation assembly infields outfields))
+        newout (difference (set (:available-fields tail)) (set rename-in))]
+        (merge tail {:drift-map new-drift-map :available-fields newout} )))
 
 (defn- determine-drift [drift-map available-fields]
   (let [available-set (set available-fields)
@@ -120,25 +125,34 @@
 (defn- tail-fields-intersection [& tails]
   (intersection (map #(set (:available-fields %)) tails)))
 
+(defn- joinable? [joinfields tail]
+  (let [join-set (set joinfields)
+        tailfields (set (:available-fields tail))]
+    (and (subset? join-set tailfields)
+        (or (:ground? tail)
+            (every? unground-var? (difference tailfields join-set))
+        ))))
+
+(defn- find-join-fields [tail1 tail2]
+  (let [set1 (set (:available-fields tail1))
+        set2 (set (:available-fields tail2))
+        join-set (intersection set1 set2)]
+  (if (and (some :ground? [tail1 tail2])
+           (every? (partial joinable? join-set) [tail1 tail2]))
+      join-set
+      [] )))
+
 (defn- select-join
   "Splits tails into [join-fields {join set} {rest of tails}]
    this is unoptimal. it's better to rewrite this as a search problem to find optimal joins"
   [tails]
   (let [pairs     (all-pairs tails)
         sections  (map (fn [[t1 t2]]
-                          ;; TODO: check that rest of fields are either all ungrounded or all not ungrounded
-                          ;; if not, emit empty set, one must be grounded and not have any unground vars?
-                          ;; need to keep track of groundedness. generators with no unground vars start ground
-                          ;; need to defer all operations until a tail is ground
-                          ;; unground var may only be used as an outfield in generator ONE time
-                          ;; (age ?p ?a) (record ?p ?a !!g) (blue ?p !!b)
-                          ;; (person ?p) (age ?p !!a) (age2 ?p !!a)
-                          (intersection (set (:available-fields t1))
-                                        (set (:available-fields t2))))
+                          (find-join-fields t1 t2))
                       pairs)
         max-join  (last (sort-by count sections))]
       (when (empty? max-join) (throw (IllegalArgumentException. "Unable to join predicates together")))
-      (cons (vec max-join) (separate #(subset? max-join (set (:available-fields %))) tails))
+      (cons (vec max-join) (separate (partial joinable? max-join) tails))
     ))
 
 (defn- intersect-drift-maps [drift-maps]
@@ -155,8 +169,6 @@
             available-fields      (vec (set (apply concat (map :available-fields join-set))))
             new-ops               (vec (apply intersection (map #(set (:operations %)) join-set)))
             new-drift-map         (intersect-drift-maps (map :drift-map join-set))]
-        ; TODO: eventually should specify the join fields and type of join in the edge
-        ;;  for ungrounding vars & when move to full variable renaming and equality sets
         (dorun (map #(create-edge (:node %) join-node) join-set))
         (recur graph (cons (struct tailstruct true new-ops new-drift-map available-fields join-node) rest-tails))
         ))))
@@ -229,7 +241,7 @@
         node         (create-node (get-graph prev-node)
                         (p/predicate group assem (agg-infields aggs) total-fields))]
      (create-edge prev-node node)
-     (struct tailstruct true (:operations prev-tail) (:drift-map prev-tail) total-fields node))
+     (struct tailstruct (:ground? prev-tail) (:operations prev-tail) (:drift-map prev-tail) total-fields node))
     ))
 
 (defn projection-fields [needed-vars allfields]
@@ -258,17 +270,21 @@
         updatefn (fn [f] (if (join-set f) (gen-nullable-var) f))]
     (map updatefn fields)))
 
-;; (defpredicate generator :sourcemap :pipe :outfields)
 (defmethod node->generator :join [pred prevgens]
   (let [join-fields (:infields pred)
         sourcemap   (apply merge (map :sourcemap prevgens))
+        [inner-gens
+        outer-gens] (separate :ground? prevgens)
+        prevgens    (concat inner-gens outer-gens)
         infields    (map :outfields prevgens)
         inpipes     (map (fn [p f] ((w/select f) p)) (map :pipe prevgens) infields)
         rename-fields (apply concat (first infields) (map (partial rename-join-fields join-fields) (rest infields)))
         keep-fields (vec (set (apply concat infields)))
-        joined      (w/assemble inpipes (w/inner-join (repeat (count inpipes) join-fields) rename-fields)
+        mixjoin     (w/mixed-joiner (concat (repeat (count inner-gens) true)
+                                            (repeat (count outer-gens) false)))
+        joined      (w/assemble inpipes (w/co-group (repeat (count inpipes) join-fields) rename-fields mixjoin)
                                         (w/select keep-fields))]
-        (p/predicate p/generator sourcemap joined keep-fields)
+        (p/predicate p/generator true sourcemap joined keep-fields)
     ))
 
 (defmethod node->generator :operation [pred prevgens]
@@ -305,7 +321,19 @@
 (defn- mk-options [opt-predicates]
   (apply merge DEFAULT-OPTIONS (map (fn [p] {(:key p) (:val p)}) opt-predicates)))
 
+(defn- validate-vars! [out-vars predicate-vars]
+  (let [check-fn (fn [unboundset v]
+      (if (unboundset v)
+        (throw (IllegalArgumentException. "Cannot use ungrounding var as an output variable twice"))
+        (conj unboundset v)
+        ))]
+    (reduce check-fn #{} (mapcat second predicate-vars))
+    ))
+
 (defn build-rule [out-vars raw-predicates]
+  (validate-vars! out-vars (map (fn [p] [(filter cascalog-var? (get p :infields []))
+                                        (filter cascalog-var? (get p :outfields []))])
+                            raw-predicates))
   (let [[_ out-vars vmap]     (uniquify-vars [] out-vars {})
         update-fn             (fn [[preds vmap] [op opvar vars]]
                                 (let [{invars :in outvars :out} (p/parse-variables vars (p/predicate-default-var op))
@@ -317,8 +345,8 @@
           opt-predicates]     (split-predicates (map (partial apply p/build-predicate) raw-predicates))
         options               (mk-options opt-predicates)
         rule-graph            (mk-graph)
-        tails                 (map (fn [g] (struct tailstruct true ops drift-map (:outfields g)
-                                              (create-node rule-graph g))) gens)
+        tails                 (map (fn [g] (struct tailstruct (:ground? g)
+                                        ops drift-map (:outfields g) (create-node rule-graph g))) gens)
         joined                (merge-tails rule-graph tails)
         grouping-fields       (seq (intersection (set (:available-fields joined)) (set out-vars)))
         agg-tail              (build-agg-tail options joined grouping-fields aggs)

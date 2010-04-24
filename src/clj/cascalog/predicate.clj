@@ -42,7 +42,7 @@
 ;; return a :post-assembly, a :parallel-agg, and a :serial-agg-assembly
 (defpredicate aggregator :composable :parallel-agg :pregroup-assembly :serial-agg-assembly :post-assembly :infields :outfields)
 ;; automatically generates source pipes and attaches to sources
-(defpredicate generator :sourcemap :pipe :outfields)
+(defpredicate generator :ground? :sourcemap :pipe :outfields)
 
 (defpredicate option :key :val)
 
@@ -92,18 +92,21 @@
 
 (defmulti build-predicate-specific predicate-dispatcher)
 
+(defn- ground-fields? [outfields]
+  (every? ground-var? outfields))
+
 ;; TODO: should have a (generator :only ?a ?b) syntax for generators (only select those fields, filter the rest)
 (defmethod build-predicate-specific ::tap [tap _ infields outfields]
   (let
     [pname (uuid)
      pipe (w/assemble (w/pipe pname) (w/identity Fields/ALL :fn> outfields :> Fields/RESULTS))]
     (when-not (empty? infields) (throw (IllegalArgumentException. "Cannot use :> in a taps vars declaration")))
-    (predicate generator {pname tap} pipe outfields)
+    (predicate generator (ground-fields? outfields) {pname tap} pipe outfields)
   ))
 
 (defmethod build-predicate-specific ::generator [gen _ infields outfields]
   (let [gen-pipe (w/assemble (:pipe gen) (w/pipe-rename (uuid)) (w/identity Fields/ALL :fn> outfields :> Fields/RESULTS))]
-  (predicate generator (:sourcemap gen) gen-pipe outfields)))
+  (predicate generator (ground-fields? outfields) (:sourcemap gen) gen-pipe outfields)))
 
 (defmethod build-predicate-specific ::vanilla-function [_ opvar infields outfields]
   (when (nil? opvar) (throw (RuntimeException. "Functions must have vars associated with them")))

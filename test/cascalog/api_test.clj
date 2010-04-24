@@ -131,6 +131,32 @@
     (test?<- [["a" 3] ["b" 20]] [?f1 ?f2] (pairs ?f1 ?v) (:sort ?v) (:reverse true) (select-first ?v :> ?f2))
     ))
 
+(defn existence2str [obj]
+  (if obj "some" "none"))
+
+(deftest test-outer-join-basic
+  (with-tmp-sources [person [["a"] ["b"] ["c"] ["d"]]
+                     follows [["a" "b"] ["c" "e"] ["c" "d"]]]
+    (test?<- [["a" "b"] ["c" "e"] ["c" "d"] ["b" nil] ["d" nil]]
+      [?p !!p2] (person ?p) (follows ?p !!p2))
+    (test?<- [["a" "b" "b"] ["c" "e" "d"] ["c" "e" "e"]
+              ["c" "d" "d"] ["c" "d" "e"] ["b" nil nil]
+              ["d" nil nil]]
+      [?p !!p2 !!p3] (person ?p) (follows ?p !!p2) (follows ?p !!p3))
+    (test?<- [["a" 1 1] ["c" 2 2] ["b" 0 1] ["d" 0 1]]
+      [?p ?c ?t] (person ?p) (follows ?p !!p2) (c/!count !!p2 :> ?c) (c/count ?t))
+    (test?<- [["a" "some"] ["b" "none"] ["c" "some"] ["d" "none"]]
+      [?p ?s] (person ?p) (follows ?p !!p2) (existence2str !!p2 :> ?s))
+  ))
+
+(deftest test-outer-join-complex
+ (with-tmp-sources [age [["a" 20] ["b" 30] ["c" 27] ["d" 40]]
+                    rec1 [["a" 1 2] ["b" 30 16] ["e" 3 4]]
+                    rec2 [["a" 20 6] ["c" 27 25] ["c" 1 11] ["f" 30 1] ["b" 100 16]] ]
+   (test?<- [["a" 20 1 2 6] ["c" 27 nil nil 25] ["d" 40 nil nil nil] ["b" 30 30 16 nil]]
+     [?p ?a !!f1 !!f2 !!f3] (age ?p ?a) (rec1 ?p !!f1 !!f2) (rec2 ?p ?a !!f3))
+  ))
+
 (deftest test-funcs)
 
 (deftest test-only-complex-agg)
