@@ -134,6 +134,15 @@
 (defn existence2str [obj]
   (if obj "some" "none"))
 
+(w/defmapop outer-join-tester [obj]
+  (if obj "o" "n"))
+
+(w/defmapop outer-join-tester2 [obj]
+  (if obj "o2" "n2"))
+
+(w/defmapcatop outer-join-tester3 [obj]
+  (if obj [1] [1 1]))
+
 (deftest test-outer-join-basic
   (with-tmp-sources [person [["a"] ["b"] ["c"] ["d"]]
                      follows [["a" "b"] ["c" "e"] ["c" "d"]]]
@@ -163,11 +172,24 @@
                     ]
    (test?<- [["A" 20 "m"] ["B" 30 "f"] ["C" 27 nil] ["D" 40 nil] ["E" nil "m"] ["F" nil "f"]]
      [?p !!a !!g] (age ?p !!a) (gender ?p !!g))
+   (test?<- [["A" "o" "o2"] ["B" "o" "o2"] ["C" "o" "n2"] ["D" "o" "n2"] ["E" "n" "o2"] ["F" "n" "o2"]]
+     [?p ?s ?s2]
+    (age ?p !!a) (gender ?p !!g) (outer-join-tester !!a :> ?s) (outer-join-tester2 !!g :> ?s2))
+   (test?<- [["A" 1] ["B" 1] ["C" 1] ["D" 1] ["E" 2] ["F" 2]]
+     [?p ?c] (age ?p !!a) (gender ?p !!g) (outer-join-tester3 !!a :> ?t) (c/count ?c))
   ))
 
 (deftest test-outer-join-with-funcs
   ;; TODO: needed
-  )
+)
+
+(deftest test-mongo
+  ;; function required for join
+  ;; 2 inner join, 2 outer join portion
+  ;; functions -> joins -> functions -> joins
+  ;; functions that run after outer join
+  ;; no aggregator
+)
 
 (deftest test-funcs)
 

@@ -44,7 +44,6 @@
   ["emily" 25]
   ["george" 31]
   ["gary" 28]
-  ["harold" 27]
   ["kumar" 27]
   ["luanne" 36]
   ]))

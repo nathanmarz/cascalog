@@ -159,7 +159,7 @@
 (defn- merge-tails [graph tails]
   (let [tails (map add-ops-fixed-point tails)]
     (if (= 1 (count tails))
-      (merge (first tails) {:ground? true})  ; if still unground, allow operations to be applied
+      (add-ops-fixed-point (merge (first tails) {:ground? true}))  ; if still unground, allow operations to be applied
       (let [[join-fields join-set rest-tails] (select-join tails)
             join-node             (create-node graph (p/predicate join join-fields))
             available-fields      (vec (set (apply concat (map :available-fields join-set))))
@@ -292,7 +292,7 @@
         rename-fields (flatten (map (partial replace-join-fields join-fields) join-renames infields))
         keep-fields (vec (set (apply concat infields)))
         mixjoin     (concat (repeat (count inner-gens) true)
-                                            (repeat (count outer-gens) false))
+                            (repeat (count outer-gens) false))
         joined      (w/assemble inpipes (w/co-group (repeat (count inpipes) join-fields)
                                               rename-fields (w/mixed-joiner mixjoin))
                                         (join-fields-selector [num-join-fields]
