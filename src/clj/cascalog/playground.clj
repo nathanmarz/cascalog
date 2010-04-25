@@ -23,6 +23,19 @@
     (require (quote [cascalog [workflow :as w] [ops :as c]]))
   ))
 
+(def person (memory-source-tap [
+  ["alice"]
+  ["bob"]
+  ["chris"]
+  ["david"]
+  ["emily"]
+  ["george"]
+  ["gary"]
+  ["harold"]
+  ["kumar"]
+  ["luanne"]
+  ]))
+
 (def age (memory-source-tap [
   ["alice" 28]
   ["bob" 33]

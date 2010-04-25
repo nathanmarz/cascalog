@@ -80,3 +80,6 @@
       (assoc m v (conj existing k))))
     {} amap))
 
+(defn some? [pred coll]
+  ((complement nil?) (some pred coll)))
+

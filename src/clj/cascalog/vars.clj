@@ -22,6 +22,9 @@
 
 (defn gen-nullable-var [] (str "!" (gen-unique-suffix)))
 
+(defn gen-nullable-vars [amt]
+  (take amt (repeatedly gen-nullable-var)))
+
 (defn- extract-varname [v]
   (let [actname (if (symbol? v) (name v) v)]
     (if (= "_" actname) (gen-nullable-var) actname)))

@@ -233,6 +233,8 @@
 (defn mixed-joiner [bool-seq]
   (MixedJoin. (boolean-array bool-seq)))
 
+(defn outer-joiner [] (OuterJoin.))
+
 ;; creates an op that has metadata embedded within it, hack to work around fact that clojure
 ;; doesn't allow metadata on functions. call (op :meta) to get metadata
 ;; this is so you can pass operations around and dynamically create flows

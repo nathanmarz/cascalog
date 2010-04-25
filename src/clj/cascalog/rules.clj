@@ -18,7 +18,7 @@
   (:use clojure.contrib.set)
   (:use [clojure.set :only [intersection union difference]])
   (:use [clojure.contrib.set :only [subset?]])
-  (:use [clojure.contrib.seq-utils :only [group-by find-first separate]])
+  (:use [clojure.contrib.seq-utils :only [group-by find-first separate flatten]])
   (:require [cascalog [workflow :as w] [predicate :as p]])
   (:import [cascading.tap Tap])
   (:import [cascading.tuple Fields])
@@ -56,8 +56,6 @@
                                 (group-by :type predicates))]
     (when (and (> (count aggs) 1) (some (complement :composable) aggs))
       (throw (IllegalArgumentException. "Cannot use both aggregators and buffers in same grouping")))
-    (when (every? (complement :ground?) gens)
-      (throw (IllegalArgumentException. "Must have at least one ground predicate")))
     [gens ops aggs opts] ))
 
 (defstruct tailstruct :ground? :operations :drift-map :available-fields :node)
@@ -72,19 +70,18 @@
         new-ops (remove-first (partial = op) (:operations tail))]
         (merge tail {:operations new-ops})))
 
-(defn- op-allowed? [available-fields op]
+(defn- op-allowed? [ground? available-fields op]
   (let [infields-set (set (:infields op))]
-    (subset? infields-set (set available-fields))
+    (and (subset? infields-set (set available-fields))
+         (or ground? (every? ground-var? infields-set)))
     ))
 
 (defn- fixed-point-operations
   "Adds operations to tail until can't anymore. Returns new tail"
   [tail]
-  (if-not (:ground? tail)
-    tail  ; TODO: allow filters in this case
-    (if-let [op (find-first (partial op-allowed? (:available-fields tail)) (:operations tail))]
+    (if-let [op (find-first (partial op-allowed? (:ground? tail) (:available-fields tail)) (:operations tail))]
       (recur (add-op tail op))
-      tail )))
+      tail ))
 
 ;; TODO: refactor and simplify drift algorithm
 (defn- add-drift-op [tail equality-sets rename-map new-drift-map]
@@ -137,8 +134,7 @@
   (let [set1 (set (:available-fields tail1))
         set2 (set (:available-fields tail2))
         join-set (intersection set1 set2)]
-  (if (and (some :ground? [tail1 tail2])
-           (every? (partial joinable? join-set) [tail1 tail2]))
+  (if (every? (partial joinable? join-set) [tail1 tail2])
       join-set
       [] )))
 
@@ -163,14 +159,15 @@
 (defn- merge-tails [graph tails]
   (let [tails (map add-ops-fixed-point tails)]
     (if (= 1 (count tails))
-      (first tails)
+      (merge (first tails) {:ground? true})  ; if still unground, allow operations to be applied
       (let [[join-fields join-set rest-tails] (select-join tails)
             join-node             (create-node graph (p/predicate join join-fields))
             available-fields      (vec (set (apply concat (map :available-fields join-set))))
             new-ops               (vec (apply intersection (map #(set (:operations %)) join-set)))
             new-drift-map         (intersect-drift-maps (map :drift-map join-set))]
         (dorun (map #(create-edge (:node %) join-node) join-set))
-        (recur graph (cons (struct tailstruct true new-ops new-drift-map available-fields join-node) rest-tails))
+        (recur graph (cons (struct tailstruct (some? :ground? join-set) new-ops new-drift-map
+                              available-fields join-node) rest-tails))
         ))))
 
 (defn- agg-available-fields [grouping-fields aggs]
@@ -265,25 +262,41 @@
     (throw (RuntimeException. "Planner exception: Generator has inbound nodes")))
   pred )
 
-(defn- rename-join-fields [join-fields fields]
-  (let [join-set (set join-fields)
-        updatefn (fn [f] (if (join-set f) (gen-nullable-var) f))]
-    (map updatefn fields)))
+(w/defmapop [join-fields-selector [num-fields]] [& args]
+  (let [joins (partition num-fields args)]
+    (if-let [join-fields (find-first (partial some? (complement nil?)) joins)]
+      join-fields
+      (repeat num-fields nil))))
+
+(defn- replace-join-fields [join-fields join-renames fields]
+  (let [replace-map (zipmap join-fields join-renames)]
+    (reduce (fn [ret f]
+      (let [newf (replace-map f)
+            newf (if newf newf f)]
+            (conj ret newf)))
+      [] fields)))
+
+(defn- generate-join-fields [numfields numpipes]
+  (take numpipes (repeatedly (partial gen-nullable-vars numfields))))
 
 (defmethod node->generator :join [pred prevgens]
   (let [join-fields (:infields pred)
+        num-join-fields (count join-fields)
         sourcemap   (apply merge (map :sourcemap prevgens))
         [inner-gens
         outer-gens] (separate :ground? prevgens)
         prevgens    (concat inner-gens outer-gens)
         infields    (map :outfields prevgens)
-        inpipes     (map (fn [p f] ((w/select f) p)) (map :pipe prevgens) infields)
-        rename-fields (apply concat (first infields) (map (partial rename-join-fields join-fields) (rest infields)))
+        inpipes     (map (fn [p f] (w/assemble p (w/select f))) (map :pipe prevgens) infields)
+        join-renames (generate-join-fields num-join-fields (count prevgens))
+        rename-fields (flatten (map (partial replace-join-fields join-fields) join-renames infields))
         keep-fields (vec (set (apply concat infields)))
-        mixjoin     (w/mixed-joiner (concat (repeat (count inner-gens) true)
-                                            (repeat (count outer-gens) false)))
-        joined      (w/assemble inpipes (w/co-group (repeat (count inpipes) join-fields) rename-fields mixjoin)
-                                        (w/select keep-fields))]
+        mixjoin     (concat (repeat (count inner-gens) true)
+                                            (repeat (count outer-gens) false))
+        joined      (w/assemble inpipes (w/co-group (repeat (count inpipes) join-fields)
+                                              rename-fields (w/mixed-joiner mixjoin))
+                                        (join-fields-selector [num-join-fields]
+                                          (flatten join-renames) :fn> join-fields :> Fields/SWAP))]
         (p/predicate p/generator true sourcemap joined keep-fields)
     ))
 

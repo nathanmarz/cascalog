@@ -157,6 +157,18 @@
      [?p ?a !!f1 !!f2 !!f3] (age ?p ?a) (rec1 ?p !!f1 !!f2) (rec2 ?p ?a !!f3))
   ))
 
+(deftest test-full-outer-join
+  (with-tmp-sources [age [["A" 20] ["B" 30] ["C" 27] ["D" 40]]
+                    gender [["A" "m"] ["B" "f"] ["E" "m"] ["F" "f"]]
+                    ]
+   (test?<- [["A" 20 "m"] ["B" 30 "f"] ["C" 27 nil] ["D" 40 nil] ["E" nil "m"] ["F" nil "f"]]
+     [?p !!a !!g] (age ?p !!a) (gender ?p !!g))
+  ))
+
+(deftest test-outer-join-with-funcs
+  ;; TODO: needed
+  )
+
 (deftest test-funcs)
 
 (deftest test-only-complex-agg)
