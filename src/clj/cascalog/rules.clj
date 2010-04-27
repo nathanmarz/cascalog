@@ -171,10 +171,10 @@
         ))))
 
 (defn- agg-available-fields [grouping-fields aggs]
-  (vec (union (set grouping-fields) (apply union (map :outfields aggs)))))
+  (vec (union (set grouping-fields) (apply union (map #(set (:outfields %)) aggs)))))
 
-(defn- agg-infields [aggs]
-  (vec (apply union (map :infields aggs))))
+(defn- agg-infields [sort-fields aggs]
+  (vec (apply union (set sort-fields) (map #(set (:infields %)) aggs))))
 
 (defn- normalize-grouping
   "Returns [new-grouping-fields inserter-assembly]"
@@ -236,7 +236,7 @@
                        ))
         total-fields (agg-available-fields grouping-fields aggs)
         node         (create-node (get-graph prev-node)
-                        (p/predicate group assem (agg-infields aggs) total-fields))]
+                        (p/predicate group assem (agg-infields (:sort options) aggs) total-fields))]
      (create-edge prev-node node)
      (struct tailstruct (:ground? prev-tail) (:operations prev-tail) (:drift-map prev-tail) total-fields node))
     ))
@@ -344,6 +344,7 @@
     ))
 
 (defn build-rule [out-vars raw-predicates]
+  ;; todo split out a 'make predicates' function that does correct validation within it...
   (validate-vars! out-vars (map (fn [p] [(filter cascalog-var? (get p :infields []))
                                         (filter cascalog-var? (get p :outfields []))])
                             raw-predicates))

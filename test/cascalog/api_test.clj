@@ -169,6 +169,8 @@
 (deftest test-full-outer-join
   (with-tmp-sources [age [["A" 20] ["B" 30] ["C" 27] ["D" 40]]
                     gender [["A" "m"] ["B" "f"] ["E" "m"] ["F" "f"]]
+                    follows [["A" "B"] ["B" "E"] ["B" "G"] ["E" "D"]]
+                    age-tokens [["B" 20 "d"] ["A" 30 "a"]]
                     ]
    (test?<- [["A" 20 "m"] ["B" 30 "f"] ["C" 27 nil] ["D" 40 nil] ["E" nil "m"] ["F" nil "f"]]
      [?p !!a !!g] (age ?p !!a) (gender ?p !!g))
@@ -177,6 +179,10 @@
     (age ?p !!a) (gender ?p !!g) (outer-join-tester !!a :> ?s) (outer-join-tester2 !!g :> ?s2))
    (test?<- [["A" 1] ["B" 1] ["C" 1] ["D" 1] ["E" 2] ["F" 2]]
      [?p ?c] (age ?p !!a) (gender ?p !!g) (outer-join-tester3 !!a :> ?t) (c/count ?c))
+   (test?<- [["A" "a"] ["E" nil]]
+     [?p !!t] (follows ?p ?p2) (age ?p2 ?a2) (age-tokens ?p ?a2 !!t))
+   (test?<- [["E"]]
+     [?p] (follows ?p ?p2) (age ?p2 ?a2) (age-tokens ?p ?a2 !!t) (nil? !!t))
   ))
 
 (deftest test-outer-join-with-funcs

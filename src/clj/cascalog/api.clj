@@ -30,7 +30,6 @@
         outvars-str (vars2str outvars)]
         `(cascalog.rules/build-rule ~outvars-str ~predicate-builders)))
 
-;; TODO: add ability to specify sorting of output (should this be specified in query or in <- options?)
 (defn ?-
   "Builds and executes a flow based on the sinks binded to the rules. 
   Bindings are of form: sink rule"
