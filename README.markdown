@@ -8,18 +8,19 @@ Cascalog also features a wrapper around Cascading to define dataflows in cascalo
 1. Make sure you have java 1.6
 2. export JAVA_OPTS=-Xmx768m
 3. install [leiningen](http://github.com/technomancy/leiningen)
-4. lein deps
-5. lein compile-java && lein compile
-6. optionally run lein test to make sure tests pass
+4. git clone git://github.com/nathanmarz/cascalog.git
+5. cd cascalog && lein deps && lein compile-java && lein compile
+6. optionally run "lein test" to make sure tests pass
 
 # Tutorial
 
 See [http://nathanmarz.com/blog/introducing-cascalog](http://nathanmarz.com/blog/introducing-cascalog) for a tutorial
 
-# Experiment
+# Running Cascalog queries on a Hadoop cluster
 
-1. Launch a repl with "lein repl"
-2. (use 'cascalog.playground) (bootstrap) to play with test datasets defined in playground.clj.
+1. Cascalog includes hadoop as a dependency so that you can experiment with it easily. Don't include Hadoop jars within your jar that has Cascalog.
+2. Cascalog requires Cascading 1.1
+3. Any custom operations must be compiled into the jar you give to Hadoop for running jobs
 
 # Questions or Concerns?
 
@@ -33,22 +34,14 @@ Send an email to nathan.marz@gmail.com, open on issue on Github, or come chat in
 
 # TODO
 
-1. "Logical outer joins"
-2. Ungrounded rules
-3. Combine join with aggregation using MultiGroupBy grouping fields and join fields are the same
-
-# Notes on running Cascalog queries on a real Hadoop cluster
-
-1. Cascalog includes hadoop as a dependency so that you can experiment with it easily. Don't include Hadoop jars within your jar that has Cascalog.
-2. Cascalog requires Cascading 1.1 rc3
-3. Any custom operations must be compiled into the jar you give to Hadoop for running jobs
+1. Ungrounded rules
+2. Combine join with aggregation using MultiGroupBy grouping fields and join fields are the same
 
 # Limitations
 
 1. Query planner doesn't optimize across subqeries yet
-2. No way to order your results yet
-3. No recursion - I want to see concrete use cases people have for recursion first
-4. No negation
+2. No recursion - I want to see concrete use cases people have for recursion first
+3. No negation
 
 
 # Acknowledgements

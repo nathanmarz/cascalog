@@ -174,7 +174,7 @@
   (vec (union (set grouping-fields) (apply union (map #(set (:outfields %)) aggs)))))
 
 (defn- agg-infields [sort-fields aggs]
-  (vec (apply union (set sort-fields) (map #(set (:infields %)) aggs))))
+  (vec (apply union (set (collectify sort-fields)) (map #(set (:infields %)) aggs))))
 
 (defn- normalize-grouping
   "Returns [new-grouping-fields inserter-assembly]"
@@ -235,8 +235,9 @@
                          (map :post-assembly aggs)
                        ))
         total-fields (agg-available-fields grouping-fields aggs)
+        all-agg-infields  (agg-infields (:sort options) aggs)
         node         (create-node (get-graph prev-node)
-                        (p/predicate group assem (agg-infields (:sort options) aggs) total-fields))]
+                        (p/predicate group assem all-agg-infields total-fields))]
      (create-edge prev-node node)
      (struct tailstruct (:ground? prev-tail) (:operations prev-tail) (:drift-map prev-tail) total-fields node))
     ))
