@@ -14,6 +14,17 @@
 (w/defmapop add-double [v1 v2]
   (* 2 (+ v1 v2)))
 
+(w/defmapop stateful-add {:stateful true}
+  ([] 10)
+  ([state val] (+ state val))
+  ([state] nil))
+
+(deftest test-statefulmapop
+  (let [source-data {:fields ["n"] :tuples [[1] [2] [3]]}
+        sink-data {:fields ["v"] :tuples [[11] [12] [13]]}]
+     (test-assembly source-data sink-data
+        (stateful-add "n" :fn> "v" :> "v"))))
+
 (deftest test-map-op
   (let [source-data {:fields ["n1" "n2"] :tuples [[1 0] [2 -3] [5 7]]}
         sink-data {:fields ["v"] :tuples [[2] [-2] [24]]}]

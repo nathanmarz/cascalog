@@ -66,17 +66,17 @@
     (is (= "foo" (.getName np)))))
 
 (deftest test-clojure-filter
-  (let [fil (ClojureFilter. (w/fn-spec #'odd?))]
+  (let [fil (ClojureFilter. (w/fn-spec #'odd?) false)]
     (is (= false (t/invoke-filter fil [1])))
     (is (= true  (t/invoke-filter fil [2])))))
 
 (deftest test-clojure-map-one-field
-  (let [m1 (ClojureMap. (w/fields "num") (w/fn-spec #'inc-wrapped))
-        m2 (ClojureMap. (w/fields "num") (w/fn-spec #'inc))]
+  (let [m1 (ClojureMap. (w/fields "num") (w/fn-spec #'inc-wrapped) false)
+        m2 (ClojureMap. (w/fields "num") (w/fn-spec #'inc) false)]
     (are [m] (= [[2]] (t/invoke-function m [1])) m1 m2)))
 
 (deftest test-clojure-map-multiple-fields
-  (let [m (ClojureMap. (w/fields ["num1" "num2"]) (w/fn-spec #'inc-both))]
+  (let [m (ClojureMap. (w/fields ["num1" "num2"]) (w/fn-spec #'inc-both) false)]
     (is (= [[2 3]] (t/invoke-function m [1 2])))))
 
 (defn iterate-inc-wrapped [num]
@@ -86,8 +86,8 @@
   (list (+ num 1) (+ num 2) (+ num 3)))
 
 (deftest test-clojure-mapcat-one-field
-  (let [m1 (ClojureMapcat. (w/fields "num") (w/fn-spec #'iterate-inc-wrapped))
-        m2 (ClojureMapcat. (w/fields "num") (w/fn-spec #'iterate-inc))]
+  (let [m1 (ClojureMapcat. (w/fields "num") (w/fn-spec #'iterate-inc-wrapped) false)
+        m2 (ClojureMapcat. (w/fields "num") (w/fn-spec #'iterate-inc) false)]
     (are [m] (= [[2] [3] [4]] (t/invoke-function m [1])) m1 m2)))
 
 (defn sum
@@ -99,5 +99,5 @@
    [mem]))
 
 (deftest test-clojure-aggregator
-  (let [a (ClojureAggregator. (w/fields "sum") (w/fn-spec #'sum))]
+  (let [a (ClojureAggregator. (w/fields "sum") (w/fn-spec #'sum) false)]
     (is (= [[6]] (t/invoke-aggregator a [[1] [2] [3]])))))

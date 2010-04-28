@@ -100,8 +100,9 @@
                                   [Fields/ALL (apply hash-map varargs)]
                                   [(fields (clojure.core/first varargs))
                                    (apply hash-map (rest varargs))])
+        stateful            (get (meta func-var) :stateful false)
         options             (merge {:fn> (:fields (meta func-var)) :> defaultout} keyargs)
-        result              [in-fields (fields (:fn> options)) spec (fields (:> options))]]
+        result              [in-fields (fields (:fn> options)) spec (fields (:> options)) stateful]]
 
         result )))
 
@@ -126,24 +127,24 @@
 ;; with a :fn> defined, turns into a function
 (defn filter [& args]
   (fn [previous]
-    (let [[in-fields func-fields spec out-fields] (parse-args args)]
+    (let [[in-fields func-fields spec out-fields stateful] (parse-args args)]
       (if func-fields
         (Each. previous in-fields
-          (ClojureMap. func-fields spec) out-fields)
+          (ClojureMap. func-fields spec stateful) out-fields)
         (Each. previous in-fields
-          (ClojureFilter. spec))))))
+          (ClojureFilter. spec stateful))))))
 
 (defn mapcat [& args]
   (fn [previous]
-    (let [[in-fields func-fields spec out-fields] (parse-args args)]
+    (let [[in-fields func-fields spec out-fields stateful] (parse-args args)]
     (Each. previous in-fields
-      (ClojureMapcat. func-fields spec) out-fields))))
+      (ClojureMapcat. func-fields spec stateful) out-fields))))
 
 (defn map [& args]
   (fn [previous]
-    (let [[in-fields func-fields spec out-fields] (parse-args args)]
+    (let [[in-fields func-fields spec out-fields stateful] (parse-args args)]
     (Each. previous in-fields
-      (ClojureMap. func-fields spec) out-fields))))
+      (ClojureMap. func-fields spec stateful) out-fields))))
 
 (defn group-by
   ([group-fields]
@@ -182,7 +183,7 @@
 (defn identity [& args]
   (fn [previous]
     ;;  + is a hack. TODO: split up parse-args into parse-args and parse-selector-args
-    (let [[in-fields func-fields _ out-fields] (parse-args (cons #'+ args) Fields/RESULTS)]
+    (let [[in-fields func-fields _ out-fields _] (parse-args (cons #'+ args) Fields/RESULTS)]
     (Each. previous in-fields
       (Identity. func-fields) out-fields))))
 
@@ -209,15 +210,15 @@
 
 (defn aggregate [& args]
   (fn [#^Pipe previous]
-    (let [[#^Fields in-fields func-fields specs #^Fields out-fields] (parse-args args Fields/ALL)]
+    (let [[#^Fields in-fields func-fields specs #^Fields out-fields stateful] (parse-args args Fields/ALL)]
       (Every. previous in-fields
-        (ClojureAggregator. func-fields specs) out-fields))))
+        (ClojureAggregator. func-fields specs stateful) out-fields))))
 
 (defn buffer [& args]
   (fn [#^Pipe previous]
-    (let [[#^Fields in-fields func-fields specs #^Fields out-fields] (parse-args args Fields/ALL)]
+    (let [[#^Fields in-fields func-fields specs #^Fields out-fields stateful] (parse-args args Fields/ALL)]
       (Every. previous in-fields
-        (ClojureBuffer. func-fields specs) out-fields))))
+        (ClojureBuffer. func-fields specs stateful) out-fields))))
 
 
 ;; we shouldn't need a seq for fields (b/c we know how many pipes we have)
@@ -235,13 +236,28 @@
 
 (defn outer-joiner [] (OuterJoin.))
 
+(defn- parse-ophelper-options [options]
+  (cond (nil? options)    [nil false]
+        (or (sequential? options) (string? options)) [options false]
+        (map? options)    [(get options :fields nil) (get options :stateful false)]
+        true              (throw (IllegalArgumentException. (str "Invalid options " options)))
+        ))
+
+(defn- parse-defop-args [[spec & args]]
+  (let [revargs (reverse args)
+        code (if (vector? (second revargs)) (reverse (take 2 revargs)) (reverse (take 3 revargs)))
+        options (if (= (clojure.core/count code) (clojure.core/count args)) nil (clojure.core/first args)) ]
+        [spec options code] ))
+
 ;; creates an op that has metadata embedded within it, hack to work around fact that clojure
 ;; doesn't allow metadata on functions. call (op :meta) to get metadata
 ;; this is so you can pass operations around and dynamically create flows
-(defn- defop-helper [type spec declared-fields & funcdef]
-  (let  [[fname func-args]     (if (sequential? spec)
-                                [(clojure.core/first spec) (second spec)]
-                                [spec nil])
+(defn- defop-helper [type args]
+  (let  [[spec options funcdef]     (parse-defop-args args)
+         [declared-fields stateful] (parse-ophelper-options options)
+         [hof? fname func-args]     (if (sequential? spec)
+                                [true (clojure.core/first spec) (second spec)]
+                                [false spec nil])
          runner-name          (symbol (str fname "__"))
          func-form            (if (nil? func-args) `(var ~runner-name) `[(var ~runner-name) ~@func-args])
          args-sym             (gensym "args")
@@ -254,10 +270,10 @@
                                   `[ & ~args-sym]
                                   `[~func-args & ~args-sym])]
   `(do
-    (defn ~runner-name {:fields ~declared-fields} ~@runner-body)
+    (defn ~runner-name {:fields ~declared-fields :stateful ~stateful} ~@runner-body)
     (defn ~fname [ & ~args-sym-all]
       (if (= :meta (clojure.core/first ~args-sym-all))
-        {::metadata {:type ~casclojure-type}}
+        {::metadata {:type ~casclojure-type :hof? ~hof?}}
       (let [~assembly-args ~args-sym-all]
         (apply ~type ~func-form ~args-sym)))
       ))))
@@ -270,30 +286,20 @@
     (if (and (map? ret) (contains? ret ::metadata)) (::metadata ret) nil))
     (catch Exception e nil)))
 
-(defmacro defmapop
-  ([spec bindings code] (defmapop spec nil bindings code))
-  ([spec declared-fields bindings code]
-    (defop-helper 'cascalog.workflow/map spec declared-fields bindings code)))
+(defmacro defmapop [& args]
+    (defop-helper 'cascalog.workflow/map args))
 
-(defmacro defmapcatop
-  ([spec bindings code] (defmapcatop spec nil bindings code))
-  ([spec declared-fields bindings code]
-    (defop-helper 'cascalog.workflow/mapcat spec declared-fields bindings code)))
+(defmacro defmapcatop [& args]
+    (defop-helper 'cascalog.workflow/mapcat args))
 
-(defmacro deffilterop
-  ([spec bindings code] (deffilterop spec nil bindings code))
-  ([spec declared-fields bindings code]
-    (defop-helper 'cascalog.workflow/filter spec declared-fields bindings code)))
+(defmacro deffilterop [& args]
+    (defop-helper 'cascalog.workflow/filter args))
 
-(defmacro defaggregateop
-  ([spec code1 code2 code3] (defaggregateop spec nil code1 code2 code3))
-  ([spec declared-fields code1 code2 code3]
-    (defop-helper 'cascalog.workflow/aggregate spec declared-fields code1 code2 code3)))
+(defmacro defaggregateop [& args]
+    (defop-helper 'cascalog.workflow/aggregate args))
 
-(defmacro defbufferop
-  ([spec bindings code] (defbufferop spec nil bindings code))
-  ([spec declared-fields bindings code]
-    (defop-helper 'cascalog.workflow/buffer spec declared-fields bindings code)))
+(defmacro defbufferop [& args]
+    (defop-helper 'cascalog.workflow/buffer args))
 
 (defn assemble
   ([x] x)

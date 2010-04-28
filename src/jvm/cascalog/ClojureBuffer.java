@@ -17,25 +17,20 @@
 
 package cascalog;
  
-import cascading.operation.BaseOperation;
 import cascading.operation.Buffer;
-import cascading.operation.OperationCall;
 import cascading.operation.BufferCall;
 import cascading.flow.FlowProcess;
 import cascading.tuple.TupleEntryCollector;
 import cascading.tuple.Fields;
 import cascading.tuple.TupleEntry;
-import clojure.lang.IFn;
 import clojure.lang.ISeq;
 import clojure.lang.IteratorSeq;
 import java.util.Iterator;
 import clojure.lang.RT;
 
  
-public class ClojureBuffer extends BaseOperation<Object>
-                           implements Buffer<Object> {
-  private Object[] fn_spec;
-  private IFn fn;
+public class ClojureBuffer extends ClojureCascadingBase
+                           implements Buffer {
 
   protected static class TupleSeqConverter implements Iterator<ISeq> {
         private Iterator<TupleEntry> _tuples;
@@ -57,26 +52,17 @@ public class ClojureBuffer extends BaseOperation<Object>
         }      
   }
  
-  public ClojureBuffer(Fields out_fields, Object[] fn_spec) {
-    super(out_fields);
-    this.fn_spec = fn_spec;
+  public ClojureBuffer(Fields out_fields, Object[] fn_spec, boolean stateful) {
+    super(out_fields, fn_spec, stateful);
   }
-  
-  public void prepare(FlowProcess flow_process, OperationCall<Object> op_call) {
-    this.fn = Util.bootFn(fn_spec);
-  }
- 
-  public void operate(FlowProcess flow_process, BufferCall<Object> buff_call) {
-    try {
-      ISeq result_seq = RT.seq(this.fn.invoke(IteratorSeq.create(new TupleSeqConverter(buff_call.getArgumentsIterator()))));
-      TupleEntryCollector collector = buff_call.getOutputCollector();
-      while (result_seq != null) {
-         Object obj = result_seq.first();
-         collector.add(Util.coerceToTuple(obj));
-         result_seq = result_seq.next();
-      }
-    } catch (Exception e) {
-      throw new RuntimeException(e);
+   
+  public void operate(FlowProcess flow_process, BufferCall buff_call) {
+    ISeq result_seq = RT.seq(invokeFunction(IteratorSeq.create(new TupleSeqConverter(buff_call.getArgumentsIterator()))));
+    TupleEntryCollector collector = buff_call.getOutputCollector();
+    while (result_seq != null) {
+       Object obj = result_seq.first();
+       collector.add(Util.coerceToTuple(obj));
+       result_seq = result_seq.next();
     }
   }
 }
