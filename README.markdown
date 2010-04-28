@@ -2,7 +2,6 @@ Cascalog allows you to query Hadoop in Clojure with an expressive language inspi
 
 Cascalog also features a wrapper around Cascading to define dataflows in cascalog.workflow . Custom operations defined in Cascalog can be used both for Cascalog queries and Cascalog dataflows.
 
-
 # Getting started
 
 1. Make sure you have java 1.6
@@ -12,9 +11,11 @@ Cascalog also features a wrapper around Cascading to define dataflows in cascalo
 5. cd cascalog && lein deps && lein compile-java && lein compile
 6. optionally run "lein test" to make sure tests pass
 
-# Tutorial
+# Tutorials
 
-See [http://nathanmarz.com/blog/introducing-cascalog](http://nathanmarz.com/blog/introducing-cascalog) for a tutorial
+[Introducing Cascalog](http://nathanmarz.com/blog/introducing-cascalog)
+[New Cascalog features: outer joins, combiners, sorting, and more](http://nathanmarz.com/blog/new-cascalog-features/)
+
 
 # Running Cascalog queries on a Hadoop cluster
 
@@ -35,12 +36,12 @@ Send an email to nathan.marz@gmail.com, open on issue on Github, or come chat in
 # TODO
 
 1. Ungrounded rules
-2. Combine join with aggregation using MultiGroupBy grouping fields and join fields are the same
+2. Combine join with aggregation using MultiGroupBy when grouping fields and join fields are the same
 
 # Limitations
 
 1. Query planner doesn't optimize across subqeries yet
-2. No recursion - I want to see concrete use cases people have for recursion first
+2. No recursion
 3. No negation
 
 
