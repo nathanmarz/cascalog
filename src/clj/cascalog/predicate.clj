@@ -90,13 +90,26 @@
 (defmethod predicate-default-var :buffer [& args] :out)
 (defmethod predicate-default-var :filter [& args] :in)
 
+(defmulti hof-predicate? predicate-dispatcher)
+
+(defmethod hof-predicate? ::option [& args] false)
+(defmethod hof-predicate? ::tap [& args] false)
+(defmethod hof-predicate? ::generator [& args] false)
+(defmethod hof-predicate? ::parallel-aggregator [& args] false)
+(defmethod hof-predicate? ::vanilla-function [& args] false)
+(defmethod hof-predicate? :map [op & args] (:hof? (w/get-op-metadata op)))
+(defmethod hof-predicate? :mapcat [op & args] (:hof? (w/get-op-metadata op)))
+(defmethod hof-predicate? :aggregate [op & args] (:hof? (w/get-op-metadata op)))
+(defmethod hof-predicate? :buffer [op & args] (:hof? (w/get-op-metadata op)))
+(defmethod hof-predicate? :filter [op & args](:hof? (w/get-op-metadata op)))
+
 (defmulti build-predicate-specific predicate-dispatcher)
 
 (defn- ground-fields? [outfields]
   (every? ground-var? outfields))
 
 ;; TODO: should have a (generator :only ?a ?b) syntax for generators (only select those fields, filter the rest)
-(defmethod build-predicate-specific ::tap [tap _ infields outfields]
+(defmethod build-predicate-specific ::tap [tap _ _ infields outfields]
   (let
     [pname (uuid)
      pipe (w/assemble (w/pipe pname) (w/identity Fields/ALL :fn> outfields :> Fields/RESULTS))]
@@ -104,19 +117,22 @@
     (predicate generator (ground-fields? outfields) {pname tap} pipe outfields)
   ))
 
-(defmethod build-predicate-specific ::generator [gen _ infields outfields]
+(defmethod build-predicate-specific ::generator [gen _ _ infields outfields]
   (let [gen-pipe (w/assemble (:pipe gen) (w/pipe-rename (uuid)) (w/identity Fields/ALL :fn> outfields :> Fields/RESULTS))]
   (predicate generator (ground-fields? outfields) (:sourcemap gen) gen-pipe outfields)))
 
-(defmethod build-predicate-specific ::vanilla-function [_ opvar infields outfields]
+(defmethod build-predicate-specific ::vanilla-function [_ opvar _ infields outfields]
   (when (nil? opvar) (throw (RuntimeException. "Functions must have vars associated with them")))
   (let
     [[func-fields out-selector] (if (not-empty outfields) [outfields Fields/ALL] [nil nil])
      assembly (w/filter opvar infields :fn> func-fields :> out-selector)]
     (predicate operation assembly infields outfields)))
 
-(defn- simpleop-build-predicate [op _ infields outfields]
-    (predicate operation (op infields :fn> outfields :> Fields/ALL) infields outfields))
+(defn- hof-prepend [hof-args & args]
+  (if hof-args (cons hof-args args) args))
+
+(defn- simpleop-build-predicate [op _ hof-args infields outfields]
+    (predicate operation (apply op (hof-prepend hof-args infields :fn> outfields :> Fields/ALL)) infields outfields))
 
 (defmethod build-predicate-specific :map [& args]
   (apply simpleop-build-predicate args))
@@ -124,12 +140,12 @@
 (defmethod build-predicate-specific :mapcat [& args]
   (apply simpleop-build-predicate args))
 
-(defmethod build-predicate-specific :filter [op _ infields outfields]
+(defmethod build-predicate-specific :filter [op _ hof-args infields outfields]
   (let [[func-fields out-selector] (if (not-empty outfields) [outfields Fields/ALL] [nil nil])
-     assembly (op infields :fn> func-fields :> out-selector)]
+     assembly (apply op (hof-prepend hof-args infields :fn> func-fields :> out-selector))]
     (predicate operation assembly infields outfields)))
 
-(defmethod build-predicate-specific ::parallel-aggregator [pagg _ infields outfields]
+(defmethod build-predicate-specific ::parallel-aggregator [pagg _ _ infields outfields]
   (when (or (not= (count infields) (:args pagg)) (not= 1 (count outfields)))
     (throw (IllegalArgumentException. (str "Invalid # input fields to aggregator " pagg))))
   (let [init-spec (w/fn-spec (:init-var pagg))
@@ -143,8 +159,8 @@
     (predicate aggregator true (assoc pagg :outfield (first outfields)) identity serial-assem identity infields outfields)))
 
 
-(defn- simpleagg-build-predicate [composable op _ infields outfields]
-  (predicate aggregator composable nil identity (op infields :fn> outfields :> Fields/ALL) identity infields outfields))
+(defn- simpleagg-build-predicate [composable op _ hof-args infields outfields]
+  (predicate aggregator composable nil identity (apply op (hof-prepend hof-args infields :fn> outfields :> Fields/ALL)) identity infields outfields))
 
 (defmethod build-predicate-specific :aggregate [& args]
   (apply simpleagg-build-predicate true args))
@@ -232,12 +248,15 @@
   [op opvar orig-infields outfields]
   (if (keyword? op)
     (mk-option-predicate op orig-infields)
-    (let [outfields                      (replace-ignored-vars outfields)
+    (let [[orig-infields hof-args]       (if (hof-predicate? op)
+                                            [(rest orig-infields) (collectify (first orig-infields))]
+                                            [orig-infields nil])
+          outfields                      (replace-ignored-vars outfields)
           [infields infield-subs]        (variable-substitution orig-infields)
           [infields dupvars
             duplicate-assem]             (fix-duplicate-infields infields)
           [outfields outfield-subs]      (variable-substitution outfields)
-          predicate                      (build-predicate-specific op opvar infields outfields)
+          predicate                      (build-predicate-specific op opvar hof-args infields outfields)
           [newsubs equalities]           (output-substitution outfield-subs)
           new-outfields                  (concat outfields (keys newsubs) (keys infield-subs) dupvars)
           in-insertion-assembly          (when-not (empty? infields) (w/compose-straight-assemblies

@@ -335,6 +335,7 @@
 (defn- mk-options [opt-predicates]
   (apply merge DEFAULT-OPTIONS (map (fn [p] {(:key p) (:val p)}) opt-predicates)))
 
+;; TODO: fix this
 (defn- validate-vars! [out-vars predicate-vars]
   (let [check-fn (fn [unboundset v]
       (if (unboundset v)
@@ -345,7 +346,7 @@
     ))
 
 (defn build-rule [out-vars raw-predicates]
-  ;; todo split out a 'make predicates' function that does correct validation within it...
+  ;; TODO: split out a 'make predicates' function that does correct validation within it...
   (validate-vars! out-vars (map (fn [p] [(filter cascalog-var? (get p :infields []))
                                         (filter cascalog-var? (get p :outfields []))])
                             raw-predicates))

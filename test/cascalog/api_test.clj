@@ -185,6 +185,28 @@
      [?p] (follows ?p ?p2) (age ?p2 ?a2) (age-tokens ?p ?a2 !!t) (nil? !!t))
   ))
 
+(w/defmapop [hof-add [a]] [n]
+  (+ a n))
+
+(w/defmapop [hof-arithmetic [a b]] [n]
+  (+ b (* a n)))
+
+
+;; TODO: stateful operations should return a map containing :init, :op, :finish
+(w/defbufferop [sum-plus [a]] {:stateful true}
+  ([] (* 3 a))
+  ([state tuples] [(apply + state (map first tuples))])
+  ([state] nil))
+
+
+(deftest test-hof-ops
+  (with-tmp-sources [integer [[1] [2] [6]]]
+    (test?<- [[4] [5] [9]] [?n] (integer ?v) (hof-add 3 ?v :> ?n))
+    (test?<- [[-5] [-4] [0]] [?n] (integer ?v) (hof-add [-6] ?v :> ?n))
+    (test?<- [[3] [5] [13]] [?n] (integer ?v) (hof-arithmetic [2 1] ?v :> ?n))
+    (test?<- [[72]] [?n] (integer ?v) (sum-plus [21] ?v :> ?n))
+    ))
+
 (deftest test-outer-join-with-funcs
   ;; TODO: needed
 )
