@@ -140,7 +140,7 @@
 
 (defn- select-join
   "Splits tails into [join-fields {join set} {rest of tails}]
-   this is unoptimal. it's better to rewrite this as a search problem to find optimal joins"
+   This is unoptimal. It's better to rewrite this as a search problem to find optimal joins"
   [tails]
   (let [pairs     (all-pairs tails)
         sections  (map (fn [[t1 t2]]

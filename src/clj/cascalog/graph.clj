@@ -13,11 +13,10 @@
  ;    You should have received a copy of the GNU General Public License
  ;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
- (ns cascalog.graph
+(ns cascalog.graph
   (:import [org.jgrapht.graph DefaultDirectedGraph])
   (:import [cascalog SimplePrintDirectedGraph])
-  (:import [org.jgrapht EdgeFactory])
-  )
+  (:import [org.jgrapht EdgeFactory]))
 
 (defstruct edge :source :target ::extra-data)
 (defstruct node ::graph ::value ::extra-data)

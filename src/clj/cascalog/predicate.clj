@@ -248,7 +248,7 @@
   [op opvar orig-infields outfields]
   (if (keyword? op)
     (mk-option-predicate op orig-infields)
-    (let [[orig-infields hof-args]       (if (hof-predicate? op)
+    (let [[orig-infields hof-args]       (if (hof-predicate? op)  ; TODO: move this to where variable parsing happens
                                             [(rest orig-infields) (collectify (first orig-infields))]
                                             [orig-infields nil])
           outfields                      (replace-ignored-vars outfields)

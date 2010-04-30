@@ -191,13 +191,11 @@
 (w/defmapop [hof-arithmetic [a b]] [n]
   (+ b (* a n)))
 
-
 ;; TODO: stateful operations should return a map containing :init, :op, :finish
 (w/defbufferop [sum-plus [a]] {:stateful true}
   ([] (* 3 a))
   ([state tuples] [(apply + state (map first tuples))])
   ([state] nil))
-
 
 (deftest test-hof-ops
   (with-tmp-sources [integer [[1] [2] [6]]]
