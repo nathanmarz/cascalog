@@ -25,24 +25,8 @@ Cascalog also features a wrapper around Cascading to define dataflows in cascalo
 
 # Questions or Concerns?
 
-Send an email to nathan.marz@gmail.com, open on issue on Github, or come chat in the #cascading room on freenode
-
-# Query planner highlights
-
-1. Automatically drops fields when they're no longer needed to minimize amount of data pushed around
-2. Auto-combiners - operations like min, max, count, sum are aggregated map-side in preparation for actual aggregation when possible
-3. Filters data as early as possible within a query definition
-
-# TODO
-
-1. Ungrounded rules
-2. Combine join with aggregation using MultiGroupBy when grouping fields and join fields are the same
-
-# Limitations
-
-1. Query planner doesn't optimize across subqeries yet
-2. No recursion
-3. No negation
+Google group: http://groups.google.com/group/cascalog-user
+IRC: Come chat in the #cascading room on freenode
 
 
 # Acknowledgements
