@@ -25,7 +25,7 @@ Cascalog also features a wrapper around Cascading to define dataflows in cascalo
 
 # Questions or Concerns?
 
-Google group: http://groups.google.com/group/cascalog-user
+Google group: [cascalog-user](http://groups.google.com/group/cascalog-user)
 
 IRC: Come chat in the #cascading room on freenode
 
