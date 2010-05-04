@@ -27,7 +27,7 @@
   "Constructs a rule from a list of predicates"
   [outvars & predicates]
   (let [predicate-builders (vec (map cascalog.rules/mk-raw-predicate predicates))
-        outvars-str (vars2str outvars)]
+        outvars-str (if (sequential? outvars) (vars2str outvars) outvars)]
         `(cascalog.rules/build-rule ~outvars-str ~predicate-builders)))
 
 (defn ?-

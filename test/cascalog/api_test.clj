@@ -205,6 +205,15 @@
     (test?<- [[72]] [?n] (integer ?v) (sum-plus [21] ?v :> ?n))
     ))
 
+(defn lala-appended [source]
+    (let [outvars ["?a"]]
+         (<- outvars (source ?line) (str ?line "lalala" :>> outvars) (:distinct false))))
+
+(deftest test-dynamic-vars
+  (with-tmp-sources [sentence [["nathan david"] ["chicken"]]]
+    (test?<- [["nathan davidlalala"] ["chickenlalala"]] [?out] ((lala-appended sentence) ?out))
+    ))
+
 (deftest test-outer-join-with-funcs
   ;; TODO: needed
 )
