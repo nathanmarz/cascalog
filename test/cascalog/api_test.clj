@@ -206,12 +206,13 @@
     ))
 
 (defn lala-appended [source]
-    (let [outvars ["?a"]]
-         (<- outvars (source ?line) (str ?line "lalala" :>> outvars) (:distinct false))))
+  (let [outvars ["?a"]]
+    (<- outvars (source ?line) (str ?line "lalala" :>> outvars) (:distinct false))))
 
 (deftest test-dynamic-vars
   (with-tmp-sources [sentence [["nathan david"] ["chicken"]]]
     (test?<- [["nathan davidlalala"] ["chickenlalala"]] [?out] ((lala-appended sentence) ?out))
+    (test?<- [["nathan davida"] ["chickena"]] [?out] (sentence :>> ["?line"]) (str :<< ["?line" "a"] :>> ["?out"]))
     ))
 
 (deftest test-outer-join-with-funcs
