@@ -352,7 +352,7 @@
                             raw-predicates))
   (let [[_ out-vars vmap]     (uniquify-vars [] out-vars {})
         update-fn             (fn [[preds vmap] [op opvar vars]]
-                                (let [{invars :in outvars :out} (p/parse-variables vars (p/predicate-default-var op))
+                                (let [{invars :<< outvars :>>} (p/parse-variables vars (p/predicate-default-var op))
                                       [invars outvars vmap] (uniquify-vars invars outvars vmap)]
                                   [(conj preds [op opvar invars outvars]) vmap] ))
         [raw-predicates vmap] (reduce update-fn [[] vmap] raw-predicates)

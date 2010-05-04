@@ -14,7 +14,7 @@
  ;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (ns cascalog.predicate
-  (:use [clojure.contrib.seq-utils :only [partition-by]])
+  (:use [clojure.contrib.seq-utils :only [partition-by find-first]])
   (:use [cascalog vars util])
   (:require [cascalog [workflow :as w]])
   (:import [cascading.tap Tap])
@@ -52,17 +52,36 @@
 
 (defstruct predicate-variables :in :out)
 
+(defn- implicit-var-flag [vars in-or-out]
+  (if (find-first keyword? vars)
+    :<
+    (if (= :in in-or-out) :< :>)))
+
+(defn- mk-args-map [normed-vars]
+  (let [partitioned (partition-by keyword? normed-vars)
+        keys (map first (take-nth 2 partitioned))
+        vals (take-nth 2 (rest partitioned))
+        ret (zipmap keys vals)]
+    (when (or (and (contains? ret :>) (contains? ret :>>))
+              (and (contains? ret :<) (contains? ret :<<)))
+      (throw (IllegalArgumentException. (str "Illegal args " normed-vars))))
+      ret ))
+
+(defn- vectorify-arg [argsmap sugararg outarg]
+  (cond (not (or (contains? argsmap sugararg) (contains? argsmap outarg)))
+          argsmap
+        (contains? argsmap outarg) (assoc argsmap outarg (first (argsmap outarg)))
+        true (assoc argsmap outarg (argsmap sugararg))
+    ))
+
 (defn parse-variables
   "parses variables of the form ['?a' '?b' :> '!!c']
    If there is no :>, defaults to in-or-out-default (:in or :out)"
   [vars in-or-out-default]
-  (let [split (partition-by (partial = :>) vars)
-        amt   (count split)
-        var-base (struct predicate-variables [] [])]
-        (cond (= amt 1) (merge var-base {in-or-out-default (first split)})
-              (= amt 3) (struct predicate-variables (first split) (nth split 2))
-              true      (throw (IllegalArgumentException. (str "Bad variables inputted " vars))))
-        ))
+  (let [vars (if (keyword? (first vars)) vars (cons (implicit-var-flag vars in-or-out-default) vars))
+        argsmap (-> vars (mk-args-map) (vectorify-arg :> :>>) (vectorify-arg :< :<<))]
+      {:<< (:<< argsmap) :>> (:>> argsmap)}
+    ))
 
 ;; hacky, but best way to do it given restrictions of needing a var for regular functions, needing 
 ;; to seemlessly integrate with normal workflows, and lack of function metadata in clojure (until 1.2 anyway)
