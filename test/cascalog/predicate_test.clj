@@ -8,7 +8,7 @@
   (inc (* a b)))
 
 (deftest test-map-pred
-  (let [pred (build-predicate timesplusone (var timesplusone) ["?f1" "?f2"] ["?q"])
+  (let [pred (build-predicate timesplusone (var timesplusone) nil ["?f1" "?f2"] ["?q"])
         source-data {:fields ["?a" "?b" "?f1" "?f2" "?c"] :tuples [[1 2 1 1 10]
                                                                     [0 0 2 6 9]
                                                                     [0 0 9 1 0]]}
@@ -23,7 +23,7 @@
   [(inc (apply + all)) (first all)])
 
 (deftest test-variable-substitution
-  (let [pred (build-predicate addplusone (var addplusone) ["?f1" "?f2" 3 4 "?f3"] ["?s" 6])
+  (let [pred (build-predicate addplusone (var addplusone) nil ["?f1" "?f2" 3 4 "?f3"] ["?s" 6])
         source-data {:fields ["?f1" "?f2" "?f3"] :tuples [[6 2 3]
                                                           [8 12 19]
                                                           [6 7 12]
@@ -40,7 +40,7 @@
   (if (not= a 1) [a nil] [nil a]))
 
 (deftest test-nil-filtering
-  (let [pred (build-predicate nilop (var nilop) ["?i"] ["?o1" "!o2"])
+  (let [pred (build-predicate nilop (var nilop) nil ["?i"] ["?o1" "!o2"])
         source-data {:fields ["?i"] :tuples [[1]
                                              [2]
                                              [3]
@@ -56,7 +56,7 @@
     ))
 
 (deftest test-mapcat-pred
-  (let [pred (build-predicate many-vals nil ["?a"] ["?b"])
+  (let [pred (build-predicate many-vals nil nil ["?a"] ["?b"])
         source-data {:fields ["?a"] :tuples [[1] [2] [3] [4]]}
         sink-data   {:fields ["?b"] :tuples [[2] [3] [1] [6] [9] [9] [5]]} ]
         (test-assembly source-data sink-data (:assembly pred))
@@ -65,14 +65,14 @@
 (deftest test-filter-pred)
 
 (deftest test-vanilla-filter
-  (let [pred (build-predicate odd? (var odd?) ["?f"] [])
+  (let [pred (build-predicate odd? (var odd?) nil ["?f"] [])
         source-data {:fields ["?f"] :tuples [[1] [2] [3] [4] [6] [9] [10]]}
         sink-data   {:fields ["?f"] :tuples [[1] [3] [9]]} ]
         (test-assembly source-data sink-data (:assembly pred))
         ))
 
 (deftest test-filter-func
-  (let [pred (build-predicate odd? (var odd?) ["?f"] ["?o"])
+  (let [pred (build-predicate odd? (var odd?) nil ["?f"] ["?o"])
         source-data {:fields ["?f"] :tuples [[1] [2] [3] [4] [6] [9] [10]]}
         sink-data   {:fields ["?f" "?o"] :tuples [[1 true] [2 false] [3 true]
                                                 [4 false] [6 false] [9 true]

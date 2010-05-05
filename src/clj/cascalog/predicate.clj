@@ -264,13 +264,10 @@
 (defn build-predicate
   "Build a predicate. Calls down to build-predicate-specific for predicate-specific building 
   and adds constant substitution and null checking of ? vars."
-  [op opvar orig-infields outfields]
+  [op opvar hof-args orig-infields outfields]
   (if (keyword? op)
     (mk-option-predicate op orig-infields)
-    (let [[orig-infields hof-args]       (if (hof-predicate? op)  ; TODO: move this to where variable parsing happens
-                                            [(rest orig-infields) (collectify (first orig-infields))]
-                                            [orig-infields nil])
-          outfields                      (replace-ignored-vars outfields)
+    (let [outfields                      (replace-ignored-vars outfields)
           [infields infield-subs]        (variable-substitution orig-infields)
           [infields dupvars
             duplicate-assem]             (fix-duplicate-infields infields)

@@ -352,9 +352,12 @@
                             raw-predicates))
   (let [[_ out-vars vmap]     (uniquify-vars [] out-vars {})
         update-fn             (fn [[preds vmap] [op opvar vars]]
-                                (let [{invars :<< outvars :>>} (p/parse-variables vars (p/predicate-default-var op))
+                                (let [[vars hof-args] (if (p/hof-predicate? op)
+                                                        [(rest vars) (collectify (first vars))]
+                                                        [vars nil])
+                                      {invars :<< outvars :>>} (p/parse-variables vars (p/predicate-default-var op))
                                       [invars outvars vmap] (uniquify-vars invars outvars vmap)]
-                                  [(conj preds [op opvar invars outvars]) vmap] ))
+                                  [(conj preds [op opvar hof-args invars outvars]) vmap] ))
         [raw-predicates vmap] (reduce update-fn [[] vmap] raw-predicates)
         drift-map             (mk-drift-map vmap)
         [gens ops aggs
