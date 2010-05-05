@@ -21,6 +21,9 @@
 
 (defn one [] 1)
 
+(w/defmapop [re-parse [pattern]] [str]
+  (re-seq pattern str))
+
 (p/defparallelagg count :init-var #'one
                         :combine-var #'+
                         :args 0)
@@ -36,6 +39,18 @@
 (p/defparallelagg max :init-var #'identity
                       :combine-var #'clojure.core/max
                       :args 1)
+
+; (p/defparallelagg sum :init-var    #'identity
+;;                      :combine-var #'+
+;;                      :combine-extract-var #'identity  ; this returns same thing init does
+;                       :agg-var     #'+)
+
+;; (p/defparallelagg limit :init-var    #'identity-tuple
+;;                         :combine-hof ;returns [keep linkedlist sorted, combine-extract-var -> explode list into multiple tuples]
+;;                         :agg-hof     #'first-x)  ; aggs don't receive sorting as params, only combiners
+
+;; also can have a :only-sort-hof
+
 
 (defn existence-int [v] (if v 1 0))
 
