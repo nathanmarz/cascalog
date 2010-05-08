@@ -15,7 +15,7 @@ Cascalog also features a wrapper around Cascading to define dataflows in cascalo
 
 1. [Introducing Cascalog](http://nathanmarz.com/blog/introducing-cascalog)
 2. [New Cascalog features: outer joins, combiners, sorting, and more](http://nathanmarz.com/blog/new-cascalog-features/)
-
+3. [News Feed in 38 lines of code using Cascalog](http://nathanmarz.com/blog/cascalog-news-feed)
 
 # Running Cascalog queries on a Hadoop cluster
 
