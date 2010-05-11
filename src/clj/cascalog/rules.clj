@@ -51,12 +51,11 @@
 (defn- split-predicates [predicates]
   (let [{ops :operation
          aggs :aggregator
-         gens :generator
-         opts :option} (merge {:operation [] :aggregator [] :generator [] :option []}
+         gens :generator} (merge {:operation [] :aggregator [] :generator []}
                                 (group-by :type predicates))]
     (when (and (> (count aggs) 1) (some (complement :composable) aggs))
       (throw (IllegalArgumentException. "Cannot use both aggregators and buffers in same grouping")))
-    [gens ops aggs opts] ))
+    [gens ops aggs] ))
 
 (defstruct tailstruct :ground? :operations :drift-map :available-fields :node)
 
@@ -174,7 +173,7 @@
   (vec (union (set grouping-fields) (apply union (map #(set (:outfields %)) aggs)))))
 
 (defn- agg-infields [sort-fields aggs]
-  (vec (apply union (set (collectify sort-fields)) (map #(set (:infields %)) aggs))))
+  (vec (apply union (set sort-fields) (map #(set (:infields %)) aggs))))
 
 (defn- normalize-grouping
   "Returns [new-grouping-fields inserter-assembly]"
@@ -333,7 +332,12 @@
    :reverse false})
 
 (defn- mk-options [opt-predicates]
-  (apply merge DEFAULT-OPTIONS (map (fn [p] {(:key p) (:val p)}) opt-predicates)))
+  (apply merge DEFAULT-OPTIONS
+    (map (fn [p]
+            (let [k (:key p)
+                  v (:val p)
+                  v (if (= :sort k) v (first v))]
+            {k v})) opt-predicates)))
 
 ;; TODO: fix this
 (defn- validate-vars! [out-vars predicate-vars]
@@ -360,9 +364,9 @@
                                   [(conj preds [op opvar hof-args invars outvars]) vmap] ))
         [raw-predicates vmap] (reduce update-fn [[] vmap] raw-predicates)
         drift-map             (mk-drift-map vmap)
-        [gens ops aggs
-          opt-predicates]     (split-predicates (map (partial apply p/build-predicate) raw-predicates))
-        options               (mk-options opt-predicates)
+        [raw-opts raw-predicates] (separate #(keyword? (first %)) raw-predicates)
+        options               (mk-options (map p/mk-option-predicate raw-opts))
+        [gens ops aggs]       (split-predicates (map (partial apply p/build-predicate options) raw-predicates))
         rule-graph            (mk-graph)
         tails                 (map (fn [g] (struct tailstruct (:ground? g)
                                         ops drift-map (:outfields g) (create-node rule-graph g))) gens)
