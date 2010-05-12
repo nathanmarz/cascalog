@@ -215,6 +215,21 @@
     (test?<- [["nathan davida"] ["chickena"]] [?out] (sentence :>> ["?line"]) (str :<< ["?line" "a"] :>> ["?out"]))
     ))
 
+(w/defbufferop nothing-buf [tuples]
+  tuples )
+
+(deftest test-limit
+  (with-tmp-sources [pair [["a" 1] ["a" 3] ["a" 2] ["a" 4] ["b" 1] ["b" 6] ["b" 7] ["c" 0]]]
+     (test?<- [[0] [1] [1] [2] [3] [4] [6] [7]] [?n2] (pair _ ?n) (:sort ?n) (nothing-buf ?n :> ?n2))
+     (test?<- [[0] [1]] [?n2] (pair _ ?n) (:sort ?n) (c/limit [2] ?n :> ?n2))
+     (test?<- [[1 1] [2 2] [3 3] [4 4] [1 5]] [?n2 ?r] (pair ?l ?n) (:sort ?l ?n) (c/limit-rank [5] ?n :> ?n2 ?r))
+     (test?<- [[0] [1] [1]] [?n2] (pair _ ?n) (:sort ?n) (c/limit [3] ?n :> ?n2))
+     (test?<- [[0 1] [1 2] [1 3]] [?n2 ?r] (pair _ ?n) (:sort ?n) (c/limit-rank [3] ?n :> ?n2 ?r))
+     (test?<- [[6] [7]] [?n2] (pair _ ?n) (:sort ?n) (:reverse true) (c/limit [2] ?n :> ?n2))
+     (test?<- [[6 2] [7 1]] [?n2 ?r] (pair _ ?n) (:sort ?n) (:reverse true) (c/limit-rank [2] ?n :> ?n2 ?r))
+     (test?<- [["a" 1] ["a" 2] ["b" 1] ["b" 6] ["c" 0]] [?l ?n2] (pair ?l ?n) (:sort ?n) (c/limit [2] ?n :> ?n2))
+   ))
+
 (deftest test-outer-join-with-funcs
   ;; TODO: needed
 )

@@ -53,7 +53,7 @@
          aggs :aggregator
          gens :generator} (merge {:operation [] :aggregator [] :generator []}
                                 (group-by :type predicates))]
-    (when (and (> (count aggs) 1) (some (complement :composable) aggs))
+    (when (and (> (count aggs) 1) (some :buffer? aggs))
       (throw (IllegalArgumentException. "Cannot use both aggregators and buffers in same grouping")))
     [gens ops aggs] ))
 
@@ -194,11 +194,8 @@
 (defn mk-agg-arg-fields [fields]
   (if (empty? fields) nil (w/fields fields)))
 
-(defn- build-agg-assemblies
-  "returns [pregroup vec, postgroup vec]"
-  [grouping-fields aggs]
-  (if (every? :parallel-agg aggs)
-    (let [argfields (map #(mk-agg-arg-fields (:infields %)) aggs)
+(defn- mk-parallel-aggregator [grouping-fields aggs]
+  (let [argfields (map #(mk-agg-arg-fields (:infields %)) aggs)
           tempfields (take (count aggs) (repeatedly gen-nullable-var))
           specs (map specify-parallel-agg aggs)
           combiner (ClojureCombiner. (w/fields grouping-fields)
@@ -206,8 +203,19 @@
                                      tempfields
                                      specs)]
           [[(w/raw-each Fields/ALL combiner Fields/RESULTS)]
-           (map mk-combined-aggregator specs tempfields (map #(:outfield (:parallel-agg %)) aggs))] )
-    [[identity] (map :serial-agg-assembly aggs)] ))
+           (map mk-combined-aggregator specs tempfields (map #(:outfield (:parallel-agg %)) aggs))] ))
+
+(defn- mk-parallel-buffer-agg [grouping-fields agg]
+  [[((:parallel-agg agg) grouping-fields)] [(:serial-agg-assembly agg)]] )
+
+(defn- build-agg-assemblies
+  "returns [pregroup vec, postgroup vec]"
+  [grouping-fields aggs]
+  (cond (and (= 1 (count aggs))
+             (:parallel-agg (first aggs))
+             (:buffer? (first aggs)))       (mk-parallel-buffer-agg grouping-fields (first aggs))
+        (every? :parallel-agg aggs)         (mk-parallel-aggregator grouping-fields aggs)
+        true                                [[identity] (map :serial-agg-assembly aggs)]))
 
 (defn- mk-group-by [grouping-fields options]
   (let [s (:sort options)]
@@ -339,21 +347,8 @@
                   v (if (= :sort k) v (first v))]
             {k v})) opt-predicates)))
 
-;; TODO: fix this
-(defn- validate-vars! [out-vars predicate-vars]
-  (let [check-fn (fn [unboundset v]
-      (if (unboundset v)
-        (throw (IllegalArgumentException. "Cannot use ungrounding var as an output variable twice"))
-        (conj unboundset v)
-        ))]
-    (reduce check-fn #{} (mapcat second predicate-vars))
-    ))
-
 (defn build-rule [out-vars raw-predicates]
-  ;; TODO: split out a 'make predicates' function that does correct validation within it...
-  (validate-vars! out-vars (map (fn [p] [(filter cascalog-var? (get p :infields []))
-                                        (filter cascalog-var? (get p :outfields []))])
-                            raw-predicates))
+  ;; TODO: split out a 'make predicates' function that does correct validation within it, ensuring unground vars appear only once
   (let [[_ out-vars vmap]     (uniquify-vars [] out-vars {})
         update-fn             (fn [[preds vmap] [op opvar vars]]
                                 (let [[vars hof-args] (if (p/hof-predicate? op)

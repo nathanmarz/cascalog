@@ -40,20 +40,41 @@
                       :combine-var #'clojure.core/max
                       :args 1)
 
-; (p/defparallelagg sum :init-var    #'identity
-;;                      :combine-var #'+
-;;                      :combine-extract-var #'identity  ; this returns same thing init does
-;                       :agg-var     #'+)
-
-;; (p/defparallelagg limit :init-var    #'identity-tuple
-;;                         :combine-hof ;returns [keep linkedlist sorted, combine-extract-var -> explode list into multiple tuples]
-;;                         :agg-hof     #'first-x)  ; aggs don't receive sorting as params, only combiners
-
-;; also can have a :only-sort-hof
-
-
 (defn existence-int [v] (if v 1 0))
 
 (p/defparallelagg !count :init-var #'existence-int
                          :combine-var #'+
                          :args 1)
+
+(defn limit-init [options limit]
+  (fn [sort-tuple & tuple]
+    [[(vec sort-tuple) (vec tuple)]]))
+
+(defn limit-combine [options limit]
+  (let [compare-fn (fn [[#^Comparable o1 _] [#^Comparable o2 _]]
+    (if (:sort options)
+      (* (.compareTo o1 o2) (if (boolean (:reverse options)) -1 1))
+      0 ))]
+   (fn [list1 list2]
+      (take-ordered limit compare-fn list1 list2))))
+
+(defn limit-extract [options limit]
+  (fn [alist]
+    (map (partial apply concat) alist)))
+
+(defn limit-buffer [options limit]
+  (fn [tuples]
+    (take limit tuples)))
+
+(p/defparallelbuf limit :hof? true
+                        :init-hof-var #'limit-init
+                        :combine-hof-var #'limit-combine
+                        :extract-hof-var #'limit-extract
+                        :num-intermediate-vars-fn (fn [infields outfields] (clojure.core/count infields))
+                        :buffer-hof-var #'limit-buffer )
+
+(defn limit-rank-buffer [options limit]
+  (fn [tuples]
+    (take limit (map #(conj (vec %1) %2) tuples (iterate inc 1)))))
+
+(def limit-rank (merge limit {:buffer-hof-var #'limit-rank-buffer} ))

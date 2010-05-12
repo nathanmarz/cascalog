@@ -17,17 +17,26 @@
   (:use [clojure.contrib.seq-utils :only [partition-by find-first]])
   (:use [cascalog vars util])
   (:require [cascalog [workflow :as w]])
+  (:import [java.util ArrayList])
   (:import [cascading.tap Tap])
   (:import [cascading.tuple Fields])
-  (:import [cascalog ClojureParallelAggregator]))
+  (:import [cascalog ClojureParallelAggregator ClojureBuffer ClojureBufferCombiner CombinerSpec]))
 
 ;; doing it this way b/c pain to put metadata directly on a function
 ;; assembly-maker is a function that takes in infields & outfields and returns
 ;; [preassembly postassembly]
-(defstruct parallel-aggregator :init-var :combine-var :args)
+(defstruct parallel-aggregator :type :init-var :combine-var :args)
+
+;; :num-intermediate-vars-fn takes as input infields, outfields
+(defstruct parallel-buffer :type :hof? :init-hof-var :combine-hof-var :extract-hof-var :num-intermediate-vars-fn :buffer-hof-var)
+
+
 
 (defmacro defparallelagg [name & body]
-  `(def ~name (struct-map cascalog.predicate/parallel-aggregator ~@body)))
+  `(def ~name (struct-map cascalog.predicate/parallel-aggregator :type ::parallel-aggregator ~@body)))
+
+(defmacro defparallelbuf [name & body]
+  `(def ~name (struct-map cascalog.predicate/parallel-buffer :type ::parallel-buffer ~@body)))
 
 ;; ids are so they can be used in sets safely
 (defmacro defpredicate [name & attrs]
@@ -40,7 +49,7 @@
 (defpredicate operation :assembly :infields :outfields)
 
 ;; return a :post-assembly, a :parallel-agg, and a :serial-agg-assembly
-(defpredicate aggregator :composable :parallel-agg :pregroup-assembly :serial-agg-assembly :post-assembly :infields :outfields)
+(defpredicate aggregator :buffer? :parallel-agg :pregroup-assembly :serial-agg-assembly :post-assembly :infields :outfields)
 ;; automatically generates source pipes and attaches to sources
 (defpredicate generator :ground? :sourcemap :pipe :outfields)
 
@@ -90,7 +99,7 @@
 (defn- predicate-dispatcher [op & rest]
   (cond (keyword? op) ::option
         (instance? Tap op) ::tap
-        (map? op) (if (= :generator (:type op)) ::generator ::parallel-aggregator)
+        (map? op) (:type op)
         (w/get-op-metadata op) (:type (w/get-op-metadata op))
         (fn? op) ::vanilla-function
         true (throw (IllegalArgumentException. "Bad predicate"))
@@ -100,7 +109,7 @@
 
 (defmethod predicate-default-var ::option [& args] :in)
 (defmethod predicate-default-var ::tap [& args] :out)
-(defmethod predicate-default-var ::generator [& args] :out)
+(defmethod predicate-default-var :generator [& args] :out)
 (defmethod predicate-default-var ::parallel-aggregator [& args] :out)
 (defmethod predicate-default-var ::parallel-buffer [& args] :out)
 (defmethod predicate-default-var ::vanilla-function [& args] :in)
@@ -114,9 +123,9 @@
 
 (defmethod hof-predicate? ::option [& args] false)
 (defmethod hof-predicate? ::tap [& args] false)
-(defmethod hof-predicate? ::generator [& args] false)
+(defmethod hof-predicate? :generator [& args] false)
 (defmethod hof-predicate? ::parallel-aggregator [& args] false)
-(defmethod hof-predicate? ::parallel-buffer [& args] false)
+(defmethod hof-predicate? ::parallel-buffer [op & args] (:hof? op))
 (defmethod hof-predicate? ::vanilla-function [& args] false)
 (defmethod hof-predicate? :map [op & args] (:hof? (w/get-op-metadata op)))
 (defmethod hof-predicate? :mapcat [op & args] (:hof? (w/get-op-metadata op)))
@@ -138,7 +147,7 @@
     (predicate generator (ground-fields? outfields) {pname tap} pipe outfields)
   ))
 
-(defmethod build-predicate-specific ::generator [gen _ _ infields outfields options]
+(defmethod build-predicate-specific :generator [gen _ _ infields outfields options]
   (let [gen-pipe (w/assemble (:pipe gen) (w/pipe-rename (uuid)) (w/identity Fields/ALL :fn> outfields :> Fields/RESULTS))]
   (predicate generator (ground-fields? outfields) (:sourcemap gen) gen-pipe outfields)))
 
@@ -166,10 +175,30 @@
      assembly (apply op (hof-prepend hof-args infields :fn> func-fields :> out-selector))]
     (predicate operation assembly infields outfields)))
 
-;; (defpredicate aggregator :composable :parallel-agg :pregroup-assembly :serial-agg-assembly :post-assembly :infields :outfields)
-(defmethod build-predicate-specific ::parallel-buffer [pbuf _ _ infields outfields options]
-  nil  ; TODO: finish this
-  )
+(defn- mk-hof-fn-spec [avar args]
+  (w/fn-spec (cons avar args)))
+
+(defmethod build-predicate-specific ::parallel-buffer [pbuf _ hof-args infields outfields options]
+  (let [temp-vars (gen-nullable-vars ((:num-intermediate-vars-fn pbuf) infields outfields))
+        hof-args  (cons options hof-args)
+        combiner-spec (CombinerSpec. (mk-hof-fn-spec (:init-hof-var pbuf) hof-args)
+                                     (mk-hof-fn-spec (:combine-hof-var pbuf) hof-args)
+                                     (mk-hof-fn-spec (:extract-hof-var pbuf) hof-args))
+        combiner (fn [group-fields]
+                    (w/raw-each Fields/ALL
+                                (ClojureBufferCombiner.
+                                            (w/fields group-fields)
+                                            (w/fields (:sort options))
+                                            (w/fields infields)
+                                            (w/fields temp-vars)
+                                            combiner-spec)
+                                Fields/RESULTS))
+        group-assembly (w/raw-every (w/fields temp-vars)
+                                    (ClojureBuffer. (w/fields outfields)
+                                                    (mk-hof-fn-spec (:buffer-hof-var pbuf) hof-args)
+                                                    false)
+                                    Fields/ALL)]
+       (predicate aggregator true combiner identity group-assembly identity infields outfields)))
 
 (defmethod build-predicate-specific ::parallel-aggregator [pagg _ _ infields outfields options]
   (when (or (not= (count infields) (:args pagg)) (not= 1 (count outfields)))
@@ -182,16 +211,16 @@
                         (w/raw-every (w/fields infields)
                                   cascading-agg
                                   Fields/ALL))]
-    (predicate aggregator true (assoc pagg :outfield (first outfields)) identity serial-assem identity infields outfields)))
+    (predicate aggregator false (assoc pagg :outfield (first outfields)) identity serial-assem identity infields outfields)))
 
-(defn- simpleagg-build-predicate [composable op _ hof-args infields outfields options]
-  (predicate aggregator composable nil identity (apply op (hof-prepend hof-args infields :fn> outfields :> Fields/ALL)) identity infields outfields))
+(defn- simpleagg-build-predicate [buffer? op _ hof-args infields outfields options]
+  (predicate aggregator buffer? nil identity (apply op (hof-prepend hof-args infields :fn> outfields :> Fields/ALL)) identity infields outfields))
 
 (defmethod build-predicate-specific :aggregate [& args]
-  (apply simpleagg-build-predicate true args))
+  (apply simpleagg-build-predicate false args))
 
 (defmethod build-predicate-specific :buffer [& args]
-  (apply simpleagg-build-predicate false args))
+  (apply simpleagg-build-predicate true args))
 
 (defn- variable-substitution
   "Returns [newvars {map of newvars to values to substitute}]"
@@ -266,11 +295,20 @@
 (defn mk-option-predicate [[op _ _ infields _]]
     (predicate option op infields))
 
+(defn- mk-serializable-options
+  "Hack until Clojure 1.2 where Clojure data is serializable"
+  [options]
+  (let [sortfields (:sort options)]
+    (if sortfields
+      (assoc options :sort (ArrayList. sortfields))
+      options )))
+
 (defn build-predicate
   "Build a predicate. Calls down to build-predicate-specific for predicate-specific building 
   and adds constant substitution and null checking of ? vars."
   [options op opvar hof-args orig-infields outfields]
-    (let [outfields                      (replace-ignored-vars outfields)
+    (let [options                        (mk-serializable-options options)
+          outfields                      (replace-ignored-vars outfields)
           [infields infield-subs]        (variable-substitution orig-infields)
           [infields dupvars
             duplicate-assem]             (fix-duplicate-infields infields)

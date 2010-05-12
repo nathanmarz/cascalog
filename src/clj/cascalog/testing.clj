@@ -30,7 +30,7 @@
            [org.apache.hadoop.mapred JobConf])
   (:require [cascalog [workflow :as w]]))
 
-(defn- roundtrip [obj]
+(defn roundtrip [obj]
   (cascading.util.Util/deserializeBase64
     (cascading.util.Util/serializeBase64 obj)))
 
