@@ -223,6 +223,7 @@
      (test?<- [[0] [1] [1] [2] [3] [4] [6] [7]] [?n2] (pair _ ?n) (:sort ?n) (nothing-buf ?n :> ?n2))
      (test?<- [[0] [1]] [?n2] (pair _ ?n) (:sort ?n) (c/limit [2] ?n :> ?n2))
      (test?<- [[1 1] [2 2] [3 3] [4 4] [1 5]] [?n2 ?r] (pair ?l ?n) (:sort ?l ?n) (c/limit-rank [5] ?n :> ?n2 ?r))
+     (test?<- [["c" 0] ["b" 7]] [?l2 ?n2] (pair ?l ?n) (:sort ?l ?n) (:reverse true) (c/limit [2] ?l ?n :> ?l2 ?n2))
      (test?<- [[0] [1] [1]] [?n2] (pair _ ?n) (:sort ?n) (c/limit [3] ?n :> ?n2))
      (test?<- [[0 1] [1 2] [1 3]] [?n2 ?r] (pair _ ?n) (:sort ?n) (c/limit-rank [3] ?n :> ?n2 ?r))
      (test?<- [[6] [7]] [?n2] (pair _ ?n) (:sort ?n) (:reverse true) (c/limit [2] ?n :> ?n2))

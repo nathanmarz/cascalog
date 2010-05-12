@@ -54,7 +54,7 @@ public abstract class ClojureCombinerBase extends BaseOperation implements Funct
 
     public ClojureCombinerBase(Fields groupFields, boolean includeSort, Fields sortFields, List<Fields> argFields, Fields outFields, List<CombinerSpec> agg_specs, int cacheSize) {
         super(appendFields(groupFields, sortFields, outFields));
-        if(outFields.size()!=agg_specs.size() || argFields.size()!=agg_specs.size())
+        if(argFields.size()!=agg_specs.size())
             throw new IllegalArgumentException("All lists to ClojureCombiner must be same length");
         this.specs = new ArrayList<CombinerSpec>(agg_specs);
         this.groupFields = groupFields;
