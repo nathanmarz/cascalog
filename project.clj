@@ -21,4 +21,5 @@
                cascalog.testing
                cascalog.graph
                cascalog.api
-               cascalog.ops])
+               cascalog.ops
+               cascalog.ops-impl])

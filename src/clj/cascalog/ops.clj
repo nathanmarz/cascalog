@@ -15,11 +15,9 @@
 
 (ns cascalog.ops
   (:refer-clojure :exclude [count min max])
-  (:use [cascalog vars util graph])
+  (:use [cascalog vars util graph ops-impl])
   (:import [cascading.tuple Fields])
   (:require [cascalog [workflow :as w] [predicate :as p]]))
-
-(defn one [] 1)
 
 (w/defmapop [re-parse [pattern]] [str]
   (re-seq pattern str))
@@ -40,41 +38,9 @@
                       :combine-var #'clojure.core/max
                       :args 1)
 
-(defn existence-int [v] (if v 1 0))
-
 (p/defparallelagg !count :init-var #'existence-int
                          :combine-var #'+
                          :args 1)
-
-(defn limit-init [options limit]
-  (fn [sort-tuple & tuple]
-    [[(vec sort-tuple) (vec tuple)]]))
-
-(defn- mk-limit-comparator [options]
-  (fn [[#^Comparable o1 _] [#^Comparable o2 _]]
-    (if (:sort options)
-      (* (.compareTo o1 o2) (if (boolean (:reverse options)) -1 1))
-      0 )))
-
-(defn limit-combine [options limit]
-  (let [compare-fn (mk-limit-comparator options)]
-   (fn [list1 list2]
-      (let [res (concat list1 list2)]
-        (if (> (clojure.core/count res) (* 2 limit))
-          (take limit (sort compare-fn res))
-          res
-          ))
-      )))
-
-(defn limit-extract [options limit]
-  (let [compare-fn (mk-limit-comparator options)]
-  (fn [alist]
-    (let [alist (if (<= (clojure.core/count alist) limit) alist (take limit (sort compare-fn alist)))]
-      (map (partial apply concat) alist)))))
-
-(defn limit-buffer [options limit]
-  (fn [tuples]
-    (take limit tuples)))
 
 (p/defparallelbuf limit :hof? true
                         :init-hof-var #'limit-init
@@ -82,9 +48,5 @@
                         :extract-hof-var #'limit-extract
                         :num-intermediate-vars-fn (fn [infields outfields] (clojure.core/count infields))
                         :buffer-hof-var #'limit-buffer )
-
-(defn limit-rank-buffer [options limit]
-  (fn [tuples]
-    (take limit (map #(conj (vec %1) %2) tuples (iterate inc 1)))))
 
 (def limit-rank (merge limit {:buffer-hof-var #'limit-rank-buffer} ))
