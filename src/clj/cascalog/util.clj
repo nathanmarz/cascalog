@@ -83,24 +83,3 @@
 (defn some? [pred coll]
   ((complement nil?) (some pred coll)))
 
-(defn fast-last [coll]
-  (nth coll (- (count coll) 1)))
-
-(defn- take-ordered* [limit compare-fn list1 list2 total-list]
-  (if (or (= limit 0) (not (or list1 list2))) total-list
-    (let [o1 (first list1)
-          o2 (first list2)
-          take-first (cond (not list2) true
-                           (not list1) false
-                           true        (<= (compare-fn o1 o2) 0))
-          [elem list1 list2] (if take-first [o1 (next list1) list2]
-                                            [o2 list1 (next list2)])]
-        (recur (dec limit) compare-fn list1 list2 (conj total-list elem))
-      )))
-
-(defn take-ordered [limit compare-fn list1 list2]
-  (cond (and (= limit (count list1))
-          (<= (compare-fn (fast-last list1) (first list2)) 0)) list1
-        (and (= limit (count list2))
-          (<= (compare-fn (fast-last list2) (first list1)) 0)) list2
-        true (take-ordered* limit compare-fn list1 list2 [])))

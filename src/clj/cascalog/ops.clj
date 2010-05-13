@@ -50,17 +50,27 @@
   (fn [sort-tuple & tuple]
     [[(vec sort-tuple) (vec tuple)]]))
 
-(defn limit-combine [options limit]
-  (let [compare-fn (fn [[#^Comparable o1 _] [#^Comparable o2 _]]
+(defn- mk-limit-comparator [options]
+  (fn [[#^Comparable o1 _] [#^Comparable o2 _]]
     (if (:sort options)
       (* (.compareTo o1 o2) (if (boolean (:reverse options)) -1 1))
-      0 ))]
+      0 )))
+
+(defn limit-combine [options limit]
+  (let [compare-fn (mk-limit-comparator options)]
    (fn [list1 list2]
-      (take-ordered limit compare-fn list1 list2))))
+      (let [res (concat list1 list2)]
+        (if (> (clojure.core/count res) (* 2 limit))
+          (take limit (sort compare-fn res))
+          res
+          ))
+      )))
 
 (defn limit-extract [options limit]
+  (let [compare-fn (mk-limit-comparator options)]
   (fn [alist]
-    (map (partial apply concat) alist)))
+    (let [alist (if (<= (clojure.core/count alist) limit) alist (take limit (sort compare-fn alist)))]
+      (map (partial apply concat) alist)))))
 
 (defn limit-buffer [options limit]
   (fn [tuples]
