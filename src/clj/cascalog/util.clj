@@ -83,3 +83,6 @@
 (defn some? [pred coll]
   ((complement nil?) (some pred coll)))
 
+(defmacro dofor [& body]
+  `(doall (for ~@body)))
+

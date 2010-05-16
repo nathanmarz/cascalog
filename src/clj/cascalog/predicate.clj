@@ -31,7 +31,6 @@
 (defstruct parallel-buffer :type :hof? :init-hof-var :combine-hof-var :extract-hof-var :num-intermediate-vars-fn :buffer-hof-var)
 
 
-
 (defmacro defparallelagg [name & body]
   `(def ~name (struct-map cascalog.predicate/parallel-aggregator :type ::parallel-aggregator ~@body)))
 

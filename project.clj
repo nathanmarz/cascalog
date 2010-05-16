@@ -15,6 +15,7 @@
                cascalog.playground
                cascalog.util
                cascalog.rules
+               cascalog.basic-flow
                cascalog.vars
                cascalog.predicate
                cascalog.workflow-example
