@@ -27,17 +27,13 @@ import cascading.tuple.Tuple;
 import cascading.tuple.TupleEntry;
 import cascading.operation.OperationCall;
 import java.util.Collection;
-import org.apache.log4j.Logger;
 
 public class Util {
-  public static Logger LOG = Logger.getLogger(Util.class);
-
     
   public static IFn bootSimpleFn(String ns_name, String fn_name) {
     try {
       Compiler.eval(RT.readString("(require '" + ns_name + ")"));
     } catch (Exception e) {
-      LOG.info("Unable to load namespace: " + ns_name, e);
       //if playing from the repl and defining functions, file won't exist
     }
     return (IFn) RT.var(ns_name, fn_name).deref();
