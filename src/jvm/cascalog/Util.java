@@ -17,6 +17,7 @@
 
 package cascalog;
 
+import clojure.lang.Compiler;
 import clojure.lang.RT;
 import clojure.lang.IFn;
 import clojure.lang.ISeq;
@@ -26,13 +27,17 @@ import cascading.tuple.Tuple;
 import cascading.tuple.TupleEntry;
 import cascading.operation.OperationCall;
 import java.util.Collection;
+import org.apache.log4j.Logger;
 
 public class Util {
+  public static Logger LOG = Logger.getLogger(Util.class);
+
+    
   public static IFn bootSimpleFn(String ns_name, String fn_name) {
-    String root_path = ns_name.replace('-', '_').replace('.', '/');
     try {
-      RT.load(root_path);
+      Compiler.eval(RT.readString("(require '" + ns_name + ")"));
     } catch (Exception e) {
+      LOG.info("Unable to load namespace: " + ns_name, e);
       //if playing from the repl and defining functions, file won't exist
     }
     return (IFn) RT.var(ns_name, fn_name).deref();
