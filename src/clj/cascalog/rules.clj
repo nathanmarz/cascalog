@@ -378,6 +378,8 @@
         str-vars (vars2str vars)]
     [op-sym (try-resolve op-sym) str-vars]))
 
+(def *JOB-CONF* {})
+
 (defn connect-to-sink [gen sink]
     (let [sink-fields (.getSinkFields sink)
           pipe        (:pipe gen)

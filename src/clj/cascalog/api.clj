@@ -38,12 +38,16 @@
         sourcemap       (apply merge (map :sourcemap gens))
         tails           (map cascalog.rules/connect-to-sink gens sinks)
         sinkmap         (w/taps-map tails sinks)
-        flow            (.connect (FlowConnector. {"cascading.flow.job.pollinginterval" 100})
+        flow            (.connect (FlowConnector. (merge {"cascading.flow.job.pollinginterval" 100} cascalog.rules/*JOB-CONF*))
                           sourcemap sinkmap (into-array Pipe tails))]
         (.complete flow)))
 
 (defmacro ?<- [output & body]
   `(?- ~output (<- ~@body)))
+
+(defmacro with-job-conf [conf & body]
+  `(binding [cascalog.rules/*JOB-CONF* (merge cascalog.rules/*JOB-CONF* ~conf)]
+    ~@body ))
 
 (defn div [f & rest] (apply / (double f) rest))
 
