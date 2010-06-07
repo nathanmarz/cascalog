@@ -20,7 +20,7 @@
   (:import [java.util ArrayList])
   (:import [cascading.tap Tap])
   (:import [cascading.tuple Fields])
-  (:import [cascalog ClojureParallelAggregator ClojureBuffer ClojureBufferCombiner CombinerSpec]))
+  (:import [cascalog ClojureParallelAggregator ClojureBuffer ClojureBufferCombiner CombinerSpec CascalogFunction CascalogFunctionExecutor]))
 
 ;; doing it this way b/c pain to put metadata directly on a function
 ;; assembly-maker is a function that takes in infields & outfields and returns
@@ -98,6 +98,7 @@
 (defn- predicate-dispatcher [op & rest]
   (cond (keyword? op) ::option
         (instance? Tap op) ::tap
+        (instance? CascalogFunction op) ::cascalog-function
         (map? op) (:type op)
         (w/get-op-metadata op) (:type (w/get-op-metadata op))
         (fn? op) ::vanilla-function
@@ -112,11 +113,12 @@
 (defmethod predicate-default-var ::parallel-aggregator [& args] :out)
 (defmethod predicate-default-var ::parallel-buffer [& args] :out)
 (defmethod predicate-default-var ::vanilla-function [& args] :in)
-(defmethod predicate-default-var :map [& args] :out)  ; doesn't matter
-(defmethod predicate-default-var :mapcat [& args] :out)  ; doesn't matter
+(defmethod predicate-default-var :map [& args] :out)
+(defmethod predicate-default-var :mapcat [& args] :out)
 (defmethod predicate-default-var :aggregate [& args] :out)
 (defmethod predicate-default-var :buffer [& args] :out)
 (defmethod predicate-default-var :filter [& args] :in)
+(defmethod predicate-default-var ::cascalog-function [& args] :out)
 
 (defmulti hof-predicate? predicate-dispatcher)
 
@@ -130,7 +132,8 @@
 (defmethod hof-predicate? :mapcat [op & args] (:hof? (w/get-op-metadata op)))
 (defmethod hof-predicate? :aggregate [op & args] (:hof? (w/get-op-metadata op)))
 (defmethod hof-predicate? :buffer [op & args] (:hof? (w/get-op-metadata op)))
-(defmethod hof-predicate? :filter [op & args](:hof? (w/get-op-metadata op)))
+(defmethod hof-predicate? :filter [op & args] (:hof? (w/get-op-metadata op)))
+(defmethod hof-predicate? ::cascalog-function [op & args] false)
 
 (defmulti build-predicate-specific predicate-dispatcher)
 
@@ -173,6 +176,11 @@
   (let [[func-fields out-selector] (if (not-empty outfields) [outfields Fields/ALL] [nil nil])
      assembly (apply op (hof-prepend hof-args infields :fn> func-fields :> out-selector))]
     (predicate operation assembly infields outfields)))
+
+(defmethod build-predicate-specific ::cascalog-function [op _ _ infields outfields options]
+  (predicate operation (w/raw-each (w/fields infields) (CascalogFunctionExecutor. (w/fields outfields) op) Fields/ALL)
+                       infields
+                       outfields))
 
 (defn- mk-hof-fn-spec [avar args]
   (w/fn-spec (cons avar args)))

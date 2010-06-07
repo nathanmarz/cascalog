@@ -5,6 +5,14 @@
   (:import [cascading.tuple Fields])
   (:require [cascalog [workflow :as w] [ops :as c]]))
 
+(w/defmapop mk-one [& tuple] 1)
+
+(deftest test-no-input
+  (with-tmp-sources [nums [[1] [2] [3]]]
+    (test?<- [[1 1] [2 1] [3 1]] [?n ?n2] (nums ?n) (mk-one ?n2))
+    (test?<- [[1 1] [1 2] [1 3] [2 1] [2 2] [2 3] [3 1] [3 2] [3 3]] [?n ?n3] (nums ?n) (mk-one ?n2) (nums ?n3))
+    ))
+
 (deftest test-simple-query
   (with-tmp-sources [age [["n" 24] ["n" 23] ["i" 31] ["c" 30] ["j" 21] ["q" nil]]]
      (test?<- [["j"] ["n"]] [?p] (age ?p ?a) (< ?a 25))
@@ -63,7 +71,6 @@
   (with-tmp-sources [value [["a" 1] ["a" 2] ["b" 10] ["c" 3] ["b" 2] ["a" 6]] ]
     (test?<- [["a" 12] ["b" 14] ["c" 4]] [?v ?a] (value ?v ?n) (c/count ?c) (c/sum ?n :> ?s) (+ ?s ?c :> ?a))
     ))
-
 
 (deftest test-joins-aggs
   (with-tmp-sources [friend [["n" "a"] ["n" "j"] ["n" "q"] ["j" "n"] ["j" "a"] ["j" "z"] ["z" "t"]]
