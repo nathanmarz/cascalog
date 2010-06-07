@@ -33,7 +33,7 @@ IRC: Come chat in the #cascading room on freenode
 
 1. Replicated and bloom joins
 2. Cross query optimization: push constants and filters down into subqueries when possible
-3. Negations, i.e. "people who like dogs and don't like cats" (<- \[?p] (likes ?p "dogs") (!! likes ?p "cats"))
+3. Negations, i.e. "people who like dogs and don't like cats" (<- \[?p] (likes ?p "dogs") (likes ?p "cats" :> false)) [implement with multigroupby of some sort]
 4. Disjunction, i.e. "all people over 30 years old and all males" (<- \[?p] \[(age ?p ?a) (> ?a 30)] \[(gender ?p "m")])])
 5. Ungrounded subqueries, i.e.: (def avg (<- \[?val :> ?avg] (c/count ?c) (c/sum ?val :> ?s) (div ?s ?c :> ?avg))) 
 6. Recursion, i.e. "all ancestry relations" (<- \[?a ?p] \[(parent ?a ?p)] \[(parent ?a ?p2) (recur ?p2 ?p))])
