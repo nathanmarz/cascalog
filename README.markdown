@@ -41,4 +41,11 @@ IRC: Come chat in the #cascading room on freenode
 
 # Acknowledgements
 
+YourKit is kindly supporting open source projects with its full-featured Java Profiler.
+YourKit, LLC is the creator of innovative and intelligent tools for profiling
+Java and .NET applications. Take a look at YourKit's leading software products:
+[YourKit Java Profiler](http://www.yourkit.com/java/profiler/index.jsp) and
+[YourKit .NET Profiler](http://www.yourkit.com/.net/profiler/index.jsp).
+
+
 Cascalog is based off of a very early branch of cascading-clojure project (http://github.com/clj-sys/cascading-clojure). Special thanks to Bradford Cross and Mark McGranaghan for their work on that project. Much of that code appears within Cascalog in either its original form or a modified form.
