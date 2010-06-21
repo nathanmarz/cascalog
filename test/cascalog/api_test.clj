@@ -238,6 +238,13 @@
      (test?<- [["a" 1] ["a" 2] ["b" 1] ["b" 6] ["c" 0]] [?l ?n2] (pair ?l ?n) (:sort ?n) (c/limit [2] ?n :> ?n2))
    ))
 
+(deftest test-outer-join-anon
+  (with-tmp-sources [person [["a"] ["b"] ["c"]]
+                     follows [["a" "b" 1] ["c" "e" 2] ["c" "d" 3]]]
+    (test?<- [["a" "b"] ["c" "e"] ["c" "d"] ["b" nil]]
+      [?p !!p2] (person ?p) (follows ?p !!p2 _))
+  ))
+
 (deftest test-outer-join-with-funcs
   ;; TODO: needed
 )

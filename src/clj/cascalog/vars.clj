@@ -21,13 +21,16 @@
   (defn gen-unique-suffix [] (str "__gen" (swap! i inc))))
 
 (defn gen-nullable-var [] (str "!" (gen-unique-suffix)))
+(defn gen-ungounding-var [] (str "!!" (gen-unique-suffix)))
 
 (defn gen-nullable-vars [amt]
   (take amt (repeatedly gen-nullable-var)))
 
-(defn- extract-varname [v]
-  (let [actname (if (symbol? v) (name v) v)]
-    (if (= "_" actname) (gen-nullable-var) actname)))
+(defn- extract-varname
+  ([v] (extract-varname v gen-nullable-var))
+  ([v gen-var]
+    (let [actname (if (symbol? v) (name v) v)]
+      (if (= "_" actname) (gen-var) actname))))
 
 (defn cascalog-var? [obj]
     (if (or (symbol? obj) (string? obj))
@@ -48,7 +51,9 @@
 (def ground-var? (complement unground-var?))
 
 (defn vars2str [vars]
-  (vec (map #(if (cascalog-var? %) (extract-varname %) %) vars)))
+  (let [anon-gen (if (some #(and (cascalog-var? %) (unground-var? %)) vars) gen-ungounding-var gen-nullable-var)]
+    (vec (map #(if (cascalog-var? %) (extract-varname % anon-gen) %) vars))
+  ))
 
 (defn- var-updater-fn [outfield?]
   (fn [[all equalities] v]
