@@ -96,14 +96,15 @@
 ;; uses hacky function metadata so that operations can be passed in as arguments when constructing cascalog
 ;; rules
 (defn- predicate-dispatcher [op & rest]
-  (cond (keyword? op) ::option
+  (let [ret (cond (keyword? op) ::option
         (instance? Tap op) ::tap
         (instance? CascalogFunction op) ::cascalog-function
         (map? op) (:type op)
         (w/get-op-metadata op) (:type (w/get-op-metadata op))
         (fn? op) ::vanilla-function
         true (throw (IllegalArgumentException. "Bad predicate"))
-        ))
+        )]
+    (if (= ret :bufferiter) :buffer ret)))
 
 (defmulti predicate-default-var predicate-dispatcher)
 
