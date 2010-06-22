@@ -148,7 +148,6 @@
 (defn- ground-fields? [outfields]
   (every? ground-var? outfields))
 
-;; TODO: should have a (generator :only ?a ?b) syntax for generators (only select those fields, filter the rest)
 (defmethod build-predicate-specific ::tap [tap _ _ infields outfields options]
   (let
     [pname (uuid)

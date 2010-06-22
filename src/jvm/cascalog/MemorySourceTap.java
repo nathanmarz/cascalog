@@ -38,8 +38,8 @@ public class MemorySourceTap extends SourceTap {
         private List<Tuple> tuples;
         private String id;
 
-        public MemorySourceScheme(List<Tuple> tuples) {
-            super(Fields.ALL);
+        public MemorySourceScheme(List<Tuple> tuples, Fields fields) {
+            super(fields);
             this.tuples = tuples;
         }
 
@@ -69,8 +69,8 @@ public class MemorySourceTap extends SourceTap {
 
     private String id = UUID.randomUUID().toString();
 
-    public MemorySourceTap(List<Tuple> tuples) {
-        super(new MemorySourceScheme(tuples));
+    public MemorySourceTap(List<Tuple> tuples, Fields fields) {
+        super(new MemorySourceScheme(tuples, fields));
     }
 
     @Override

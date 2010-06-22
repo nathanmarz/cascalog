@@ -21,7 +21,7 @@
   (:import [cascading.flow Flow FlowConnector])
   (:import [cascading.tuple Fields])
   (:import [cascalog StdoutTap])
-  (:import  [cascading.pipe Pipe]))
+  (:import [cascading.pipe Pipe]))
 
 (defmacro <-
   "Constructs a rule from a list of predicates"
@@ -44,6 +44,14 @@
 
 (defmacro ?<- [output & body]
   `(?- ~output (<- ~@body)))
+
+(defn select-tap-fields
+  "Create a subquery that selects {fields} from {tap} and emits them in the order given."
+  [tap fields]
+  (let [pname (uuid)
+        outfields (gen-nullable-vars (count fields))
+        pipe (w/assemble (w/pipe pname) (w/identity fields :fn> outfields :> outfields))]
+    (p/predicate p/generator true {pname tap} pipe outfields)))
 
 (defmacro with-job-conf [conf & body]
   `(binding [cascalog.rules/*JOB-CONF* (merge cascalog.rules/*JOB-CONF* ~conf)]
