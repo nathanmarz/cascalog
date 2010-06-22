@@ -253,6 +253,14 @@
     (test?<- :info [[7]] [?s] (nums ?n) (itersum ?n :> ?s))
     ))
 
+(deftest test-pos-out-selectors
+  ;; TODO: finish once written, test both generators and functions
+  )
+
+(deftest test-sanitize-vec
+  ;; TODO: test :>> and :<< with symbols
+  )
+
 (deftest test-outer-join-with-funcs
   ;; TODO: needed
 )

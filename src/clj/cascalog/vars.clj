@@ -13,7 +13,8 @@
  ;    You should have received a copy of the GNU General Public License
  ;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-(ns cascalog.vars)
+(ns cascalog.vars
+    (:use [clojure.contrib.seq-utils :only [flatten]]))
 
 ;; TODO: better to use UUIDs to avoid name collisions with client code?
 ;; Are the size of fields an issue in the actual flow execution perf-wise?
@@ -50,9 +51,25 @@
 
 (def ground-var? (complement unground-var?))
 
+(defn- flatten-vars [vars]
+  (flatten (map #(if (map? %) (seq %) %) vars)))
+
+(defn- sanitize-elem [e anon-gen] (if (cascalog-var? e) (extract-varname e anon-gen) e))
+
+(defn- sanitize-vec [v anon-gen] (vec (map sanitize-elem v (repeat anon-gen))))
+
+(defn- sanitize-map [m anon-gen]
+  (reduce (fn [ret k] (assoc ret k (sanitize-elem (m k) anon-gen)))
+    {} (keys m)))
+
+(defn sanitize-unknown [e anon-gen]
+  (cond (map? e) (sanitize-map e anon-gen)
+        (vector? e) (sanitize-vec e anon-gen)
+        true (sanitize-elem e anon-gen)))
+
 (defn vars2str [vars]
-  (let [anon-gen (if (some #(and (cascalog-var? %) (unground-var? %)) vars) gen-ungounding-var gen-nullable-var)]
-    (vec (map #(if (cascalog-var? %) (extract-varname % anon-gen) %) vars))
+  (let [anon-gen (if (some #(and (cascalog-var? %) (unground-var? %)) (flatten-vars vars)) gen-ungounding-var gen-nullable-var)]
+    (vec (map sanitize-unknown vars (repeat anon-gen)))
   ))
 
 (defn- var-updater-fn [outfield?]
