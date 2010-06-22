@@ -219,7 +219,7 @@
 (deftest test-dynamic-vars
   (with-tmp-sources [sentence [["nathan david"] ["chicken"]]]
     (test?<- [["nathan davidlalala"] ["chickenlalala"]] [?out] ((lala-appended sentence) ?out))
-    (test?<- [["nathan davida"] ["chickena"]] [?out] (sentence :>> ["?line"]) (str :<< ["?line" "a"] :>> ["?out"]))
+    (test?<- [["nathan davida"] ["chickena"]] [?out] (sentence :>> [?line]) (str :<< ["?line" "a"] :>> ["?out"]))
     ))
 
 (w/defbufferop nothing-buf [tuples]
@@ -253,13 +253,15 @@
     (test?<- :info [[7]] [?s] (nums ?n) (itersum ?n :> ?s))
     ))
 
-(deftest test-pos-out-selectors
-  ;; TODO: finish once written, test both generators and functions
-  )
+(defn inc-tuple [& tuple]
+  (map inc tuple))
 
-(deftest test-sanitize-vec
-  ;; TODO: test :>> and :<< with symbols
-  )
+(deftest test-pos-out-selectors
+  (with-tmp-sources [wide [["a" 1 nil 2 3] ["b" 1 "c" 5 1] ["a" 5 "q" 3 2]]]
+    (test?<- [[3 nil] [1 "c"] [2 "q"]] [?l !m] (wide :#> 5 {4 ?l 2 !m}) (:distinct false))
+    (test?<- [[4] [2] [3]] [?n3] (wide _ ?n1 _ _ ?n2) (inc-tuple ?n1 ?n2 :#> 2 {1 ?n3}))
+    (test?<- [["b"]] [?a] (wide :#> 5 {0 ?a 1 ?b 4 ?b}))
+    ))
 
 (deftest test-outer-join-with-funcs
   ;; TODO: needed
