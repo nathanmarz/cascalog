@@ -58,6 +58,7 @@
 ;; TODO: change this to use fast first buffer
 (def distinct-aggregator (predicate aggregator false nil identity (w/first) identity [] []))
 
+
 (defstruct predicate-variables :in :out)
 
 (defn- implicit-var-flag [vars in-or-out]
@@ -68,12 +69,8 @@
 (defn- mk-args-map [normed-vars]
   (let [partitioned (partition-by keyword? normed-vars)
         keys (map first (take-nth 2 partitioned))
-        vals (take-nth 2 (rest partitioned))
-        ret (zipmap keys vals)]
-    (when (or (and (contains? ret :>) (contains? ret :>>))
-              (and (contains? ret :<) (contains? ret :<<)))
-      (throw (IllegalArgumentException. (str "Illegal args " normed-vars))))
-      ret ))
+        vals (take-nth 2 (rest partitioned))]
+      (zipmap keys vals)))
 
 (defn- vectorify-arg [argsmap sugararg outarg]
   (cond (not (or (contains? argsmap sugararg) (contains? argsmap outarg)))
@@ -82,12 +79,22 @@
         true (assoc argsmap outarg (argsmap sugararg))
     ))
 
+(defn vectorify-pos-selector [argsmap]
+  (if-let [[amt selector-map] (argsmap :#>)]
+    (let [all-post-map (reduce (fn [m i]
+                                  (assoc m i (if-let [v (selector-map i)]
+                                    v (gen-nullable-var))))
+                               {}
+                               (range amt))]
+      (assoc argsmap :>> (map second (sort-by first (seq all-post-map)))))
+      argsmap ))
+
 (defn parse-variables
   "parses variables of the form ['?a' '?b' :> '!!c']
    If there is no :>, defaults to in-or-out-default (:in or :out)"
   [vars in-or-out-default]
   (let [vars (if (keyword? (first vars)) vars (cons (implicit-var-flag vars in-or-out-default) vars))
-        argsmap (-> vars (mk-args-map) (vectorify-arg :> :>>) (vectorify-arg :< :<<))]
+        argsmap (-> vars (mk-args-map) (vectorify-arg :> :>>) (vectorify-arg :< :<<) (vectorify-pos-selector))]
       {:<< (:<< argsmap) :>> (:>> argsmap)}
     ))
 
