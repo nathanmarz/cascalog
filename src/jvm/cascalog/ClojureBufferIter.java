@@ -29,15 +29,15 @@ import java.util.Iterator;
 import clojure.lang.RT;
 
  
-public class ClojureBuffer extends ClojureCascadingBase
+public class ClojureBufferIter extends ClojureCascadingBase
                            implements Buffer {
  
-  public ClojureBuffer(Fields out_fields, Object[] fn_spec, boolean stateful) {
+  public ClojureBufferIter(Fields out_fields, Object[] fn_spec, boolean stateful) {
     super(out_fields, fn_spec, stateful);
   }
    
   public void operate(FlowProcess flow_process, BufferCall buff_call) {
-    ISeq result_seq = RT.seq(invokeFunction(IteratorSeq.create(new TupleSeqConverter(buff_call.getArgumentsIterator()))));
+    ISeq result_seq = RT.seq(invokeFunction(new TupleSeqConverter(buff_call.getArgumentsIterator())));
     TupleEntryCollector collector = buff_call.getOutputCollector();
     while (result_seq != null) {
        Object obj = result_seq.first();

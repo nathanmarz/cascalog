@@ -245,6 +245,14 @@
       [?p !!p2] (person ?p) (follows ?p !!p2 _))
   ))
 
+(w/defbufferiterop itersum [tuples-iter]
+  [(reduce + (map first (iterator-seq tuples-iter)))])
+
+(deftest test-bufferiter
+  (with-tmp-sources [nums [[1] [2] [4]]]
+    (test?<- :info [[7]] [?s] (nums ?n) (itersum ?n :> ?s))
+    ))
+
 (deftest test-outer-join-with-funcs
   ;; TODO: needed
 )

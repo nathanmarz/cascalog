@@ -33,7 +33,7 @@
                                      OutputCollector JobConf]
            [java.util Properties Map]
            [cascalog ClojureFilter ClojureMapcat ClojureMap
-                              ClojureAggregator Util ClojureBuffer]
+                              ClojureAggregator Util ClojureBuffer ClojureBufferIter]
            [java.io File]
            [java.lang RuntimeException Comparable]))
 
@@ -223,6 +223,11 @@
       (Every. previous in-fields
         (ClojureBuffer. func-fields specs stateful) out-fields))))
 
+(defn bufferiter [& args]
+  (fn [#^Pipe previous]
+    (let [[#^Fields in-fields func-fields specs #^Fields out-fields stateful] (parse-args args Fields/ALL)]
+      (Every. previous in-fields
+        (ClojureBufferIter. func-fields specs stateful) out-fields))))
 
 ;; we shouldn't need a seq for fields (b/c we know how many pipes we have)
 (defn co-group
@@ -303,6 +308,9 @@
 
 (defmacro defbufferop [& args]
     (defop-helper 'cascalog.workflow/buffer args))
+
+(defmacro defbufferiterop [& args]
+    (defop-helper 'cascalog.workflow/bufferiter args))
 
 (defn assemble
   ([x] x)
