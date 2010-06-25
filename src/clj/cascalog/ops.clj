@@ -15,7 +15,7 @@
 
 (ns cascalog.ops
   (:refer-clojure :exclude [count min max])
-  (:use [cascalog vars util graph ops-impl])
+  (:use [cascalog ops-impl api])
   (:import [cascading.tuple Fields])
   (:require [cascalog [workflow :as w] [predicate :as p]]))
 
@@ -50,3 +50,5 @@
                         :buffer-hof-var #'limit-buffer )
 
 (def limit-rank (merge limit {:buffer-hof-var #'limit-rank-buffer} ))
+
+(def avg (<- [?v :> !avg] (count ?c) (sum ?v :> !s) (div !s ?c :> !avg)))

@@ -54,6 +54,8 @@
 
 (defpredicate option :key :val)
 
+(defpredicate predicate-macro :pred-fn)
+
 
 ;; TODO: change this to use fast first buffer
 (def distinct-aggregator (predicate aggregator false nil identity (w/first) identity [] []))
@@ -114,6 +116,8 @@
         true (throw (IllegalArgumentException. "Bad predicate"))
         )]
     (if (= ret :bufferiter) :buffer ret)))
+
+(defn predicate-macro? [p] (= :predicate-macro (predicate-dispatcher p)))
 
 (defmulti predicate-default-var predicate-dispatcher)
 

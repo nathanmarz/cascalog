@@ -347,7 +347,7 @@
                   v (if (= :sort k) v (first v))]
             {k v})) opt-predicates)))
 
-(defn build-subquery [out-vars raw-predicates]
+(defn- build-query [out-vars raw-predicates]
   ;; TODO: split out a 'make predicates' function that does correct validation within it, ensuring unground vars appear only once
   (let [
         [_ out-vars vmap]     (uniquify-vars [] out-vars {})
@@ -374,14 +374,53 @@
         (throw (RuntimeException. (str "Could not apply all operations " (:operations tail)))))
       (build-generator true out-vars (:node tail))))
 
-(defn build-predicate-macro [in-vars out-vars raw-predicates]
-  )
+(defn- pred-macro-new-var-name [replacements v]
+  (let [existing (replacements v)
+        new-name  (if existing
+                    existing
+                    (uniquify-var v))]
+      [(assoc replacements v new-name) new-name] ))
+
+(defn- pred-macro-var-updater [[replacements ret] e]
+  (let [[newreplacements newelem] (if (cascalog-var? e)
+                                (pred-macro-new-var-name replacements e)
+                                [replacements e] )]
+    [newreplacements (conj ret newelem)] ))
+
+(defn- pred-macro-updater [[replacements ret] [op opvar vars]]
+  (let [[newreplacements newvars] (reduce pred-macro-var-updater [replacements []] vars)]
+    [newreplacements (conj ret [op opvar newvars])] ))
+
+(defn- build-predicate-macro-fn [invars-decl outvars-decl raw-predicates]
+  (fn [invars outvars]
+    (when (or (not= (count invars) (count invars-decl)) (not= (count outvars) (count outvars-decl)))
+      (throw (IllegalArgumentException. "Wrong number of args to predicate macro")))
+    (let [replacements (merge (zipmap invars-decl invars) (zipmap outvars-decl outvars))]
+      (second (reduce pred-macro-updater [replacements []] raw-predicates))
+      )))
+
+(defn- build-predicate-macro [invars outvars raw-predicates]
+  (p/predicate p/predicate-macro (build-predicate-macro-fn invars outvars raw-predicates)))
+
+(defn- expand-predicate-macro [p vars]
+  (let [{invars :<< outvars :>>} (p/parse-variables vars :<)]
+    ((:pred-fn p) invars outvars)))
+
+(defn- expand-predicate-macros [raw-predicates]
+  (mapcat
+    (fn [[p _ vars :as raw-predicate]]
+      (if (p/predicate-macro? p)
+        (expand-predicate-macro p vars)
+        [raw-predicate] ))
+    raw-predicates ))
 
 (defn build-rule [out-vars raw-predicates]
-    (build-subquery out-vars raw-predicates)
-    ;; TODO: go through predicates and splice unground subqueries into query, how to deal with drift?
-    ;; TODO: parse out-vars: if unground predicate, build an unground subquery. Otherwise, build a generator
-)
+  (let [raw-predicates (expand-predicate-macros raw-predicates)
+        parsed (p/parse-variables out-vars :?)]
+    (if (parsed :?)
+      (build-query out-vars raw-predicates)
+      (build-predicate-macro (parsed :<<) (parsed :>>) raw-predicates)
+      )))
 
 (defn mk-raw-predicate [pred]
   (let [[op-sym & vars] pred

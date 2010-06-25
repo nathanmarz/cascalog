@@ -39,6 +39,9 @@
           ((complement nil?) (some #(.startsWith obj %) ["?" "!" "!!"])))
       false ))
 
+(defn uniquify-var [v]
+  (str v (gen-unique-suffix)))
+
 (defn non-nullable-var? [sym-or-str]
   (.startsWith (extract-varname sym-or-str) "?"))
 
@@ -77,7 +80,7 @@
     (if (cascalog-var? v)
       (let [existing (get equalities v [])
             varlist  (if (or (empty? existing) (and outfield? (ground-var? v)))
-                      (conj existing (str v (gen-unique-suffix)))
+                      (conj existing (uniquify-var v))
                       existing)
             newname  (if outfield? (last varlist) (first varlist))]
             [(conj all newname) (assoc equalities v varlist)] )
