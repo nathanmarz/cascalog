@@ -349,7 +349,10 @@
 
 (defn build-rule [out-vars raw-predicates]
   ;; TODO: split out a 'make predicates' function that does correct validation within it, ensuring unground vars appear only once
-  (let [[_ out-vars vmap]     (uniquify-vars [] out-vars {})
+  (let [
+        ;; TODO: go through predicates and splice unground subqueries into query, how to deal with drift?
+        ;; TODO: parse out-vars: if unground predicate, build an unground subquery. Otherwise, build a generator
+        [_ out-vars vmap]     (uniquify-vars [] out-vars {})
         update-fn             (fn [[preds vmap] [op opvar vars]]
                                 (let [[vars hof-args] (if (p/hof-predicate? op)
                                                         [(rest vars) (collectify (first vars))]
