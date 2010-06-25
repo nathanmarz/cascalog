@@ -97,7 +97,7 @@
         argsmap (-> vars (mk-args-map) (vectorify-arg :> :>>) (vectorify-arg :< :<<) (vectorify-pos-selector))
         ret {:<< (:<< argsmap) :>> (:>> argsmap)}]
         (if-not (#{:< :>} selector-default)
-          (merge ret selector-default (argsmap selector-default))
+          (assoc ret selector-default (argsmap selector-default))
           ret )))
 
 ;; hacky, but best way to do it given restrictions of needing a var for regular functions, needing 
