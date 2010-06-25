@@ -61,10 +61,10 @@
 
 (defstruct predicate-variables :in :out)
 
-(defn- implicit-var-flag [vars in-or-out]
+(defn- implicit-var-flag [vars selector-default]
   (if (find-first keyword? vars)
     :<
-    (if (= :in in-or-out) :< :>)))
+    selector-default))
 
 (defn- mk-args-map [normed-vars]
   (let [partitioned (partition-by keyword? normed-vars)
@@ -91,12 +91,14 @@
 
 (defn parse-variables
   "parses variables of the form ['?a' '?b' :> '!!c']
-   If there is no :>, defaults to in-or-out-default (:in or :out)"
-  [vars in-or-out-default]
-  (let [vars (if (keyword? (first vars)) vars (cons (implicit-var-flag vars in-or-out-default) vars))
-        argsmap (-> vars (mk-args-map) (vectorify-arg :> :>>) (vectorify-arg :< :<<) (vectorify-pos-selector))]
-      {:<< (:<< argsmap) :>> (:>> argsmap)}
-    ))
+   If there is no :>, defaults to flag-default"
+  [vars selector-default]
+  (let [vars (if (keyword? (first vars)) vars (cons (implicit-var-flag vars selector-default) vars))
+        argsmap (-> vars (mk-args-map) (vectorify-arg :> :>>) (vectorify-arg :< :<<) (vectorify-pos-selector))
+        ret {:<< (:<< argsmap) :>> (:>> argsmap)}]
+        (if-not (#{:< :>} selector-default)
+          (merge ret selector-default (argsmap selector-default))
+          ret )))
 
 ;; hacky, but best way to do it given restrictions of needing a var for regular functions, needing 
 ;; to seemlessly integrate with normal workflows, and lack of function metadata in clojure (until 1.2 anyway)
@@ -115,18 +117,18 @@
 
 (defmulti predicate-default-var predicate-dispatcher)
 
-(defmethod predicate-default-var ::option [& args] :in)
-(defmethod predicate-default-var ::tap [& args] :out)
-(defmethod predicate-default-var :generator [& args] :out)
-(defmethod predicate-default-var ::parallel-aggregator [& args] :out)
-(defmethod predicate-default-var ::parallel-buffer [& args] :out)
-(defmethod predicate-default-var ::vanilla-function [& args] :in)
-(defmethod predicate-default-var :map [& args] :out)
-(defmethod predicate-default-var :mapcat [& args] :out)
-(defmethod predicate-default-var :aggregate [& args] :out)
-(defmethod predicate-default-var :buffer [& args] :out)
-(defmethod predicate-default-var :filter [& args] :in)
-(defmethod predicate-default-var ::cascalog-function [& args] :out)
+(defmethod predicate-default-var ::option [& args] :<)
+(defmethod predicate-default-var ::tap [& args] :>)
+(defmethod predicate-default-var :generator [& args] :>)
+(defmethod predicate-default-var ::parallel-aggregator [& args] :>)
+(defmethod predicate-default-var ::parallel-buffer [& args] :>)
+(defmethod predicate-default-var ::vanilla-function [& args] :<)
+(defmethod predicate-default-var :map [& args] :>)
+(defmethod predicate-default-var :mapcat [& args] :>)
+(defmethod predicate-default-var :aggregate [& args] :>)
+(defmethod predicate-default-var :buffer [& args] :>)
+(defmethod predicate-default-var :filter [& args] :<)
+(defmethod predicate-default-var ::cascalog-function [& args] :>)
 
 (defmulti hof-predicate? predicate-dispatcher)
 

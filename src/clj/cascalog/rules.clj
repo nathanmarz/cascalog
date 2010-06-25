@@ -347,11 +347,9 @@
                   v (if (= :sort k) v (first v))]
             {k v})) opt-predicates)))
 
-(defn build-rule [out-vars raw-predicates]
+(defn build-subquery [out-vars raw-predicates]
   ;; TODO: split out a 'make predicates' function that does correct validation within it, ensuring unground vars appear only once
   (let [
-        ;; TODO: go through predicates and splice unground subqueries into query, how to deal with drift?
-        ;; TODO: parse out-vars: if unground predicate, build an unground subquery. Otherwise, build a generator
         [_ out-vars vmap]     (uniquify-vars [] out-vars {})
         update-fn             (fn [[preds vmap] [op opvar vars]]
                                 (let [[vars hof-args] (if (p/hof-predicate? op)
@@ -375,6 +373,15 @@
       (when (not-empty (:operations tail))
         (throw (RuntimeException. (str "Could not apply all operations " (:operations tail)))))
       (build-generator true out-vars (:node tail))))
+
+(defn build-predicate-macro [in-vars out-vars raw-predicates]
+  )
+
+(defn build-rule [out-vars raw-predicates]
+    (build-subquery out-vars raw-predicates)
+    ;; TODO: go through predicates and splice unground subqueries into query, how to deal with drift?
+    ;; TODO: parse out-vars: if unground predicate, build an unground subquery. Otherwise, build a generator
+)
 
 (defn mk-raw-predicate [pred]
   (let [[op-sym & vars] pred
