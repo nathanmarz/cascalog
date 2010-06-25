@@ -24,15 +24,15 @@
   (:import [cascading.pipe Pipe]))
 
 (defmacro <-
-  "Constructs a rule from a list of predicates"
+  "Constructs a query from a list of predicates."
   [outvars & predicates]
   (let [predicate-builders (vec (map cascalog.rules/mk-raw-predicate predicates))
         outvars-str (if (sequential? outvars) (vars2str outvars) outvars)]
         `(cascalog.rules/build-rule ~outvars-str ~predicate-builders)))
 
 (defn ?-
-  "Builds and executes a flow based on the sinks binded to the rules. 
-  Bindings are of form: sink rule"
+  "Executes 1 or more queries and emits the results of each query to the associated tap.
+  Syntax: (?- sink1 query1 sink2 query2 ...)"
   [& bindings]
   (let [[sinks gens]    (unweave bindings)
         sourcemap       (apply merge (map :sourcemap gens))
