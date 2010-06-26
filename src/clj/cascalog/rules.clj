@@ -339,13 +339,17 @@
    :sort nil
    :reverse false})
 
+(defn- validate-option-merge! [val-old val-new]
+  (when (and (not (nil? val-old)) (not= val-old val-new)) (throw (RuntimeException. "Same option set to conflicting values!")))
+  val-new )
+
 (defn- mk-options [opt-predicates]
-  (apply merge DEFAULT-OPTIONS
+  (merge DEFAULT-OPTIONS (apply merge-with validate-option-merge!
     (map (fn [p]
             (let [k (:key p)
                   v (:val p)
                   v (if (= :sort k) v (first v))]
-            {k v})) opt-predicates)))
+            {k v})) opt-predicates))))
 
 (defn- build-query [out-vars raw-predicates]
   ;; TODO: split out a 'make predicates' function that does correct validation within it, ensuring unground vars appear only once
@@ -439,4 +443,3 @@
                             "Cannot sink to a sink with meta fields defined besides Fields/ALL")))
                         ((w/identity (:outfields gen) :fn> sink-fields) pipe))]
           ((w/pipe-rename (uuid)) pipe)))
-
