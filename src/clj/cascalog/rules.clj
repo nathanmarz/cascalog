@@ -340,7 +340,8 @@
    :reverse false})
 
 (defn- validate-option-merge! [val-old val-new]
-  (when (and (not (nil? val-old)) (not= val-old val-new)) (throw (RuntimeException. "Same option set to conflicting values!")))
+  (when (and (not (nil? val-old)) (not= val-old val-new))
+    (throw (RuntimeException. "Same option set to conflicting values!")))
   val-new )
 
 (defn- mk-options [opt-predicates]

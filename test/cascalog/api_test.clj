@@ -269,6 +269,28 @@
     (test?<- [[1 3 4] [11 13 14] [21 23 24]] [?f1 ?f2 ?f3] ((select-tap-fields data ["f1" "f3" "f4"]) ?f1 ?f2 ?f3))
     ))
 
+(deftest test-predicate-macro
+  (let [mac1 (<- [?a :> ?b ?c] (+ ?a 1 :> ?t) (* ?t 2 :> ?b) (+ ?a ?t :> ?c))
+        mac2 (<- [:< ?a] (* ?a ?a :> ?a))]
+    (with-tmp-sources [num1 [[0] [1] [2] [3]]]
+      (test?<- [[-1 1] [0 3] [1 5] [2 7]] [?t ?o] (num1 ?n) (mac1 ?n :> _ ?o) (dec ?n :> ?t))
+      (test?<- [[0] [1]] [?n] (num1 ?n) (mac2 ?n))
+    )))
+
+(deftest test-avg
+  (with-tmp-sources [num1 [[1] [2] [3] [4] [10]]
+                     pair [["a" 1] ["a" 2] ["a" 3] ["b" 3]]]
+    (test?<- [[4]] [?avg] (num1 ?n) (c/avg ?n :> ?avg))
+    (test?<- [["a" 2] ["b" 3]] [?l ?avg] (pair ?l ?n) (c/avg ?n :> ?avg))
+    ))
+
+(deftest test-distinct-count
+  (with-tmp-sources [num1 [[1] [2] [2] [4] [1] [6] [19] [1]]
+                     pair [["a" 1] ["a" 2] ["b" 3] ["a" 1]]]
+    (test?<- [[5]] [?c] (num1 ?n) (c/distinct-count ?n :> ?c))
+    (test?<- [["a" 2] ["b" 1]] [?l ?c] (pair ?l ?n) (c/distinct-count ?n :> ?c))
+    ))
+
 (deftest test-outer-join-with-funcs
   ;; TODO: needed
 )
