@@ -52,3 +52,5 @@
 (def limit-rank (merge limit {:buffer-hof-var #'limit-rank-buffer} ))
 
 (def avg (<- [?v :> !avg] (count ?c) (sum ?v :> !s) (div !s ?c :> !avg)))
+
+(def distinct-count (<- [!v :> !c] (:sort !v) (distinct-count-agg !v :> !c)))
