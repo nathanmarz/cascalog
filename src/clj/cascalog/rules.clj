@@ -27,22 +27,6 @@
   (:import [cascalog CombinerSpec ClojureCombiner ClojureCombinedAggregator])
   (:import [java.util ArrayList]))
 
-;; TODO:
-
-;; 1. parameterized rules? - how does aggregation & joins work in this context? ->
-;;    -> maybe just creates a generator...?
-;; 
-;; TODO: make it possible to create ungrounded rules that take in input vars (for composition)
-;; i.e. (<- [?a ?b :> ?c] (func1 ?a :> ?c) (func2 ?b :> ?c))
-;; (<- [?p] (data ?p ?a ?b) (func1 ?a :> ?c1) (func2 ?b :> ?c2) (= ?c1 ?c2))
-;; (<- [?p] (age ?p ?a) (friend ?p1 ?p2) (= ?p ?p1))
-;; (<- [?num] (nums ?num ?num) (source2 ?num))
-;; (<- [?num] (nums ?num1 ?num2) (source2 ?num3) (= ?num1 ?num2 ?num3))
-;; -> do filter equalities as you can, then do joins when they're valid
-;; (<- [?p1 ?p2] (age ?p1 ?a) (age ?p2 ?a) (friend ?p1 ?p2))
-;; (<- [?p1 ?p2] (age ?p1 ?a) (age ?p2 ?a1) (friend ?p1 ?p2) (= ?a ?a1))
-
-
 ;; infields for a join are the names of the join fields
 (p/defpredicate join :infields)
 (p/defpredicate group :assembly :infields :totaloutfields)
@@ -354,8 +338,7 @@
 
 (defn- build-query [out-vars raw-predicates]
   ;; TODO: split out a 'make predicates' function that does correct validation within it, ensuring unground vars appear only once
-  (let [
-        [_ out-vars vmap]     (uniquify-vars [] out-vars {})
+  (let [[_ out-vars vmap]     (uniquify-vars [] out-vars {})
         update-fn             (fn [[preds vmap] [op opvar vars]]
                                 (let [[vars hof-args] (if (p/hof-predicate? op)
                                                         [(rest vars) (collectify (first vars))]
@@ -422,7 +405,7 @@
 (defn build-rule [out-vars raw-predicates]
   (let [raw-predicates (expand-predicate-macros raw-predicates)
         parsed (p/parse-variables out-vars :?)]
-    (if (parsed :?)
+    (if-not (empty? (parsed :?))
       (build-query out-vars raw-predicates)
       (build-predicate-macro (parsed :<<) (parsed :>>) raw-predicates)
       )))
