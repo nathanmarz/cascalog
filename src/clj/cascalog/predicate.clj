@@ -288,7 +288,9 @@
   (let [inassem (identity-if-nil inassem)
         outassem (identity-if-nil outassem)]
     (merge pred {:pregroup-assembly (w/compose-straight-assemblies inassem (:pregroup-assembly pred))
-                 :post-assembly (w/compose-straight-assemblies (:post-assembly pred) outassem)
+                 :post-assembly (w/compose-straight-assemblies (:post-assembly pred) outassem
+                                  ; work-around to cascading bug, TODO: remove when fixed in cascading
+                                  (w/identity Fields/ALL :> Fields/RESULTS))
                  :outfields outfields
                  :infields infields})))
 
