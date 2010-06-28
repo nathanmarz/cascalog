@@ -11,6 +11,7 @@
                      [org.apache.hadoop/hadoop-core "0.20.2-dev"]
                     ]
   :namespaces [cascalog.workflow
+               cascalog.debug
                cascalog.api
                cascalog.playground
                cascalog.util

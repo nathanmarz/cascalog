@@ -16,7 +16,7 @@
 (ns cascalog.workflow
   (:refer-clojure :exclude [count first filter mapcat map identity min max])
   (:use [clojure.contrib.seq-utils :only [find-first indexed]])
-  (:use cascalog.util)
+  (:use [cascalog util debug])
   (:import [cascading.tuple Tuple TupleEntry Fields]
            [cascading.scheme TextLine SequenceFile]
            [cascading.flow Flow FlowConnector]
@@ -113,12 +113,13 @@
   "Returns a Pipe of the given name, or if one is not supplied with a
    unique random name."
   ([]
-   (Pipe. (uuid)))
+   (pipe (uuid)))
   ([#^String name]
    (Pipe. name)))
 
 (defn pipe-rename [#^String name]
   (fn [p]
+    (debug-print "pipe-rename" name)
     (Pipe. name p)))
 
 (defn- as-pipes
@@ -130,6 +131,7 @@
 ;; with a :fn> defined, turns into a function
 (defn filter [& args]
   (fn [previous]
+    (debug-print "filter" args)
     (let [[in-fields func-fields spec out-fields stateful] (parse-args args)]
       (if func-fields
         (Each. previous in-fields
@@ -139,92 +141,116 @@
 
 (defn mapcat [& args]
   (fn [previous]
+    (debug-print "mapcat" args)
     (let [[in-fields func-fields spec out-fields stateful] (parse-args args)]
     (Each. previous in-fields
       (ClojureMapcat. func-fields spec stateful) out-fields))))
 
 (defn map [& args]
   (fn [previous]
+    (debug-print "map" args)
     (let [[in-fields func-fields spec out-fields stateful] (parse-args args)]
     (Each. previous in-fields
       (ClojureMap. func-fields spec stateful) out-fields))))
 
 (defn group-by
   ([group-fields]
-    (fn [& previous] (GroupBy. (as-pipes previous) (fields group-fields))))
+    (fn [& previous]
+      (debug-print "groupby" group-fields)
+      (GroupBy. (as-pipes previous) (fields group-fields))))
   ([group-fields sort-fields]
-    (fn [& previous] (GroupBy. (as-pipes previous) (fields group-fields) (fields sort-fields))))
+    (fn [& previous]
+      (debug-print "groupby" group-fields sort-fields)
+      (GroupBy. (as-pipes previous) (fields group-fields) (fields sort-fields))))
   ([group-fields sort-fields reverse-order]
-    (fn [& previous] (GroupBy. (as-pipes previous) (fields group-fields) (fields sort-fields) reverse-order))))
+    (fn [& previous]
+      (debug-print "groupby" group-fields sort-fields reverse-order)
+      (GroupBy. (as-pipes previous) (fields group-fields) (fields sort-fields) reverse-order))))
 
 (defn count [#^String count-field]
   (fn [previous]
+    (debug-print "count" count-field)
     (Every. previous (Count. (fields count-field)))))
 
 (defn sum [#^String in-fields #^String sum-fields]
   (fn [previous]
+    (debug-print "sum" in-fields sum-fields)
     (Every. previous (fields in-fields) (Sum. (fields sum-fields)))))
 
 (defn min [#^String in-fields #^String min-fields]
   (fn [previous]
+    (debug-print "min" in-fields min-fields)
     (Every. previous (fields in-fields) (Min. (fields min-fields)))))
 
 (defn max [#^String in-fields #^String max-fields]
   (fn [previous]
+    (debug-print "groupby" in-fields max-fields)
     (Every. previous (fields in-fields) (Max. (fields max-fields)))))
 
 (defn first []
   (fn [previous]
+    (debug-print "first")
     (Every. previous (First.) Fields/RESULTS)))
 
 (defn select [keep-fields]
   (fn [previous]
+    (debug-print "select" keep-fields)
     (let [ret (Each. previous (fields keep-fields) (Identity.))]
       ret
     )))
 
 (defn identity [& args]
   (fn [previous]
+    (debug-print "identity" args)
     ;;  + is a hack. TODO: split up parse-args into parse-args and parse-selector-args
-    (let [[in-fields func-fields _ out-fields _] (parse-args (cons #'+ args) Fields/RESULTS)]
-    (Each. previous in-fields
-      (Identity. func-fields) out-fields))))
+    (let [[in-fields func-fields _ out-fields _] (parse-args (cons #'+ args) Fields/RESULTS)
+          id-func (if func-fields (Identity. func-fields) (Identity.))]
+    (Each. previous in-fields id-func out-fields))))
 
 (defn pipe-name [name]
   (fn [p]
+    (debug-print "pipe-name" name)
     (Pipe. name p)))
 
 (defn insert [newfields vals]
   (fn [previous]
+    (debug-print "insert" newfields vals)
     (Each. previous (Insert. (fields newfields) (into-array Comparable (collectify vals))) Fields/ALL)))
 
 (defn raw-each
-  ([arg1] (fn [p] (Each. p arg1)))
-  ([arg1 arg2] (fn [p] (Each. p arg1 arg2)))
-  ([arg1 arg2 arg3] (fn [p] (Each. p arg1 arg2 arg3))))
+  ([arg1] (fn [p] (debug-print "raw-each" arg1) (Each. p arg1)))
+  ([arg1 arg2] (fn [p] (debug-print "raw-each" arg1 arg2) (Each. p arg1 arg2)))
+  ([arg1 arg2 arg3] (fn [p]
+    (debug-print "raw-each" arg1 arg2 arg3)
+    (Each. p arg1 arg2 arg3))))
 
 (defn debug []
   (raw-each (Debug. true)))
 
 (defn raw-every
-  ([arg1] (fn [p] (Every. p arg1)))
-  ([arg1 arg2] (fn [p] (Every. p arg1 arg2)))
-  ([arg1 arg2 arg3] (fn [p] (Every. p arg1 arg2 arg3))))
+  ([arg1] (fn [p] (debug-print "raw-every" arg1) (Every. p arg1)))
+  ([arg1 arg2] (fn [p] (debug-print "raw-every" arg1 arg2) (Every. p arg1 arg2)))
+  ([arg1 arg2 arg3] (fn [p]
+    (debug-print "raw-every" arg1 arg2 arg3)
+    (Every. p arg1 arg2 arg3))))
 
 (defn aggregate [& args]
   (fn [#^Pipe previous]
+    (debug-print "aggregate" args)
     (let [[#^Fields in-fields func-fields specs #^Fields out-fields stateful] (parse-args args Fields/ALL)]
       (Every. previous in-fields
         (ClojureAggregator. func-fields specs stateful) out-fields))))
 
 (defn buffer [& args]
   (fn [#^Pipe previous]
+    (debug-print "buffer" args)
     (let [[#^Fields in-fields func-fields specs #^Fields out-fields stateful] (parse-args args Fields/ALL)]
       (Every. previous in-fields
         (ClojureBuffer. func-fields specs stateful) out-fields))))
 
 (defn bufferiter [& args]
   (fn [#^Pipe previous]
+    (debug-print "bufferiter" args)
     (let [[#^Fields in-fields func-fields specs #^Fields out-fields stateful] (parse-args args Fields/ALL)]
       (Every. previous in-fields
         (ClojureBufferIter. func-fields specs stateful) out-fields))))
@@ -233,6 +259,7 @@
 (defn co-group
   [fields-seq declared-fields joiner]
   (fn [& pipes-seq]
+    (debug-print "cogroup" fields-seq declared-fields joiner)
     (CoGroup.
   	  (pipes-array pipes-seq)
   	  (fields-array fields-seq)

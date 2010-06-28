@@ -15,7 +15,7 @@
 
 
 (ns cascalog.api
-  (:use [cascalog vars util graph])
+  (:use [cascalog vars util graph debug])
   (:require cascalog.rules)
   (:require [cascalog [workflow :as w] [predicate :as p]])
   (:import [cascading.flow Flow FlowConnector])
@@ -72,3 +72,7 @@
 
 (defn lfs-seqfile [path]
   (w/hfs-tap (w/sequence-file Fields/ALL) path))
+
+(defmacro with-debug [& body]
+  `(binding [cascalog.debug/*DEBUG* true]
+    ~@body ))

@@ -21,11 +21,15 @@
 (let [i (atom 0)]
   (defn gen-unique-suffix [] (str "__gen" (swap! i inc))))
 
+(defn gen-non-nullable-var [] (str "?" (gen-unique-suffix)))
 (defn gen-nullable-var [] (str "!" (gen-unique-suffix)))
 (defn gen-ungounding-var [] (str "!!" (gen-unique-suffix)))
 
 (defn gen-nullable-vars [amt]
   (take amt (repeatedly gen-nullable-var)))
+
+(defn gen-non-nullable-vars [amt]
+  (take amt (repeatedly gen-non-nullable-var)))
 
 (defn- extract-varname
   ([v] (extract-varname v gen-nullable-var))

@@ -14,7 +14,7 @@
  ;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (ns cascalog.rules
-  (:use [cascalog vars util graph])
+  (:use [cascalog vars util graph debug])
   (:use clojure.contrib.set)
   (:use [clojure.set :only [intersection union difference]])
   (:use [clojure.contrib.set :only [subset?]])
@@ -49,6 +49,7 @@
         (struct tailstruct (:ground? tail) (:operations tail) (:drift-map tail) new-outfields new-node)))
 
 (defn- add-op [tail op]
+  (debug-print "Adding op to tail " op tail)
   (let [tail (connect-op tail op)
         new-ops (remove-first (partial = op) (:operations tail))]
         (merge tail {:operations new-ops})))
@@ -148,6 +149,7 @@
             available-fields      (vec (set (apply concat (map :available-fields join-set))))
             new-ops               (vec (apply intersection (map #(set (:operations %)) join-set)))
             new-drift-map         (intersect-drift-maps (map :drift-map join-set))]
+        (debug-print "Selected join" join-fields join-set)
         (dorun (map #(create-edge (:node %) join-node) join-set))
         (recur graph (cons (struct tailstruct (some? :ground? join-set) new-ops new-drift-map
                               available-fields join-node) rest-tails))
@@ -208,6 +210,7 @@
       (w/group-by grouping-fields))))
 
 (defn- build-agg-tail [options prev-tail grouping-fields aggs]
+  (debug-print "Adding aggregators to tail" options prev-tail grouping-fields aggs)
   (when (and (empty? aggs) (:sort options))
     (throw (IllegalArgumentException. "Cannot specify a sort when there are no aggregators" )))
   (if (and (not (:distinct options)) (empty? aggs))
@@ -313,6 +316,7 @@
         prev-gens      (doall (map (partial build-generator false my-needed) (get-inbound-nodes node)))
         newgen         (node->generator pred prev-gens)
         project-fields (projection-fields needed-vars (:outfields newgen)) ]
+        (debug-print "build gen:" my-needed project-fields pred)
         (when (and forceproject (not= project-fields needed-vars))
           (throw (RuntimeException. (str "Only able to build to " project-fields " but need " needed-vars))))
         (merge newgen {:pipe ((mk-projection-assembly forceproject project-fields (:outfields newgen)) (:pipe newgen))
@@ -337,6 +341,8 @@
             {k v})) opt-predicates))))
 
 (defn- build-query [out-vars raw-predicates]
+  (debug-print "outvars:" out-vars)
+  (debug-print "raw predicates:" raw-predicates)
   ;; TODO: split out a 'make predicates' function that does correct validation within it, ensuring unground vars appear only once
   (let [[_ out-vars vmap]     (uniquify-vars [] out-vars {})
         update-fn             (fn [[preds vmap] [op opvar vars]]
