@@ -416,10 +416,8 @@
       (build-predicate-macro (parsed :<<) (parsed :>>) raw-predicates)
       )))
 
-(defn mk-raw-predicate [pred]
-  (let [[op-sym & vars] pred
-        str-vars (vars2str vars)]
-    [op-sym (try-resolve op-sym) str-vars]))
+(defn mk-raw-predicate [[op-sym & vars]]
+  [op-sym (try-resolve op-sym) (vars2str vars)])
 
 (def *JOB-CONF* {})
 

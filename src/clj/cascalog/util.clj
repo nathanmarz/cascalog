@@ -85,4 +85,3 @@
 
 (defmacro dofor [& body]
   `(doall (for ~@body)))
-

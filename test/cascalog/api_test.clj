@@ -3,9 +3,9 @@
         cascalog.testing
         cascalog.api)
   (:import [cascading.tuple Fields])
-  (:require [cascalog [workflow :as w] [ops :as c]]))
+  (:require [cascalog [ops :as c]]))
 
-(w/defmapop mk-one [& tuple] 1)
+(defmapop mk-one [& tuple] 1)
 
 (deftest test-no-input
   (with-tmp-sources [nums [[1] [2] [3]]]
@@ -54,7 +54,7 @@
           [!p !interest !age !gender] (friends !p _) (age !p !age) (interest !p !interest) (gender !p !gender))
         ))
 
-(w/defmapcatop split [#^String words]
+(defmapcatop split [#^String words]
   (seq (.split words "\\s+")))
 
 (deftest test-countall
@@ -84,7 +84,7 @@
      (test?<- [[6 72]] [?c ?s2] (num ?n) (c/count ?c) (c/sum ?n :> ?s) (* 2 ?s :> ?s2))
   ))
 
-(w/defaggregateop evens-vs-odds
+(defaggregateop evens-vs-odds
   ([] 0)
   ([context val] (if (odd? val) (dec context) (inc context)))
   ([context] [context]))
@@ -129,7 +129,7 @@
     (test?<- [[6] [0]] [?n2] (nums ?n ?n) (nums ?n2 ?n2) (* 6 ?n :> ?n2))
     ))
 
-(w/defbufferop select-first [tuples]
+(defbufferop select-first [tuples]
   [(first tuples)])
 
 (deftest test-sort
@@ -141,13 +141,13 @@
 (defn existence2str [obj]
   (if obj "some" "none"))
 
-(w/defmapop outer-join-tester [obj]
+(defmapop outer-join-tester [obj]
   (if obj "o" "n"))
 
-(w/defmapop outer-join-tester2 [obj]
+(defmapop outer-join-tester2 [obj]
   (if obj "o2" "n2"))
 
-(w/defmapcatop outer-join-tester3 [obj]
+(defmapcatop outer-join-tester3 [obj]
   (if obj [1] [1 1]))
 
 (deftest test-outer-join-basic
@@ -192,14 +192,14 @@
      [?p] (follows ?p ?p2) (age ?p2 ?a2) (age-tokens ?p ?a2 !!t) (nil? !!t))
   ))
 
-(w/defmapop [hof-add [a]] [n]
+(defmapop [hof-add [a]] [n]
   (+ a n))
 
-(w/defmapop [hof-arithmetic [a b]] [n]
+(defmapop [hof-arithmetic [a b]] [n]
   (+ b (* a n)))
 
 ;; TODO: stateful operations should return a map containing :init, :op, :finish
-(w/defbufferop [sum-plus [a]] {:stateful true}
+(defbufferop [sum-plus [a]] {:stateful true}
   ([] (* 3 a))
   ([state tuples] [(apply + state (map first tuples))])
   ([state] nil))
@@ -222,7 +222,7 @@
     (test?<- [["nathan davida"] ["chickena"]] [?out] (sentence :>> [?line]) (str :<< ["?line" "a"] :>> ["?out"]))
     ))
 
-(w/defbufferop nothing-buf [tuples]
+(defbufferop nothing-buf [tuples]
   tuples )
 
 (deftest test-limit
@@ -245,7 +245,7 @@
       [?p !!p2] (person ?p) (follows ?p !!p2 _))
   ))
 
-(w/defbufferiterop itersum [tuples-iter]
+(defbufferiterop itersum [tuples-iter]
   [(reduce + (map first (iterator-seq tuples-iter)))])
 
 (deftest test-bufferiter
