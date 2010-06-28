@@ -1,7 +1,5 @@
 Cascalog allows you to query Hadoop in Clojure with an expressive language inspired by Datalog. Follow the getting started steps, check out the tutorial, and you'll be running Cascalog queries on your local computer within 5 minutes.
 
-Cascalog also features a wrapper around Cascading to define dataflows in cascalog.workflow . Custom operations defined in Cascalog can be used both for Cascalog queries and Cascalog dataflows.
-
 # Getting started
 
 1. Make sure you have java 1.6
@@ -25,11 +23,11 @@ Cascalog also features a wrapper around Cascading to define dataflows in cascalo
 2. Cascalog requires Cascading 1.1
 3. Any custom operations must be compiled into the jar you give to Hadoop for running jobs
 
-# Questions or Concerns?
+# Questions?
 
 Google group: [cascalog-user](http://groups.google.com/group/cascalog-user)
 
-IRC: Come chat in the #cascading room on freenode
+IM: Come chat in the #cascading room on freenode
 
 # Priorities for Cascalog development
 
