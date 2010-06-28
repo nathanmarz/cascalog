@@ -282,7 +282,7 @@
         outer-gens] (separate :ground? prevgens)
         prevgens    (concat inner-gens outer-gens)
         infields    (map :outfields prevgens)
-        inpipes     (map (fn [p f] (w/assemble p (w/select f))) (map :pipe prevgens) infields)
+        inpipes     (map (fn [p f] (w/assemble p (w/select f))) (map :pipe prevgens) infields)  ; is this necessary?
         join-renames (generate-join-fields num-join-fields (count prevgens))
         rename-fields (flatten (map (partial replace-join-fields join-fields) join-renames infields))
         keep-fields (vec (set (apply concat infields)))
@@ -340,30 +340,44 @@
                   v (if (= :sort k) v (first v))]
             {k v})) opt-predicates))))
 
+(defn- predicate-parser-reducer [preds [op opvar vars]]
+ (let [[vars hof-args] (if (p/hof-predicate? op)
+                          [(rest vars) (collectify (first vars))]
+                          [vars nil])
+       {invars :<< outvars :>>} (p/parse-variables vars (p/predicate-default-var op))]
+    (conj preds [op opvar hof-args invars outvars]) ))
+
+(defn- mk-var-uniquer-reducer [out?]
+  (fn [[preds vmap] [op opvar hof-args invars outvars]]
+    (let [[updatevars vmap] (uniquify-vars (if out? outvars invars) out? vmap)
+          [invars outvars] (if out? [invars updatevars] [updatevars outvars])]
+      [(conj preds [op opvar hof-args invars outvars]) vmap]
+      )))
+
+(defn- uniquify-query-vars [out-vars raw-predicates]
+  (let [raw-predicates        (reduce predicate-parser-reducer [] raw-predicates)
+        [raw-predicates vmap] (reduce (mk-var-uniquer-reducer true) [[] {}] raw-predicates)
+        [raw-predicates vmap] (reduce (mk-var-uniquer-reducer false) [[] vmap] raw-predicates)
+        [out-vars vmap]       (uniquify-vars out-vars false vmap)
+        drift-map             (mk-drift-map vmap)]
+      [out-vars raw-predicates drift-map] ))
+
 (defn- build-query [out-vars raw-predicates]
   (debug-print "outvars:" out-vars)
   (debug-print "raw predicates:" raw-predicates)
   ;; TODO: split out a 'make predicates' function that does correct validation within it, ensuring unground vars appear only once
-  (let [[_ out-vars vmap]     (uniquify-vars [] out-vars {})
-        update-fn             (fn [[preds vmap] [op opvar vars]]
-                                (let [[vars hof-args] (if (p/hof-predicate? op)
-                                                        [(rest vars) (collectify (first vars))]
-                                                        [vars nil])
-                                      {invars :<< outvars :>>} (p/parse-variables vars (p/predicate-default-var op))
-                                      [invars outvars vmap] (uniquify-vars invars outvars vmap)]
-                                  [(conj preds [op opvar hof-args invars outvars]) vmap] ))
-        [raw-predicates vmap] (reduce update-fn [[] vmap] raw-predicates)
-        drift-map             (mk-drift-map vmap)
+  (let [[out-vars raw-predicates
+         drift-map]               (uniquify-query-vars out-vars raw-predicates)
         [raw-opts raw-predicates] (separate #(keyword? (first %)) raw-predicates)
-        options               (mk-options (map p/mk-option-predicate raw-opts))
-        [gens ops aggs]       (split-predicates (map (partial apply p/build-predicate options) raw-predicates))
-        rule-graph            (mk-graph)
-        tails                 (map (fn [g] (struct tailstruct (:ground? g)
+        options                   (mk-options (map p/mk-option-predicate raw-opts))
+        [gens ops aggs]           (split-predicates (map (partial apply p/build-predicate options) raw-predicates))
+        rule-graph                (mk-graph)
+        tails                     (map (fn [g] (struct tailstruct (:ground? g)
                                         ops drift-map (:outfields g) (create-node rule-graph g))) gens)
-        joined                (merge-tails rule-graph tails)
-        grouping-fields       (seq (intersection (set (:available-fields joined)) (set out-vars)))
-        agg-tail              (build-agg-tail options joined grouping-fields aggs)
-        tail                  (add-ops-fixed-point agg-tail)]
+        joined                    (merge-tails rule-graph tails)
+        grouping-fields           (seq (intersection (set (:available-fields joined)) (set out-vars)))
+        agg-tail                  (build-agg-tail options joined grouping-fields aggs)
+        tail                      (add-ops-fixed-point agg-tail)]
       (when (not-empty (:operations tail))
         (throw (RuntimeException. (str "Could not apply all operations " (:operations tail)))))
       (build-generator true out-vars (:node tail))))

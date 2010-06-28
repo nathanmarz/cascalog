@@ -79,21 +79,20 @@
     (vec (map sanitize-unknown vars (repeat anon-gen)))
   ))
 
-(defn- var-updater-fn [outfield?]
+(defn- var-updater-fn [force-unique?]
   (fn [[all equalities] v]
     (if (cascalog-var? v)
       (let [existing (get equalities v [])
-            varlist  (if (or (empty? existing) (and outfield? (ground-var? v)))
+            varlist  (if (or (empty? existing) (and force-unique? (ground-var? v)))
                       (conj existing (uniquify-var v))
                       existing)
-            newname  (if outfield? (last varlist) (first varlist))]
+            newname  (if force-unique? (last varlist) (first varlist))]
             [(conj all newname) (assoc equalities v varlist)] )
       [(conj all v) equalities] )))
 
-(defn uniquify-vars [invars outvars equalities]
-  (let [[invars equalities] (reduce (var-updater-fn false) [[] equalities] invars)
-        [outvars equalities] (reduce (var-updater-fn true) [[] equalities] outvars)]
-      [invars outvars equalities] ))
+(defn uniquify-vars [vars force-unique? equalities]
+  (let [[vars equalities] (reduce (var-updater-fn force-unique?) [[] equalities] vars)]
+      [vars equalities] ))
 
 (defn mk-drift-map [vmap]
   (let [update-fn (fn [m [_ vals]]
