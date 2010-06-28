@@ -291,6 +291,11 @@
     (test?<- [["a" 2] ["b" 1]] [?l ?c] (pair ?l ?n) (c/distinct-count ?n :> ?c))
     ))
 
+(deftest test-nullable-agg
+  (with-tmp-sources [follows [["a" "b"] ["b" "c"] ["a" "c"]]]
+    (test?<- [["a" 2] ["b" 1]] [?p !c] (follows ?p _) (c/count !c))
+    ))
+
 (deftest test-outer-join-with-funcs
   ;; TODO: needed
 )
