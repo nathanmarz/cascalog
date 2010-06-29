@@ -9,6 +9,7 @@
                  ]
   :dev-dependencies [[lein-javac "0.0.2-SNAPSHOT"]
                      [org.apache.hadoop/hadoop-core "0.20.2-dev"]
+                     [swank-clojure "1.2.1"]
                     ]
   :namespaces [cascalog.workflow
                cascalog.debug
