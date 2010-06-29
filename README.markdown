@@ -9,6 +9,9 @@ Cascalog allows you to query Hadoop in Clojure with an expressive language inspi
 5. cd cascalog && lein deps && lein compile-java && lein compile
 6. optionally run "lein test" to make sure tests pass
 
+The entire Cascalog API is defined within src/clj/cascalog/api.clj .
+Helpers for testing queries can be found in src/clj/cascalog/testing.clj .
+
 # Tutorials
 
 1. [Introducing Cascalog](http://nathanmarz.com/blog/introducing-cascalog)
