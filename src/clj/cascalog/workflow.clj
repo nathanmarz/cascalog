@@ -281,7 +281,7 @@
 (defn- parse-defop-args [[spec & args]]
   (let [revargs (reverse args)
         code (if (vector? (second revargs)) (reverse (take 2 revargs)) (reverse (take 3 revargs)))
-        options (if (= (clojure.core/count code) (clojure.core/count args)) nil (clojure.core/first args)) ]
+        options (if (count= code args) nil (clojure.core/first args)) ]
         [spec options code] ))
 
 ;; creates an op that has metadata embedded within it, hack to work around fact that clojure

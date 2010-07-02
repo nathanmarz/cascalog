@@ -401,7 +401,7 @@
 
 (defn- build-predicate-macro-fn [invars-decl outvars-decl raw-predicates]
   (fn [invars outvars]
-    (when (or (not= (count invars) (count invars-decl)) (not= (count outvars) (count outvars-decl)))
+    (when (or (not-count= invars invars-decl) (not-count= outvars outvars-decl))
       (throw (IllegalArgumentException. "Wrong number of args to predicate macro")))
     (let [replacements (merge (zipmap invars-decl invars) (zipmap outvars-decl outvars))]
       (second (reduce pred-macro-updater [replacements []] raw-predicates))

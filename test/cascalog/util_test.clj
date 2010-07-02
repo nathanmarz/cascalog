@@ -46,3 +46,14 @@
   (throws? IllegalArgumentException (unweave ["a" "b" "c"]))
   (throws? IllegalArgumentException (unweave [100]))
   )
+
+(deftest test-count=
+  (is (= false (count= [1] [])))
+  (is (= true (count= [1] [1] [3])))
+  (is (= true (count= [1 2] [4 3])))
+
+  (is (= true (not-count= [1] [])))
+  (is (= true (not-count= [1 2] [3 4] [])))
+  (is (= false (not-count= [1] [1])))
+  (is (= false (not-count= [1 2] [4 3])))
+  )

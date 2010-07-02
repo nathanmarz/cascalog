@@ -85,3 +85,9 @@
 
 (defmacro dofor [& body]
   `(doall (for ~@body)))
+
+(defn count= [& args]
+  (apply = (map count args)))
+
+(defn not-count= [& args]
+  (not (apply count= args)))
