@@ -1,4 +1,10 @@
-Cascalog allows you to query Hadoop in Clojure with an expressive language inspired by Datalog. Follow the getting started steps, check out the tutorial, and you'll be running Cascalog queries on your local computer within 5 minutes.
+# About
+
+Cascalog is a tool for querying data on Hadoop with Clojure in a concise, expressive, and highly readable manner. Cascalog combines two cutting edge technologies in Clojure and Hadoop and resurrects an old one in Datalog. Cascalog is high performance, flexible, and robust.
+
+Most query languages, like SQL, Pig, and Hive, are custom languages -- and this leads to huge amounts of accidental complexity. Constructing queries dynamically by doing string manipulation is haphazard and leads to further complexity such as SQL injection attacks. The nature of Cascalog being a domain specific language in Clojure avoids these accidental complexities and allows a programmer to manipulate queries as first-class entities within the language. The Datalog syntax of Cascalog is simpler and more expressive than SQL-based languages.
+
+Follow the getting started steps, check out the tutorial, and you'll be running Cascalog queries on your local computer within 5 minutes.
 
 # Getting started
 
