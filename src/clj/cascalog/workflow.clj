@@ -215,7 +215,7 @@
 (defn insert [newfields vals]
   (fn [previous]
     (debug-print "insert" newfields vals)
-    (Each. previous (Insert. (fields newfields) (into-array Comparable (collectify vals))) Fields/ALL)))
+    (Each. previous (Insert. (fields newfields) (into-array Object (collectify vals))) Fields/ALL)))
 
 (defn raw-each
   ([arg1] (fn [p] (debug-print "raw-each" arg1) (Each. p arg1)))
