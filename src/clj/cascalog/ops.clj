@@ -15,42 +15,44 @@
 
 (ns cascalog.ops
   (:refer-clojure :exclude [count min max])
-  (:use [cascalog ops-impl api])
-  (:import [cascading.tuple Fields])
-  (:require [cascalog [workflow :as w] [predicate :as p]]))
+  (:use [cascalog ops-impl api]))
 
-(w/defmapop [re-parse [pattern]] [str]
+(defmapop [re-parse [pattern]] [str]
   (re-seq pattern str))
 
-(p/defparallelagg count :init-var #'one
-                        :combine-var #'+
-                        :args 0)
-
-(p/defparallelagg sum :init-var #'identity
+(defparallelagg count :init-var #'one
                       :combine-var #'+
-                      :args 1)
+                      :args 0)
 
-(p/defparallelagg min :init-var #'identity
-                      :combine-var #'clojure.core/min
-                      :args 1)
+(defparallelagg sum :init-var #'identity
+                    :combine-var #'+
+                    :args 1)
 
-(p/defparallelagg max :init-var #'identity
-                      :combine-var #'clojure.core/max
-                      :args 1)
+(defparallelagg min :init-var #'identity
+                    :combine-var #'clojure.core/min
+                    :args 1)
 
-(p/defparallelagg !count :init-var #'existence-int
-                         :combine-var #'+
-                         :args 1)
+(defparallelagg max :init-var #'identity
+                    :combine-var #'clojure.core/max
+                    :args 1)
 
-(p/defparallelbuf limit :hof? true
-                        :init-hof-var #'limit-init
-                        :combine-hof-var #'limit-combine
-                        :extract-hof-var #'limit-extract
-                        :num-intermediate-vars-fn (fn [infields outfields] (clojure.core/count infields))
-                        :buffer-hof-var #'limit-buffer )
+(defparallelagg !count :init-var #'existence-int
+                       :combine-var #'+
+                       :args 1)
+
+(defparallelbuf limit :hof? true
+                      :init-hof-var #'limit-init
+                      :combine-hof-var #'limit-combine
+                      :extract-hof-var #'limit-extract
+                      :num-intermediate-vars-fn (fn [infields outfields] (clojure.core/count infields))
+                      :buffer-hof-var #'limit-buffer )
 
 (def limit-rank (merge limit {:buffer-hof-var #'limit-rank-buffer} ))
 
 (def avg (<- [!v :> !avg] (count !c) (sum !v :> !s) (div !s !c :> !avg)))
 
 (def distinct-count (<- [!v :> !c] (:sort !v) (distinct-count-agg !v :> !c)))
+
+;; should be able to do this kind of destructuring:
+;; (def distinct-count (<- [:<< [!v & rest-vars] :> !c] (:sort !v) (distinct-count-agg !v :> !c)))
+;; (def distinct-count (<- [:<< a :> !c] (:sort !v) (distinct-count-agg :<< a :> !c)))

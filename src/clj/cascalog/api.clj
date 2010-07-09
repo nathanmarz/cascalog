@@ -143,4 +143,3 @@
   [& body]
   `(binding [cascalog.debug/*DEBUG* true]
     ~@body ))
-
