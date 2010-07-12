@@ -1,4 +1,4 @@
-(defproject cascalog "1.0.1-SNAPSHOT"
+(defproject cascalog "1.1.0-SNAPSHOT"
   :source-path "src/clj"
   :java-source-path "src/jvm"
   :java-fork "true"
