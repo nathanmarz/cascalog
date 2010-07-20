@@ -40,7 +40,7 @@
   "Returns a map of elem to count"
   [aseq]
   (let [update-fn (fn [m elem]
-    (let [count (inc (or (m elem) 0))]
+    (let [count (inc (get m elem 0))]
       (assoc m elem count)))]
     (reduce update-fn {} aseq)))
 
