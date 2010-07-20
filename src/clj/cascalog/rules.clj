@@ -274,15 +274,19 @@
 (defn- generate-join-fields [numfields numpipes]
   (take numpipes (repeatedly (partial gen-nullable-vars numfields))))
 
+(defn- new-pipe-name [prevgens]
+  (.getName (:pipe (first prevgens))))
+
 (defmethod node->generator :join [pred prevgens]
   (let [join-fields (:infields pred)
         num-join-fields (count join-fields)
         sourcemap   (apply merge (map :sourcemap prevgens))
+        trapmap     (apply merge (map :trapmap prevgens))
         [inner-gens
         outer-gens] (separate :ground? prevgens)
         prevgens    (concat inner-gens outer-gens)
         infields    (map :outfields prevgens)
-        inpipes     (map (fn [p f] (w/assemble p (w/select f))) (map :pipe prevgens) infields)  ; is this necessary?
+        inpipes     (map (fn [p f] (w/assemble p (w/select f) (w/pipe-rename (uuid)))) (map :pipe prevgens) infields)  ; is this necessary?
         join-renames (generate-join-fields num-join-fields (count prevgens))
         rename-fields (flatten (map (partial replace-join-fields join-fields) join-renames infields))
         keep-fields (vec (set (apply concat infields)))
@@ -291,8 +295,10 @@
         joined      (w/assemble inpipes (w/co-group (repeat (count inpipes) join-fields)
                                               rename-fields (w/mixed-joiner mixjoin))
                                         (join-fields-selector [num-join-fields]
-                                          (flatten join-renames) :fn> join-fields :> Fields/SWAP))]
-        (p/predicate p/generator true sourcemap joined keep-fields)
+                                          (flatten join-renames) :fn> join-fields :> Fields/SWAP)
+                                        ;; maintain the pipe name (important for setting traps on subqueries)
+                                        (w/pipe-rename (new-pipe-name prevgens)))]
+        (p/predicate p/generator true sourcemap joined keep-fields trapmap)
     ))
 
 (defmethod node->generator :operation [pred prevgens]
@@ -325,7 +331,8 @@
 (def DEFAULT-OPTIONS
   {:distinct true
    :sort nil
-   :reverse false})
+   :reverse false
+   :trap nil})
 
 (defn- validate-option-merge! [val-old val-new]
   (when (and (not (nil? val-old)) (not= val-old val-new))
@@ -337,7 +344,8 @@
     (map (fn [p]
             (let [k (:key p)
                   v (:val p)
-                  v (if (= :sort k) v (first v))]
+                  v (if (= :sort k) v (first v))
+                  v (if (= :trap k) {:tap v :name (uuid)} v)]
             {k v})) opt-predicates))))
 
 (defn- predicate-parser-reducer [preds [op opvar vars]]

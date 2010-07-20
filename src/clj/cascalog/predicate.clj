@@ -50,7 +50,7 @@
 ;; return a :post-assembly, a :parallel-agg, and a :serial-agg-assembly
 (defpredicate aggregator :buffer? :parallel-agg :pregroup-assembly :serial-agg-assembly :post-assembly :infields :outfields)
 ;; automatically generates source pipes and attaches to sources
-(defpredicate generator :ground? :sourcemap :pipe :outfields)
+(defpredicate generator :ground? :sourcemap :pipe :outfields :trapmap)
 
 (defpredicate option :key :val)
 
@@ -154,17 +154,29 @@
 (defn- ground-fields? [outfields]
   (every? ground-var? outfields))
 
+(defn- init-trap-map [options]
+  (if-let [trap (:trap options)]
+    {(:name trap) (:tap trap)}
+    {} ))
+
+(defn- init-pipe-name [options]
+   (if-let [trap (:trap options)]
+    (:name trap)
+    (uuid) ))
+
 (defmethod build-predicate-specific ::tap [tap _ _ infields outfields options]
   (let
-    [pname (uuid)
-     pipe (w/assemble (w/pipe pname) (w/identity Fields/ALL :fn> outfields :> Fields/RESULTS))]
+    [sourcename (uuid)
+     pname (init-pipe-name options)
+     pipe (w/assemble (w/pipe sourcename) (w/pipe-rename pname) (w/identity Fields/ALL :fn> outfields :> Fields/RESULTS))]
     (when-not (empty? infields) (throw (IllegalArgumentException. "Cannot use :> in a taps vars declaration")))
-    (predicate generator (ground-fields? outfields) {pname tap} pipe outfields)
+    (predicate generator (ground-fields? outfields) {sourcename tap} pipe outfields (init-trap-map options))
   ))
 
 (defmethod build-predicate-specific :generator [gen _ _ infields outfields options]
-  (let [gen-pipe (w/assemble (:pipe gen) (w/pipe-rename (uuid)) (w/identity Fields/ALL :fn> outfields :> Fields/RESULTS))]
-  (predicate generator (ground-fields? outfields) (:sourcemap gen) gen-pipe outfields)))
+  (let [pname (init-pipe-name options)
+        gen-pipe (w/assemble (:pipe gen) (w/pipe-rename pname) (w/identity Fields/ALL :fn> outfields :> Fields/RESULTS))]
+  (predicate generator (ground-fields? outfields) (:sourcemap gen) gen-pipe outfields (init-trap-map options))))
 
 (defmethod build-predicate-specific ::vanilla-function [_ opvar _ infields outfields options]
   (when (nil? opvar) (throw (RuntimeException. "Functions must have vars associated with them")))
@@ -200,7 +212,7 @@
 
 (defmethod build-predicate-specific ::parallel-buffer [pbuf _ hof-args infields outfields options]
   (let [temp-vars (gen-nullable-vars ((:num-intermediate-vars-fn pbuf) infields outfields))
-        hof-args  (cons options hof-args)
+        hof-args  (cons (dissoc options :trap) hof-args)
         combiner-spec (CombinerSpec. (mk-hof-fn-spec (:init-hof-var pbuf) hof-args)
                                      (mk-hof-fn-spec (:combine-hof-var pbuf) hof-args)
                                      (mk-hof-fn-spec (:extract-hof-var pbuf) hof-args))

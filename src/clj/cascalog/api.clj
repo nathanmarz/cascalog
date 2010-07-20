@@ -39,10 +39,11 @@
   [& bindings]
   (let [[sinks gens]    (unweave bindings)
         sourcemap       (apply merge (map :sourcemap gens))
+        trapmap         (apply merge (map :trapmap gens))
         tails           (map cascalog.rules/connect-to-sink gens sinks)
         sinkmap         (w/taps-map tails sinks)
         flow            (.connect (FlowConnector. (merge {"cascading.flow.job.pollinginterval" 100} cascalog.rules/*JOB-CONF*))
-                          sourcemap sinkmap (into-array Pipe tails))]
+                          "" sourcemap sinkmap trapmap (into-array Pipe tails))]
         (.complete flow)))
 
 (defmacro ?<-
@@ -89,7 +90,7 @@
   (let [pname (uuid)
         outfields (gen-nullable-vars (count fields))
         pipe (w/assemble (w/pipe pname) (w/identity fields :fn> outfields :> outfields))]
-    (p/predicate p/generator true {pname tap} pipe outfields)))
+    (p/predicate p/generator true {pname tap} pipe outfields {})))
 
 (defn hfs-textline
   "Creates a tap on HDFS using textline format. Different filesystems can 
