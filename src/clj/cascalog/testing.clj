@@ -165,6 +165,13 @@
   (for [t tuples]
   (map (fn [v] (if (number? v) (double v) v)) t)))
 
+(defn is-specs= [set1 set2]
+  (is (= (map multi-set (map doublify set1))
+         (map multi-set (map doublify set2)))))
+
+(defn is-tuplesets= [set1 set2]
+  (is-specs= [set1] [set2] ))
+
 (defn test?- [& bindings]
   (let [[log-level bindings] (if (keyword? (first bindings))
                                 [(first bindings) (rest bindings)]
@@ -174,10 +181,39 @@
         (let [[specs rules]  (unweave bindings)
               sinks          (map mk-test-sink specs (unique-rooted-paths sink-path))
               _              (apply ?- (interleave sinks rules))
-              out-tuples     (doall (map get-tuples sinks))
-              spec-sets      (map multi-set (map doublify specs))
-              out-sets       (map multi-set (map doublify out-tuples))]
-              (is (= spec-sets out-sets)))))))
+              out-tuples     (doall (map get-tuples sinks))]
+          (is-specs= specs out-tuples)
+          )))))
+
+(defn check-tap-spec [tap spec]
+  (is-tuplesets= (get-tuples tap) spec))
+
+(defn check-tap-spec-sets [tap spec]
+  (is (= (multi-set (map set (doublify (get-tuples tap))))
+         (multi-set (map set (doublify spec))))))
+
+
+(defn with-expected-sinks-helper [checker bindings body]
+  (let [parts     (partition 2 bindings)
+        names     (vec (map first parts))
+        specs     (vec (map second parts))
+        [tmpfiles tmpforms] (mk-tmpfiles+forms (count parts))
+        tmptaps   (vec (mapcat (fn [n t s] [n `(cascalog.testing/mk-test-sink ~s ~t)])
+                    names tmpfiles specs))]
+        `(cascalog.io/with-tmp-files ~tmpforms
+           (let ~tmptaps
+               ~@body
+               (dorun (map ~checker ~names ~specs)))
+            )))
+
+
+;; bindings are name spec, where spec is either {:fields :tuples} or vector of tuples
+(defmacro with-expected-sinks [bindings & body]
+  (with-expected-sinks-helper check-tap-spec bindings body))
+
+(defmacro with-expected-sink-sets [bindings & body]
+  (with-expected-sinks-helper check-tap-spec-sets bindings body))
+
 
 (defmacro test?<- [& args]
   (let [[begin body] (if (keyword? (first args))
