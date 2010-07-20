@@ -175,8 +175,9 @@
 
 (defmethod build-predicate-specific :generator [gen _ _ infields outfields options]
   (let [pname (init-pipe-name options)
+        trapmap (merge (:trapmap gen) (init-trap-map options))
         gen-pipe (w/assemble (:pipe gen) (w/pipe-rename pname) (w/identity Fields/ALL :fn> outfields :> Fields/RESULTS))]
-  (predicate generator (ground-fields? outfields) (:sourcemap gen) gen-pipe outfields (init-trap-map options))))
+  (predicate generator (ground-fields? outfields) (:sourcemap gen) gen-pipe outfields trapmap )))
 
 (defmethod build-predicate-specific ::vanilla-function [_ opvar _ infields outfields options]
   (when (nil? opvar) (throw (RuntimeException. "Functions must have vars associated with them")))
