@@ -296,6 +296,48 @@
     (test?<- [["a" 2] ["b" 1]] [?p !c] (follows ?p _) (c/count !c))
     ))
 
+(deffilterop odd-fail [n & all]
+  (if (odd? n) (throw (RuntimeException.)) true))
+
+(deftest test-trap
+  (with-tmp-sources [num [[1] [2]]]
+    (with-expected-sink-sets [trap1 [[1]] ]
+      (test?<- [[2]] [?n] (num ?n) (odd-fail ?n) (:trap trap1)))
+    (is (thrown?
+          Exception
+          (test?<- [[2]] [?n] (num ?n) (odd-fail ?n))))
+      ))
+
+(deftest test-trap-joins
+  (with-tmp-sources [age [["A" 20] ["B" 21]]
+                     gender [["A" "m"] ["B" "f"]]]
+    (with-expected-sink-sets [trap1 [["B" 21]]
+                          trap2 [["B" 21 "f"]]]
+      (test?<- [["A" 20 "m"]] [?p ?a ?g] (age ?p ?a) (gender ?p ?g) (odd-fail ?a) (:trap trap1))
+      (test?<- [["A" 20 "m"]] [?p ?a ?g] (age ?p ?a) (gender ?p ?g) (odd-fail ?a ?g) (:trap trap2)))
+    ))
+
+(deftest test-multi-trap
+  (with-tmp-sources [age [["A" 20] ["B" 21]]
+                     weight [["A" 191] ["B" 192]]]
+    (with-expected-sink-sets [trap1 [["B" 21]]
+                              trap2 [["A" 20 191]] ]
+      (let [sq (<- [?p ?a] (age ?p ?a) (odd-fail ?a) (:trap trap1) (:distinct false))]
+        (test?<- [] [?p ?a ?w] (sq ?p ?a) (weight ?p ?w) (odd-fail ?w ?p ?a) (:trap trap2))
+        ))))
+
+(deftest test-trap-isolation
+  (with-tmp-sources [num [[1] [2]]]
+    (is (thrown? Exception
+      (with-expected-sink-sets [trap1 [[]] ]
+        (let [sq (<- [?n] (num ?n) (odd-fail ?n))]
+          (test?<- [[2]] [?n] (sq ?n) (:trap trap1))
+          ))))
+    (with-expected-sink-sets [trap1 [[1]] ]
+      (let [sq (<- [?n] (num ?n) (odd-fail ?n) (:trap trap1))]
+        (test?<- [[2]] [?n] (sq ?n))
+        ))))
+
 (deftest test-outer-join-with-funcs
   ;; TODO: needed
 )
