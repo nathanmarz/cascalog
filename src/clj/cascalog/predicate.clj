@@ -25,7 +25,7 @@
 ;; doing it this way b/c pain to put metadata directly on a function
 ;; assembly-maker is a function that takes in infields & outfields and returns
 ;; [preassembly postassembly]
-(defstruct parallel-aggregator :type :init-var :combine-var :args)
+(defstruct parallel-aggregator :type :init-var :combine-var)
 
 ;; :num-intermediate-vars-fn takes as input infields, outfields
 (defstruct parallel-buffer :type :hof? :init-hof-var :combine-hof-var :extract-hof-var :num-intermediate-vars-fn :buffer-hof-var)
@@ -234,11 +234,9 @@
        (predicate aggregator true combiner identity group-assembly identity infields outfields)))
 
 (defmethod build-predicate-specific ::parallel-aggregator [pagg _ _ infields outfields options]
-  (when (or (not= (count infields) (:args pagg)))
-    (throw (IllegalArgumentException. (str "Invalid # input fields to aggregator " pagg))))
   (let [init-spec (w/fn-spec (:init-var pagg))
         combine-spec (w/fn-spec (:combine-var pagg))
-        cascading-agg (ClojureParallelAggregator. (w/fields outfields) init-spec combine-spec (:args pagg))
+        cascading-agg (ClojureParallelAggregator. (w/fields outfields) init-spec combine-spec (count infields))
         serial-assem (if (empty? infields)
                         (w/raw-every cascading-agg Fields/ALL)
                         (w/raw-every (w/fields infields)

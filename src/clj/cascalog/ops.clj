@@ -21,24 +21,19 @@
   (re-seq pattern str))
 
 (defparallelagg count :init-var #'one
-                      :combine-var #'+
-                      :args 0)
+                      :combine-var #'+)
 
 (defparallelagg sum :init-var #'identity
-                    :combine-var #'+
-                    :args 1)
+                    :combine-var #'+)
 
 (defparallelagg min :init-var #'identity
-                    :combine-var #'clojure.core/min
-                    :args 1)
+                    :combine-var #'clojure.core/min)
 
 (defparallelagg max :init-var #'identity
-                    :combine-var #'clojure.core/max
-                    :args 1)
+                    :combine-var #'clojure.core/max)
 
 (defparallelagg !count :init-var #'existence-int
-                       :combine-var #'+
-                       :args 1)
+                       :combine-var #'+)
 
 (defparallelbuf limit :hof? true
                       :init-hof-var #'limit-init

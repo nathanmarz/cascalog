@@ -345,8 +345,7 @@
   [(+ v1 v3) (* v2 v4)])
 
 (defparallelagg multipagg :init-var #'multipagg-init
-                          :combine-var #'multipagg-combiner
-                          :args 3)
+                          :combine-var #'multipagg-combiner)
 
 (defaggregateop slow-count
   ([] 0)
