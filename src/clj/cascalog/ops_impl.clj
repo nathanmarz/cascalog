@@ -39,7 +39,7 @@
   (let [compare-fn (mk-limit-comparator options)]
    (fn [list1 list2]
       (let [res (concat list1 list2)]
-        ;; see not ein limit-init
+        ;; see note in limit-init
          [(if (> (count res) (* 2 limit))
            (take limit (sort compare-fn res))
            res
