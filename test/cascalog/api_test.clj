@@ -338,6 +338,27 @@
         (test?<- [[2]] [?n] (sq ?n))
         ))))
 
+(defn multipagg-init [v1 v2 v3]
+  [v1 (+ v2 v3)])
+
+(defn multipagg-combiner [v1 v2 v3 v4]
+  [(+ v1 v3) (* v2 v4)])
+
+(defparallelagg multipagg :init-var #'multipagg-init
+                          :combine-var #'multipagg-combiner
+                          :args 3)
+
+(defaggregateop slow-count
+  ([] 0)
+  ([context val] (inc context))
+  ([context] [context]))
+
+(deftest test-multi-parallel-agg
+  (with-tmp-sources [vals [[1 2 3] [4 5 6] [7 8 9]] ]
+    (test?<- [[12 935 3]] [?d ?e ?count] (vals ?a ?b ?c) (multipagg ?a ?b ?c :> ?d ?e) (c/count ?count))
+    (test?<- [[12 935 3]] [?d ?e ?count] (vals ?a ?b ?c) (multipagg ?a ?b ?c :> ?d ?e) (slow-count ?c :> ?count))
+    ))
+
 (deftest test-outer-join-with-funcs
   ;; TODO: needed
 )
