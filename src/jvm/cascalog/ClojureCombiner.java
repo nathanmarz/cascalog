@@ -26,8 +26,8 @@ import java.util.List;
 
 public class ClojureCombiner extends ClojureCombinerBase {
     
-    public ClojureCombiner(Fields groupFields, List<Fields> argFields, List<String> outFields, List<CombinerSpec> agg_specs) {
-        super(groupFields, false, null, argFields, new Fields(outFields.toArray(new String[outFields.size()])), agg_specs, 10000);
+    public ClojureCombiner(Fields groupFields, List<Fields> argFields, Fields outFields, List<CombinerSpec> agg_specs) {
+        super(groupFields, false, null, argFields, outFields, agg_specs, 10000);
     }
 
     @Override

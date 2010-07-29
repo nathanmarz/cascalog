@@ -174,22 +174,22 @@
   (let [pagg (:parallel-agg agg)]
     (CombinerSpec. (w/fn-spec (:init-var pagg)) (w/fn-spec (:combine-var pagg)))))
 
-(defn- mk-combined-aggregator [combiner-spec arg outfield]
-  (w/raw-every (w/fields arg) (ClojureCombinedAggregator. outfield (. combiner-spec combiner_spec)) Fields/ALL))
+(defn- mk-combined-aggregator [combiner-spec argfields outfields]
+  (w/raw-every (w/fields argfields) (ClojureCombinedAggregator. (w/fields outfields) (. combiner-spec combiner_spec)) Fields/ALL))
 
 (defn mk-agg-arg-fields [fields]
   (if (empty? fields) nil (w/fields fields)))
 
 (defn- mk-parallel-aggregator [grouping-fields aggs]
   (let [argfields (map #(mk-agg-arg-fields (:infields %)) aggs)
-          tempfields (take (count aggs) (repeatedly gen-nullable-var))
-          specs (map specify-parallel-agg aggs)
-          combiner (ClojureCombiner. (w/fields grouping-fields)
-                                     argfields
-                                     tempfields
-                                     specs)]
-          [[(w/raw-each Fields/ALL combiner Fields/RESULTS)]
-           (map mk-combined-aggregator specs tempfields (map #(:outfield (:parallel-agg %)) aggs))] ))
+        tempfields (map #(gen-nullable-vars (count (:outfields %))) aggs)
+        specs (map specify-parallel-agg aggs)
+        combiner (ClojureCombiner. (w/fields grouping-fields)
+                                   argfields
+                                   (w/fields (apply concat tempfields))
+                                   specs)]
+        [[(w/raw-each Fields/ALL combiner Fields/RESULTS)]
+         (map mk-combined-aggregator specs tempfields (map :outfields aggs))] ))
 
 (defn- mk-parallel-buffer-agg [grouping-fields agg]
   [[((:parallel-agg agg) grouping-fields)] [(:serial-agg-assembly agg)]] )

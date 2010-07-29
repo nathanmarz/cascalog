@@ -22,13 +22,9 @@ import cascading.operation.Aggregator;
 import cascading.operation.OperationCall;
 import cascading.operation.AggregatorCall;
 import cascading.flow.FlowProcess;
-import cascading.tuple.TupleEntry;
-import cascading.tuple.TupleEntryCollector;
-import cascading.tuple.Tuple;
 import cascading.tuple.Fields;
 import clojure.lang.IFn;
 import clojure.lang.ISeq;
-import java.util.Collection;
 
 public class ClojureParallelAggregator extends BaseOperation<Object>
                                implements Aggregator<Object> {
@@ -38,8 +34,8 @@ public class ClojureParallelAggregator extends BaseOperation<Object>
   private IFn combine_fn;
   private int args;
 
-  public ClojureParallelAggregator(String out_field, Object[] init_spec, Object[] combine_spec, int args) {
-    super(new Fields(out_field));
+  public ClojureParallelAggregator(Fields outfields, Object[] init_spec, Object[] combine_spec, int args) {
+    super(outfields);
     this.init_spec = init_spec;
     this.combine_spec = combine_spec;
     this.args = args;
@@ -60,12 +56,14 @@ public class ClojureParallelAggregator extends BaseOperation<Object>
       Object o;
       if(this.args>0) o = this.init_fn.applyTo(fn_args_seq);
       else o = this.init_fn.invoke();
+
+      ISeq oseq = Util.coerceToSeq(o);
       
-      Object currContext = ag_call.getContext();
+      ISeq currContext = (ISeq) ag_call.getContext();
       if(currContext==null) {
-          ag_call.setContext(o);
+          ag_call.setContext(oseq);
       } else {
-          ag_call.setContext(this.combine_fn.invoke(currContext, o));
+          ag_call.setContext(Util.coerceToSeq(this.combine_fn.applyTo(Util.cat(currContext, oseq))));
       }
     } catch (Exception e) {
       throw new RuntimeException(e);

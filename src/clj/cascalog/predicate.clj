@@ -234,17 +234,17 @@
        (predicate aggregator true combiner identity group-assembly identity infields outfields)))
 
 (defmethod build-predicate-specific ::parallel-aggregator [pagg _ _ infields outfields options]
-  (when (or (not= (count infields) (:args pagg)) (not= 1 (count outfields)))
+  (when (or (not= (count infields) (:args pagg)))
     (throw (IllegalArgumentException. (str "Invalid # input fields to aggregator " pagg))))
   (let [init-spec (w/fn-spec (:init-var pagg))
         combine-spec (w/fn-spec (:combine-var pagg))
-        cascading-agg (ClojureParallelAggregator. (first outfields) init-spec combine-spec (:args pagg))
+        cascading-agg (ClojureParallelAggregator. (w/fields outfields) init-spec combine-spec (:args pagg))
         serial-assem (if (empty? infields)
                         (w/raw-every cascading-agg Fields/ALL)
                         (w/raw-every (w/fields infields)
                                   cascading-agg
                                   Fields/ALL))]
-    (predicate aggregator false (assoc pagg :outfield (first outfields)) identity serial-assem identity infields outfields)))
+    (predicate aggregator false pagg identity serial-assem identity infields outfields)))
 
 (defn- simpleagg-build-predicate [buffer? op _ hof-args infields outfields options]
   (predicate aggregator buffer? nil identity (apply op (hof-prepend hof-args infields :fn> outfields :> Fields/ALL)) identity infields outfields))

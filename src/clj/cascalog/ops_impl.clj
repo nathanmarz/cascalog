@@ -24,7 +24,10 @@
 
 (defn limit-init [options limit]
   (fn [sort-tuple & tuple]
-    [[(vec sort-tuple) (vec tuple)]]))
+    ;; this is b/c CombinerBase does coerceToSeq on everything and applies when combining,
+    ;; since this returns a seq we need an extra level of nesting
+    ;; should have a different combiner base for buffer combiners
+    [[[(vec sort-tuple) (vec tuple)]]]))
 
 (defn- mk-limit-comparator [options]
   (fn [[#^Comparable o1 _] [#^Comparable o2 _]]
@@ -36,11 +39,12 @@
   (let [compare-fn (mk-limit-comparator options)]
    (fn [list1 list2]
       (let [res (concat list1 list2)]
-        (if (> (count res) (* 2 limit))
-          (take limit (sort compare-fn res))
-          res
-          ))
-      )))
+        ;; see not ein limit-init
+         [(if (> (count res) (* 2 limit))
+           (take limit (sort compare-fn res))
+           res
+           )]
+        ))))
 
 (defn limit-extract [options limit]
   (let [compare-fn (mk-limit-comparator options)]

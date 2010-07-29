@@ -22,24 +22,22 @@ import cascading.operation.Aggregator;
 import cascading.operation.OperationCall;
 import cascading.operation.AggregatorCall;
 import cascading.flow.FlowProcess;
-import cascading.tuple.TupleEntry;
-import cascading.tuple.TupleEntryCollector;
-import cascading.tuple.Tuple;
 import cascading.tuple.Fields;
+import cascading.tuple.TupleEntry;
 import clojure.lang.IFn;
 import clojure.lang.ISeq;
-import java.util.Collection;
 
 public class ClojureCombinedAggregator extends BaseOperation<Object>
                                implements Aggregator<Object> {
   private Object[] combine_spec;
   private IFn combine_fn;
 
-  public ClojureCombinedAggregator(String out_field, Object[] combine_spec) {
-    super(new Fields(out_field));
+  public ClojureCombinedAggregator(Fields outfields, Object[] combine_spec) {
+    super(outfields);
     this.combine_spec = combine_spec;
   }
-  
+
+  @Override
   public void prepare(FlowProcess flow_process, OperationCall<Object> op_call) {
     this.combine_fn = Util.bootFn(combine_spec);
   }
@@ -50,12 +48,12 @@ public class ClojureCombinedAggregator extends BaseOperation<Object>
 
   public void aggregate(FlowProcess flow_process, AggregatorCall<Object> ag_call) {
     try {
-      Object o = ag_call.getArguments().get(0);      
-      Object currContext = ag_call.getContext();
+      ISeq args = Util.coerceFromTuple(ag_call.getArguments());
+      ISeq currContext = (ISeq) ag_call.getContext();
       if(currContext==null) {
-          ag_call.setContext(o);
+          ag_call.setContext(args);
       } else {
-          ag_call.setContext(this.combine_fn.invoke(currContext, o));
+          ag_call.setContext(Util.coerceToSeq(this.combine_fn.applyTo(Util.cat(currContext, args))));
       }
     } catch (Exception e) {
       throw new RuntimeException(e);

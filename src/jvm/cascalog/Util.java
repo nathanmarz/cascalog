@@ -25,11 +25,17 @@ import clojure.lang.IteratorSeq;
 import clojure.lang.ArraySeq;
 import cascading.tuple.Tuple;
 import cascading.tuple.TupleEntry;
-import cascading.operation.OperationCall;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 
 public class Util {
-    
+
+  public static ISeq cat(ISeq s1, ISeq s2) {
+      if(s1==null || RT.seq(s1)==null) return s2;
+      return cat(s1.next(), s2).cons(s1.first());
+  }
+
   public static IFn bootSimpleFn(String ns_name, String fn_name) {
     try {
       Compiler.eval(RT.readString("(require '" + ns_name + ")"));
@@ -54,15 +60,23 @@ public class Util {
       }
     }
   }
+
+  public static ISeq coerceToSeq(Object o) {
+    if(o instanceof Collection) {
+      return RT.seq(o);
+    } else {
+      return RT.list(o);
+    }
+  }
   
-  public static ISeq coerceFromTuple(Tuple tuple) {
+  public static IteratorSeq coerceFromTuple(Tuple tuple) {
     return IteratorSeq.create(tuple.iterator());
   }
   
-  public static ISeq coerceFromTuple(TupleEntry tuple) {
+  public static IteratorSeq coerceFromTuple(TupleEntry tuple) {
     return coerceFromTuple(tuple.getTuple());
   }
-    
+
   public static Tuple coerceToTuple(Object obj) {
     if(obj instanceof Collection) {
       Object[] arr = ((Collection)obj).toArray();
@@ -70,6 +84,16 @@ public class Util {
     } else {
       return new Tuple(obj);
     }
+  }
+
+  public static List seqToList(ISeq s) {
+      s = RT.seq(s);
+      List<Object> ret = new ArrayList<Object>();
+      while(s!=null) {
+          ret.add(s.first());
+          s = s.next();
+      }
+      return ret;
   }
   
   public static boolean truthy(Object obj) {

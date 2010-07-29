@@ -49,7 +49,10 @@ public class ClojureBufferCombiner extends ClojureCombinerBase {
     @Override
     protected void write(Tuple group, List<Object> vals, OperationCall opCall) {
         TupleEntryCollector output = ((FunctionCall)opCall).getOutputCollector();
-        if(vals.size()!=1) throw new RuntimeException("Should only have one object in buffer combiner before extraction");
+
+        if(vals.size()!=1) {
+            throw new RuntimeException("Should only have one object in buffer combiner before extraction " + vals.size() + ":" + vals.toString());
+        }
         Object val = vals.get(0);
         try {
             ISeq result_seq = RT.seq(extract_fn.invoke(val));
