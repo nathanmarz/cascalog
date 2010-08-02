@@ -3,6 +3,7 @@
         cascalog.testing
         cascalog.api)
   (:import [cascading.tuple Fields])
+  (:import [cascalog.test KeepEven])
   (:require [cascalog [ops :as c]]))
 
 (defmapop mk-one [& tuple] 1)
@@ -356,6 +357,12 @@
   (with-tmp-sources [vals [[1 2 3] [4 5 6] [7 8 9]] ]
     (test?<- [[12 935 3]] [?d ?e ?count] (vals ?a ?b ?c) (multipagg ?a ?b ?c :> ?d ?e) (c/count ?count))
     (test?<- [[12 935 3]] [?d ?e ?count] (vals ?a ?b ?c) (multipagg ?a ?b ?c :> ?d ?e) (slow-count ?c :> ?count))
+    ))
+
+(deftest test-cascading-filter
+  (with-tmp-sources [vals [[0] [1] [2] [3]] ]
+    (test?<- [[0] [2]] [?v] (vals ?v) ((KeepEven.) ?v) (:distinct false))
+    (test?<- [[0 true] [1 false] [2 true] [3 false]] [?v ?b] (vals ?v) ((KeepEven.) ?v :> ?b) (:distinct false))
     ))
 
 (deftest test-outer-join-with-funcs

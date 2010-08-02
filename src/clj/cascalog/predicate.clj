@@ -19,8 +19,10 @@
   (:require [cascalog [workflow :as w]])
   (:import [java.util ArrayList])
   (:import [cascading.tap Tap])
+  (:import [cascading.operation Filter])
   (:import [cascading.tuple Fields])
-  (:import [cascalog ClojureParallelAggregator ClojureBuffer ClojureBufferCombiner CombinerSpec CascalogFunction CascalogFunctionExecutor]))
+  (:import [cascalog ClojureParallelAggregator ClojureBuffer ClojureBufferCombiner
+                     CombinerSpec CascalogFunction CascalogFunctionExecutor CascadingFilterToFunction]))
 
 ;; doing it this way b/c pain to put metadata directly on a function
 ;; assembly-maker is a function that takes in infields & outfields and returns
@@ -109,6 +111,7 @@
 (defn- predicate-dispatcher [op & rest]
   (let [ret (cond (keyword? op) ::option
         (instance? Tap op) ::tap
+        (instance? Filter op) ::cascading-filter
         (instance? CascalogFunction op) ::cascalog-function
         (map? op) (:type op)
         (w/get-op-metadata op) (:type (w/get-op-metadata op))
@@ -133,6 +136,7 @@
 (defmethod predicate-default-var :buffer [& args] :>)
 (defmethod predicate-default-var :filter [& args] :<)
 (defmethod predicate-default-var ::cascalog-function [& args] :>)
+(defmethod predicate-default-var ::cascading-filter [& args] :<)
 
 (defmulti hof-predicate? predicate-dispatcher)
 
@@ -148,6 +152,7 @@
 (defmethod hof-predicate? :buffer [op & args] (:hof? (w/get-op-metadata op)))
 (defmethod hof-predicate? :filter [op & args] (:hof? (w/get-op-metadata op)))
 (defmethod hof-predicate? ::cascalog-function [op & args] false)
+(defmethod hof-predicate? ::cascading-filter [op & args] false)
 
 (defmulti build-predicate-specific predicate-dispatcher)
 
@@ -207,6 +212,16 @@
   (predicate operation (w/raw-each (w/fields infields) (CascalogFunctionExecutor. (w/fields outfields) op) Fields/ALL)
                        infields
                        outfields))
+
+(defmethod build-predicate-specific ::cascading-filter [op _ _ infields outfields options]
+  (when (> (count outfields) 1)
+    (throw (RuntimeException. "Must emit 0 or 1 fields from filter")))
+  (let [c-infields (w/fields infields)
+        assem (if (empty? outfields)
+                (w/raw-each c-infields op)
+                (w/raw-each c-infields (CascadingFilterToFunction. (first outfields) op) Fields/ALL))]
+    (predicate operation assem infields outfields)
+    ))
 
 (defn- mk-hof-fn-spec [avar args]
   (w/fn-spec (cons avar args)))
