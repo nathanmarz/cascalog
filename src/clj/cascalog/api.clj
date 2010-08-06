@@ -119,10 +119,10 @@
   (w/hfs-tap (w/sequence-file Fields/ALL) path))
 
 (defn lfs-seqfile
-   "Creates a tap that reads data off of the local filesystem in textline format.
+   "Creates a tap that reads data off of the local filesystem in sequence file format.
    
    See http://www.cascading.org/javadoc/cascading/tap/Lfs.html and
-   http://www.cascading.org/javadoc/cascading/scheme/TextLine.html"
+   http://www.cascading.org/javadoc/cascading/scheme/SequenceFile.html"
   [path]
   (w/lfs-tap (w/sequence-file Fields/ALL) path))
 
