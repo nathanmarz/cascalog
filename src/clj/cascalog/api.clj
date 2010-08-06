@@ -107,7 +107,7 @@
    See http://www.cascading.org/javadoc/cascading/tap/Lfs.html and
    http://www.cascading.org/javadoc/cascading/scheme/TextLine.html"
   [path]
-  (w/hfs-tap (w/text-line ["line"] Fields/ALL) path))
+  (w/lfs-tap (w/text-line ["line"] Fields/ALL) path))
 
 (defn hfs-seqfile
   "Creates a tap on HDFS using sequence file format. Different filesystems can 
@@ -124,7 +124,7 @@
    See http://www.cascading.org/javadoc/cascading/tap/Lfs.html and
    http://www.cascading.org/javadoc/cascading/scheme/TextLine.html"
   [path]
-  (w/hfs-tap (w/sequence-file Fields/ALL) path))
+  (w/lfs-tap (w/sequence-file Fields/ALL) path))
 
 (defn stdout
   "Creates a tap that prints tuples sunk to it to standard output. Useful for 
