@@ -4,6 +4,7 @@
         cascalog.api)
   (:import [cascading.tuple Fields])
   (:import [cascalog.test KeepEven])
+  (:import [cascalog.ops IdentityBuffer OneBuffer])
   (:require [cascalog [ops :as c]]))
 
 (defmapop mk-one [& tuple] 1)
@@ -363,6 +364,13 @@
   (with-tmp-sources [vals [[0] [1] [2] [3]] ]
     (test?<- [[0] [2]] [?v] (vals ?v) ((KeepEven.) ?v) (:distinct false))
     (test?<- [[0 true] [1 false] [2 true] [3 false]] [?v ?b] (vals ?v) ((KeepEven.) ?v :> ?b) (:distinct false))
+    ))
+
+(deftest test-java-buffer
+  (with-tmp-sources [vals [["a" 1 10] ["a" 2 20] ["b" 3 31]]]
+    (test?<- [["a" 1] ["b" 1]] [?f1 ?o] (vals ?f1 _ _) ((OneBuffer.) :> ?o))
+    (test?<- [["a" 1 10] ["a" 2 20] ["b" 3 31]] [?f1 ?f2out ?f3out]
+      (vals ?f1 ?f2 ?f3) ((IdentityBuffer.) ?f2 ?f3 :> ?f2out ?f3out))
     ))
 
 (deftest test-outer-join-with-funcs

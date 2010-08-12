@@ -22,7 +22,8 @@
   (:import [cascading.operation Filter])
   (:import [cascading.tuple Fields])
   (:import [cascalog ClojureParallelAggregator ClojureBuffer ClojureBufferCombiner
-                     CombinerSpec CascalogFunction CascalogFunctionExecutor CascadingFilterToFunction]))
+                     CombinerSpec CascalogFunction CascalogFunctionExecutor CascadingFilterToFunction
+                     CascalogBuffer CascalogBufferExecutor]))
 
 ;; doing it this way b/c pain to put metadata directly on a function
 ;; assembly-maker is a function that takes in infields & outfields and returns
@@ -113,6 +114,7 @@
         (instance? Tap op) ::tap
         (instance? Filter op) ::cascading-filter
         (instance? CascalogFunction op) ::cascalog-function
+        (instance? CascalogBuffer op) ::cascalog-buffer
         (map? op) (:type op)
         (w/get-op-metadata op) (:type (w/get-op-metadata op))
         (fn? op) ::vanilla-function
@@ -137,6 +139,7 @@
 (defmethod predicate-default-var :filter [& args] :<)
 (defmethod predicate-default-var ::cascalog-function [& args] :>)
 (defmethod predicate-default-var ::cascading-filter [& args] :<)
+(defmethod predicate-default-var ::cascalog-buffer [& args] :>)
 
 (defmulti hof-predicate? predicate-dispatcher)
 
@@ -153,6 +156,7 @@
 (defmethod hof-predicate? :filter [op & args] (:hof? (w/get-op-metadata op)))
 (defmethod hof-predicate? ::cascalog-function [op & args] false)
 (defmethod hof-predicate? ::cascading-filter [op & args] false)
+(defmethod hof-predicate? ::cascalog-buffer [op & args] false)
 
 (defmulti build-predicate-specific predicate-dispatcher)
 
@@ -267,6 +271,16 @@
 
 (defmethod build-predicate-specific :buffer [& args]
   (apply simpleagg-build-predicate true args))
+
+(defmethod build-predicate-specific ::cascalog-buffer [op _ _ infields outfields options]
+  (predicate aggregator
+    true
+    nil
+    identity
+    (w/raw-every (w/fields infields) (CascalogBufferExecutor. (w/fields outfields) op) Fields/ALL)
+    identity
+    infields
+    outfields))
 
 (defn- variable-substitution
   "Returns [newvars {map of newvars to values to substitute}]"
