@@ -110,15 +110,16 @@
 ;; uses hacky function metadata so that operations can be passed in as arguments when constructing cascalog
 ;; rules
 (defn- predicate-dispatcher [op & rest]
-  (let [ret (cond (keyword? op) ::option
-        (instance? Tap op) ::tap
-        (instance? Filter op) ::cascading-filter
-        (instance? CascalogFunction op) ::cascalog-function
-        (instance? CascalogBuffer op) ::cascalog-buffer
-        (map? op) (:type op)
-        (w/get-op-metadata op) (:type (w/get-op-metadata op))
-        (fn? op) ::vanilla-function
-        true (throw (IllegalArgumentException. "Bad predicate"))
+  (let [ret (cond
+              (keyword? op) ::option
+              (instance? Tap op) ::tap
+              (instance? Filter op) ::cascading-filter
+              (instance? CascalogFunction op) ::cascalog-function
+              (instance? CascalogBuffer op) ::cascalog-buffer
+              (map? op) (:type op)
+              (w/get-op-metadata op) (:type (w/get-op-metadata op))
+              (fn? op) ::vanilla-function
+              true (throw (IllegalArgumentException. "Bad predicate"))
         )]
     (if (= ret :bufferiter) :buffer ret)))
 
