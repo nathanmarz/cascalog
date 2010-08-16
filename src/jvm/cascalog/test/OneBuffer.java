@@ -15,7 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-package cascalog.ops;
+package cascalog.test;
 
 import cascalog.CascalogBuffer;
 import cascading.operation.BufferCall;

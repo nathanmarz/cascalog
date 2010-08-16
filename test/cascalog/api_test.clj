@@ -3,8 +3,8 @@
         cascalog.testing
         cascalog.api)
   (:import [cascading.tuple Fields])
-  (:import [cascalog.test KeepEven])
-  (:import [cascalog.ops IdentityBuffer OneBuffer])
+  (:import [cascalog.test KeepEven OneBuffer])
+  (:import [cascalog.ops IdentityBuffer])
   (:require [cascalog [ops :as c]]))
 
 (defmapop mk-one [& tuple] 1)
