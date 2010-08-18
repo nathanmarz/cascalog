@@ -360,7 +360,7 @@
 
 (defmacro defassembly
   ([name args return]
-    (defassembly name args [] return))
+    `(defassembly name args [] return))
   ([name args bindings return]
     `(def ~name (cascalog.workflow/assembly ~args ~bindings ~return))))
 
