@@ -18,7 +18,7 @@
            (java.util UUID)
            (org.apache.log4j Logger Level))
   (:use clojure.contrib.java-utils
-        clojure.contrib.duck-streams))
+        [clojure.contrib.duck-streams :only [write-lines]]))
 
 (defn temp-path [sub-path]
    (file (System/getProperty "java.io.tmpdir") sub-path))

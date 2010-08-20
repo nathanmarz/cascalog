@@ -14,7 +14,7 @@
  ;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (ns cascalog.util
-  (:use [clojure.contrib.seq-utils :only [find-first indexed flatten]])
+  (:use [clojure.contrib.seq-utils :only [find-first indexed]])
   (:import [java.util UUID Collection]))
 
 (defn transpose [m]

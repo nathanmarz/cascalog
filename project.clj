@@ -3,8 +3,8 @@
   :java-source-path "src/jvm"
   :java-fork "true"
   :javac-debug "true"
-  :dependencies [[org.clojure/clojure "1.1.0"]
-                 [org.clojure/clojure-contrib "1.1.0"]
+  :dependencies [[org.clojure/clojure "1.2.0"]
+                 [org.clojure/clojure-contrib "1.2.0"]
                  [cascading1.1 "1.1.3-SNAPSHOT"]
                  ]
   :dev-dependencies [[lein-javac "1.2.1-SNAPSHOT"]

@@ -18,7 +18,7 @@
   (:use clojure.contrib.set)
   (:use [clojure.set :only [intersection union difference]])
   (:use [clojure.contrib.set :only [subset?]])
-  (:use [clojure.contrib.seq-utils :only [group-by find-first separate flatten]])
+  (:use [clojure.contrib.seq-utils :only [find-first separate]])
   (:require [cascalog [workflow :as w] [predicate :as p]])
   (:import [cascading.tap Tap])
   (:import [cascading.tuple Fields])

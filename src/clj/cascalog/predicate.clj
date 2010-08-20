@@ -14,7 +14,7 @@
  ;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (ns cascalog.predicate
-  (:use [clojure.contrib.seq-utils :only [partition-by find-first]])
+  (:use [clojure.contrib.seq-utils :only [find-first]])
   (:use [cascalog vars util])
   (:require [cascalog [workflow :as w]])
   (:import [java.util ArrayList])

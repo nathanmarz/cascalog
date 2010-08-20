@@ -13,8 +13,7 @@
  ;    You should have received a copy of the GNU General Public License
  ;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-(ns cascalog.vars
-    (:use [clojure.contrib.seq-utils :only [flatten]]))
+(ns cascalog.vars)
 
 ;; TODO: better to use UUIDs to avoid name collisions with client code?
 ;; Are the size of fields an issue in the actual flow execution perf-wise?
