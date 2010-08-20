@@ -20,7 +20,6 @@
                cascalog.basic-flow
                cascalog.vars
                cascalog.predicate
-               cascalog.workflow-example
                cascalog.testing
                cascalog.graph
                cascalog.api
