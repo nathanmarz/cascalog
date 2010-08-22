@@ -12,7 +12,7 @@ Follow the getting started steps, check out the tutorial, and you'll be running 
 2. export JAVA_OPTS=-Xmx768m
 3. install [leiningen](http://github.com/technomancy/leiningen)
 4. git clone git://github.com/nathanmarz/cascalog.git
-5. cd cascalog && lein deps && lein javac && lein compile
+5. cd cascalog && lein deps && lein compile
 6. optionally run "lein test" to make sure tests pass
 
 The entire Cascalog API is defined within src/clj/cascalog/api.clj .
