@@ -48,8 +48,9 @@
   (<- [!v :> !avg]
     (count !c) (sum !v :> !s) (div !s !c :> !avg)))
 
-(def distinct-count (<- [!v :> !c] (:sort !v) (distinct-count-agg !v :> !c)))
+(def distinct-count
+  (<- [!v :> !c]
+    (:sort !v) (distinct-count-agg !v :> !c)))
 
 ;; should be able to do this kind of destructuring:
-;; (def distinct-count (<- [:<< [!v & rest-vars] :> !c] (:sort !v) (distinct-count-agg !v :> !c)))
-;; (def distinct-count (<- [:<< a :> !c] (:sort !v) (distinct-count-agg :<< a :> !c)))
+;; (def distinct-count (<- [:<< [& vars] :> !c] (:sort :<< vars) (distinct-count-agg :<< vars :> !c)))
