@@ -52,12 +52,12 @@
   `(?- ~output (<- ~@body)))
 
 (defn union
-  "Merge the subqueries together into a single subquery and ensure uniqueness of tuples."
+  "Merge the tuples from the subqueries together into a single subquery and ensure uniqueness of tuples."
   [& gens]
   (cascalog.rules/combine* gens true))
 
 (defn combine
-  "Merge the subqueries together into a single subquery. Doesn't ensure uniqueness of tuples."
+  "Merge the tuples from the subqueries together into a single subquery. Doesn't ensure uniqueness of tuples."
   [& gens]
   (cascalog.rules/combine* gens false))
 
