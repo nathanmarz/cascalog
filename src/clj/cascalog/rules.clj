@@ -459,7 +459,7 @@
         pipes (map :pipe gens)
         pipes (for [p pipes] (w/assemble p (w/identity Fields/ALL :fn> outfields :> Fields/RESULTS)))
         outpipe (if-not distinct?
-                           (w/assemble pipes (w/group-by))
+                           (w/assemble pipes (w/group-by Fields/ALL))
                            (w/assemble pipes (w/group-by Fields/ALL) (w/first)))]
     (p/predicate p/generator
       true
