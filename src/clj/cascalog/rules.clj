@@ -453,3 +453,18 @@
                             "Cannot sink to a sink with meta fields defined besides Fields/ALL")))
                         ((w/identity (:outfields gen) :fn> sink-fields) pipe))]
           ((w/pipe-rename (uuid)) pipe)))
+
+(defn combine* [gens distinct?]
+  (let [outfields (:outfields (first gens))
+        pipes (map :pipe gens)
+        pipes (for [p pipes] (w/assemble p (w/identity Fields/ALL :fn> outfields :> Fields/RESULTS)))
+        outpipe (if-not distinct?
+                           (w/assemble pipes (w/group-by))
+                           (w/assemble pipes (w/group-by Fields/ALL) (w/first)))]
+    (p/predicate p/generator
+      true
+      (apply merge (map :sourcemap gens))
+      outpipe
+      (:outfields (first gens))
+      (apply merge (map :trapmap gens)))
+    ))

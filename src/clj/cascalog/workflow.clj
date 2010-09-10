@@ -154,6 +154,10 @@
       (ClojureMap. func-fields spec stateful) out-fields))))
 
 (defn group-by
+  ([]
+    (fn [& previous]
+      (debug-print "groupby no grouping fields")
+      (GroupBy. (as-pipes previous))))
   ([group-fields]
     (fn [& previous]
       (debug-print "groupby" group-fields)

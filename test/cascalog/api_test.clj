@@ -373,6 +373,20 @@
       (vals ?f1 ?f2 ?f3) ((IdentityBuffer.) ?f2 ?f3 :> ?f2out ?f3out))
     ))
 
+(deftest test-union
+  (with-tmp-sources [vals1 [[1] [2] [3]]
+                     vals2 [[3] [4] [5]]
+                     vals3 [[2] [4] [6]]]
+    (let [v1 (<- [?v] (vals1 ?v) (:distinct false))
+          v2 (<- [?v] (vals2 ?v) (:distinct false))
+          v3 (<- [?v] (vals3 ?v) (:distinct false))]
+      (test?- [[1] [2] [3] [4] [5]] (union v1 v2))
+      (test?- [[1] [2] [3] [4] [5] [6]] (union v1 v2 v3))
+      (test?- [[3] [4] [5]] (union v2))
+      (test?- [[1] [2] [3] [2] [4] [6]] (combine v1 v3))
+      (test?- [[1] [2] [3] [3] [4] [5] [2] [4] [6]] (combine v1 v2 v3))
+      )))
+
 (deftest test-outer-join-with-funcs
   ;; TODO: needed
 )
