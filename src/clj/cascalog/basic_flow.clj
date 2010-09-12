@@ -17,7 +17,7 @@
  ([bflow func] (add-component! bflow func []))
  ([bflow func deps]
    (let [node (create-node (::graph bflow) (struct basic-component (uuid) func))]
-     (dofor [d deps] (create-edge d node))
+     (doseq [d deps] (create-edge d node))
      node )))
 
 (defn- mk-runner-fn [log sem state component]
@@ -45,9 +45,9 @@
         running-states (filter #(= :running (:status %)) states)
         running-threads (map :thread running-states)]
           (.info log "Basic flow failed - interrupting components")
-          (dofor [t running-threads] (.interrupt t))
+          (doseq [t running-threads] (.interrupt t))
           (.info log "Waiting for running components to finish")
-          (dofor [t running-threads] (.join t))
+          (doseq [t running-threads] (.join t))
           (throw (RuntimeException. "Basic flow failed"))
         ))
 
@@ -56,7 +56,7 @@
         sem (Semaphore. 0)
         node-states (init-node-states log bflow sem)]
         (loop []
-          (dofor [[node state] (seq node-states)]
+          (doseq [[node state] (seq node-states)]
             (when (and (= :unstarted (:status @state))
                         (every? (fn [[_ s]] (= :successful (:status @s)))
                           (select-keys node-states (get-inbound-nodes node))))

@@ -259,8 +259,7 @@
 
 (w/defmapop [join-fields-selector [num-fields]] [& args]
   (let [joins (partition num-fields args)]
-    (if-let [join-fields (find-first (partial some? (complement nil?)) joins)]
-      join-fields
+    (if-ret (find-first (partial some? (complement nil?)) joins)
       (repeat num-fields nil))))
 
 (defn- replace-join-fields [join-fields join-renames fields]
@@ -465,6 +464,6 @@
       true
       (apply merge (map :sourcemap gens))
       outpipe
-      (:outfields (first gens))
+      outfields
       (apply merge (map :trapmap gens)))
     ))

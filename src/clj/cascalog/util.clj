@@ -91,3 +91,8 @@
 
 (defn not-count= [& args]
   (not (apply count= args)))
+
+(defmacro if-ret [form else-form]
+  `(if-let [ret# ~form]
+    ret#
+    ~else-form ))
