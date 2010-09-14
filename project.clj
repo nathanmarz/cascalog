@@ -7,6 +7,7 @@
   :dependencies [[org.clojure/clojure "1.2.0"]
                  [org.clojure/clojure-contrib "1.2.0"]
                  [cascading1.1 "1.1.3-SNAPSHOT"]
+                 [log4j/log4j "1.2.16"]
                  ]
   :dev-dependencies [[lein-javac "1.2.1-SNAPSHOT"]
                      [org.apache.hadoop/hadoop-core "0.20.2-dev"]
