@@ -25,10 +25,10 @@
 (defn gen-ungounding-var [] (str "!!" (gen-unique-suffix)))
 
 (defn gen-nullable-vars [amt]
-  (take amt (repeatedly gen-nullable-var)))
+  (vec (take amt (repeatedly gen-nullable-var))))
 
 (defn gen-non-nullable-vars [amt]
-  (take amt (repeatedly gen-non-nullable-var)))
+  (vec (take amt (repeatedly gen-non-nullable-var))))
 
 (defn- extract-varname
   ([v] (extract-varname v gen-nullable-var))
