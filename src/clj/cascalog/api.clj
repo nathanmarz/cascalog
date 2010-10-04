@@ -64,9 +64,11 @@
 
 ;; Defining custom operations
 
-(defalias defmapop w/defmapop)
+(defalias defmapop w/defmapop
+  "Defines a custom operation that appends new fields to the input tuple.")
 
-(defalias defmapcatop w/defmapcatop)
+(defalias defmapcatop w/defmapcatop
+  "")
 
 (defalias defbufferop w/defbufferop)
 
