@@ -17,6 +17,7 @@
   (:use [cascalog vars util graph debug])
   (:use [clojure.contrib def])
   (:require cascalog.rules)
+  (:require [clojure [set :as set]])
   (:require [cascalog [workflow :as w] [predicate :as p]])
   (:import [cascading.flow Flow FlowConnector])
   (:import [cascading.tuple Fields])
@@ -61,6 +62,37 @@
   [& gens]
   (cascalog.rules/combine* gens false))
 
+(defmulti select-fields cascalog.rules/generator-selector)
+
+(defmethod select-fields :tap [tap fields]
+  (let [pname (uuid)
+        outfields (gen-nullable-vars (count fields))
+        pipe (w/assemble (w/pipe pname) (w/identity fields :fn> outfields :> outfields))]
+    (p/predicate p/generator true {pname tap} pipe outfields {})))
+
+(defmethod select-fields :query [query select-fields]
+  (let [outfields (:outfields query)]
+    (when-not (set/subset? (set select-fields) (set outfields))
+      (throw (IllegalArgumentException. (str "Cannot select " select-fields " from " outfields))))
+    (merge query {:pipe (w/assemble (:pipe query) (w/select select-fields))
+                  :outfields select-fields}
+                  )))
+
+
+;; Query introspection
+
+(defmulti get-out-fields cascalog.rules/generator-selector)
+
+(defmethod get-out-fields :tap [tap]
+  (let [cfields (.getSourceFields tap)]
+    (if (cascalog.rules/generic-cascading-fields? cfields)
+      (throw (IllegalArgumentException. (str "Cannot get specific out-fields from tap. Tap source fields: " cfields)))
+      (vec (seq cfields))
+      )))
+
+(defmethod get-out-fields :query [query]
+  (:outfields query))
+
 
 ;; Defining custom operations
 
@@ -97,7 +129,10 @@
 ;; Functions for creating taps and tap helpers
 
 (defn select-tap-fields
-  "Create a subquery that selects {fields} from {tap} and emits them in the order given."
+  "This is deprecated. Use select-fields instead.
+  
+  Create a subquery that selects {fields} from {tap} and emits them in the order given."
+  {:deprecated "1.3.0"}
   [tap fields]
   (let [pname (uuid)
         outfields (gen-nullable-vars (count fields))

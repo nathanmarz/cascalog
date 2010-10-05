@@ -265,12 +265,6 @@
     (test?<- [["b"]] [?a] (wide :#> 5 {0 ?a 1 ?b 4 ?b}))
     ))
 
-(deftest test-select-tap-fields
-  (let [data (memory-source-tap ["f1" "f2" "f3" "f4"] [[1 2 3 4] [11 12 13 14] [21 22 23 24]])]
-    (test?<- [[4 2] [14 12] [24 22]] [?a ?b] ((select-tap-fields data ["f4" "f2"]) ?a ?b))
-    (test?<- [[1 3 4] [11 13 14] [21 23 24]] [?f1 ?f2 ?f3] ((select-tap-fields data ["f1" "f3" "f4"]) ?f1 ?f2 ?f3))
-    ))
-
 (deftest test-predicate-macro
   (let [mac1 (<- [?a :> ?b ?c] (+ ?a 1 :> ?t) (* ?t 2 :> ?b) (+ ?a ?t :> ?c))
         mac2 (<- [:< ?a] (* ?a ?a :> ?a))]
@@ -386,6 +380,12 @@
       (test?- [[1] [2] [3] [2] [4] [6]] (combine v1 v3))
       (test?- [[1] [2] [3] [3] [4] [5] [2] [4] [6]] (combine v1 v2 v3))
       )))
+
+(deftest test-select-fields-tap
+  (let [data (memory-source-tap ["f1" "f2" "f3" "f4"] [[1 2 3 4] [11 12 13 14] [21 22 23 24]])]
+    (test?<- [[4 2] [14 12] [24 22]] [?a ?b] ((select-fields data ["f4" "f2"]) ?a ?b))
+    (test?<- [[1 3 4] [11 13 14] [21 23 24]] [?f1 ?f2 ?f3] ((select-fields data ["f1" "f3" "f4"]) ?f1 ?f2 ?f3))
+    ))
 
 (deftest test-outer-join-with-funcs
   ;; TODO: needed

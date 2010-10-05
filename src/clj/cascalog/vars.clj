@@ -82,9 +82,9 @@
   (fn [[all equalities] v]
     (if (cascalog-var? v)
       (let [existing (get equalities v [])
-            varlist  (if (or (empty? existing) (and force-unique? (ground-var? v)))
-                      (conj existing (uniquify-var v))
-                      existing)
+            varlist  (cond (empty? existing)  (conj existing v)
+                           (and force-unique? (ground-var? v)) (conj existing (uniquify-var v))
+                           true               existing)
             newname  (if force-unique? (last varlist) (first varlist))]
             [(conj all newname) (assoc equalities v varlist)] )
       [(conj all v) equalities] )))

@@ -467,3 +467,16 @@
       outfields
       (apply merge (map :trapmap gens)))
     ))
+
+(defn generic-cascading-fields? [cfields]
+  (or (.isSubstitution cfields)
+      (.isUnknown cfields)
+      (.isResults cfields)
+      (.isSwap cfields)
+      (.isReplace cfields)))
+
+(defn generator-selector [gen & args]
+  (if (instance? Tap gen)
+    :tap
+    :query
+    ))
