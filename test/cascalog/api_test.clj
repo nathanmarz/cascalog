@@ -387,6 +387,15 @@
     (test?<- [[1 3 4] [11 13 14] [21 23 24]] [?f1 ?f2 ?f3] ((select-fields data ["f1" "f3" "f4"]) ?f1 ?f2 ?f3))
     ))
 
+(deftest test-select-fields-query
+  (with-tmp-sources [wide [[1 2 3 4 5 6]]]
+    (let [sq (<- [!f1 !f4 !f5 ?f6] (wide !f1 !f2 !f3 !f4 !f5 ?f6) (:distinct false))]
+      (test?- [[1]] (select-fields sq ["!f1"]))
+      (test?- [[1 6]] (select-fields sq ["!f1" "?f6"]))
+      (test?- [[1 6]] (select-fields sq ["!f1" "?f6"]))
+      (test?- [[5 4 6]] (select-fields sq ["!f5" "!f4" "?f6"]))
+      )))
+
 (deftest test-outer-join-with-funcs
   ;; TODO: needed
 )
