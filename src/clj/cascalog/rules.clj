@@ -480,3 +480,8 @@
     :tap
     :query
     ))
+
+(defn normalize-sink-connection [sink subquery]
+  (if (fn? sink)
+    (sink subquery)
+    [sink subquery] ))

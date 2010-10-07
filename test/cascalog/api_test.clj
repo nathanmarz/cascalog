@@ -396,6 +396,14 @@
       (test?- [[5 4 6]] (select-fields sq ["!f5" "!f4" "?f6"]))
       )))
 
+(deftest test-function-sink
+  (with-tmp-sources [pairs [[1 2] [2 10]]]
+    (let [double-second-sink (fn [sq]
+                              [[[1 2 4] [2 10 20]]
+                              (<- [?a ?b ?c] (sq ?a ?b) (* 2 ?b :> ?c) (:distinct false)) ])]
+      (test?- double-second-sink pairs)
+      )))
+
 (deftest test-outer-join-with-funcs
   ;; TODO: needed
 )

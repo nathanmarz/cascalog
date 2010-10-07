@@ -28,7 +28,7 @@
            [java.util ArrayList]
            [clojure.lang IPersistentCollection]
            [org.apache.hadoop.mapred JobConf])
-  (:require [cascalog [workflow :as w]]))
+  (:require [cascalog [workflow :as w] [rules :as rules]]))
 
 (defn roundtrip [obj]
   (cascading.util.Util/deserializeBase64
@@ -178,7 +178,8 @@
                                 [:fatal bindings])]
     (with-log-level log-level
       (with-tmp-files [sink-path (temp-dir "sink")]
-        (let [[specs rules]  (unweave bindings)
+        (let [bindings (mapcat (partial apply rules/normalize-sink-connection) (partition 2 bindings))
+              [specs rules]  (unweave bindings)
               sinks          (map mk-test-sink specs (unique-rooted-paths sink-path))
               _              (apply ?- (interleave sinks rules))
               out-tuples     (doall (map get-tuples sinks))]

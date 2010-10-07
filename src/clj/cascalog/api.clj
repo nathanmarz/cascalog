@@ -38,7 +38,8 @@
   "Executes 1 or more queries and emits the results of each query to the associated tap.
   Syntax: (?- sink1 query1 sink2 query2 ...)"
   [& bindings]
-  (let [[sinks gens]    (unweave bindings)
+  (let [bindings        (mapcat (partial apply cascalog.rules/normalize-sink-connection) (partition 2 bindings))
+        [sinks gens]    (unweave bindings)
         sourcemap       (apply merge (map :sourcemap gens))
         trapmap         (apply merge (map :trapmap gens))
         tails           (map cascalog.rules/connect-to-sink gens sinks)
