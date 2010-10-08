@@ -16,7 +16,7 @@
 (ns cascalog.ops
   (:refer-clojure :exclude [count min max])
   (:use [cascalog ops-impl api])
-  (:import [java.util.concurrent TimeoutException TimeUnit]))
+  (:import [java.util.concurrent Future TimeoutException TimeUnit]))
 
 ;; Operations to use within queries
 
@@ -61,7 +61,7 @@
 ;; Helpers to use within ops
 
 (defmacro with-timeout [[ms] & body]
-  `(let [f# (future ~@body)]
+  `(let [#^Future f# (future ~@body)]
      (try
        (.get f# ~ms TimeUnit/MILLISECONDS)
      (catch TimeoutException e#
