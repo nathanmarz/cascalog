@@ -15,7 +15,10 @@
 
 (ns cascalog.ops
   (:refer-clojure :exclude [count min max])
-  (:use [cascalog ops-impl api]))
+  (:use [cascalog ops-impl api])
+  (:import [java.util.concurrent TimeoutException TimeUnit]))
+
+;; Operations to use within queries
 
 (defmapop [re-parse [pattern]] [str]
   (re-seq pattern str))
@@ -52,5 +55,16 @@
   (<- [!v :> !c]
     (:sort !v) (distinct-count-agg !v :> !c)))
 
-;; should be able to do this kind of destructuring:
-;; (def distinct-count (<- [:<< [& vars] :> !c] (:sort :<< vars) (distinct-count-agg :<< vars :> !c)))
+; should be able to do this kind of destructuring:
+; (def distinct-count (<- [:<< [& vars] :> !c] (:sort :<< vars) (distinct-count-agg :<< vars :> !c)))
+
+;; Helpers to use within ops
+
+(defmacro with-timeout [[ms] & body]
+  `(let [f# (future ~@body)]
+     (try
+       (.get f# ~ms TimeUnit/MILLISECONDS)
+     (catch TimeoutException e#
+       (.cancel f# true)
+       nil
+       ))))
