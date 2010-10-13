@@ -136,3 +136,23 @@
   ["and that government of the people by the people for the people shall not perish"]
   ["from the earth"]
   ]))
+
+(def dirty-ages (memory-source-tap [
+; [timestamp name age]
+  [1200 "alice" 20]
+  [1000 "bob" 25]
+  [1500 "harry" 46]
+  [1800 "alice" 19]
+  [2000 "bob" 30]
+  ]))
+
+(def dirty-follower-counts (memory-source-tap [
+; [timestamp name follower-count]
+  [2000 "gary" 56]
+  [1100 "george" 124]
+  [1900 "gary" 49]
+  [3000 "juliette" 1002]
+  [3002 "juliette" 1010]
+  [3001 "juliette" 1011]
+  ]))
+
