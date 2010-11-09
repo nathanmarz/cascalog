@@ -429,8 +429,17 @@
         [raw-predicate] ))
     raw-predicates ))
 
+(defn- normalize-raw-predicates [raw-predicates]
+  (for [[p v vars] raw-predicates]
+    (cond
+      (var? p) [(var-get p) p vars] ; support passing around ops as vars
+      (vector? p) [(first p) (second p) vars] ; support building queries completely dynamically 
+      true [p v vars]
+      )))
+
 (defn build-rule [out-vars raw-predicates]
-  (let [raw-predicates (expand-predicate-macros raw-predicates)
+  (let [raw-predicates (normalize-raw-predicates raw-predicates)
+        raw-predicates (expand-predicate-macros raw-predicates)
         parsed (p/parse-variables out-vars :?)]
     (if-not (empty? (parsed :?))
       (build-query out-vars raw-predicates)
