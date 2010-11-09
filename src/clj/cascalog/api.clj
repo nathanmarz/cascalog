@@ -28,7 +28,7 @@
 ;; Query creation and execution
 
 (defmacro <-
-  "Constructs a query from a list of predicates."
+  "Constructs a query or predicate macro from a list of predicates."
   [outvars & predicates]
   (let [predicate-builders (vec (map cascalog.rules/mk-raw-predicate predicates))
         outvars-str (if (vector? outvars) (vars2str outvars) outvars)]
@@ -52,6 +52,15 @@
   "Helper that both defines and executes a query in a single call."
   [output & body]
   `(?- ~output (<- ~@body)))
+
+(defn construct
+  [outvars preds]
+  "Construct a query programatically. When constructing queries this way, operations should either be vars for operations or values
+   defined using one of Cascalog's def macros."
+  (let [outvars (vars2str outvars)
+        preds (for [[p & vars] preds] [p nil (vars2str vars)])]
+        (cascalog.rules/build-rule outvars preds)
+        ))
 
 (defn union
   "Merge the tuples from the subqueries together into a single subquery and ensure uniqueness of tuples."

@@ -32,3 +32,10 @@
     (test?- [[5]] (op-to-pairs nums #'sum+1))
     (test?- [[5]] (op-to-pairs nums sum+1))
     ))
+
+(deftest test-construct
+  (with-tmp-sources [age [["alice" 25] ["bob" 30]]
+                     gender [["alice" "f"] ["charlie" "m"]]]
+    (test?- [["alice" 26 "f"] ["bob" 31 nil]]
+      (apply construct ["?p" "?a2" "!!g"] [(conj [[age "?p" "?a"] [#'inc "?a" :> "?a2"]] [gender "?p" "!!g"])]))
+    ))

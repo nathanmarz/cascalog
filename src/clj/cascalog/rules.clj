@@ -431,10 +431,9 @@
 
 (defn- normalize-raw-predicates [raw-predicates]
   (for [[p v vars] raw-predicates]
-    (cond
-      (var? p) [(var-get p) p vars] ; support passing around ops as vars
-      (vector? p) [(first p) (second p) vars] ; support building queries completely dynamically 
-      true [p v vars]
+    (if (var? p)
+      [(var-get p) p vars] ; support passing around ops as vars
+      [p v vars]
       )))
 
 (defn build-rule [out-vars raw-predicates]
