@@ -1,4 +1,4 @@
-(defproject cascalog/cascalog "1.4.0"
+(defproject cascalog/cascalog "1.5.0-SNAPSHOT"
   :source-path "src/clj"
   :java-source-path "src/jvm"
   :java-fork "true"
@@ -14,17 +14,4 @@
                      [org.apache.hadoop/hadoop-core "0.20.2-dev"]
                      [swank-clojure "1.2.1"]
                     ]
-  :namespaces [cascalog.workflow
-               cascalog.debug
-               cascalog.api
-               cascalog.playground
-               cascalog.util
-               cascalog.rules
-               cascalog.basic-flow
-               cascalog.vars
-               cascalog.predicate
-               cascalog.testing
-               cascalog.graph
-               cascalog.api
-               cascalog.ops
-               cascalog.ops-impl])
+  :namespaces :all)
