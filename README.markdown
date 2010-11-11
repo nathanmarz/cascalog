@@ -1,8 +1,10 @@
 # About
 
-Cascalog is a tool for processing data on Hadoop with Clojure in a concise, expressive, and highly readable manner. Cascalog combines two cutting edge technologies in Clojure and Hadoop and resurrects an old one in Datalog. Cascalog is high performance, flexible, and robust.
+Cascalog is a tool for processing data on Hadoop with Clojure in a concise and expressive manner. Cascalog combines two cutting edge technologies in Clojure and Hadoop and resurrects an old one in Datalog. Cascalog is high performance, flexible, and robust.
 
-Most query languages, like SQL, Pig, and Hive, are custom languages -- and this leads to huge amounts of accidental complexity. Constructing queries dynamically by doing string manipulation is haphazard and leads to further complexity such as SQL injection attacks. The nature of Cascalog being a domain specific language in Clojure avoids these accidental complexities and allows a programmer to manipulate queries as first-class entities within the language. The Datalog syntax of Cascalog is simpler and more expressive than SQL-based languages.
+Most query languages, like SQL, Pig, and Hive, are custom languages -- and this leads to huge amounts of accidental complexity. Constructing queries dynamically by doing string manipulation is an impedance mismatch and makes usual programming techniques like abstraction and composition difficult.
+
+Cascalog queries are first-class within Clojure and are extremely composable. Additionally, the Datalog syntax of Cascalog is simpler and more expressive than SQL-based languages.
 
 Follow the getting started steps, check out the tutorial, and you'll be running Cascalog queries on your local computer within 5 minutes.
 
@@ -18,25 +20,28 @@ Follow the getting started steps, check out the tutorial, and you'll be running 
 The entire Cascalog API is defined within src/clj/cascalog/api.clj .
 Helpers for testing queries can be found in src/clj/cascalog/testing.clj .
 
+# Using Cascalog within a project
+
+Cascalog is hosted at [Clojars](http://clojars.org/cascalog). Clojars is a maven repo that is trivially easy to integrate with maven or leiningen.
+
 # Tutorials
 
 1. [Introducing Cascalog](http://nathanmarz.com/blog/introducing-cascalog)
 2. [New Cascalog features: outer joins, combiners, sorting, and more](http://nathanmarz.com/blog/new-cascalog-features/)
 3. [News Feed in 38 lines of code using Cascalog](http://nathanmarz.com/blog/cascalog-news-feed)
-4. [Cascalog features for consuming wide taps](http://groups.google.com/group/cascalog-user/browse_thread/thread/17abcbed12d76232)
-5. [Predicate macros](http://groups.google.com/group/cascalog-user/browse_thread/thread/33f9b69bf18c9bdc)
+4. [Different kinds of custom operations in Cascalog](http://groups.google.com/group/cascalog-user/browse_thread/thread/fc9fdc9af8f59ad6)
+5. [Cascalog features for consuming wide taps](http://groups.google.com/group/cascalog-user/browse_thread/thread/17abcbed12d76232)
+6. [Predicate macros](http://groups.google.com/group/cascalog-user/browse_thread/thread/33f9b69bf18c9bdc)
 
 # Running Cascalog queries on a Hadoop cluster
 
-1. Cascalog includes hadoop as a dependency so that you can experiment with it easily. Don't include Hadoop jars within your jar that has Cascalog.
-2. Cascalog requires Cascading 1.1
-3. Any custom operations must be compiled into the jar you give to Hadoop for running jobs
+1. Any custom operations must be compiled into the jar you give to Hadoop for running jobs
 
 # Questions?
 
 Google group: [cascalog-user](http://groups.google.com/group/cascalog-user)
 
-IM: Come chat in the #cascading room on freenode
+Come chat in the #cascading room on freenode
 
 # Priorities for Cascalog development
 
