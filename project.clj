@@ -1,4 +1,4 @@
-(defproject cascalog/cascalog "1.5.0-SNAPSHOT"
+(defproject cascalog/cascalog "1.4.1"
   :source-path "src/clj"
   :java-source-path "src/jvm"
   :java-fork "true"
@@ -6,7 +6,7 @@
   :hooks [leiningen.hooks.javac]
   :dependencies [[org.clojure/clojure "1.2.0"]
                  [org.clojure/clojure-contrib "1.2.0"]
-                 [cascading/cascading-core "1.1.3"]
+                 [cascading1.1 "1.1.3-SNAPSHOT"]
                  [log4j/log4j "1.2.16"]
                  ]
   :repositories {"conjars" "http://conjars.org/repo/"}
