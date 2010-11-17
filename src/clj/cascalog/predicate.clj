@@ -141,6 +141,7 @@
 (defmethod predicate-default-var ::cascalog-function [& args] :>)
 (defmethod predicate-default-var ::cascading-filter [& args] :<)
 (defmethod predicate-default-var ::cascalog-buffer [& args] :>)
+(defmethod predicate-default-var :cascalog-tap [& args] :>)
 
 (defmulti hof-predicate? predicate-dispatcher)
 
@@ -158,6 +159,7 @@
 (defmethod hof-predicate? ::cascalog-function [op & args] false)
 (defmethod hof-predicate? ::cascading-filter [op & args] false)
 (defmethod hof-predicate? ::cascalog-buffer [op & args] false)
+(defmethod hof-predicate? :cascalog-tap [op & args] false)
 
 (defmulti build-predicate-specific predicate-dispatcher)
 
@@ -188,6 +190,9 @@
         trapmap (merge (:trapmap gen) (init-trap-map options))
         gen-pipe (w/assemble (:pipe gen) (w/pipe-rename pname) (w/identity Fields/ALL :fn> outfields :> Fields/RESULTS))]
   (predicate generator (ground-fields? outfields) (:sourcemap gen) gen-pipe outfields trapmap )))
+
+(defmethod build-predicate-specific :cascalog-tap [gen _ _ infields outfields options]
+  (build-predicate-specific (:source gen) nil nil infields outfields options))
 
 (defmethod build-predicate-specific ::vanilla-function [_ opvar _ infields outfields options]
   (when (nil? opvar) (throw (RuntimeException. "Functions must have vars associated with them")))

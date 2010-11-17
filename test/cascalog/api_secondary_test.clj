@@ -3,7 +3,7 @@
         cascalog.testing
         cascalog.api)
   (:import [cascading.tuple Fields])
-  (:require [cascalog [ops :as c]]))
+  (:require [cascalog [ops :as c] [io :as io]]))
 
 (deftest test-outfields-query
   (with-tmp-sources [age [["nathan" 25]]]
@@ -39,3 +39,34 @@
     (test?- [["alice" 26 "f"] ["bob" 31 nil]]
       (apply construct ["?p" "?a2" "!!g"] [(conj [[age "?p" "?a"] [#'inc "?a" :> "?a2"]] [gender "?p" "!!g"])]))
     ))
+
+(deftest test-cascalog-tap-source
+  (io/with-log-level :fatal
+    (with-tmp-sources [num [[1]]]
+      (let [gen (<- [?n] (num ?raw) (inc ?raw :> ?n) (:distinct false))
+            tap1 (cascalog-tap num nil)]
+        (test?<- [[1]] [?n] (tap1 ?n) (:distinct false))
+        (test?<- [[2]] [?n] ((cascalog-tap gen nil) ?n) (:distinct false))
+        (test?<- [[1]] [?n] ((cascalog-tap (cascalog-tap tap1 nil) nil) ?n) (:distinct false))
+        ))))
+
+(deftest test-cascalog-tap-sink
+  (io/with-log-level :fatal
+    (with-tmp-sources [num [[2]]]
+      (with-expected-sinks [sink1 [[2]]
+                            sink2 [[3]]
+                            sink3 [[2]]
+                            ]
+        (?<- (cascalog-tap nil sink1) [?n] (num ?n) (:distinct false))
+        (?<- (cascalog-tap nil (fn [sq] [sink2 (<- [?n2] (sq ?n) (inc ?n :> ?n2) (:distinct false))]))
+          [?n] (num ?n) (:distinct false))
+        (?<- (cascalog-tap nil (cascalog-tap nil sink3)) [?n] (num ?n) (:distinct false))
+        ))))
+
+(deftest test-cascalog-tap-source-and-sink
+  (io/with-log-level :fatal
+    (with-tmp-sources [num [[3]]]
+      (with-expected-sinks [sink1 [[4]]]
+        (let [tap (cascalog-tap num sink1)]
+          (?<- tap [?n] (tap ?raw) (inc ?raw :> ?n) (:distinct false))
+          )))))

@@ -27,7 +27,8 @@
            [java.lang Comparable]
            [java.util ArrayList]
            [clojure.lang IPersistentCollection]
-           [org.apache.hadoop.mapred JobConf])
+           [org.apache.hadoop.mapred JobConf]
+           [java.io File])
   (:require [cascalog [workflow :as w] [rules :as rules]]))
 
 (defn roundtrip [obj]
@@ -143,7 +144,7 @@
 
 (defn- mk-tmpfiles+forms [amt]
   (let [tmpfiles  (take amt (repeatedly (fn [] (gensym "tap"))))
-        tmpforms  (vec (mapcat (fn [f] [f `(cascalog.io/temp-dir ~(str f))]) tmpfiles))]
+        tmpforms  (vec (mapcat (fn [f] [f `(File. (str (cascalog.io/temp-dir ~(str f)) "/" (uuid)))]) tmpfiles))]
     [tmpfiles tmpforms]
   ))
 

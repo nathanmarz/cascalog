@@ -22,7 +22,7 @@ Helpers for testing queries can be found in src/clj/cascalog/testing.clj .
 
 # Using Cascalog within a project
 
-Cascalog is hosted at [Clojars](http://clojars.org/cascalog). Clojars is a maven repo that is trivially easy to integrate with maven or leiningen.
+Cascalog is hosted at [Clojars](http://clojars.org/cascalog). Clojars is a maven repo that is trivially easy to use with maven or leiningen.
 
 # Tutorials
 

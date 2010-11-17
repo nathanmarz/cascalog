@@ -80,13 +80,16 @@
         pipe (w/assemble (w/pipe pname) (w/identity fields :fn> outfields :> outfields))]
     (p/predicate p/generator true {pname tap} pipe outfields {})))
 
-(defmethod select-fields :query [query select-fields]
+(defmethod select-fields :generator [query select-fields]
   (let [outfields (:outfields query)]
     (when-not (set/subset? (set select-fields) (set outfields))
       (throw (IllegalArgumentException. (str "Cannot select " select-fields " from " outfields))))
     (merge query {:pipe (w/assemble (:pipe query) (w/select select-fields))
                   :outfields select-fields}
                   )))
+
+(defmethod select-fields :cascalog-tap [cascalog-tap select-fields]
+  (select-fields (:source cascalog-tap) select-fields))
 
 
 ;; Query introspection
@@ -100,8 +103,11 @@
       (vec (seq cfields))
       )))
 
-(defmethod get-out-fields :query [query]
+(defmethod get-out-fields :generator [query]
   (:outfields query))
+
+(defmethod get-out-fields :cascalog-tap [cascalog-tap]
+  (get-out-fields (:source cascalog-tap)))
 
 
 ;; Defining custom operations
@@ -138,16 +144,13 @@
 
 ;; Functions for creating taps and tap helpers
 
-(defn select-tap-fields
-  "This is deprecated. Use select-fields instead.
+(defn cascalog-tap
+  "Defines a cascalog tap which can be used to add additional abstraction over cascading taps.
   
-  Create a subquery that selects {fields} from {tap} and emits them in the order given."
-  {:deprecated "1.3.0"}
-  [tap fields]
-  (let [pname (uuid)
-        outfields (gen-nullable-vars (count fields))
-        pipe (w/assemble (w/pipe pname) (w/identity fields :fn> outfields :> outfields))]
-    (p/predicate p/generator true {pname tap} pipe outfields {})))
+   'source' can be a cascading tap, subquery, or a cascalog tap.
+   'sink' can be a cascading tap, sink function, or a cascalog tap."
+  [source sink]
+  (struct-map cascalog.rules/cascalog-tap :type :cascalog-tap :source source :sink sink))
 
 (defn hfs-textline
   "Creates a tap on HDFS using textline format. Different filesystems can 
@@ -187,6 +190,17 @@
   "Creates a tap that prints tuples sunk to it to standard output. Useful for 
    experimentation in the REPL."
   [] (StdoutTap.))
+
+(defn select-tap-fields
+  "This is deprecated. Use select-fields instead.
+  
+  Create a subquery that selects {fields} from {tap} and emits them in the order given."
+  {:deprecated "1.3.0"}
+  [tap fields]
+  (let [pname (uuid)
+        outfields (gen-nullable-vars (count fields))
+        pipe (w/assemble (w/pipe pname) (w/identity fields :fn> outfields :> outfields))]
+    (p/predicate p/generator true {pname tap} pipe outfields {})))
 
 
 ;; Miscellaneous helpers

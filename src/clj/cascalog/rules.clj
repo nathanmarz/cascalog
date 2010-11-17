@@ -27,6 +27,11 @@
   (:import [cascalog CombinerSpec ClojureCombiner ClojureCombinedAggregator])
   (:import [java.util ArrayList]))
 
+
+;; source can be a cascalog-tap, subquery, or cascading tap
+;; sink can be a cascading tap, a sink function, or a cascalog-tap
+(defstruct cascalog-tap :type :source :sink)
+
 ;; infields for a join are the names of the join fields
 (p/defpredicate join :infields)
 (p/defpredicate group :assembly :infields :totaloutfields)
@@ -486,10 +491,10 @@
 (defn generator-selector [gen & args]
   (if (instance? Tap gen)
     :tap
-    :query
+    (:type gen)
     ))
 
 (defn normalize-sink-connection [sink subquery]
-  (if (fn? sink)
-    (sink subquery)
-    [sink subquery] ))
+  (cond (fn? sink) (sink subquery)
+        (map? sink) (normalize-sink-connection (:sink sink) subquery)
+        true [sink subquery]))
