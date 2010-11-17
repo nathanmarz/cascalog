@@ -191,17 +191,6 @@
    experimentation in the REPL."
   [] (StdoutTap.))
 
-(defn select-tap-fields
-  "This is deprecated. Use select-fields instead.
-  
-  Create a subquery that selects {fields} from {tap} and emits them in the order given."
-  {:deprecated "1.3.0"}
-  [tap fields]
-  (let [pname (uuid)
-        outfields (gen-nullable-vars (count fields))
-        pipe (w/assemble (w/pipe pname) (w/identity fields :fn> outfields :> outfields))]
-    (p/predicate p/generator true {pname tap} pipe outfields {})))
-
 
 ;; Miscellaneous helpers
 
