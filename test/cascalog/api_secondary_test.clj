@@ -70,3 +70,13 @@
         (let [tap (cascalog-tap num sink1)]
           (?<- tap [?n] (tap ?raw) (inc ?raw :> ?n) (:distinct false))
           )))))
+
+(deftest test-symmetric-ops
+  (with-tmp-sources [nums [[1 2 3] [10 20 30] [100 200 300]]]
+    (test?<- [[111 222 333 1 2 3 100 200 300]]
+      [?s1 ?s2 ?s3 ?min1 ?min2 ?min3 ?max1 ?max2 ?max3]
+      (nums ?a ?b ?c)
+      (c/sum ?a ?b ?c :> ?s1 ?s2 ?s3)
+      (c/min ?a ?b ?c :> ?min1 ?min2 ?min3)
+      (c/max ?a ?b ?c :> ?max1 ?max2 ?max3))
+    ))

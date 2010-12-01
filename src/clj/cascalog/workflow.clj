@@ -33,7 +33,7 @@
                                      OutputCollector JobConf]
            [java.util Properties Map]
            [cascalog ClojureFilter ClojureMapcat ClojureMap
-                              ClojureAggregator Util ClojureBuffer ClojureBufferIter]
+                              ClojureAggregator Util ClojureBuffer ClojureBufferIter FastFirst]
            [java.io File]
            [java.lang RuntimeException Comparable]))
 
@@ -195,6 +195,11 @@
   (fn [previous]
     (debug-print "first")
     (Every. previous (First.) Fields/RESULTS)))
+
+(defn fast-first []
+  (fn [previous]
+    (debug-print "fast-first")
+    (Every. previous (FastFirst.) Fields/RESULTS)))
 
 (defn select [keep-fields]
   (fn [previous]

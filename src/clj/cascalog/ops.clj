@@ -26,17 +26,17 @@
 (defparallelagg count :init-var #'one
                       :combine-var #'+)
 
-(defparallelagg sum :init-var #'identity
-                    :combine-var #'+)
+(defparallelagg sum :init-var #'identity-tuple
+                    :combine-var #'+-all)
 
-(defparallelagg min :init-var #'identity
-                    :combine-var #'clojure.core/min)
+(defparallelagg min :init-var #'identity-tuple
+                    :combine-var #'min-all)
 
-(defparallelagg max :init-var #'identity
-                    :combine-var #'clojure.core/max)
+(defparallelagg max :init-var #'identity-tuple
+                    :combine-var #'max-all)
 
-(defparallelagg !count :init-var #'existence-int
-                       :combine-var #'+)
+(defparallelagg !count :init-var #'existence-int-all
+                       :combine-var #'+-all)
 
 (defparallelbuf limit :hof? true
                       :init-hof-var #'limit-init

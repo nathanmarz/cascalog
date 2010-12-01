@@ -20,14 +20,14 @@
   '(do
     (use (quote [clojure.contrib.seq-utils :only [find-first]]))
     (use (quote cascalog.api))
-    (require (quote [cascalog [workflow :as w] [ops :as c]]))
+    (require (quote [cascalog [workflow :as w] [ops :as c] [vars :as v]]))
     ))
 
 (defmacro bootstrap-emacs []
   '(do
     (use (quote [clojure.contrib.seq-utils :only [find-first]]))
     (use (quote cascalog.api))
-    (require (quote [cascalog [workflow :as w] [ops :as c]]))
+    (require (quote [cascalog [workflow :as w] [ops :as c] [vars :as v]]))
 
     (import (quote [java.io PrintStream]))
     (import (quote [cascalog WriterOutputStream]))

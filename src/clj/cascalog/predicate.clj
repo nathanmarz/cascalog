@@ -60,8 +60,7 @@
 (defpredicate predicate-macro :pred-fn)
 
 
-;; TODO: change this to use fast first buffer
-(def distinct-aggregator (predicate aggregator false nil identity (w/first) identity [] []))
+(def distinct-aggregator (predicate aggregator false nil identity (w/fast-first) identity [] []))
 
 
 (defstruct predicate-variables :in :out)
