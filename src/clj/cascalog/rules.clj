@@ -350,6 +350,9 @@
                   v (:val p)
                   v (if (= :sort k) v (first v))
                   v (if (= :trap k) {:tap v :name (uuid)} v)]
+            (if-not (contains? DEFAULT-OPTIONS k)
+              (throw
+                (IllegalArgumentException. (str k " is not a valid option predicate"))))
             {k v})) opt-predicates))))
 
 (defn- predicate-parser-reducer [preds [op opvar vars]]
