@@ -34,19 +34,32 @@
         outvars-str (if (vector? outvars) (vars2str outvars) outvars)]
         `(cascalog.rules/build-rule ~outvars-str ~predicate-builders)))
 
-(defn ?-
-  "Executes 1 or more queries and emits the results of each query to the associated tap.
-  Syntax: (?- sink1 query1 sink2 query2 ...)"
+(defn compile-flow
+  "Attaches output taps to some number of subqueries and creates a Cascading flow. The flow can be executed with 
+   '.complete', or introspection can be done on the flow.
+   Syntax: (compile-flow sink1 query1 sink2 query2 ...)"
   [& bindings]
   (let [bindings        (mapcat (partial apply cascalog.rules/normalize-sink-connection) (partition 2 bindings))
         [sinks gens]    (unweave bindings)
         sourcemap       (apply merge (map :sourcemap gens))
         trapmap         (apply merge (map :trapmap gens))
         tails           (map cascalog.rules/connect-to-sink gens sinks)
-        sinkmap         (w/taps-map tails sinks)
-        flow            (.connect (FlowConnector. (merge {"cascading.flow.job.pollinginterval" 100} cascalog.rules/*JOB-CONF*))
-                          "" sourcemap sinkmap trapmap (into-array Pipe tails))]
-        (.complete flow)))
+        sinkmap         (w/taps-map tails sinks)]
+    (.connect
+      (FlowConnector.
+        (merge {"cascading.flow.job.pollinginterval" 100} cascalog.rules/*JOB-CONF*))
+        ""
+        sourcemap
+        sinkmap
+        trapmap
+        (into-array Pipe tails))
+        ))
+
+(defn ?-
+  "Executes 1 or more queries and emits the results of each query to the associated tap.
+  Syntax: (?- sink1 query1 sink2 query2 ...)"
+  [& bindings]
+  (.complete (apply compile-flow bindings)))
 
 (defmacro ?<-
   "Helper that both defines and executes a query in a single call."
