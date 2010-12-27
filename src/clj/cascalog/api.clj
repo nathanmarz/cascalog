@@ -68,7 +68,7 @@
 
 (defn construct
   [outvars preds]
-  "Construct a query programatically. When constructing queries this way, operations should either be vars for operations or values defined using one of Cascalog's def macros."
+  "Construct a query functionally. When constructing queries this way, operations should either be vars for operations or values defined using one of Cascalog's def macros."
   (let [outvars (vars2str outvars)
         preds (for [[p & vars] preds] [p nil (vars2str vars)])]
         (cascalog.rules/build-rule outvars preds)
