@@ -34,7 +34,7 @@ public class ClojureBufferCombiner extends ClojureCombinerBase {
     private CombinerSpec spec;
     
     public ClojureBufferCombiner(Fields groupFields, Fields sortFields, Fields args, Fields outFields, CombinerSpec spec) {
-        super(groupFields, true, sortFields, Arrays.asList(args), outFields, Arrays.asList(spec), 200);
+        super(groupFields, true, sortFields, Arrays.asList(args), outFields, Arrays.asList(spec), "cascalog.combiner.buffer.size", 200);
         this.spec = spec;
     }
 

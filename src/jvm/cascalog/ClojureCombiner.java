@@ -27,7 +27,7 @@ import java.util.List;
 public class ClojureCombiner extends ClojureCombinerBase {
     
     public ClojureCombiner(Fields groupFields, List<Fields> argFields, Fields outFields, List<CombinerSpec> agg_specs) {
-        super(groupFields, false, null, argFields, outFields, agg_specs, 10000);
+        super(groupFields, false, null, argFields, outFields, agg_specs, "cascalog.combiner.aggregator.size", 10000);
     }
 
     @Override

@@ -18,6 +18,7 @@
 package cascalog;
 
 import cascading.flow.FlowProcess;
+import cascading.flow.hadoop.HadoopFlowProcess;
 import cascading.operation.BaseOperation;
 import cascading.operation.Function;
 import cascading.operation.FunctionCall;
@@ -33,6 +34,7 @@ import clojure.lang.ISeq;
 import clojure.lang.RT;
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.hadoop.mapred.JobConf;
 
 public abstract class ClojureCombinerBase extends BaseOperation implements Function {
     private List<CombinerSpec> specs;
@@ -42,6 +44,8 @@ public abstract class ClojureCombinerBase extends BaseOperation implements Funct
     private List<IFn> init_fns = null;
     private List<IFn> combiner_fns = null;
     private boolean includeSort;
+    private String cacheConfArg;
+    private int defaultCacheSize;
     private int cacheSize;
 
     private static Fields appendFields(Fields start, Fields... rest) {
@@ -53,7 +57,7 @@ public abstract class ClojureCombinerBase extends BaseOperation implements Funct
          return start;
     }
 
-    public ClojureCombinerBase(Fields groupFields, boolean includeSort, Fields sortFields, List<Fields> argFields, Fields outFields, List<CombinerSpec> agg_specs, int cacheSize) {
+    public ClojureCombinerBase(Fields groupFields, boolean includeSort, Fields sortFields, List<Fields> argFields, Fields outFields, List<CombinerSpec> agg_specs, String cacheConfArg, int defaultCacheSize) {
         super(appendFields(groupFields, sortFields, outFields));
         if(argFields.size()!=agg_specs.size())
             throw new IllegalArgumentException("All lists to ClojureCombiner must be same length");
@@ -62,7 +66,8 @@ public abstract class ClojureCombinerBase extends BaseOperation implements Funct
         this.sortFields = sortFields;
         this.includeSort = includeSort;
         this.argFields = new ArrayList<Fields>(argFields);
-        this.cacheSize = cacheSize;
+        this.cacheConfArg = cacheConfArg;
+        this.defaultCacheSize = defaultCacheSize;
     }
 
     //map from grouping to combiner to combined tuple
@@ -70,6 +75,8 @@ public abstract class ClojureCombinerBase extends BaseOperation implements Funct
 
     @Override
     public void prepare(FlowProcess flowProcess, OperationCall operationCall) {
+        JobConf jc = ((HadoopFlowProcess) flowProcess).getJobConf();
+        this.cacheSize = jc.getInt(this.cacheConfArg, this.defaultCacheSize);
         combined = new LinkedHashMap<Tuple, Map<Integer, ISeq>>(1000, (float) 0.75, true);
         init_fns = new ArrayList<IFn>();
         combiner_fns = new ArrayList<IFn>();
