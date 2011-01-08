@@ -87,13 +87,15 @@
 (defmulti select-fields cascalog.rules/generator-selector)
 
 (defmethod select-fields :tap [tap fields]
-  (let [pname (uuid)
+  (let [fields (collectify fields)
+        pname (uuid)
         outfields (gen-nullable-vars (count fields))
         pipe (w/assemble (w/pipe pname) (w/identity fields :fn> outfields :> outfields))]
     (p/predicate p/generator true {pname tap} pipe outfields {})))
 
 (defmethod select-fields :generator [query select-fields]
-  (let [outfields (:outfields query)]
+  (let [select-fields (collectify select-fields)
+        outfields (:outfields query)]
     (when-not (set/subset? (set select-fields) (set outfields))
       (throw (IllegalArgumentException. (str "Cannot select " select-fields " from " outfields))))
     (merge query {:pipe (w/assemble (:pipe query) (w/select select-fields))
