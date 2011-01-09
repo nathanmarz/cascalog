@@ -105,6 +105,10 @@
 (defmethod select-fields :cascalog-tap [cascalog-tap select-fields]
   (select-fields (:source cascalog-tap) select-fields))
 
+(defn name-vars [gen vars]
+  (let [vars (collectify vars)]
+    (<- vars (gen :>> vars) (:distinct false))
+    ))
 
 ;; Query introspection
 

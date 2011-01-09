@@ -15,7 +15,8 @@
 
 (ns cascalog.ops
   (:refer-clojure :exclude [count min max])
-  (:use [cascalog ops-impl api])
+  (:use [cascalog ops-impl api util])
+  (:require [cascalog [vars :as v]])
   (:import [java.util.concurrent Future TimeoutException TimeUnit]))
 
 ;; Operations to use within queries
@@ -57,6 +58,21 @@
 
 ; should be able to do this kind of destructuring:
 ; (def distinct-count (<- [:<< [& vars] :> !c] (:sort :<< vars) (distinct-count-agg :<< vars :> !c)))
+
+
+;; Common patterns
+
+(defn first-n
+  "Returns a subquery getting the first n elements from sq it finds. Can pass in sorting arguments."
+  [gen n & kwargs]
+  (let [kwargs (merge {:reverse false :sort nil} (apply hash-map kwargs))
+        in-fields (get-out-fields gen)
+        out-fields (v/gen-nullable-vars (clojure.core/count in-fields))]
+    (<- out-fields
+        (gen :>> in-fields)
+        (:sort :<< (collectify (:sort kwargs))) (:reverse (:reverse kwargs))
+        (limit [n] :<< in-fields :>> out-fields)
+        )))
 
 ;; Helpers to use within ops
 

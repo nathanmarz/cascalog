@@ -80,3 +80,10 @@
       (c/min ?a ?b ?c :> ?min1 ?min2 ?min3)
       (c/max ?a ?b ?c :> ?max1 ?max2 ?max3))
     ))
+
+(deftest test-first-n
+  (with-tmp-sources [nums [[1 1] [1 3] [1 2] [2 1] [3 4]]]
+    (let [sq (name-vars nums ["?a" "?b"])]
+      (test?- [[1 1] [1 2]] (c/first-n sq 2 :sort ["?a" "?b"]))
+      (test?- [[3 4] [2 1]] (c/first-n sq 2 :sort "?a" :reverse true))
+      )))
