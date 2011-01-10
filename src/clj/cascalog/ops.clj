@@ -16,6 +16,7 @@
 (ns cascalog.ops
   (:refer-clojure :exclude [count min max])
   (:use [cascalog ops-impl api util])
+  (:use [clojure.contrib.def :only [defnk]])
   (:require [cascalog [vars :as v]])
   (:import [java.util.concurrent Future TimeoutException TimeUnit]))
 
@@ -62,15 +63,14 @@
 
 ;; Common patterns
 
-(defn first-n
+(defnk first-n
   "Returns a subquery getting the first n elements from sq it finds. Can pass in sorting arguments."
-  [gen n & kwargs]
-  (let [kwargs (merge {:reverse false :sort nil} (apply hash-map kwargs))
-        in-fields (get-out-fields gen)
+  [gen n :reverse false :sort nil]
+  (let [in-fields (get-out-fields gen)
         out-fields (v/gen-nullable-vars (clojure.core/count in-fields))]
     (<- out-fields
         (gen :>> in-fields)
-        (:sort :<< (collectify (:sort kwargs))) (:reverse (:reverse kwargs))
+        (:sort :<< (collectify sort)) (:reverse reverse)
         (limit [n] :<< in-fields :>> out-fields)
         )))
 
