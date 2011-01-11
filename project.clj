@@ -1,8 +1,7 @@
 (defproject cascalog/cascalog "1.6.0-SNAPSHOT"
   :source-path "src/clj"
   :java-source-path "src/jvm"
-  :java-fork "true"
-  :javac-debug "true"
+  :javac-options {:debug "true" :fork "true"}
   :dependencies [[org.clojure/clojure "1.2.0"]
                  [org.clojure/clojure-contrib "1.2.0"]
                  [cascading/cascading-core "1.2-wip-63" :exclusions [org.codehaus.janino/janino]]
