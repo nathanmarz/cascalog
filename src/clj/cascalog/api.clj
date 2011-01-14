@@ -38,9 +38,13 @@
 (defn compile-flow
   "Attaches output taps to some number of subqueries and creates a Cascading flow. The flow can be executed with 
    '.complete', or introspection can be done on the flow.
-   Syntax: (compile-flow sink1 query1 sink2 query2 ...)"
-  [& bindings]
-  (let [bindings        (mapcat (partial apply cascalog.rules/normalize-sink-connection) (partition 2 bindings))
+   Syntax: (compile-flow sink1 query1 sink2 query2 ...)
+   or (compile-flow flow-name sink1 query1 sink2 query2)
+   
+   If the first argument is a string, that will be used as the name for the query and will show up in the JobTracker UI"
+  [& args]
+  (let [[flow-name bindings] (cascalog.rules/parse-exec-args args)
+        bindings        (mapcat (partial apply cascalog.rules/normalize-sink-connection) (partition 2 bindings))
         [sinks gens]    (unweave bindings)
         sourcemap       (apply merge (map :sourcemap gens))
         trapmap         (apply merge (map :trapmap gens))
@@ -49,7 +53,7 @@
     (.connect
       (FlowConnector.
         (merge {"cascading.flow.job.pollinginterval" 100} cascalog.rules/*JOB-CONF*))
-        ""
+        flow-name
         sourcemap
         sinkmap
         trapmap
@@ -58,14 +62,22 @@
 
 (defn ?-
   "Executes 1 or more queries and emits the results of each query to the associated tap.
-  Syntax: (?- sink1 query1 sink2 query2 ...)"
+  Syntax: (?- sink1 query1 sink2 query2 ...)
+  or (?- query-name sink1 query1 sink2 query2)
+   
+   If the first argument is a string, that will be used as the name for the query and will show up in the JobTracker UI"
   [& bindings]
   (.complete (apply compile-flow bindings)))
 
 (defmacro ?<-
-  "Helper that both defines and executes a query in a single call."
-  [output & body]
-  `(?- ~output (<- ~@body)))
+  "Helper that both defines and executes a query in a single call.
+  
+  Syntax: (?<- out-tap out-vars & predicates)
+  or (?<- \"myflow\" out-tap out-vars & predicates) ; flow name must be a static string within the ?<- form."
+  [& args]
+  ;; This is the best we can do... if want non-static name should just use ?-
+  (let [[name [output & body]] (cascalog.rules/parse-exec-args args)]
+    `(?- ~name ~output (<- ~@body))))
 
 (defn construct
   [outvars preds]

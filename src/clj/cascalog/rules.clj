@@ -501,3 +501,8 @@
   (cond (fn? sink) (sink subquery)
         (map? sink) (normalize-sink-connection (:sink sink) subquery)
         true [sink subquery]))
+
+(defn parse-exec-args [[f & rest :as args]]
+  (if (instance? String f)
+    [f rest]
+    ["" args]))

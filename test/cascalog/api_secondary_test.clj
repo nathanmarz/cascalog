@@ -87,3 +87,12 @@
       (test?- [[1 1] [1 2]] (c/first-n sq 2 :sort ["?a" "?b"]))
       (test?- [[3 4] [2 1]] (c/first-n sq 2 :sort "?a" :reverse true))
       )))
+
+(deftest test-flow-name
+  (with-tmp-sources [nums [[1] [2]]]
+    (with-expected-sinks [sink1 [[1] [2]]
+                          sink2 [[2] [3]]]
+      (is (= "lalala" (.getName (compile-flow "lalala" (stdout) (<- [?n] (nums ?n))))))
+      (?<- "flow1" sink1 [?n] (nums ?n) (:distinct false))
+      (?- "flow2" sink2 (<- [?n2] (nums ?n) (inc ?n :> ?n2) (:distinct false)))
+      )))
