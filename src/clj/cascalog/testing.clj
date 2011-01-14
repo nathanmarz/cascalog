@@ -223,9 +223,3 @@
                       (split-at 2 args)
                       (split-at 1 args))]
   `(test?- ~@begin (<- ~@body))))
-
-(defn memory-source-tap
-  ([tuples] (memory-source-tap Fields/ALL tuples))
-  ([fields tuples]
-    (let [tuples (ArrayList. (map #(Util/coerceToTuple %) tuples))]
-      (MemorySourceTap. tuples (w/fields fields)))))

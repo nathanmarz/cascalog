@@ -21,8 +21,9 @@
   (:require [cascalog [workflow :as w] [predicate :as p]])
   (:import [cascading.flow Flow FlowConnector])
   (:import [cascading.tuple Fields])
-  (:import [cascalog StdoutTap])
-  (:import [cascading.pipe Pipe]))
+  (:import [cascalog StdoutTap Util MemorySourceTap])
+  (:import [cascading.pipe Pipe])
+  (:import [java.util ArrayList]))
 
 
 ;; Query creation and execution
@@ -161,6 +162,13 @@
 
 
 ;; Functions for creating taps and tap helpers
+
+(defn memory-source-tap
+  ([tuples] (memory-source-tap Fields/ALL tuples))
+  ([fields tuples]
+    (let [tuples (ArrayList. (map #(Util/coerceToTuple %) tuples))]
+      (MemorySourceTap. tuples (w/fields fields)))))
+
 
 (defn cascalog-tap
   "Defines a cascalog tap which can be used to add additional abstraction over cascading taps.
