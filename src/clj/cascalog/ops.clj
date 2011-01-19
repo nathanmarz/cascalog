@@ -57,6 +57,9 @@
   (<- [:<< !invars :> !c]
     (:sort :<< !invars) (distinct-count-agg :<< !invars :> !c)))
 
+
+;; Operation composition functions
+
 (defn negate [op]
   (<- [:<< !invars :>]
       (op :<< !invars :> false)
@@ -96,6 +99,7 @@
      (map (fn [o v] [o :<< "!invars" :> v]) ops outvars))
     ))
 
+
 ;; Common patterns
 
 (defnk first-n
@@ -108,6 +112,7 @@
         (:sort :<< (collectify sort)) (:reverse reverse)
         (limit [n] :<< in-fields :>> out-fields)
         )))
+
 
 ;; Helpers to use within ops
 
