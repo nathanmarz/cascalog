@@ -102,11 +102,23 @@
     
     ))
 
+(defn positive? [num]
+  (> num 0))
+
+(defn small? [num]
+  (< num 10))
+
 (deftest test-composite-composites
-  ;; not any,
-  ;; any all,
-  ;; not all any
-  )
+  (with-tmp-sources [nums [[1 2] [3 3] [4 6] [6 8] [-2 -1]]]
+    (test?<- [[4] [-2]] [!a] (nums !a _) ((c/negate (c/any #'odd? #'mult-3-sum?)) !a))
+    (test?<- [[3] [4] [6]]
+             [!a]
+             (nums !a _)
+             ((c/any
+               (c/all #'odd? #'mult-3-sum?)
+               (c/all #'even? #'positive? #'small?)) !a))
+    ;; TODO: not all any
+    ))
 
 
 

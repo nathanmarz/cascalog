@@ -14,7 +14,7 @@
  ;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (ns cascalog.ops-impl
-  (:use [cascalog vars util graph])
+  (:use [cascalog api vars util graph])
   (:import [cascading.tuple Fields])
   (:require [cascalog [workflow :as w] [predicate :as p]]))
 
@@ -90,3 +90,15 @@
   (if (some identity vars)
     true
     false))
+
+(defn bool-and [& vars]
+  (every? identity vars))
+
+(defn logical-comp [ops logic-fn-var]
+  (let [outvars (gen-nullable-vars (clojure.core/count ops))]
+    (construct
+     [:<< "!invars" :> "!true?"]
+     (conj
+      (map (fn [o v] [o :<< "!invars" :> v]) ops outvars)
+      [logic-fn-var :<< outvars :> "!true?"]
+      ))))

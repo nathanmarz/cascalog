@@ -66,19 +66,10 @@
       ))
 
 (defn all [& ops]
-  (construct
-   [:<< "!invars" :> "!true?"]
-   (for [o ops] [o :<< "!invars" :> "!true?"])
-   ))
+  (logical-comp ops #'bool-and))
 
 (defn any [& ops]
-  (let [outvars (v/gen-nullable-vars (clojure.core/count ops))]
-    (construct
-     [:<< "!invars" :> "!true?"]
-     (conj
-      (map (fn [o v] [o :<< "!invars" :> v]) ops outvars)
-      [#'bool-or :<< outvars :> "!true?"]
-      ))))
+  (logical-comp ops #'bool-or))
 
 (defn comp [& ops]
   (let [ops (reverse ops)
