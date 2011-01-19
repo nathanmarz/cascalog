@@ -150,6 +150,17 @@
   ["from the earth"]
   ]))
 
+(def duprows
+     (memory-source-tap
+      [
+       [1 2 3]
+       [1 2 3]
+       [1 2 5]
+       [1 3 6]
+       [2 5 7]
+       [2 2 2]
+       ]))
+
 (def dirty-ages (memory-source-tap [
 ; [timestamp name age]
   [1200 "alice" 20]

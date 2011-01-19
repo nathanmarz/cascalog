@@ -19,6 +19,7 @@
   (:use [clojure.set :only [intersection union difference]])
   (:use [clojure.contrib.set :only [subset?]])
   (:use [clojure.contrib.seq-utils :only [find-first separate]])
+  (:use [clojure.walk :only [postwalk]])
   (:require [cascalog [workflow :as w] [predicate :as p]])
   (:import [cascading.tap Tap])
   (:import [cascading.tuple Fields])
@@ -397,28 +398,26 @@
         (throw (RuntimeException. (str "Could not apply all operations " (:operations tail)))))
       (build-generator true out-vars (:node tail))))
 
-(defn- pred-macro-new-var-name [replacements v]
-  (let [existing (replacements v)
-        new-name  (if existing
-                    existing
+(defn- new-var-name! [replacements v]
+  (let [new-name  (if (contains? @replacements v)
+                    (@replacements v)
                     (uniquify-var v))]
-      [(assoc replacements v new-name) new-name] ))
-
-(defn- pred-macro-var-updater [[replacements ret] e]
-  (let [[newreplacements newelem] (if (cascalog-var? e)
-                                (pred-macro-new-var-name replacements e)
-                                [replacements e] )]
-    [newreplacements (conj ret newelem)] ))
+    (swap! replacements assoc v new-name)
+    new-name ))
 
 (defn- pred-macro-updater [[replacements ret] [op opvar vars]]
-  (let [[newreplacements newvars] (reduce pred-macro-var-updater [replacements []] vars)]
-    [newreplacements (conj ret [op opvar newvars])] ))
+  (let [newvars (postwalk #(if (cascalog-var? %)
+                             (new-var-name! replacements %)
+                             %)
+                          vars)]
+    [replacements (conj ret [op opvar newvars])] ))
 
 (defn- build-predicate-macro-fn [invars-decl outvars-decl raw-predicates]
   (fn [invars outvars]
-    (when (or (not-count= invars invars-decl) (not-count= outvars outvars-decl))
-      (throw (IllegalArgumentException. "Wrong number of args to predicate macro")))
-    (let [replacements (merge (zipmap invars-decl invars) (zipmap outvars-decl outvars))]
+    (let [outvars (if (and (empty? outvars) (sequential? outvars-decl) (= 1 (count outvars-decl)))
+                    [true]
+                    outvars) ; kind of a hack, simulate using pred macros like filters
+          replacements (atom (mk-destructured-seq-map invars-decl invars outvars-decl outvars))]
       (second (reduce pred-macro-updater [replacements []] raw-predicates))
       )))
 
@@ -470,6 +469,7 @@
           ((w/pipe-rename (uuid)) pipe)))
 
 (defn combine* [gens distinct?]
+  ;; it would be nice if cascalog supported Fields/UNKNOWN as output of generator
   (let [outfields (:outfields (first gens))
         pipes (map :pipe gens)
         pipes (for [p pipes] (w/assemble p (w/identity Fields/ALL :fn> outfields :> Fields/RESULTS)))

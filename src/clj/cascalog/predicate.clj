@@ -195,9 +195,8 @@
 
 (defmethod build-predicate-specific ::vanilla-function [_ opvar _ infields outfields options]
   (when (nil? opvar) (throw (RuntimeException. "Functions must have vars associated with them")))
-  (let
-    [[func-fields out-selector] (if (not-empty outfields) [outfields Fields/ALL] [nil nil])
-     assembly (w/filter opvar infields :fn> func-fields :> out-selector)]
+  (let [[func-fields out-selector] (if (not-empty outfields) [outfields Fields/ALL] [nil nil])
+        assembly (w/filter opvar infields :fn> func-fields :> out-selector)]
     (predicate operation assembly infields outfields)))
 
 (defn- hof-prepend [hof-args & args]

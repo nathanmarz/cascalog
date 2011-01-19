@@ -85,3 +85,8 @@
   ([[prev cnt] & tuple]
     [tuple (if (= tuple prev) cnt (inc cnt))])
   ([state] [(second state)] ))
+
+(defn bool-or [& vars]
+  (if (some identity vars)
+    true
+    false))

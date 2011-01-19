@@ -67,6 +67,7 @@
   (when (odd? (count coll)) (throw (IllegalArgumentException. "Need even number of args to unweave")))
   [(take-nth 2 coll) (take-nth 2 (rest coll))])
 
+
 (defn pairs2map [pairs]
   (apply hash-map (flatten pairs)))
 
@@ -94,3 +95,24 @@
   `(if-let [ret# ~form]
     ret#
     ~else-form ))
+
+(defn- clean-nil-bindings [bindings]
+  (let [pairs (partition 2 bindings)]
+    (mapcat identity (filter #(first %) pairs))
+    ))
+
+(defn mk-destructured-seq-map [& bindings]
+  ;; lhs needs to be symbolified
+  (let [bindings (clean-nil-bindings bindings)
+        to-sym (fn [s] (if (keyword? s) s (symbol s)))
+        [lhs rhs] (unweave bindings)
+        lhs  (for [l lhs] (if (sequential? l) (vec (map to-sym l)) (symbol l)))
+        rhs (for [r rhs] (if (sequential? r) (vec r) r))
+        destructured (vec (destructure (interleave lhs rhs)))
+        syms (first (unweave destructured))
+        extract-code (vec (for [s syms] [(str s) s]))]
+    (eval
+     `(let ~destructured
+        (into {} ~extract-code)
+        ))
+    ))

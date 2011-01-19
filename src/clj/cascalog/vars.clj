@@ -60,7 +60,10 @@
 (defn- flatten-vars [vars]
   (flatten (map #(if (map? %) (seq %) %) vars)))
 
-(defn- sanitize-elem [e anon-gen] (if (cascalog-var? e) (extract-varname e anon-gen) e))
+(defn- sanitize-elem [e anon-gen]
+  (cond (cascalog-var? e) (extract-varname e anon-gen)
+        (= (str e) "&") (str e) ; to support destructuring in predicate macros
+        true e))
 
 (defn- sanitize-vec [v anon-gen] (vec (map sanitize-elem v (repeat anon-gen))))
 
