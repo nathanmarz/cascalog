@@ -29,7 +29,7 @@
 ;; Query creation and execution
 
 (defmacro <-
-  "Constructs a query or predicate macro from a list of predicates."
+  "Constructs a query or predicate macro from a list of predicates. Predicate macros support destructuring of the input and output variables."
   [outvars & predicates]
   (let [predicate-builders (vec (map cascalog.rules/mk-raw-predicate predicates))
         outvars-str (if (vector? outvars) (vars2str outvars) outvars)]
@@ -81,7 +81,7 @@
 
 (defn construct
   [outvars preds]
-  "Construct a query functionally. When constructing queries this way, operations should either be vars for operations or values defined using one of Cascalog's def macros."
+  "Construct a query or predicate macro functionally. When constructing queries this way, operations should either be vars for operations or values defined using one of Cascalog's def macros. Vars must be stringified when passed to construct. If you're using destructuring in a predicate macro, the & symbol must be stringified as well"
   (let [outvars (vars2str outvars)
         preds (for [[p & vars] preds] [p nil (vars2str vars)])]
         (cascalog.rules/build-rule outvars preds)

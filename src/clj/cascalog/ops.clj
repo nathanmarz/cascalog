@@ -72,7 +72,7 @@
    ))
 
 (defn any [& ops]
-  (let [outvars (v/gen-nullable-vars (clojure.core/count ops))]    
+  (let [outvars (v/gen-nullable-vars (clojure.core/count ops))]
     (construct
      [:<< "!invars" :> "!true?"]
      (conj

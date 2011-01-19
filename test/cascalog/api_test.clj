@@ -265,14 +265,6 @@
     (test?<- [["b"]] [?a] (wide :#> 5 {0 ?a 1 ?b 4 ?b}))
     ))
 
-(deftest test-predicate-macro
-  (let [mac1 (<- [?a :> ?b ?c] (+ ?a 1 :> ?t) (* ?t 2 :> ?b) (+ ?a ?t :> ?c))
-        mac2 (<- [:< ?a] (* ?a ?a :> ?a))]
-    (with-tmp-sources [num1 [[0] [1] [2] [3]]]
-      (test?<- [[-1 1] [0 3] [1 5] [2 7]] [?t ?o] (num1 ?n) (mac1 ?n :> _ ?o) (dec ?n :> ?t))
-      (test?<- [[0] [1]] [?n] (num1 ?n) (mac2 ?n))
-    )))
-
 (deftest test-avg
   (with-tmp-sources [num1 [[1] [2] [3] [4] [10]]
                      pair [["a" 1] ["a" 2] ["a" 3] ["b" 3]]]
