@@ -175,11 +175,7 @@
 
 ;; Functions for creating taps and tap helpers
 
-(defn memory-source-tap
-  ([tuples] (memory-source-tap Fields/ALL tuples))
-  ([fields tuples]
-    (let [tuples (ArrayList. (map #(Util/coerceToTuple %) tuples))]
-      (MemorySourceTap. tuples (w/fields fields)))))
+(defalias memory-source-tap w/memory-source-tap)
 
 
 (defn cascalog-tap

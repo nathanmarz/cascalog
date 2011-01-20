@@ -31,9 +31,10 @@
            [org.apache.hadoop.io Text]
            [org.apache.hadoop.mapred TextInputFormat TextOutputFormat
                                      OutputCollector JobConf]
-           [java.util Properties Map]
+           [java.util Properties Map ArrayList]
            [cascalog ClojureFilter ClojureMapcat ClojureMap
-                              ClojureAggregator Util ClojureBuffer ClojureBufferIter FastFirst]
+                     ClojureAggregator Util ClojureBuffer ClojureBufferIter
+                     FastFirst MemorySourceTap]
            [java.io File]
            [java.lang RuntimeException Comparable]))
 
@@ -432,3 +433,9 @@
 
 (defn exec [#^Flow flow]
   (.complete flow))
+
+(defn memory-source-tap
+  ([tuples] (memory-source-tap Fields/ALL tuples))
+  ([fields-in tuples]
+    (let [tuples (ArrayList. (clojure.core/map #(Util/coerceToTuple %) tuples))]
+      (MemorySourceTap. tuples (fields fields-in)))))

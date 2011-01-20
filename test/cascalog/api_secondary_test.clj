@@ -96,3 +96,8 @@
       (?<- "flow1" sink1 [?n] (nums ?n) (:distinct false))
       (?- "flow2" sink2 (<- [?n2] (nums ?n) (inc ?n :> ?n2) (:distinct false)))
       )))
+
+(deftest test-data-structure
+  (with-tmp-sources [nums [[1] [2]]]
+    (test?<- [[1 5]] [?a ?b] (nums ?a) ([[1 5] [5 6] [8 2]] ?a ?b))
+    ))

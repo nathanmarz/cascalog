@@ -116,6 +116,7 @@
               (instance? CascalogFunction op) ::cascalog-function
               (instance? CascalogBuffer op) ::cascalog-buffer
               (map? op) (:type op)
+              (or (vector? op) (list? op)) ::data-structure
               (w/get-op-metadata op) (:type (w/get-op-metadata op))
               (fn? op) ::vanilla-function
               true (throw (IllegalArgumentException. "Bad predicate"))
@@ -141,6 +142,7 @@
 (defmethod predicate-default-var ::cascading-filter [& args] :<)
 (defmethod predicate-default-var ::cascalog-buffer [& args] :>)
 (defmethod predicate-default-var :cascalog-tap [& args] :>)
+(defmethod predicate-default-var ::data-structure [& args] :>)
 
 (defmulti hof-predicate? predicate-dispatcher)
 
@@ -159,6 +161,7 @@
 (defmethod hof-predicate? ::cascading-filter [op & args] false)
 (defmethod hof-predicate? ::cascalog-buffer [op & args] false)
 (defmethod hof-predicate? :cascalog-tap [op & args] false)
+(defmethod hof-predicate? ::data-structure [op & args] false)
 
 (defmulti build-predicate-specific predicate-dispatcher)
 
@@ -183,6 +186,10 @@
     (when-not (empty? infields) (throw (IllegalArgumentException. "Cannot use :> in a taps vars declaration")))
     (predicate generator (ground-fields? outfields) {sourcename tap} pipe outfields (init-trap-map options))
   ))
+
+(defmethod build-predicate-specific ::data-structure [tuples _ _ infields outfields options]
+  (build-predicate-specific (w/memory-source-tap tuples) nil nil infields outfields options))
+
 
 (defmethod build-predicate-specific :generator [gen _ _ infields outfields options]
   (let [pname (init-pipe-name options)

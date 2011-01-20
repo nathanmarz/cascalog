@@ -102,3 +102,4 @@
       (map (fn [o v] [o :<< "!invars" :> v]) ops outvars)
       [logic-fn-var :<< outvars :> "!true?"]
       ))))
+
