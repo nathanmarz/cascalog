@@ -101,3 +101,13 @@
   (with-tmp-sources [nums [[1] [2]]]
     (test?<- [[1 5]] [?a ?b] (nums ?a) ([[1 5] [5 6] [8 2]] ?a ?b))
     ))
+
+(deftest test-memory-returns
+  (with-tmp-sources [nums [[1] [2] [3]]
+                     people [["alice"] ["bob"]]]
+    (is (= (set [[1] [3]]) (set (??<- [?num] (nums ?num) (odd? ?num) (:distinct false)))))
+    (let [res (??- (<- [?val] (nums ?num) (inc ?num :> ?val) (:distinct false))
+                   (<- [?res] (people ?person) (str ?person "a" :> ?res) (:distinct false)))]
+      (is (= (set [[2] [3] [4]]) (set (first res))))
+      (is (= (set [["alicea"] ["boba"]]) (set (second res))))
+      )))
