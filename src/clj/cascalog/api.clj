@@ -18,12 +18,64 @@
   (:use [clojure.contrib def])
   (:require cascalog.rules)
   (:require [clojure [set :as set]])
-  (:require [cascalog [workflow :as w] [predicate :as p]])
+  (:require [cascalog [workflow :as w] [predicate :as p] [io :as io] [hadoop :as hadoop]])
   (:import [cascading.flow Flow FlowConnector])
   (:import [cascading.tuple Fields])
   (:import [cascalog StdoutTap Util MemorySourceTap])
   (:import [cascading.pipe Pipe])
   (:import [java.util ArrayList]))
+
+
+;; Functions for creating taps and tap helpers
+
+(defalias memory-source-tap w/memory-source-tap)
+
+(defn cascalog-tap
+  "Defines a cascalog tap which can be used to add additional abstraction over cascading taps.
+  
+   'source' can be a cascading tap, subquery, or a cascalog tap.
+   'sink' can be a cascading tap, sink function, or a cascalog tap."
+  [source sink]
+  (struct-map cascalog.rules/cascalog-tap :type :cascalog-tap :source source :sink sink))
+
+(defn hfs-textline
+  "Creates a tap on HDFS using textline format. Different filesystems can 
+   be selected by using different prefixes for {path}.
+   
+   See http://www.cascading.org/javadoc/cascading/tap/Hfs.html and
+   http://www.cascading.org/javadoc/cascading/scheme/TextLine.html"
+  [path]
+  (w/hfs-tap (w/text-line ["line"] Fields/ALL) path))
+
+(defn lfs-textline
+    "Creates a tap on the local filesystem using textline format.
+   
+   See http://www.cascading.org/javadoc/cascading/tap/Lfs.html and
+   http://www.cascading.org/javadoc/cascading/scheme/TextLine.html"
+  [path]
+  (w/lfs-tap (w/text-line ["line"] Fields/ALL) path))
+
+(defn hfs-seqfile
+  "Creates a tap on HDFS using sequence file format. Different filesystems can 
+   be selected by using different prefixes for {path}.
+   
+   See http://www.cascading.org/javadoc/cascading/tap/Hfs.html and
+   http://www.cascading.org/javadoc/cascading/scheme/SequenceFile.html"
+  [path]
+  (w/hfs-tap (w/sequence-file Fields/ALL) path))
+
+(defn lfs-seqfile
+   "Creates a tap that reads data off of the local filesystem in sequence file format.
+   
+   See http://www.cascading.org/javadoc/cascading/tap/Lfs.html and
+   http://www.cascading.org/javadoc/cascading/scheme/SequenceFile.html"
+  [path]
+  (w/lfs-tap (w/sequence-file Fields/ALL) path))
+
+(defn stdout
+  "Creates a tap that prints tuples sunk to it to standard output. Useful for 
+   experimentation in the REPL."
+  [] (StdoutTap.))
 
 
 ;; Query creation and execution
@@ -69,6 +121,19 @@
   [& bindings]
   (.complete (apply compile-flow bindings)))
 
+(defn ??-
+  "Executes one or more queries and returns a seq of seqs of tuples back, one for each subquery given.
+  
+  Syntax: (??- sink1 query1 sink2 query2 ...)"
+  [& subqueries]
+  (io/with-fs-tmp [fs tmp]
+    (hadoop/mkdirs fs tmp)
+    (let [outtaps (for [q subqueries] (hfs-seqfile (str tmp "/" (uuid))))
+          bindings (mapcat vector outtaps subqueries)]
+      (apply ?- bindings)
+      (doall (map cascalog.rules/get-tuples outtaps))      
+      )))
+
 (defmacro ?<-
   "Helper that both defines and executes a query in a single call.
   
@@ -78,6 +143,15 @@
   ;; This is the best we can do... if want non-static name should just use ?-
   (let [[name [output & body]] (cascalog.rules/parse-exec-args args)]
     `(?- ~name ~output (<- ~@body))))
+
+(defmacro ??<-
+  "Like ??-, but for ?<-. Returns a seq of tuples."
+  [& args]
+  `(io/with-fs-tmp [fs# tmp1#]
+    (let [outtap# (hfs-seqfile tmp1#)]
+      (?<- outtap# ~@args)
+      (cascalog.rules/get-tuples outtap#))
+      ))
 
 (defn construct
   [outvars preds]
@@ -171,59 +245,6 @@
   [conf & body]
   `(binding [cascalog.rules/*JOB-CONF* (merge cascalog.rules/*JOB-CONF* ~conf)]
     ~@body ))
-
-
-;; Functions for creating taps and tap helpers
-
-(defalias memory-source-tap w/memory-source-tap)
-
-
-(defn cascalog-tap
-  "Defines a cascalog tap which can be used to add additional abstraction over cascading taps.
-  
-   'source' can be a cascading tap, subquery, or a cascalog tap.
-   'sink' can be a cascading tap, sink function, or a cascalog tap."
-  [source sink]
-  (struct-map cascalog.rules/cascalog-tap :type :cascalog-tap :source source :sink sink))
-
-(defn hfs-textline
-  "Creates a tap on HDFS using textline format. Different filesystems can 
-   be selected by using different prefixes for {path}.
-   
-   See http://www.cascading.org/javadoc/cascading/tap/Hfs.html and
-   http://www.cascading.org/javadoc/cascading/scheme/TextLine.html"
-  [path]
-  (w/hfs-tap (w/text-line ["line"] Fields/ALL) path))
-
-(defn lfs-textline
-    "Creates a tap on the local filesystem using textline format.
-   
-   See http://www.cascading.org/javadoc/cascading/tap/Lfs.html and
-   http://www.cascading.org/javadoc/cascading/scheme/TextLine.html"
-  [path]
-  (w/lfs-tap (w/text-line ["line"] Fields/ALL) path))
-
-(defn hfs-seqfile
-  "Creates a tap on HDFS using sequence file format. Different filesystems can 
-   be selected by using different prefixes for {path}.
-   
-   See http://www.cascading.org/javadoc/cascading/tap/Hfs.html and
-   http://www.cascading.org/javadoc/cascading/scheme/SequenceFile.html"
-  [path]
-  (w/hfs-tap (w/sequence-file Fields/ALL) path))
-
-(defn lfs-seqfile
-   "Creates a tap that reads data off of the local filesystem in sequence file format.
-   
-   See http://www.cascading.org/javadoc/cascading/tap/Lfs.html and
-   http://www.cascading.org/javadoc/cascading/scheme/SequenceFile.html"
-  [path]
-  (w/lfs-tap (w/sequence-file Fields/ALL) path))
-
-(defn stdout
-  "Creates a tap that prints tuples sunk to it to standard output. Useful for 
-   experimentation in the REPL."
-  [] (StdoutTap.))
 
 
 ;; Miscellaneous helpers

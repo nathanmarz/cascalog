@@ -22,10 +22,11 @@
   (:use [clojure.walk :only [postwalk]])
   (:require [cascalog [workflow :as w] [predicate :as p]])
   (:import [cascading.tap Tap])
-  (:import [cascading.tuple Fields])
+  (:import [cascading.tuple Fields Tuple TupleEntry])
   (:import [cascading.flow Flow FlowConnector])
   (:import [cascading.pipe Pipe])
-  (:import [cascalog CombinerSpec ClojureCombiner ClojureCombinedAggregator])
+  (:import [cascalog CombinerSpec ClojureCombiner ClojureCombinedAggregator Util])
+  (:import [org.apache.hadoop.mapred JobConf])
   (:import [java.util ArrayList]))
 
 
@@ -506,3 +507,11 @@
   (if (instance? String f)
     [f rest]
     ["" args]))
+
+(defn get-tuples [^Tap sink]
+  (with-open [it (.openForRead sink (JobConf.))]
+    (doall
+     (for [^TupleEntry t (iterator-seq it)]
+       (vec (Util/coerceFromTuple (Tuple. (.getTuple t))))
+       ))))
+

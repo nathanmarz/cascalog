@@ -18,7 +18,9 @@
            (java.util UUID)
            (org.apache.log4j Logger Level))
   (:use clojure.contrib.java-utils
-        [clojure.contrib.duck-streams :only [write-lines]]))
+        [clojure.contrib.duck-streams :only [write-lines]])
+  (:use [cascalog util])
+  (:require [cascalog [hadoop :as hadoop]]))
 
 (defn temp-path [sub-path]
    (file (System/getProperty "java.io.tmpdir") sub-path))
@@ -47,9 +49,6 @@
      (try ~@body
        (finally (delete-all ~bindings)))))
 
-(defn- uuid []
-  (str (UUID/randomUUID)))
-
 (defn write-lines-in
   ([root lines]
    (write-lines-in root (str (uuid) ".data") lines))
@@ -73,3 +72,21 @@
        ~@body
        (finally
          (.setLevel logger# prev-lev#)))))
+
+(defn delete-all-fs [fs paths]
+  (dorun
+    (for [t paths]
+      (.delete fs (hadoop/path t) true))))
+
+(defmacro with-fs-tmp [[fs-sym & tmp-syms] & body]
+  (let [tmp-paths (mapcat (fn [t]
+                            [t `(str "/tmp/cascalog_reserved/" (uuid))])
+                          tmp-syms)]
+    `(let [~fs-sym (hadoop/filesystem)
+           ~@tmp-paths]
+       (.mkdirs ~fs-sym (hadoop/path "/tmp/cascalog_reserved"))
+        (try
+          ~@body
+          (finally
+           (delete-all-fs ~fs-sym ~(vec tmp-syms)))
+        ))))

@@ -100,10 +100,6 @@
 (defn unique-rooted-paths [root]
   (map str (cycle [(str root "/")]) (repeatedly uuid)))
 
-(defn get-tuples [sink]
-  (with-open [it (.openForRead sink (JobConf.))]
-       (doall (map #(vec (Util/coerceFromTuple (Tuple. (.getTuple %)))) (iterator-seq it)))))
-
 (defn- gen-fake-fields [amt]
   (take amt (map str (iterate inc 1))))
 
@@ -137,7 +133,7 @@
                sinks          (map mk-test-sink sink-specs (unique-rooted-paths sink-path))
                flow           (w/mk-flow sources sinks assembly)
                _              (w/exec flow)
-               out-tuples     (doall (map get-tuples sinks))
+               out-tuples     (doall (map rules/get-tuples sinks))
                expected-data  (map :tuples sink-specs)]
                (is (= (map multi-set expected-data) (map multi-set out-tuples)))
                )))))
@@ -184,15 +180,15 @@
                 [specs rules]  (unweave bindings)
                 sinks          (map mk-test-sink specs (unique-rooted-paths sink-path))
                 _              (apply ?- (interleave sinks rules))
-                out-tuples     (doall (map get-tuples sinks))]
+                out-tuples     (doall (map rules/get-tuples sinks))]
             (is-specs= specs out-tuples)
             ))))))
 
 (defn check-tap-spec [tap spec]
-  (is-tuplesets= (get-tuples tap) spec))
+  (is-tuplesets= (rules/get-tuples tap) spec))
 
 (defn check-tap-spec-sets [tap spec]
-  (is (= (multi-set (map set (doublify (get-tuples tap))))
+  (is (= (multi-set (map set (doublify (rules/get-tuples tap))))
          (multi-set (map set (doublify spec))))))
 
 
