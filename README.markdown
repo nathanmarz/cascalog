@@ -8,9 +8,9 @@ Cascalog queries are first-class within Clojure and are extremely composable. Ad
 
 Follow the getting started steps, check out the tutorial, and you'll be running Cascalog queries on your local computer within 5 minutes.
 
-# Documentation
+# Documentation and Issue Tracker
 
-Documentation can be found on the [Cascalog wiki](https://www.assembla.com/wiki/show/d9Z8_q-Omr35zteJe5cbLr)
+Documentation and issue tracker can be found on the [Cascalog wiki](https://www.assembla.com/wiki/show/d9Z8_q-Omr35zteJe5cbLr)
 
 # Questions
 
