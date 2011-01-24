@@ -8,40 +8,20 @@ Cascalog queries are first-class within Clojure and are extremely composable. Ad
 
 Follow the getting started steps, check out the tutorial, and you'll be running Cascalog queries on your local computer within 5 minutes.
 
-# Getting started
+# Documentation
 
-1. Make sure you have java 1.6
-2. export JAVA_OPTS=-Xmx768m
-3. install [leiningen](http://github.com/technomancy/leiningen)
-4. git clone git://github.com/nathanmarz/cascalog.git
-5. cd cascalog && lein deps && lein compile
-6. optionally run "lein test" to make sure tests pass
+Documentation can be found on the [Cascalog wiki](https://www.assembla.com/wiki/show/d9Z8_q-Omr35zteJe5cbLr)
 
-The entire Cascalog API is defined within src/clj/cascalog/api.clj .
-Helpers for testing queries can be found in src/clj/cascalog/testing.clj .
+# Questions
+
+Google group: [cascalog-user](http://groups.google.com/group/cascalog-user)
+
+Come chat in the #cascading room on freenode
 
 # Using Cascalog within a project
 
 Cascalog is hosted at [Clojars](http://clojars.org/cascalog). Clojars is a maven repo that is trivially easy to use with maven or leiningen.
 
-# Tutorials
-
-1. [Introducing Cascalog](http://nathanmarz.com/blog/introducing-cascalog)
-2. [New Cascalog features: outer joins, combiners, sorting, and more](http://nathanmarz.com/blog/new-cascalog-features/)
-3. [News Feed in 38 lines of code using Cascalog](http://nathanmarz.com/blog/cascalog-news-feed)
-4. [Different kinds of custom operations in Cascalog](http://groups.google.com/group/cascalog-user/browse_thread/thread/fc9fdc9af8f59ad6)
-5. [Cascalog features for consuming wide taps](http://groups.google.com/group/cascalog-user/browse_thread/thread/17abcbed12d76232)
-6. [Predicate macros](http://groups.google.com/group/cascalog-user/browse_thread/thread/33f9b69bf18c9bdc)
-
-# Running Cascalog queries on a Hadoop cluster
-
-1. Any custom operations must be compiled into the jar you give to Hadoop for running jobs
-
-# Questions?
-
-Google group: [cascalog-user](http://groups.google.com/group/cascalog-user)
-
-Come chat in the #cascading room on freenode
 
 # Priorities for Cascalog development
 
