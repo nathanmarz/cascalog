@@ -61,8 +61,9 @@
 ;; Operation composition functions
 
 (defn negate [op]
-  (<- [:<< !invars :>]
-      (op :<< !invars :> false)
+  (<- [:<< !invars :> !true?]
+      (op :<< !invars :> !curr?)
+      (not !curr? :> !true?)
       ))
 
 (defn all [& ops]
