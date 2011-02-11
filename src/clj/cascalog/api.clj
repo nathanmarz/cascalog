@@ -126,6 +126,7 @@
   
   Syntax: (??- sink1 query1 sink2 query2 ...)"
   [& subqueries]
+  ;; TODO: should be checking for flow name here
   (io/with-fs-tmp [fs tmp]
     (hadoop/mkdirs fs tmp)
     (let [outtaps (for [q subqueries] (hfs-seqfile (str tmp "/" (uuid))))
