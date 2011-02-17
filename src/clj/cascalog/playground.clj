@@ -73,6 +73,15 @@
   ["luanne" "f"]
   ]))
 
+(def full-names (memory-source-tap [
+  ["alice" "Alice Smith"]
+  ["bob" "Bobby John Johnson"]
+  ["chris" "CHRIS"]
+  ["david" "A B C D E"]
+  ["emily" "Emily Buchanan"]
+  ["george" "George Jett"]
+  ]))
+
 (def location (memory-source-tap [
   ["alice" "usa" "california" nil]
   ["bob" "canada" nil nil]
