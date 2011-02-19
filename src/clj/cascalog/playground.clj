@@ -73,6 +73,25 @@
   ["luanne" "f"]
   ]))
 
+
+(def gender-fuzzy (memory-source-tap [
+;; person gender timestamp
+  ["alice" "f" 100]
+  ["alice" "m" 102]
+  ["alice" "f" 110]
+  ["bob" "m" 100]
+  ["bob" "m" 101]
+  ["bob" "m" 102]
+  ["bob" "f" 103]
+  ["bob" "m" 104]
+  ["chris" "f" 100]
+  ["chris" "m" 200]
+  ["emily" "f" 100]
+  ["george" "m" 100]
+  ["george" "m" 101]
+  ]))
+
+
 (def full-names (memory-source-tap [
   ["alice" "Alice Smith"]
   ["bob" "Bobby John Johnson"]
