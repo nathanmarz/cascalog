@@ -83,7 +83,6 @@
   ["bob" "m" 101]
   ["bob" "m" 102]
   ["bob" "f" 103]
-  ["bob" "m" 104]
   ["chris" "f" 100]
   ["chris" "m" 200]
   ["emily" "f" 100]
