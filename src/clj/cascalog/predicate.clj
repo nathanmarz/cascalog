@@ -244,6 +244,8 @@
 (defmethod build-predicate-specific ::parallel-buffer [pbuf _ hof-args infields outfields options]
   (let [temp-vars (gen-nullable-vars ((:num-intermediate-vars-fn pbuf) infields outfields))
         hof-args  (cons (dissoc options :trap) hof-args)
+        sort-fields (:sort options)
+        sort-fields (if (empty? sort-fields) nil sort-fields)
         combiner-spec (CombinerSpec. (mk-hof-fn-spec (:init-hof-var pbuf) hof-args)
                                      (mk-hof-fn-spec (:combine-hof-var pbuf) hof-args)
                                      (mk-hof-fn-spec (:extract-hof-var pbuf) hof-args))
@@ -251,7 +253,7 @@
                     (w/raw-each Fields/ALL
                                 (ClojureBufferCombiner.
                                             (w/fields group-fields)
-                                            (w/fields (:sort options))
+                                            (w/fields sort-fields)
                                             (w/fields infields)
                                             (w/fields temp-vars)
                                             combiner-spec)

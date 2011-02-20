@@ -212,7 +212,7 @@
 
 (defn- mk-group-by [grouping-fields options]
   (let [s (:sort options)]
-   (if s
+   (if-not (empty? s)
       (w/group-by grouping-fields (:sort options) (:reverse options))
       (w/group-by grouping-fields))))
 

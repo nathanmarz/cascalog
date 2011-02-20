@@ -101,7 +101,8 @@
         out-fields (v/gen-nullable-vars (clojure.core/count in-fields))]
     (<- out-fields
         (gen :>> in-fields)
-        (:sort :<< (collectify sort)) (:reverse reverse)
+        (:sort :<< (when sort (collectify sort)))
+        (:reverse reverse)
         (limit [n] :<< in-fields :>> out-fields)
         )))
 
