@@ -154,6 +154,24 @@
       (cascalog.rules/get-tuples outtap#))
       ))
 
+(defn predmacro*
+  "Functional version of predmacro. See predmacro for details."
+  [pred-macro-fn]
+  (p/predicate
+    p/predicate-macro
+    (fn [invars outvars]
+      (for [[op & vars] (pred-macro-fn invars outvars)]
+        [op nil vars])
+        )))
+
+(defmacro predmacro
+  "A more general but more verbose way to create predicate macros. Creates a function that takes in [invars outvars]
+   and returns a list of predicates. When making predicate macros this way, you must create intermediate variables
+   with gen-nullable-var(s). This is because unlike the (<- [?a :> ?b] ...) way of doing pred macros, Cascalog 
+   doesn't have a declaration for the inputs/outputs."
+  [& body]
+  `(predmacro* (fn ~@body)))
+
 (defn construct
   [outvars preds]
   "Construct a query or predicate macro functionally. When constructing queries this way, operations should either be vars for operations or values defined using one of Cascalog's def macros. Vars must be stringified when passed to construct. If you're using destructuring in a predicate macro, the & symbol must be stringified as well"

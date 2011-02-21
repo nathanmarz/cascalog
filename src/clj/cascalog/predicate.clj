@@ -123,7 +123,8 @@
         )]
     (if (= ret :bufferiter) :buffer ret)))
 
-(defn predicate-macro? [p] (= :predicate-macro (predicate-dispatcher p)))
+(defn predicate-macro? [p]
+  (and (map? p) (= :predicate-macro (:type p))))
 
 (defmulti predicate-default-var predicate-dispatcher)
 

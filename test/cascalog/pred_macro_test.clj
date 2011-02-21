@@ -102,6 +102,36 @@
     
     ))
 
+(defn append-! [v]
+  (str v "!"))
+
+(deffilterop small-op? [v]
+  (< v 4))
+
+(deftest test-each
+  (with-tmp-sources [triples [[1 2 3] [3 4 1]]]
+    (test?<-[["1!" "2!"] ["3!" "4!"]] [!v1 !v2] (triples !a !b !c)
+                                                ((c/each #'append-!) !a !b :> !v1 !v2)
+                                                (:distinct false))
+    (test?<-[["2!"] ["4!"]] [!v] (triples !a !b !c)
+                                 ((c/each #'append-!) !b :> !v)
+                                 (:distinct false))
+    (test?<-[[3 1 2]] [!c !a !b] (triples !a !b !c)
+                                 ((c/each small-op?) !a !b !c)
+                                 (:distinct false))
+    ))
+
+(deftest test-nested-predmacro
+  (with-tmp-sources [integers [[1] [4]]]
+    (let [pm1 (predmacro [invars outvars]
+                (map (fn [i v] [#'append-! i :> v]) invars outvars)
+                )
+          pm2 (predmacro [invars outvars]
+                [[pm1 :<< invars :>> outvars]
+                 [small-op? (first invars)]])]
+        (test?<- [["1!"]] [?v] (integers ?i) (pm2 ?i :> ?v))
+        )))
+
 (defn positive? [num]
   (> num 0))
 

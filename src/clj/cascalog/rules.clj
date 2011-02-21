@@ -433,11 +433,11 @@
   (mapcat
     (fn [[p _ vars :as raw-predicate]]
       (if (p/predicate-macro? p)
-        (expand-predicate-macro p vars)
+        (expand-predicate-macros (expand-predicate-macro p vars))
         [raw-predicate] ))
     raw-predicates ))
 
-(defn- normalize-raw-predicates [raw-predicates]
+(defn normalize-raw-predicates [raw-predicates]
   (for [[p v vars] raw-predicates]
     (if (var? p)
       [(var-get p) p vars] ; support passing around ops as vars
@@ -445,8 +445,8 @@
       )))
 
 (defn build-rule [out-vars raw-predicates]
-  (let [raw-predicates (normalize-raw-predicates raw-predicates)
-        raw-predicates (expand-predicate-macros raw-predicates)
+  (let [raw-predicates (expand-predicate-macros raw-predicates)
+        raw-predicates (normalize-raw-predicates raw-predicates)
         parsed (p/parse-variables out-vars :?)]
     (if-not (empty? (parsed :?))
       (build-query out-vars raw-predicates)

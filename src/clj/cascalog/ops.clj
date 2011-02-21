@@ -91,6 +91,16 @@
      (map (fn [o v] [o :<< "!invars" :> v]) ops outvars))
     ))
 
+(defn each [op]
+  (predmacro [invars outvars]
+    (if (empty? outvars)
+      (for [i invars]
+        [op i])
+      (map
+        (fn [i v]
+          [op i :> v] )
+        invars
+        outvars ))))
 
 ;; Common patterns
 
