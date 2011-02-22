@@ -20,44 +20,6 @@
   (:require [cascalog [vars :as v]])
   (:import [java.util.concurrent Future TimeoutException TimeUnit]))
 
-;; Operations to use within queries
-
-(defmapop [re-parse [pattern]] [str]
-  (re-seq pattern str))
-
-(defparallelagg count :init-var #'one
-                      :combine-var #'+)
-
-(defparallelagg sum :init-var #'identity-tuple
-                    :combine-var #'+-all)
-
-(defparallelagg min :init-var #'identity-tuple
-                    :combine-var #'min-all)
-
-(defparallelagg max :init-var #'identity-tuple
-                    :combine-var #'max-all)
-
-(defparallelagg !count :init-var #'existence-int-all
-                       :combine-var #'+-all)
-
-(defparallelbuf limit :hof? true
-                      :init-hof-var #'limit-init
-                      :combine-hof-var #'limit-combine
-                      :extract-hof-var #'limit-extract
-                      :num-intermediate-vars-fn (fn [infields outfields] (clojure.core/count infields))
-                      :buffer-hof-var #'limit-buffer )
-
-(def limit-rank (merge limit {:buffer-hof-var #'limit-rank-buffer} ))
-
-(def avg
-  (<- [!v :> !avg]
-    (count !c) (sum !v :> !s) (div !s !c :> !avg)))
-
-(def distinct-count
-  (<- [:<< !invars :> !c]
-    (:sort :<< !invars) (distinct-count-agg :<< !invars :> !c)))
-
-
 ;; Operation composition functions
 
 (defn negate [op]
@@ -101,6 +63,41 @@
           [op i :> v] )
         invars
         outvars ))))
+
+
+;; Operations to use within queries
+
+(defmapop [re-parse [pattern]] [str]
+  (re-seq pattern str))
+
+(defparallelagg count :init-var #'one
+                      :combine-var #'+)
+
+(def sum (each sum-parallel))
+
+(def min (each min-parallel))
+
+(def max (each max-parallel))
+
+(def !count (each !count-parallel))
+
+(defparallelbuf limit :hof? true
+                      :init-hof-var #'limit-init
+                      :combine-hof-var #'limit-combine
+                      :extract-hof-var #'limit-extract
+                      :num-intermediate-vars-fn (fn [infields outfields] (clojure.core/count infields))
+                      :buffer-hof-var #'limit-buffer )
+
+(def limit-rank (merge limit {:buffer-hof-var #'limit-rank-buffer} ))
+
+(def avg
+  (<- [!v :> !avg]
+    (count !c) (sum !v :> !s) (div !s !c :> !avg)))
+
+(def distinct-count
+  (<- [:<< !invars :> !c]
+    (:sort :<< !invars) (distinct-count-agg :<< !invars :> !c)))
+
 
 ;; Common patterns
 

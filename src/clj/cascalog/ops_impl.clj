@@ -20,27 +20,21 @@
 
 (defn one [] 1)
 
-(defn existence-int-all [& tuple] (dofor [v tuple] (if v 1 0)))
-
 (defn identity-tuple [& tuple] tuple)
 
-(defn split-tuple [all]
-  (let [amt (count all)]
-    (split-at (/ amt 2) all)))
+(defn existence-int [v] (if v 1 0))
 
-(defn symmetric-split-tuple-op [afn all]
-  (let [[tuple1 tuple2] (split-tuple all)]
-    (doall (map afn tuple1 tuple2))
-    ))
+(defparallelagg sum-parallel :init-var #'identity
+                             :combine-var #'+)
 
-(defn +-all [& all]
-  (symmetric-split-tuple-op + all))
+(defparallelagg min-parallel :init-var #'identity
+                             :combine-var #'min)
 
-(defn min-all [& all]
-  (symmetric-split-tuple-op min all))
+(defparallelagg max-parallel :init-var #'identity
+                             :combine-var #'max)
 
-(defn max-all [& all]
-  (symmetric-split-tuple-op max all))
+(defparallelagg !count-parallel :init-var #'existence-int
+                                :combine-var #'+)
 
 (defn limit-init [options limit]
   (fn [sort-tuple & tuple]
