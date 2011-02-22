@@ -216,6 +216,7 @@
     (<- vars (gen :>> vars) (:distinct false))
     ))
 
+
 ;; Query introspection
 
 (defmulti get-out-fields cascalog.rules/generator-selector)
