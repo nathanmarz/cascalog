@@ -55,6 +55,8 @@
 
 (defn each [op]
   (predmacro [invars outvars]
+    {:pre [(or (= 0 (clojure.core/count outvars))
+               (= (clojure.core/count invars) (clojure.core/count outvars)))]}
     (if (empty? outvars)
       (for [i invars]
         [op i])
