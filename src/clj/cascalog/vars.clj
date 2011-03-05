@@ -20,12 +20,19 @@
 (let [i (atom 0)]
   (defn gen-unique-suffix [] (str "__gen" (swap! i inc))))
 
-(defn gen-non-nullable-var [] (str "?" (gen-unique-suffix)))
-(defn gen-nullable-var [] (str "!" (gen-unique-suffix)))
-(defn gen-ungounding-var [] (str "!!" (gen-unique-suffix)))
+(defn- gen-var-fn [prefix]
+  (fn this
+    ([suffix] (str prefix (gen-unique-suffix) suffix))
+    ([] (this ""))))
 
-(defn gen-nullable-vars [amt]
-  (vec (take amt (repeatedly gen-nullable-var))))
+(def gen-non-nullable-var (gen-var-fn "?"))
+(def gen-nullable-var (gen-var-fn "!"))
+(def gen-ungounding-var (gen-var-fn "!!"))
+
+(defn gen-nullable-vars
+  ([amt] (gen-nullable-vars "" amt))
+  ([suffix amt]
+    (vec (take amt (repeatedly (partial gen-nullable-var suffix))))))
 
 (defn gen-non-nullable-vars [amt]
   (vec (take amt (repeatedly gen-non-nullable-var))))
