@@ -20,7 +20,7 @@
   (:use [clojure.contrib.set :only [subset?]])
   (:use [clojure.contrib.seq-utils :only [find-first separate]])
   (:use [clojure.walk :only [postwalk]])
-  (:require [cascalog [workflow :as w] [predicate :as p]])
+  (:require [cascalog [workflow :as w] [predicate :as p] [hadoop :as hadoop]])
   (:import [cascading.tap Tap])
   (:import [cascading.tuple Fields Tuple TupleEntry])
   (:import [cascading.flow Flow FlowConnector])
@@ -509,7 +509,7 @@
     ["" args]))
 
 (defn get-tuples [^Tap sink]
-  (with-open [it (.openForRead sink (JobConf.))]
+  (with-open [it (.openForRead sink (hadoop/job-conf *JOB-CONF*))]
     (doall
      (for [^TupleEntry t (iterator-seq it)]
        (vec (Util/coerceFromTuple (Tuple. (.getTuple t))))

@@ -29,7 +29,7 @@
            [clojure.lang IPersistentCollection]
            [org.apache.hadoop.mapred JobConf]
            [java.io File])
-  (:require [cascalog [workflow :as w] [rules :as rules]]))
+  (:require [cascalog [workflow :as w] [rules :as rules] [hadoop :as hadoop]]))
 
 (defn roundtrip [obj]
   (cascading.util.Util/deserializeBase64
@@ -112,7 +112,7 @@
   (let [spec (mapify-spec spec)
         source (mk-test-tap (:fields spec) path)]
     ;; unable to use with-log-level here for some reason
-    (with-open [collector (.openForWrite source (JobConf.))]
+    (with-open [collector (.openForWrite source (hadoop/job-conf cascalog.rules/*JOB-CONF*))]
       (doall (map #(.add collector (Util/coerceToTuple %)) (:tuples spec))))
     source ))
 

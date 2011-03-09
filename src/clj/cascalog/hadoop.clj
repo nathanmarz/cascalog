@@ -1,6 +1,7 @@
 (ns cascalog.hadoop
   (:import [org.apache.hadoop.fs FileSystem Path]
-           [org.apache.hadoop.conf Configuration])
+           [org.apache.hadoop.conf Configuration]
+           [org.apache.hadoop.mapred JobConf])
   (:import [java.io File FileNotFoundException FileOutputStream BufferedOutputStream])
   )
 
@@ -30,6 +31,13 @@
 
 (defn configuration [conf-map]
   (let [ret (Configuration.)]
+    (doall
+      (for [config conf-map]
+        (conf-set {:key (first config) :value (last config) :conf ret})))
+    ret))
+
+(defn job-conf [conf-map]
+  (let [ret (JobConf.)]
     (doall
       (for [config conf-map]
         (conf-set {:key (first config) :value (last config) :conf ret})))
