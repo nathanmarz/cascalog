@@ -301,14 +301,6 @@
   [vars]
   (substitute-if (complement cascalog-var?) (fn [_] (gen-nullable-var)) vars))
 
-(defn- output-substitution
-  "Returns [{newvars map to constant values} {old vars to new vars that should be equal}]"
-  [sub-map]
-  (reduce (fn [[newvars equalities] [oldvar value]]
-    (let [v (gen-nullable-var)]
-      [(assoc newvars v value) (assoc equalities oldvar v)]))
-    [{} {}] (seq sub-map)))
-
 (w/deffilterop non-null? [& objs]
   (every? (complement nil?) objs))
 
@@ -382,28 +374,21 @@
 (defn build-predicate
   "Build a predicate. Calls down to build-predicate-specific for predicate-specific building 
   and adds constant substitution and null checking of ? vars."
-  [options op opvar hof-args orig-infields outfields]
+  [options op opvar hof-args orig-infields outvars]
     (let [options                        (mk-serializable-options options)
-          outfields                      (replace-ignored-vars outfields)
+          outvars                        (replace-ignored-vars outvars)
           [infields infield-subs]        (variable-substitution orig-infields)
           [infields dupvars
             duplicate-assem]             (fix-duplicate-infields infields)
-          [outfields outfield-subs]      (variable-substitution outfields)
-          predicate                      (build-predicate-specific op opvar hof-args infields outfields options)
-          [newsubs equalities]           (output-substitution outfield-subs)
-          new-outfields                  (concat outfields (keys newsubs) (keys infield-subs) dupvars)
+          predicate                      (build-predicate-specific op opvar hof-args infields outvars options)
+          new-outvars                    (concat outvars (keys infield-subs) dupvars)
           in-insertion-assembly          (when-not (empty? infields) (w/compose-straight-assemblies
                                             (mk-insertion-assembly infield-subs)
                                             duplicate-assem))
-          out-insertion-assembly         (mk-insertion-assembly newsubs)
-          null-check-out                 (mk-null-check new-outfields)
-          equality-assemblies            (map w/equal equalities)
-          outassembly                    (apply w/compose-straight-assemblies
-                                            (concat [out-insertion-assembly
-                                                    null-check-out]
-                                          equality-assemblies))]
+          null-check-out                 (mk-null-check outvars)
+          ]
           (enhance-predicate predicate
                              (filter cascalog-var? orig-infields)
                              in-insertion-assembly
-                             new-outfields
-                             outassembly)))
+                             new-outvars
+                             null-check-out)))

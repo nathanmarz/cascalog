@@ -396,6 +396,16 @@
       (test?- double-second-sink pairs)
       )))
 
+
+(deftest test-constant-substitution
+  (with-tmp-sources [pairs [[1 2] [1 3] [2 5]]]
+    (test?<- [[1 2]] [?a ?b] (pairs ?a ?b) (* 2 ?b :> 4) (:distinct false))
+    (test?<- [[1]] [?a] (pairs ?a ?b) (c/count 2))
+    (test?<- [[2]] [?a] (pairs ?a _) (odd? ?a :> false))
+;; See https://www.assembla.com/spaces/cascalog/tickets/11-constants-don-t-work-in-aggregator-predicates
+;;     (test?<- [[1 4] [2 2]] [?a ?count] (pairs ?a _) (c/sum 2 :> ?count))
+    ))
+
 (deftest test-outer-join-with-funcs
   ;; TODO: needed
 )

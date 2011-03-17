@@ -23,16 +23,17 @@
   [(inc (apply + all)) (first all)])
 
 (deftest test-variable-substitution
-  (let [pred (build-predicate {} addplusone (var addplusone) nil ["?f1" "?f2" 3 4 "?f3"] ["?s" 6])
+  (let [pred (build-predicate {} addplusone (var addplusone) nil ["?f1" "?f2" 3 4 "?f3"] ["?s" "?s2"])
         source-data {:fields ["?f1" "?f2" "?f3"] :tuples [[6 2 3]
                                                           [8 12 19]
                                                           [6 7 12]
                                                           [1 4 8]]}
-        sink-data   {:fields ["?s"] :tuples [[33] [19]]} ]
+        sink-data   {:fields ["?s" "?s2"] :tuples [[33 6] [19 6] [47 8] [21 1]]} ]
     (is (= :operation (:type pred)))
     (is (= ["?f1" "?f2" "?f3"] (:infields pred)))
     (is (contains? (set (:outfields pred)) "?s"))
-    (is (= 5 (count (:outfields pred))))
+    (is (contains? (set (:outfields pred)) "?s2"))
+    (is (= 4 (count (:outfields pred))))
     (test-assembly source-data sink-data (:assembly pred))
     ))
 

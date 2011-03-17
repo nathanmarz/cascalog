@@ -379,6 +379,20 @@
         drift-map             (mk-drift-map vmap)]
       [out-vars raw-predicates drift-map] ))
 
+(defn split-outvar-constants [[op opvar hof-args invars outvars]]
+  (let [[new-outvars newpreds] (reduce
+                                 (fn [[outvars preds] v]
+                                   (if (cascalog-var? v)
+                                     [(conj outvars v) preds]
+                                     (let [newvar (gen-nullable-var)]
+                                       [(conj outvars newvar)
+                                        (conj preds [= #'= nil [v newvar] []])]
+                                       )))
+                                 [[] []]
+                                 outvars)]
+  (cons [op opvar hof-args invars new-outvars] newpreds)
+  ))
+
 (defn- build-query [out-vars raw-predicates]
   (debug-print "outvars:" out-vars)
   (debug-print "raw predicates:" raw-predicates)
@@ -387,6 +401,7 @@
          drift-map]               (uniquify-query-vars out-vars raw-predicates)
         [raw-opts raw-predicates] (separate #(keyword? (first %)) raw-predicates)
         options                   (mk-options (map p/mk-option-predicate raw-opts))
+        raw-predicates            (mapcat split-outvar-constants raw-predicates)
         [gens ops aggs]           (split-predicates (map (partial apply p/build-predicate options) raw-predicates))
         rule-graph                (mk-graph)
         tails                     (map (fn [g] (struct tailstruct (:ground? g)
