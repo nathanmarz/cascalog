@@ -357,12 +357,12 @@
                 (IllegalArgumentException. (str k " is not a valid option predicate"))))
             {k v})) opt-predicates))))
 
-(defn- predicate-parser-reducer [preds [op opvar vars]]
+(defn- parse-predicate [[op opvar vars]]
  (let [[vars hof-args] (if (p/hof-predicate? op)
                           [(rest vars) (collectify (first vars))]
                           [vars nil])
        {invars :<< outvars :>>} (p/parse-variables vars (p/predicate-default-var op))]
-    (conj preds [op opvar hof-args invars outvars]) ))
+    [op opvar hof-args invars outvars] ))
 
 (defn- mk-var-uniquer-reducer [out?]
   (fn [[preds vmap] [op opvar hof-args invars outvars]]
@@ -372,8 +372,7 @@
       )))
 
 (defn- uniquify-query-vars [out-vars raw-predicates]
-  (let [raw-predicates        (reduce predicate-parser-reducer [] raw-predicates)
-        [raw-predicates vmap] (reduce (mk-var-uniquer-reducer true) [[] {}] raw-predicates)
+  (let [[raw-predicates vmap] (reduce (mk-var-uniquer-reducer true) [[] {}] raw-predicates)
         [raw-predicates vmap] (reduce (mk-var-uniquer-reducer false) [[] vmap] raw-predicates)
         [out-vars vmap]       (uniquify-vars out-vars false vmap)
         drift-map             (mk-drift-map vmap)]
@@ -397,10 +396,14 @@
   (debug-print "outvars:" out-vars)
   (debug-print "raw predicates:" raw-predicates)
   ;; TODO: split out a 'make predicates' function that does correct validation within it, ensuring unground vars appear only once
-  (let [[out-vars raw-predicates
+  (let [raw-predicates            (map parse-predicate raw-predicates)
+        [out-vars raw-predicates
          drift-map]               (uniquify-query-vars out-vars raw-predicates)
         [raw-opts raw-predicates] (separate #(keyword? (first %)) raw-predicates)
         options                   (mk-options (map p/mk-option-predicate raw-opts))
+        ;; for gen filtering.... need to move this up before drift map is created. need to make it look like a generator with some additional information on it - then everything else can work normally
+        ;; at the end, generator just needs that little extra information tagged to it, with invars treated as outvars
+        ;; needs to work for generators, taps, cascalog-taps, data-structures...
         raw-predicates            (mapcat split-outvar-constants raw-predicates)
         [gens ops aggs]           (split-predicates (map (partial apply p/build-predicate options) raw-predicates))
         rule-graph                (mk-graph)
