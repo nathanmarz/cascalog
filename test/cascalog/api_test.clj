@@ -252,7 +252,7 @@
 
 (deftest test-bufferiter
   (with-tmp-sources [nums [[1] [2] [4]]]
-    (test?<- :info [[7]] [?s] (nums ?n) (itersum ?n :> ?s))
+    (test?<- [[7]] [?s] (nums ?n) (itersum ?n :> ?s))
     ))
 
 (defn inc-tuple [& tuple]
