@@ -13,8 +13,7 @@
  ;    You should have received a copy of the GNU General Public License
  ;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-(ns cascalog.playground
-  (:use [cascalog api testing]))
+(ns cascalog.playground)
 
 (defmacro bootstrap []
   '(do
@@ -36,7 +35,8 @@
     (System/setOut (PrintStream. (WriterOutputStream. *out*)))
     ))
 
-(def person (memory-source-tap [
+(def person
+  [
   ["alice"]
   ["bob"]
   ["chris"]
@@ -47,9 +47,10 @@
   ["harold"]
   ["kumar"]
   ["luanne"]
-  ]))
+  ])
 
-(def age (memory-source-tap [
+(def age
+  [
   ["alice" 28]
   ["bob" 33]
   ["chris" 40]
@@ -59,9 +60,10 @@
   ["gary" 28]
   ["kumar" 27]
   ["luanne" 36]
-  ]))
+  ])
 
-(def gender (memory-source-tap [
+(def gender
+  [
   ["alice" "f"]
   ["bob" "m"]
   ["chris" "m"]
@@ -71,10 +73,11 @@
   ["gary" "m"]
   ["harold" "m"]
   ["luanne" "f"]
-  ]))
+  ])
 
 
-(def gender-fuzzy (memory-source-tap [
+(def gender-fuzzy
+  [
 ;; person gender timestamp
   ["alice" "f" 100]
   ["alice" "m" 102]
@@ -88,19 +91,21 @@
   ["emily" "f" 100]
   ["george" "m" 100]
   ["george" "m" 101]
-  ]))
+  ])
 
 
-(def full-names (memory-source-tap [
+(def full-names
+  [
   ["alice" "Alice Smith"]
   ["bob" "Bobby John Johnson"]
   ["chris" "CHRIS"]
   ["david" "A B C D E"]
   ["emily" "Emily Buchanan"]
   ["george" "George Jett"]
-  ]))
+  ])
 
-(def location (memory-source-tap [
+(def location
+  [
   ["alice" "usa" "california" nil]
   ["bob" "canada" nil nil]
   ["chris" "usa" "pennsylvania" "philadelphia"]
@@ -108,9 +113,10 @@
   ["emily" "france" nil nil]
   ["gary" "france" nil "paris"]
   ["luanne" "italy" nil nil]
-  ]))
+  ])
 
-(def follows (memory-source-tap [
+(def follows
+  [
   ["alice" "david"]
   ["alice" "bob"]
   ["alice" "emily"]
@@ -127,9 +133,10 @@
   ["harold" "bob"]
   ["luanne" "harold"]
   ["luanne" "gary"]
-  ]))
+  ])
 
-(def num-pair (memory-source-tap [
+(def num-pair
+  [
   [1 2]
   [0 0]
   [1 1]
@@ -140,9 +147,10 @@
   [8 64]
   [8 3]
   [4 0]
-  ]))
+  ])
 
-(def integer (memory-source-tap [
+(def integer
+  [
   [-1]
   [0]
   [1]
@@ -154,9 +162,10 @@
   [7]
   [8]
   [9]
-  ]))
+  ])
 
-(def sentence (memory-source-tap [
+(def sentence
+  [
   ["Four score and seven years ago our fathers brought forth on this continent a new nation"]
   ["conceived in Liberty and dedicated to the proposition that all men are created equal"]
   ["Now we are engaged in a great civil war testing whether that nation or any nation so"]
@@ -175,29 +184,30 @@
   ["not have died in vain  that this nation under God shall have a new birth of freedom"]
   ["and that government of the people by the people for the people shall not perish"]
   ["from the earth"]
-  ]))
+  ])
 
 (def duprows
-     (memory-source-tap
-      [
-       [1 2 3]
-       [1 2 3]
-       [1 2 5]
-       [1 3 6]
-       [2 5 7]
-       [2 2 2]
-       ]))
+  [
+  [1 2 3]
+  [1 2 3]
+  [1 2 5]
+  [1 3 6]
+  [2 5 7]
+  [2 2 2]
+  ])
 
-(def dirty-ages (memory-source-tap [
+(def dirty-ages
+  [
 ; [timestamp name age]
   [1200 "alice" 20]
   [1000 "bob" 25]
   [1500 "harry" 46]
   [1800 "alice" 19]
   [2000 "bob" 30]
-  ]))
+  ])
 
-(def dirty-follower-counts (memory-source-tap [
+(def dirty-follower-counts
+  [
 ; [timestamp name follower-count]
   [2000 "gary" 56]
   [1100 "george" 124]
@@ -205,5 +215,5 @@
   [3000 "juliette" 1002]
   [3002 "juliette" 1010]
   [3001 "juliette" 1011]
-  ]))
+  ])
 
