@@ -27,7 +27,6 @@ Cascalog is hosted at [Clojars](http://clojars.org/cascalog). Clojars is a maven
 
 1. Replicated and bloom joins
 2. Cross query optimization: push constants and filters down into subqueries when possible
-3. Negations, i.e. "people who like dogs and don't like cats" (<- \[?p] (likes ?p "dogs") (likes ?p "cats" :> false)) [implement with multigroupby of some sort]
 
 
 # Acknowledgements
