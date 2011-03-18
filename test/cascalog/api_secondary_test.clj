@@ -112,3 +112,11 @@
       (is (= (set [[2] [3] [4]]) (set (first res))))
       (is (= (set [["alicea"] ["boba"]]) (set (second res))))
       )))
+
+(deftest test-negation
+  ;; test multiple, test capturing, test using constants
+  )
+
+(deftest test-negation-errors
+  ;; test that can't have a predicate refer to a non-join field (should get exception)
+  )

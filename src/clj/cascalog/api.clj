@@ -197,7 +197,7 @@
         pname (uuid)
         outfields (gen-nullable-vars (count fields))
         pipe (w/assemble (w/pipe pname) (w/identity fields :fn> outfields :> outfields))]
-    (p/predicate p/generator true {pname tap} pipe outfields {})))
+    (p/predicate p/generator nil true {pname tap} pipe outfields {})))
 
 (defmethod select-fields :generator [query select-fields]
   (let [select-fields (collectify select-fields)
