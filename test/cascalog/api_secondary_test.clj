@@ -114,9 +114,29 @@
       )))
 
 (deftest test-negation
-  ;; TODO: test multiple, test capturing, test using constants
-  )
+  (with-tmp-sources [age [["nathan" 25] ["nathan" 24] ["alice" 23] ["george" 31]]
+                     gender [["nathan" "m"] ["emily" "f"] ["george" "m"] ["bob" "m"]]
+                     follows [["nathan" "bob"] ["nathan" "alice"] ["alice" "nathan"] ["alice" "jim"] ["bob" "nathan"]]]
+    (test?<- [["george"]] [?p] (age ?p _) (follows ?p _ :> false) (:distinct false))
+    (test?<- [["nathan"] ["nathan"] ["alice"]] [?p] (age ?p _) (follows ?p _ :> true) (:distinct false))
+    (test?<- [["alice"]] [?p] (age ?p _) (follows ?p "nathan" :> true) (:distinct false))
+    (test?<- [["nathan"] ["nathan"] ["george"]] [?p] (age ?p _) (follows ?p "nathan" :> false) (:distinct false))
+    (test?<- [["nathan" true true] ["nathan" true true] ["alice" true false] ["george" false true]]
+        [?p ?isfollows ?ismale] (age ?p _) (follows ?p _ :> ?isfollows)
+                                (gender ?p "m" :> ?ismale) (:distinct false))
+    (test?<- [["nathan" true true] ["nathan" true true]]
+        [?p ?isfollows ?ismale] (age ?p _) (follows ?p _ :> ?isfollows)
+                                (gender ?p "m" :> ?ismale) (= ?ismale ?isfollows) (:distinct false))
+    (let [old (<- [?p ?a] (age ?p ?a) (> ?a 30) (:distinct false))]
+      (test?<- [["nathan"] ["bob"]] [?p] (gender ?p "m") (old ?p _ :> false) (:distinct false))
+      )
+    (test?<- [[24] [31]] [?n] (age _ ?n) ([[25] [23]] ?n :> false) (:distinct false))
+    (test?<- [["alice"]] [?p] (age ?p _) ((c/negate gender) ?p _) (:distinct false))
+    ;; TODO: test within massive joins (more than one join field, after other joins complete, etc.)
+    ))
 
 (deftest test-negation-errors
-  ;; TODO: test that can't have a predicate refer to a non-join field (should get exception)
-  )
+  (with-tmp-sources [nums [[1] [2] [3]]
+                     pairs [[3 4] [4 5]]]
+    (is (thrown? Exception (<- [?n] (nums ?n) (pairs ?n ?n2 :> false) (odd? ?n2))))
+    ))
