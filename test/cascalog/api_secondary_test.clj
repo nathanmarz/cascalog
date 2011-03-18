@@ -114,9 +114,9 @@
       )))
 
 (deftest test-negation
-  ;; test multiple, test capturing, test using constants
+  ;; TODO: test multiple, test capturing, test using constants
   )
 
 (deftest test-negation-errors
-  ;; test that can't have a predicate refer to a non-join field (should get exception)
+  ;; TODO: test that can't have a predicate refer to a non-join field (should get exception)
   )

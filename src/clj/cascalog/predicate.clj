@@ -48,13 +48,14 @@
   `(struct ~aname ~(keyword (name aname)) (uuid) ~@attrs))
 
 ;; for map, mapcat, and filter
-(defpredicate operation :assembly :infields :outfields)
+(defpredicate operation :assembly :infields :outfields :allow-on-genfilter?)
 
 ;; return a :post-assembly, a :parallel-agg, and a :serial-agg-assembly
 (defpredicate aggregator :buffer? :parallel-agg :pregroup-assembly :serial-agg-assembly :post-assembly :infields :outfields)
 ;; automatically generates source pipes and attaches to sources
 (defpredicate generator :join-set-var :ground? :sourcemap :pipe :outfields :trapmap)
 (defpredicate generator-filter :generator :outvar)
+(defpredicate outconstant-equal)
 
 (defpredicate option :key :val)
 
@@ -215,13 +216,16 @@
   (when (nil? opvar) (throw (RuntimeException. "Functions must have vars associated with them")))
   (let [[func-fields out-selector] (if (not-empty outfields) [outfields Fields/ALL] [nil nil])
         assembly (w/filter opvar infields :fn> func-fields :> out-selector)]
-    (predicate operation assembly infields outfields)))
+    (predicate operation assembly infields outfields false)))
+
+(defmethod build-predicate-specific :outconstant-equal [_ _ _ infields outfields options]
+  (assoc (build-predicate-specific = #'= _ infields outfields options) :allow-on-genfilter? true))
 
 (defn- hof-prepend [hof-args & args]
   (if hof-args (cons hof-args args) args))
 
 (defn- simpleop-build-predicate [op _ hof-args infields outfields options]
-    (predicate operation (apply op (hof-prepend hof-args infields :fn> outfields :> Fields/ALL)) infields outfields))
+    (predicate operation (apply op (hof-prepend hof-args infields :fn> outfields :> Fields/ALL)) infields outfields false))
 
 (defmethod build-predicate-specific :map [& args]
   (apply simpleop-build-predicate args))
@@ -232,12 +236,13 @@
 (defmethod build-predicate-specific :filter [op _ hof-args infields outfields options]
   (let [[func-fields out-selector] (if (not-empty outfields) [outfields Fields/ALL] [nil nil])
      assembly (apply op (hof-prepend hof-args infields :fn> func-fields :> out-selector))]
-    (predicate operation assembly infields outfields)))
+    (predicate operation assembly infields outfields false)))
 
 (defmethod build-predicate-specific ::cascalog-function [op _ _ infields outfields options]
   (predicate operation (w/raw-each (w/fields infields) (CascalogFunctionExecutor. (w/fields outfields) op) Fields/ALL)
                        infields
-                       outfields))
+                       outfields
+                       false))
 
 (defmethod build-predicate-specific ::cascading-filter [op _ _ infields outfields options]
   (when (> (count outfields) 1)
@@ -246,7 +251,7 @@
         assem (if (empty? outfields)
                 (w/raw-each c-infields op)
                 (w/raw-each c-infields (CascadingFilterToFunction. (first outfields) op) Fields/ALL))]
-    (predicate operation assem infields outfields)
+    (predicate operation assem infields outfields false)
     ))
 
 (defn- mk-hof-fn-spec [avar args]

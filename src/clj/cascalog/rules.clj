@@ -88,7 +88,7 @@
         available-fields (:available-fields tail)
         join-set-vars (find-generator-join-set-vars (:node tail))
         infields-set (set (:infields op))]
-    (and (empty? join-set-vars)
+    (and (or (:allow-on-genfilter? op) (empty? join-set-vars))
          (subset? infields-set (set available-fields))
          (or ground? (every? ground-var? infields-set)))
     ))
@@ -108,7 +108,7 @@
         rename-assembly (if-not (empty? rename-in) (w/identity rename-in :fn> outfields :> Fields/SWAP) identity)
         assembly   (apply w/compose-straight-assemblies (concat eq-assemblies [rename-assembly]))
         infields (vec (apply concat rename-in equality-sets))
-        tail (connect-op tail (p/predicate p/operation assembly infields outfields))
+        tail (connect-op tail (p/predicate p/operation assembly infields outfields false))
         newout (difference (set (:available-fields tail)) (set rename-in))]
         (merge tail {:drift-map new-drift-map :available-fields newout} )))
 
@@ -443,7 +443,7 @@
                                      [(conj outvars v) preds]
                                      (let [newvar (gen-nullable-var)]
                                        [(conj outvars newvar)
-                                        (conj preds [= #'= nil [v newvar] []])]
+                                        (conj preds [(p/predicate p/outconstant-equal) nil nil [v newvar] []])]
                                        )))
                                  [[] []]
                                  outvars)]
