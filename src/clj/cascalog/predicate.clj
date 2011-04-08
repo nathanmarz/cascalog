@@ -378,20 +378,11 @@
 (defn mk-option-predicate [[op _ _ infields _]]
     (predicate option op infields))
 
-(defn- mk-serializable-options
-  "Hack until Clojure 1.2 where Clojure data is serializable"
-  [options]
-  (let [sortfields (:sort options)]
-    (if sortfields
-      (assoc options :sort (ArrayList. sortfields))
-      options )))
-
 (defn build-predicate
   "Build a predicate. Calls down to build-predicate-specific for predicate-specific building 
   and adds constant substitution and null checking of ? vars."
   [options op opvar hof-args orig-infields outvars]
-    (let [options                        (mk-serializable-options options)
-          outvars                        (replace-ignored-vars outvars)
+    (let [outvars                        (replace-ignored-vars outvars)
           [infields infield-subs]        (variable-substitution orig-infields)
           [infields dupvars
             duplicate-assem]             (fix-duplicate-infields infields)
