@@ -553,15 +553,7 @@
 (def *JOB-CONF* {})
 
 (defn connect-to-sink [gen sink]
-    (let [sink-fields (.getSinkFields sink)
-          pipe        (:pipe gen)
-          pipe        (if-not (.isDefined sink-fields)
-                        (if (.isAll sink-fields)
-                          pipe
-                          (throw (IllegalArgumentException.
-                            "Cannot sink to a sink with meta fields defined besides Fields/ALL")))
-                        ((w/identity (:outfields gen) :fn> sink-fields) pipe))]
-          ((w/pipe-rename (uuid)) pipe)))
+  ((w/pipe-rename (uuid)) (:pipe gen)))
 
 (defn combine* [gens distinct?]
   ;; it would be nice if cascalog supported Fields/UNKNOWN as output of generator
