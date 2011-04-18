@@ -34,7 +34,7 @@
            [java.util Properties Map ArrayList]
            [cascalog ClojureFilter ClojureMapcat ClojureMap
                      ClojureAggregator Util ClojureBuffer ClojureBufferIter
-                     FastFirst MemorySourceTap]
+                     FastFirst MemorySourceTap MultiGroupBy ClojureMultibuffer]
            [java.io File]
            [java.lang RuntimeException Comparable]))
 
@@ -98,7 +98,7 @@
         varargs             (rest arr)
         spec                (fn-spec func-args)
         func-var            (if (var? func-args) func-args (clojure.core/first func-args))
-                              first-elem (clojure.core/first varargs)
+        first-elem (clojure.core/first varargs)
         [in-fields keyargs] (if (or (nil? first-elem)
                                     (keyword? first-elem))
                                   [Fields/ALL (apply hash-map varargs)]
@@ -265,6 +265,17 @@
       (Every. previous in-fields
         (ClojureBufferIter. func-fields specs stateful) out-fields))))
 
+(defn multibuffer [& args]
+  (fn [pipes fields-sum]
+    (debug-print "multibuffer" args)
+    (let [[group-fields func-fields specs _ stateful] (parse-args args Fields/ALL)]
+      (MultiGroupBy.
+        pipes
+        group-fields
+        fields-sum
+        (ClojureMultibuffer. func-fields specs stateful)
+        ))))
+
 ;; we shouldn't need a seq for fields (b/c we know how many pipes we have)
 (defn co-group
   [fields-seq declared-fields joiner]
@@ -345,6 +356,9 @@
 
 (defmacro defbufferop [& args]
     (defop-helper 'cascalog.workflow/buffer args))
+
+(defmacro defmultibufferop [& args]
+    (defop-helper 'cascalog.workflow/multibuffer args))
 
 (defmacro defbufferiterop [& args]
     (defop-helper 'cascalog.workflow/bufferiter args))

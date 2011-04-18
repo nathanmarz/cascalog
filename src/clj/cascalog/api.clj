@@ -78,6 +78,24 @@
   [] (StdoutTap.))
 
 
+;; Query introspection
+
+(defmulti get-out-fields cascalog.rules/generator-selector)
+
+(defmethod get-out-fields :tap [tap]
+  (let [cfields (.getSourceFields tap)]
+    (if (cascalog.rules/generic-cascading-fields? cfields)
+      (throw (IllegalArgumentException. (str "Cannot get specific out-fields from tap. Tap source fields: " cfields)))
+      (vec (seq cfields))
+      )))
+
+(defmethod get-out-fields :generator [query]
+  (:outfields query))
+
+(defmethod get-out-fields :cascalog-tap [cascalog-tap]
+  (get-out-fields (:source cascalog-tap)))
+
+
 ;; Query creation and execution
 
 (defmacro <-
@@ -132,7 +150,7 @@
     (let [outtaps (for [q subqueries] (hfs-seqfile (str tmp "/" (uuid))))
           bindings (mapcat vector outtaps subqueries)]
       (apply ?- bindings)
-      (doall (map cascalog.rules/get-tuples outtaps))      
+      (doall (map cascalog.rules/get-tuples outtaps))
       )))
 
 (defmacro ?<-
@@ -190,6 +208,31 @@
   [& gens]
   (cascalog.rules/combine* gens false))
 
+(defn multigroup* [declared-group-vars buffer-out-vars buffer-spec & sqs]
+  (let [[buffer-op hof-args] (if (sequential? buffer-spec) buffer-spec [buffer-spec nil])
+        sq-out-vars (map get-out-fields sqs)
+        group-vars (apply set/intersection (map set sq-out-vars))
+        num-vars (reduce + (map count sq-out-vars))
+        pipes (into-array Pipe (map :pipe sqs))
+        args [declared-group-vars :fn> buffer-out-vars]
+        args (if hof-args (cons hof-args args) args)]
+    (when (empty? declared-group-vars)
+      (throw (IllegalArgumentException. "Cannot do global grouping with multigroup")))
+    (when-not (= (set group-vars) (set declared-group-vars))
+      (throw (IllegalArgumentException. "Declared group vars must be same as intersection of vars of all subqueries")))
+    (p/predicate
+      p/generator nil
+                  true
+                  (apply merge (map :sourcemap sqs))
+                  ((apply buffer-op args) pipes num-vars)
+                  (concat declared-group-vars buffer-out-vars)
+                  (apply merge (map :trapmap sqs))
+                  )
+    ))
+
+(defmacro multigroup [group-vars out-vars buffer-spec & sqs]
+  `(multigroup* ~(vars2str group-vars) ~(vars2str out-vars) ~buffer-spec ~@sqs))
+
 (defmulti select-fields cascalog.rules/generator-selector)
 
 (defmethod select-fields :tap [tap fields]
@@ -217,24 +260,6 @@
     ))
 
 
-;; Query introspection
-
-(defmulti get-out-fields cascalog.rules/generator-selector)
-
-(defmethod get-out-fields :tap [tap]
-  (let [cfields (.getSourceFields tap)]
-    (if (cascalog.rules/generic-cascading-fields? cfields)
-      (throw (IllegalArgumentException. (str "Cannot get specific out-fields from tap. Tap source fields: " cfields)))
-      (vec (seq cfields))
-      )))
-
-(defmethod get-out-fields :generator [query]
-  (:outfields query))
-
-(defmethod get-out-fields :cascalog-tap [cascalog-tap]
-  (get-out-fields (:source cascalog-tap)))
-
-
 ;; Defining custom operations
 
 (defalias defmapop w/defmapop
@@ -244,6 +269,8 @@
   "")
 
 (defalias defbufferop w/defbufferop)
+
+(defalias defmultibufferop w/defmultibufferop)
 
 (defalias defbufferiterop w/defbufferiterop)
 
