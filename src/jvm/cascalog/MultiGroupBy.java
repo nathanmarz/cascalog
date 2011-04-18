@@ -31,6 +31,7 @@ import cascading.pipe.cogroup.Joiner;
 import cascading.tuple.Fields;
 import cascading.tuple.SpillableTupleList;
 import cascading.tuple.Tuple;
+import java.util.UUID;
 
 public class MultiGroupBy extends SubAssembly {
   public static interface MultiBuffer extends Serializable {
@@ -139,10 +140,12 @@ public class MultiGroupBy extends SubAssembly {
   }
   
   protected void init(Pipe[] pipes, Fields[] groupFields, int pipeFieldsSum, Fields groupingRename, MultiBuffer operation) {
- 
+    for(int i=0; i<pipes.length; i++) {
+        pipes[i] = new Pipe(UUID.randomUUID().toString(), pipes[i]);
+        pipes[i] = new Each(pipes[i], Fields.ALL, new Identity(), Fields.RESULTS);
+    }
     Fields resultFields =  Fields.join(groupingRename, ((BaseOperation)operation).getFieldDeclaration());
     if(resultFields.size()>pipeFieldsSum) throw new IllegalArgumentException("Can't have output more than sum of input pipes since this is a hack!");    
-    
     // unfortunately, need to hack around CoGroup validation stuff since cascading assumes it will return #fields=sum of input pipes
     Fields fake = new Fields();
     fake = fake.append(resultFields);
