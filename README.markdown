@@ -1,12 +1,21 @@
 # About
 
-Cascalog is a tool for processing data on Hadoop with Clojure in a concise and expressive manner. Cascalog combines two cutting edge technologies in Clojure and Hadoop and resurrects an old one in Datalog. Cascalog is high performance, flexible, and robust.
+Cascalog is a fully-featured data processing and querying library for Clojure. The main use cases for Cascalog are processing "Big Data" on top of Hadoop or doing analysis on your local computer from the Clojure REPL. Cascalog is a replacement for tools like Pig, Hive, and Cascading.
 
-Most query languages, like SQL, Pig, and Hive, are custom languages -- and this leads to huge amounts of accidental complexity. Constructing queries dynamically by doing string manipulation is an impedance mismatch and makes usual programming techniques like abstraction and composition difficult.
-
-Cascalog queries are first-class within Clojure and are extremely composable. Additionally, the Datalog syntax of Cascalog is simpler and more expressive than SQL-based languages.
+Cascalog operates at a significantly higher level of abstraction than a tool like SQL. More importantly, its tight integration with Clojure gives you the power to use abstraction and composition techniques with your data processing code just like you would with any other code. It's this latter point that sets Cascalog far above any other tool in terms of expressive power.
 
 Follow the getting started steps, check out the tutorial, and you'll be running Cascalog queries on your local computer within 5 minutes.
+
+# Getting Started
+
+The best way to get started with Cascalog is experiment with the toy datasets that ship with the project. These datasets are served from memory and can be played with purely from the REPL. Just follow these steps and you'll be on your way:
+
+1. Install [leiningen](http://github.com/technomancy/leiningen)
+2. Make sure you have Java 1.6
+3. export JAVA_OPTS=-Xmx768m
+4. checkout the Cascalog project using Git
+5. lein compile && lein repl
+6. Work through the examples in the [introductory](http://nathanmarz.com/blog/introducing-cascalog-a-clojure-based-query-language-for-hado.html) [tutorials](http://nathanmarz.com/blog/new-cascalog-features-outer-joins-combiners-sorting-and-more.html)
 
 # Documentation and Issue Tracker
 
@@ -16,7 +25,7 @@ Documentation and issue tracker can be found on the [Cascalog wiki](https://www.
 
 Google group: [cascalog-user](http://groups.google.com/group/cascalog-user)
 
-Come chat in the #cascading room on freenode
+Come chat in the #cascalog or #cascading rooms on freenode
 
 # Using Cascalog within a project
 
