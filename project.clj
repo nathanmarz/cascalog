@@ -6,8 +6,9 @@
                  [org.clojure/clojure-contrib "1.2.0"]
                  ;; jgrapht exclusion works around cascading pom bug that causes projects dependent on
                  ;; cascalog to not be able to find jgrapht
-                 [cascading/cascading-core "1.2-wip-63" :exclusions [org.codehaus.janino/janino thirdparty/jgrapht-jdk1.6]]
+                 [cascading/cascading-core "1.2-wip-63" :exclusions [org.codehaus.janino/janino thirdparty/jgrapht-jdk1.6 riffle/riffle]]
                  [thirdparty/jgrapht-jdk1.6 "0.8.1"]
+                 [riffle/riffle "0.1-dev"]
                  [log4j/log4j "1.2.16"]
                  ]
   :repositories {"conjars" "http://conjars.org/repo/"}
