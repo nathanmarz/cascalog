@@ -508,6 +508,8 @@
     [replacements (conj ret [op opvar newvars])] ))
 
 (defn- build-predicate-macro-fn [invars-decl outvars-decl raw-predicates]
+  (when-not (empty? (intersection (set invars-decl) (set outvars-decl)))
+    (throw (RuntimeException. "Cannot declare the same var as an input and output to predicate macro")))
   (fn [invars outvars]
     (let [outvars (if (and (empty? outvars) (sequential? outvars-decl) (= 1 (count outvars-decl)))
                     [true]

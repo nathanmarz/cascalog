@@ -7,10 +7,14 @@
 
 (deftest test-predicate-macro
   (let [mac1 (<- [?a :> ?b ?c] (+ ?a 1 :> ?t) (* ?t 2 :> ?b) (+ ?a ?t :> ?c))
-        mac2 (<- [:< ?a] (* ?a ?a :> ?a))]
+        mac2 (<- [:< ?a] (* ?a ?a :> ?a))
+        mac3 (<- [?a :> ?b] (+ ?a ?a :> ?b))]
     (with-tmp-sources [num1 [[0] [1] [2] [3]]]
       (test?<- [[-1 1] [0 3] [1 5] [2 7]] [?t ?o] (num1 ?n) (mac1 ?n :> _ ?o) (dec ?n :> ?t))
       (test?<- [[0] [1]] [?n] (num1 ?n) (mac2 ?n))
+
+      ;; test that it allows same var used as input and output
+      (test?<- [[0]] [?n] (num1 ?n) (mac3 ?n :> ?n))
       )))
 
 (defn splitter [str]
@@ -150,6 +154,9 @@
     ;; TODO: not all any
     ))
 
+(deftest test-errors
+  (is (thrown? RuntimeException (<- [?a ?b ?c :> ?d ?a] (+ ?a ?b ?c :> ?d))))
+  )
 
 
 

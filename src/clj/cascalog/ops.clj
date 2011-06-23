@@ -100,7 +100,6 @@
   (<- [:<< !invars :> !c]
     (:sort :<< !invars) (distinct-count-agg :<< !invars :> !c)))
 
-
 ;; Common patterns
 
 (defnk first-n
