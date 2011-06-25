@@ -7,7 +7,7 @@
   (:import [cascalog.ops IdentityBuffer])
   (:require [cascalog [ops :as c]]))
 
-(defmapop mk-one [& tuple] 1)
+(defmapop mk-one "Returns 1 for any input." [& tuple] 1)
 
 (deftest test-no-input
   (with-tmp-sources [nums [[1] [2] [3]]]
@@ -87,6 +87,8 @@
   ))
 
 (defaggregateop evens-vs-odds
+  "Decrements state for odd inputs, increases for even. Returns final
+   state as a 1-tuple."
   ([] 0)
   ([context val] (if (odd? val) (dec context) (inc context)))
   ([context] [context]))
@@ -194,7 +196,9 @@
      [?p] (follows ?p ?p2) (age ?p2 ?a2) (age-tokens ?p ?a2 !!t) (nil? !!t))
   ))
 
-(defmapop [hof-add [a]] [n]
+(defmapop [hof-add [a]]
+  "Adds the static variable `a` to dynamic input `n`."
+  [n]
   (+ a n))
 
 (defmapop [hof-arithmetic [a b]] [n]

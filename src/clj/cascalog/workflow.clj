@@ -386,22 +386,22 @@
   (defop-helper 'cascalog.workflow/map args))
 
 (defmacro defmapcatop [& args]
-    (defop-helper 'cascalog.workflow/mapcat args))
+  (defop-helper 'cascalog.workflow/mapcat args))
 
 (defmacro deffilterop [& args]
-    (defop-helper 'cascalog.workflow/filter args))
+  (defop-helper 'cascalog.workflow/filter args))
 
 (defmacro defaggregateop [& args]
-    (defop-helper 'cascalog.workflow/aggregate args))
+  (defop-helper 'cascalog.workflow/aggregate args))
 
 (defmacro defbufferop [& args]
-    (defop-helper 'cascalog.workflow/buffer args))
+  (defop-helper 'cascalog.workflow/buffer args))
 
 (defmacro defmultibufferop [& args]
-    (defop-helper 'cascalog.workflow/multibuffer args))
+  (defop-helper 'cascalog.workflow/multibuffer args))
 
 (defmacro defbufferiterop [& args]
-    (defop-helper 'cascalog.workflow/bufferiter args))
+  (defop-helper 'cascalog.workflow/bufferiter args))
 
 (defn assemble
   ([x] x)
