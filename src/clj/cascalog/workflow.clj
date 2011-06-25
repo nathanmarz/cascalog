@@ -294,14 +294,16 @@
 (defn outer-joiner [] (OuterJoin.))
 
 (defn meta-conj
-  "TODO: Finish docs. Accepts a symbol and a metadata map, and conj"
+  "Returns the supplied symbol with the supplied `attr` map conj-ed
+  onto the symbol's current metadata."
   [sym attr]
   (with-meta sym (if (meta sym)
                    (conj (meta sym) attr)
                    attr)))
 
 (defn- update-arglists
-  "TODO: Docs."
+  "Scans the forms of a def* operation and adds an appropriate
+  `:arglists` entry to the supplied `sym`'s metadata."
   [sym [form :as args]]
   (let [arglists (if (vector? form)
                    (list form)
@@ -309,30 +311,44 @@
     (meta-conj sym {:arglists (list 'quote arglists)})))
 
 (defn- update-fields
-  "TODO: Docs."
-  [sym [a :as args]]
-  (if (string? (clojure.core/first a))
-    [(meta-conj sym {:fields a}) (rest args)]
-    [sym args]))
+  "Examines the first item in a def* operation's forms. If the first
+  form defines a sequence of Cascading output fields, these are added
+  to the supplied `sym`'s metadata and dropped from the form
+  sequence. Else, `sym` and `forms` are left unchanged.
+
+  This function will no longer be necessary, if Cascalog deprecates
+  the ability to name output fields before the dynamic argument
+  vector."
+  [sym [form :as forms]]
+  (if (string? (clojure.core/first form))
+    [(meta-conj sym {:fields form}) (rest forms)]
+    [sym forms]))
 
 (defn- parse-defop-args
+  "Accepts the body of a def* operation binding, outfits the function
+  var with all appropriate metadata, and returns a 3-tuple containing
+  `[fname f-args args]`.
+
+  * `fname`: the function var.
+  * `f-args`: static variable declaration vector.
+  * `args`: dynamic variable declaration vector."
   [[spec & args]]
-  (let [[hof? fname f-args] (if (sequential? spec)
-                              [true (clojure.core/first spec) (second spec)]
-                              [false spec nil])
+  (let [[fname f-args] (if (sequential? spec)
+                         [(clojure.core/first spec) (second spec)]
+                         [spec nil])
         [fname args] (->> [fname args]
                           (apply name-with-attributes)
                           (apply update-fields))
         fname (update-arglists fname args)]
-    [hof? fname f-args args]))
+    [fname f-args args]))
 
 (defn- defop-helper
   "creates an op that has metadata embedded within it, hack to work
    around fact that clojure doesn't allow metadata on functions. call
-   (op :meta) to get metadata this is so you can pass operations
+   (op :meta) to get metadata. This is so you can pass operations
    around and dynamically create flows."
   [type args]
-  (let  [[hof? fname func-args funcdef] (parse-defop-args args)
+  (let  [[fname func-args funcdef] (parse-defop-args args)
          args-sym        (gensym "args")
          args-sym-all    (gensym "argsall")
          casclojure-type (keyword (name type))
@@ -351,7 +367,7 @@
            ~(meta fname)
            [ & ~args-sym-all]
            (if (= :meta (clojure.core/first ~args-sym-all))
-             {::metadata {:type ~casclojure-type :hof? ~hof?}}
+             {::metadata {:type ~casclojure-type :hof? ~(boolean func-args)}}
              (let [~assembly-args ~args-sym-all]
                (apply ~type ~func-form ~args-sym)))))))
 
