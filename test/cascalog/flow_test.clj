@@ -31,7 +31,7 @@
      (test-assembly source-data sink-data
         (add-double ["n1" "n2"] :fn> "v" :> "v"))))
 
-(w/defmapcatop keeper-dropper "a" [v]
+(w/defmapcatop keeper-dropper ["a"] [v]
   (cond (= v 1) [v]
         (odd? v) []
         true    [v (inc v)]))
@@ -39,8 +39,8 @@
 (deftest test-mapcat-op
   (let [source-data {:fields ["n"] :tuples [[1] [2] [3] [4] [9]]}
         sink-data {:fields ["a"] :tuples [[1] [2] [3] [4] [5]]}]
-     (test-assembly source-data sink-data
-        (keeper-dropper "n" :> "a"))))
+    (test-assembly source-data sink-data
+                   (keeper-dropper "n" :> "a"))))
 
 (deftest test-filter-filter)
 
@@ -50,7 +50,7 @@
 
 (deftest test-higher-order-op)
 
-(w/defbufferop emit-odd "e" [vals]
+(w/defbufferop emit-odd ["e"] [vals]
   (filter #(odd? (first %)) vals))
 
 (deftest test-buffer
@@ -84,13 +84,13 @@
 
 (deftest disconnected-test
   (let [source-data [{:fields ["a"] :tuples [[1] [2] [3]]}
-                      {:fields ["b"] :tuples [[10]]}]
+                     {:fields ["b"] :tuples [[10]]}]
         sink-data   [{:fields ["x"] :tuples [[2] [3] [4]]}
                      {:fields ["y"] :tuples [[9]]}]
         assembly    (w/assembly [p1 p2] [p1 (p1 (w/map #'inc "a" :fn> "x" :> "x"))
                                          p2 (p2 (w/map #'dec "b" :fn> "y" :> "y"))]
                                 [p1 p2])]
-        (test-assembly source-data sink-data assembly)))
+    (test-assembly source-data sink-data assembly)))
 
 (deftest self-only-join-test
   (let [source-data {:fields ["k" "v"] :tuples [["a" 1] ["b" 2] ["a" 3]]}

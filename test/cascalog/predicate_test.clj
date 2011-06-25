@@ -4,7 +4,7 @@
         cascalog.predicate)
   (:require [cascalog [workflow :as w]]))
 
-(w/defmapop timesplusone "blahfield" [a b]
+(w/defmapop timesplusone ["blahfield"] [a b]
   (inc (* a b)))
 
 (deftest test-map-pred

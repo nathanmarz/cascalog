@@ -15,7 +15,8 @@
 
 (ns cascalog.workflow
   (:refer-clojure :exclude [group-by count first filter mapcat map identity min max])
-  (:use [clojure.contrib.seq-utils :only [find-first indexed]])
+  (:use [clojure.contrib.seq-utils :only [find-first indexed]]
+        [clojure.contrib.def :only (name-with-attributes)])
   (:use [cascalog util debug])
   (:import [cascading.tuple Tuple TupleEntry Fields]
            [cascading.scheme TextLine SequenceFile]
@@ -30,11 +31,11 @@
            [cascading.tap Hfs Lfs Tap]
            [org.apache.hadoop.io Text]
            [org.apache.hadoop.mapred TextInputFormat TextOutputFormat
-                                     OutputCollector JobConf]
+            OutputCollector JobConf]
            [java.util Properties Map ArrayList]
            [cascalog ClojureFilter ClojureMapcat ClojureMap
-                     ClojureAggregator Util ClojureBuffer ClojureBufferIter
-                     FastFirst MemorySourceTap MultiGroupBy ClojureMultibuffer]
+            ClojureAggregator Util ClojureBuffer ClojureBufferIter
+            FastFirst MemorySourceTap MultiGroupBy ClojureMultibuffer]
            [java.io File]
            [java.lang RuntimeException Comparable]))
 
@@ -292,58 +293,81 @@
 
 (defn outer-joiner [] (OuterJoin.))
 
-(defn- parse-ophelper-options [options]
-  (cond (nil? options)    [nil false]
-        (or (sequential? options) (string? options)) [options false]
-        (map? options)    [(get options :fields nil) (get options :stateful false)]
-        true              (throw (IllegalArgumentException. (str "Invalid options " options)))
-        ))
+(defn meta-conj
+  "TODO: Finish docs. Accepts a symbol and a metadata map, and conj"
+  [sym attr]
+  (with-meta sym (if (meta sym)
+                   (conj (meta sym) attr)
+                   attr)))
 
-(defn- parse-defop-args [[spec & args]]
-  (let [revargs (reverse args)
-        code (if (vector? (second revargs)) (reverse (take 2 revargs)) (reverse (take 3 revargs)))
-        options (if (count= code args) nil (clojure.core/first args)) ]
-        [spec options code] ))
+(defn- update-arglists
+  "TODO: Docs."
+  [sym [form :as args]]
+  (let [arglists (if (vector? form)
+                   (list form)
+                   (clojure.core/map clojure.core/first args))]
+    (meta-conj sym {:arglists (list 'quote arglists)})))
 
-;; creates an op that has metadata embedded within it, hack to work around fact that clojure
-;; doesn't allow metadata on functions. call (op :meta) to get metadata
-;; this is so you can pass operations around and dynamically create flows
-(defn- defop-helper [type args]
-  (let  [[spec options funcdef]     (parse-defop-args args)
-         [declared-fields stateful] (parse-ophelper-options options)
-         [hof? fname func-args]     (if (sequential? spec)
-                                [true (clojure.core/first spec) (second spec)]
-                                [false spec nil])
-         runner-name          (symbol (str fname "__"))
-         func-form            (if (nil? func-args) `(var ~runner-name) `[(var ~runner-name) ~@func-args])
-         args-sym             (gensym "args")
-         args-sym-all         (gensym "argsall")
-         casclojure-type      (keyword (name type))
-         runner-body          (if (nil? func-args)
-                                  funcdef
-                                  `(~func-args (fn ~@funcdef)))
-         assembly-args        (if (nil? func-args)
-                                  `[ & ~args-sym]
-                                  `[~func-args & ~args-sym])]
-  `(do
-    (defn ~runner-name {:fields ~declared-fields :stateful ~stateful} ~@runner-body)
-    (defn ~fname [ & ~args-sym-all]
-      (if (= :meta (clojure.core/first ~args-sym-all))
-        {::metadata {:type ~casclojure-type :hof? ~hof?}}
-      (let [~assembly-args ~args-sym-all]
-        (apply ~type ~func-form ~args-sym)))
-      ))))
+(defn- update-fields
+  "TODO: Docs."
+  [sym [a :as args]]
+  (if (string? (clojure.core/first a))
+    [(meta-conj sym {:fields a}) (rest args)]
+    [sym args]))
+
+(defn- parse-defop-args
+  [[spec & args]]
+  (let [[hof? fname f-args] (if (sequential? spec)
+                              [true (clojure.core/first spec) (second spec)]
+                              [false spec nil])
+        [fname args] (->> [fname args]
+                          (apply name-with-attributes)
+                          (apply update-fields))
+        fname (update-arglists fname args)]
+    [hof? fname f-args args]))
+
+(defn- defop-helper
+  "creates an op that has metadata embedded within it, hack to work
+   around fact that clojure doesn't allow metadata on functions. call
+   (op :meta) to get metadata this is so you can pass operations
+   around and dynamically create flows."
+  [type args]
+  (let  [[hof? fname func-args funcdef] (parse-defop-args args)
+         args-sym        (gensym "args")
+         args-sym-all    (gensym "argsall")
+         casclojure-type (keyword (name type))
+         runner-name     (symbol (str fname "__"))
+         func-form       (if func-args
+                           `[(var ~runner-name) ~@func-args]
+                           `(var ~runner-name))
+         runner-body     (if func-args
+                           `(~func-args (fn ~@funcdef))
+                           funcdef)
+         assembly-args   (if func-args
+                           `[~func-args & ~args-sym]
+                           `[ & ~args-sym])]
+    `(do (defn ~runner-name ~(meta fname) ~@runner-body)
+         (defn ~fname
+           ~(meta fname)
+           [ & ~args-sym-all]
+           (if (= :meta (clojure.core/first ~args-sym-all))
+             {::metadata {:type ~casclojure-type :hof? ~hof?}}
+             (let [~assembly-args ~args-sym-all]
+               (apply ~type ~func-form ~args-sym)))))))
 
 (defn get-op-metadata
-  "Gets metadata of casclojure operation. Returns nil if not an operation. Hack until 
-  clojure allows function values to have metadata."
+  "Gets metadata of casclojure operation. Returns nil if not an
+  operation. Hack until clojure allows function values to have
+  metadata."
   [op]
   (try (let [ret (op :meta)]
-    (if (and (map? ret) (contains? ret ::metadata)) (::metadata ret) nil))
-    (catch Exception e nil)))
+         (when (and (map? ret)
+                    (contains? ret ::metadata))
+           (::metadata ret)))
+       (catch Exception _ nil)))
 
 (defmacro defmapop [& args]
-    (defop-helper 'cascalog.workflow/map args))
+  (defop-helper 'cascalog.workflow/map args))
 
 (defmacro defmapcatop [& args]
     (defop-helper 'cascalog.workflow/mapcat args))

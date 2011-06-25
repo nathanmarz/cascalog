@@ -25,3 +25,4 @@ syntax: glob
 *.settings
 *.pyc
 *.dot
+.cake/
