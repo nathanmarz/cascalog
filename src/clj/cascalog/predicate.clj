@@ -111,8 +111,7 @@
         ret {:<< (:<< argsmap)
              :>> (:>> argsmap)}]
     (if-not (#{:< :>} selector-default)
-      (assoc ret selector-default
-             (argsmap selector-default))
+      (assoc ret selector-default (argsmap selector-default))
       ret)))
 
 ;; hacky, but best way to do it given restrictions of needing a var
@@ -133,7 +132,7 @@
              (instance? CascalogBuffer op)   ::cascalog-buffer
              (map? op)                       (:type op)
              (or (vector? op) (list? op))    ::data-structure
-             (meta op)                       (:pred-type (meta op))
+             (:pred-type (meta op))          (:pred-type (meta op))
              (fn? op)                        ::vanilla-function
              :else (throw (IllegalArgumentException. "Bad predicate")))]
     (if (= ret :bufferiter) :buffer ret)))
