@@ -20,6 +20,7 @@
   (:use [cascalog util debug])
   (:import [cascading.tuple Tuple TupleEntry Fields]
            [cascading.scheme TextLine SequenceFile]
+           [cascading.tap SinkMode]
            [cascading.flow Flow FlowConnector]
            [cascading.cascade Cascades]
            [cascading.operation Identity Insert Debug]
@@ -51,15 +52,16 @@
    by applying the first element, which should be a var, to the rest of the
    elements."
   (cond
-    (var? v-or-coll)
-      (into-array Object (ns-fn-name-pair v-or-coll))
-    (coll? v-or-coll)
-      (into-array Object
-        (concat
-          (ns-fn-name-pair (clojure.core/first v-or-coll))
-          (next v-or-coll)))
-    :else
-      (throw (IllegalArgumentException. (str v-or-coll)))))
+   (var? v-or-coll)
+   (into-array Object (ns-fn-name-pair v-or-coll))
+
+   (coll? v-or-coll)
+   (into-array Object
+               (concat
+                (ns-fn-name-pair (clojure.core/first v-or-coll))
+                (next v-or-coll)))
+
+   :else (throw (IllegalArgumentException. (str v-or-coll)))))
 
 (defn fields
   {:tag Fields}
@@ -82,9 +84,9 @@
 (defn- fields-obj? [obj]
   "Returns true for a Fields instance, a string, or an array of strings."
   (or
-    (instance? Fields obj)
-    (string? obj)
-    (and (sequential? obj) (every? string? obj))))
+   (instance? Fields obj)
+   (string? obj)
+   (and (sequential? obj) (every? string? obj))))
 
 (defn parse-args
   "
@@ -465,11 +467,25 @@
   [x]
   (if (string? x) x (.getAbsolutePath #^File x)))
 
-(defn hfs-tap [#^Scheme scheme path-or-file]
-  (Hfs. scheme (path path-or-file)))
 
-(defn lfs-tap [#^Scheme scheme path-or-file]
-  (Lfs. scheme (path path-or-file)))
+(defn sink-mode
+  [kwd]
+  {:pre [(#{:keep :append :replace} kwd)]}
+  (case kwd
+        :keep SinkMode/KEEP
+        :append SinkMode/APPEND
+        :replace SinkMode/REPLACE
+        SinkMode/KEEP))
+
+(defn hfs-tap
+  [#^Scheme scheme path-or-file & {:keys [sinkmode]}]
+  (let [mode (sink-mode sinkmode)]
+    (Hfs. scheme (path path-or-file) mode)))
+
+(defn lfs-tap
+  [#^Scheme scheme path-or-file & {:keys [sinkmode]}]
+  (let [mode (sink-mode sinkmode)]
+    (Lfs. scheme (path path-or-file) mode)))
 
 (defn write-dot [#^Flow flow #^String path]
   (.writeDOT flow path))
