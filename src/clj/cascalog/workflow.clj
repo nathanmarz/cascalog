@@ -468,9 +468,11 @@
   (if (string? x) x (.getAbsolutePath #^File x)))
 
 
+(def valid-sinkmode? #{:keep :append :replace})
+
 (defn sink-mode
   [kwd]
-  {:pre [(#{:keep :append :replace} kwd)]}
+  {:pre [(or (nil? kwd) (valid-sinkmode? kwd))]}
   (case kwd
         :keep SinkMode/KEEP
         :append SinkMode/APPEND
