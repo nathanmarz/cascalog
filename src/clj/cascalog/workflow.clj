@@ -345,10 +345,10 @@
     [fname f-args args]))
 
 (defn- defop-helper
-  "creates an op that has metadata embedded within it, hack to work
-   around fact that clojure doesn't allow metadata on functions. call
-   (op :meta) to get metadata. This is so you can pass operations
-   around and dynamically create flows."
+  "Binding helper for cascalog def* ops. Function value is tagged with
+   appropriate cascalog metadata; metadata can be accessed with `(meta
+   op)`, rather than the previous `(op :meta)` requirement. This is so
+   you can pass operations around and dynamically create flows."
   [type args]
   (let  [[fname func-args funcdef] (parse-defop-args type args)
          args-sym        (gensym "args")
