@@ -1,6 +1,7 @@
 (defproject cascalog/cascalog "1.8.0-SNAPSHOT"
   :source-path "src/clj"
   :java-source-path "src/jvm"
+  :jvm-opts ["-Xmx768m"]
   :javac-options {:debug "true" :fork "true"}
   :dependencies [[org.clojure/clojure "1.2.0"]
                  [org.clojure/clojure-contrib "1.2.0"]

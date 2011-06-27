@@ -52,6 +52,7 @@
 
 ;; return a :post-assembly, a :parallel-agg, and a :serial-agg-assembly
 (defpredicate aggregator :buffer? :parallel-agg :pregroup-assembly :serial-agg-assembly :post-assembly :infields :outfields)
+
 ;; automatically generates source pipes and attaches to sources
 (defpredicate generator :join-set-var :ground? :sourcemap :pipe :outfields :trapmap)
 (defpredicate generator-filter :generator :outvar)
@@ -61,9 +62,8 @@
 
 (defpredicate predicate-macro :pred-fn)
 
-
-(def distinct-aggregator (predicate aggregator false nil identity (w/fast-first) identity [] []))
-
+(def distinct-aggregator
+  (predicate aggregator false nil identity (w/fast-first) identity [] []))
 
 (defstruct predicate-variables :in :out)
 
@@ -82,7 +82,7 @@
   (cond (not (or (contains? argsmap sugararg) (contains? argsmap outarg)))
           argsmap
         (contains? argsmap outarg) (assoc argsmap outarg (first (argsmap outarg)))
-        true (assoc argsmap outarg (argsmap sugararg))
+        :else (assoc argsmap outarg (argsmap sugararg))
     ))
 
 (defn vectorify-pos-selector [argsmap]
@@ -99,34 +99,47 @@
   "parses variables of the form ['?a' '?b' :> '!!c']
    If there is no :>, defaults to flag-default"
   [vars selector-default]
-  (let [vars (if (keyword? (first vars)) vars (cons (implicit-var-flag vars selector-default) vars))
-        argsmap (-> vars (mk-args-map) (vectorify-arg :> :>>) (vectorify-arg :< :<<) (vectorify-pos-selector))
-        ret {:<< (:<< argsmap) :>> (:>> argsmap)}]
-        (if-not (#{:< :>} selector-default)
-          (assoc ret selector-default (argsmap selector-default))
-          ret )))
+  (let [vars (if (keyword? (first vars))
+               vars
+               (cons (implicit-var-flag vars selector-default)
+                     vars))
+        argsmap (-> vars
+                    (mk-args-map)
+                    (vectorify-arg :> :>>)
+                    (vectorify-arg :< :<<)
+                    (vectorify-pos-selector))
+        ret {:<< (:<< argsmap)
+             :>> (:>> argsmap)}]
+    (if-not (#{:< :>} selector-default)
+      (assoc ret selector-default (argsmap selector-default))
+      ret)))
 
-;; hacky, but best way to do it given restrictions of needing a var for regular functions, needing 
-;; to seemlessly integrate with normal workflows, and lack of function metadata in clojure (until 1.2 anyway)
-;; uses hacky function metadata so that operations can be passed in as arguments when constructing cascalog
-;; rules
-(defn- predicate-dispatcher [op & rest]
+;; hacky, but best way to do it given restrictions of needing a var
+;; for regular functions, needing to seemlessly integrate with normal
+;; workflows, and lack of function metadata in clojure (until 1.2
+;; anyway)
+;;
+;; uses hacky function metadata so that operations can be passed in as
+;; arguments when constructing cascalog rules
+
+(defn- predicate-dispatcher
+  [op & rest]
   (let [ret (cond
-              (keyword? op) ::option
-              (instance? Tap op) ::tap
-              (instance? Filter op) ::cascading-filter
-              (instance? CascalogFunction op) ::cascalog-function
-              (instance? CascalogBuffer op) ::cascalog-buffer
-              (map? op) (:type op)
-              (or (vector? op) (list? op)) ::data-structure
-              (w/get-op-metadata op) (:type (w/get-op-metadata op))
-              (fn? op) ::vanilla-function
-              true (throw (IllegalArgumentException. "Bad predicate"))
-        )]
+             (keyword? op)                   ::option
+             (instance? Tap op)              ::tap
+             (instance? Filter op)           ::cascading-filter
+             (instance? CascalogFunction op) ::cascalog-function
+             (instance? CascalogBuffer op)   ::cascalog-buffer
+             (map? op)                       (:type op)
+             (or (vector? op) (list? op))    ::data-structure
+             (:pred-type (meta op))          (:pred-type (meta op))
+             (fn? op)                        ::vanilla-function
+             :else (throw (IllegalArgumentException. "Bad predicate")))]
     (if (= ret :bufferiter) :buffer ret)))
 
 (defn generator? [p]
-  (contains? #{::tap :generator :cascalog-tap ::data-structure} (predicate-dispatcher p)))
+  (contains? #{::tap :generator :cascalog-tap ::data-structure}
+             (predicate-dispatcher p)))
 
 (defn predicate-macro? [p]
   (and (map? p) (= :predicate-macro (:type p))))
@@ -158,11 +171,11 @@
 (defmethod hof-predicate? ::parallel-aggregator [& args] false)
 (defmethod hof-predicate? ::parallel-buffer [op & args] (:hof? op))
 (defmethod hof-predicate? ::vanilla-function [& args] false)
-(defmethod hof-predicate? :map [op & args] (:hof? (w/get-op-metadata op)))
-(defmethod hof-predicate? :mapcat [op & args] (:hof? (w/get-op-metadata op)))
-(defmethod hof-predicate? :aggregate [op & args] (:hof? (w/get-op-metadata op)))
-(defmethod hof-predicate? :buffer [op & args] (:hof? (w/get-op-metadata op)))
-(defmethod hof-predicate? :filter [op & args] (:hof? (w/get-op-metadata op)))
+(defmethod hof-predicate? :map [op & args]       (:hof? (meta op)))
+(defmethod hof-predicate? :mapcat [op & args]    (:hof? (meta op)))
+(defmethod hof-predicate? :aggregate [op & args] (:hof? (meta op)))
+(defmethod hof-predicate? :buffer [op & args]    (:hof? (meta op)))
+(defmethod hof-predicate? :filter [op & args]    (:hof? (meta op)))
 (defmethod hof-predicate? ::cascalog-function [op & args] false)
 (defmethod hof-predicate? ::cascading-filter [op & args] false)
 (defmethod hof-predicate? ::cascalog-buffer [op & args] false)
