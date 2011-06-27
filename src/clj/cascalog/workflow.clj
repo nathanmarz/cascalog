@@ -478,11 +478,31 @@
         SinkMode/KEEP))
 
 (defn hfs-tap
+  "Returns a Cascading Hfs tap with support for the supplied scheme,
+  opened up on the supplied path or file object. The tap's sinkmode
+  can be specified as follows:
+
+    (w/hfs-tap (w/text-line [\"line\"] Fields/ALL)
+               path
+               :sinkmode :keep)
+
+  Supported `:sinkmode` values are `:keep`, `:include` and
+  `:replace`."
   [#^Scheme scheme path-or-file & {:keys [sinkmode]}]
   (let [mode (sink-mode sinkmode)]
     (Hfs. scheme (path path-or-file) mode)))
 
 (defn lfs-tap
+  "Returns a Cascading Lfs tap with support for the supplied scheme,
+  opened up on the supplied path or file object. The tap's sinkmode
+  can be specified as follows:
+
+    (w/lfs-tap (w/text-line [\"line\"] Fields/ALL)
+               path
+               :sinkmode :keep)
+
+  Supported `:sinkmode` values are `:keep`, `:include` and
+  `:replace`."
   [#^Scheme scheme path-or-file & {:keys [sinkmode]}]
   (let [mode (sink-mode sinkmode)]
     (Lfs. scheme (path path-or-file) mode)))
@@ -496,5 +516,5 @@
 (defn memory-source-tap
   ([tuples] (memory-source-tap Fields/ALL tuples))
   ([fields-in tuples]
-    (let [tuples (ArrayList. (clojure.core/map #(Util/coerceToTuple %) tuples))]
-      (MemorySourceTap. tuples (fields fields-in)))))
+     (let [tuples (ArrayList. (clojure.core/map #(Util/coerceToTuple %) tuples))]
+       (MemorySourceTap. tuples (fields fields-in)))))
