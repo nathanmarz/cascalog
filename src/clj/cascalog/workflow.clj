@@ -325,21 +325,23 @@
     [sym forms]))
 
 (defn- parse-defop-args
-  "Accepts the body of a def* operation binding, outfits the function
-  var with all appropriate metadata, and returns a 3-tuple containing
-  `[fname f-args args]`.
+  "Accepts a def* type and the body of a def* operation binding,
+  outfits the function var with all appropriate metadata, and returns
+  a 3-tuple containing `[fname f-args args]`.
 
   * `fname`: the function var.
   * `f-args`: static variable declaration vector.
   * `args`: dynamic variable declaration vector."
-  [[spec & args]]
+  [type [spec & args]]
   (let [[fname f-args] (if (sequential? spec)
                          [(clojure.core/first spec) (second spec)]
                          [spec nil])
         [fname args] (->> [fname args]
                           (apply name-with-attributes)
                           (apply update-fields))
-        fname (update-arglists fname args)]
+        fname (update-arglists fname args)
+        fname (meta-conj fname {:pred-type (keyword (name type))
+                                :hof? (boolean f-args)})]
     [fname f-args args]))
 
 (defn- defop-helper
@@ -348,10 +350,9 @@
    (op :meta) to get metadata. This is so you can pass operations
    around and dynamically create flows."
   [type args]
-  (let  [[fname func-args funcdef] (parse-defop-args args)
+  (let  [[fname func-args funcdef] (parse-defop-args type args)
          args-sym        (gensym "args")
          args-sym-all    (gensym "argsall")
-         casclojure-type (keyword (name type))
          runner-name     (symbol (str fname "__"))
          func-form       (if func-args
                            `[(var ~runner-name) ~@func-args]
@@ -364,23 +365,11 @@
                            `[ & ~args-sym])]
     `(do (defn ~runner-name ~(meta fname) ~@runner-body)
          (def ~fname          
-           (fn [ & ~args-sym-all]
-             (if (= :meta (clojure.core/first ~args-sym-all))
-               {::metadata {:type ~casclojure-type :hof? ~(boolean func-args)}}
+           (with-meta
+             (fn [ & ~args-sym-all]
                (let [~assembly-args ~args-sym-all]
-                 (apply ~type ~func-form ~args-sym))))))))
-
-(defn get-op-metadata
-  "Gets metadata of casclojure operation. Returns nil if not an
-  operation. Hack until clojure allows function values to have
-  metadata."
-  [op]
-  (try (let [ret (op :meta)]
-
-         (when (and (map? ret)
-                    (contains? ret ::metadata))
-           (::metadata ret)))
-       (catch Exception _ nil)))
+                 (apply ~type ~func-form ~args-sym)))
+             ~(meta fname))))))
 
 (defmacro defmapop [& args]
   (defop-helper 'cascalog.workflow/map args))
