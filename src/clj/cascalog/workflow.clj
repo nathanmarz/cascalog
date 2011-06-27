@@ -363,13 +363,12 @@
                            `[~func-args & ~args-sym]
                            `[ & ~args-sym])]
     `(do (defn ~runner-name ~(meta fname) ~@runner-body)
-         (defn ~fname
-           ~(meta fname)
-           [ & ~args-sym-all]
-           (if (= :meta (clojure.core/first ~args-sym-all))
-             {::metadata {:type ~casclojure-type :hof? ~(boolean func-args)}}
-             (let [~assembly-args ~args-sym-all]
-               (apply ~type ~func-form ~args-sym)))))))
+         (def ~fname          
+           (fn [ & ~args-sym-all]
+             (if (= :meta (clojure.core/first ~args-sym-all))
+               {::metadata {:type ~casclojure-type :hof? ~(boolean func-args)}}
+               (let [~assembly-args ~args-sym-all]
+                 (apply ~type ~func-form ~args-sym))))))))
 
 (defn get-op-metadata
   "Gets metadata of casclojure operation. Returns nil if not an
@@ -377,6 +376,7 @@
   metadata."
   [op]
   (try (let [ret (op :meta)]
+
          (when (and (map? ret)
                     (contains? ret ::metadata))
            (::metadata ret)))
