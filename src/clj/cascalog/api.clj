@@ -93,7 +93,6 @@
    output. Useful for experimentation in the REPL."
   [] (StdoutTap.))
 
-
 ;; Query introspection
 
 (defmulti get-out-fields cascalog.rules/generator-selector)
@@ -115,48 +114,57 @@
 ;; Query creation and execution
 
 (defmacro <-
-  "Constructs a query or predicate macro from a list of predicates. Predicate macros support destructuring of the input and output variables."
+  "Constructs a query or predicate macro from a list of
+  predicates. Predicate macros support destructuring of the input and
+  output variables."
   [outvars & predicates]
   (let [predicate-builders (vec (map cascalog.rules/mk-raw-predicate predicates))
         outvars-str (if (vector? outvars) (vars2str outvars) outvars)]
-        `(cascalog.rules/build-rule ~outvars-str ~predicate-builders)))
+    `(cascalog.rules/build-rule ~outvars-str ~predicate-builders)))
 
 (defn compile-flow
-  "Attaches output taps to some number of subqueries and creates a Cascading flow. The flow can be executed with 
-   '.complete', or introspection can be done on the flow.
-   Syntax: (compile-flow sink1 query1 sink2 query2 ...)
-   or (compile-flow flow-name sink1 query1 sink2 query2)
+  "Attaches output taps to some number of subqueries and creates a
+  Cascading flow. The flow can be executed with `.complete`, or
+  introspection can be done on the flow.
+
+  Syntax: (compile-flow sink1 query1 sink2 query2 ...)
+  or (compile-flow flow-name sink1 query1 sink2 query2)
    
-   If the first argument is a string, that will be used as the name for the query and will show up in the JobTracker UI"
+   If the first argument is a string, that will be used as the name
+  for the query and will show up in the JobTracker UI."
   [& args]
   (let [[flow-name bindings] (cascalog.rules/parse-exec-args args)
-        bindings        (mapcat (partial apply cascalog.rules/normalize-sink-connection) (partition 2 bindings))
-        [sinks gens]    (unweave bindings)
-        sourcemap       (apply merge (map :sourcemap gens))
-        trapmap         (apply merge (map :trapmap gens))
-        tails           (map cascalog.rules/connect-to-sink gens sinks)
-        sinkmap         (w/taps-map tails sinks)]
-    (.connect
-      (FlowConnector.
-        (merge {"cascading.flow.job.pollinginterval" 100} cascalog.rules/*JOB-CONF*))
-        flow-name
-        sourcemap
-        sinkmap
-        trapmap
-        (into-array Pipe tails))
-        ))
+        bindings     (mapcat (partial apply cascalog.rules/normalize-sink-connection)
+                             (partition 2 bindings))
+        [sinks gens] (unweave bindings)
+        sourcemap    (apply merge (map :sourcemap gens))
+        trapmap      (apply merge (map :trapmap gens))
+        tails        (map cascalog.rules/connect-to-sink gens sinks)
+        sinkmap      (w/taps-map tails sinks)]
+    (.connect (->> cascalog.rules/*JOB-CONF*
+                   (merge {"cascading.flow.job.pollinginterval" 100})
+                   (FlowConnector.))
+              flow-name
+              sourcemap
+              sinkmap
+              trapmap
+              (into-array Pipe tails))))
 
 (defn ?-
-  "Executes 1 or more queries and emits the results of each query to the associated tap.
-  Syntax: (?- sink1 query1 sink2 query2 ...)
-  or (?- query-name sink1 query1 sink2 query2)
+  "Executes 1 or more queries and emits the results of each query to
+  the associated tap.
+
+  Syntax: (?- sink1 query1 sink2 query2 ...)  or (?- query-name sink1
+  query1 sink2 query2)
    
-   If the first argument is a string, that will be used as the name for the query and will show up in the JobTracker UI"
+   If the first argument is a string, that will be used as the name
+  for the query and will show up in the JobTracker UI."
   [& bindings]
   (.complete (apply compile-flow bindings)))
 
 (defn ??-
-  "Executes one or more queries and returns a seq of seqs of tuples back, one for each subquery given.
+  "Executes one or more queries and returns a seq of seqs of tuples
+   back, one for each subquery given.
   
   Syntax: (??- sink1 query1 sink2 query2 ...)"
   [& subqueries]
@@ -172,8 +180,9 @@
 (defmacro ?<-
   "Helper that both defines and executes a query in a single call.
   
-  Syntax: (?<- out-tap out-vars & predicates)
-  or (?<- \"myflow\" out-tap out-vars & predicates) ; flow name must be a static string within the ?<- form."
+  Syntax: (?<- out-tap out-vars & predicates) or (?<- \"myflow\"
+  out-tap out-vars & predicates) ; flow name must be a static string
+  within the ?<- form."
   [& args]
   ;; This is the best we can do... if want non-static name should just use ?-
   (let [[name [output & body]] (cascalog.rules/parse-exec-args args)]
@@ -183,48 +192,58 @@
   "Like ??-, but for ?<-. Returns a seq of tuples."
   [& args]
   `(io/with-fs-tmp [fs# tmp1#]
-    (let [outtap# (hfs-seqfile tmp1#)]
-      (?<- outtap# ~@args)
-      (cascalog.rules/get-tuples outtap#))
-      ))
+     (let [outtap# (hfs-seqfile tmp1#)]
+       (?<- outtap# ~@args)
+       (cascalog.rules/get-tuples outtap#))
+     ))
 
 (defn predmacro*
   "Functional version of predmacro. See predmacro for details."
   [pred-macro-fn]
-  (p/predicate
-    p/predicate-macro
-    (fn [invars outvars]
-      (for [[op & vars] (pred-macro-fn invars outvars)]
-        [op nil vars])
-        )))
+  (p/predicate p/predicate-macro
+               (fn [invars outvars]
+                 (for [[op & vars] (pred-macro-fn invars outvars)]
+                   [op nil vars])
+                 )))
 
 (defmacro predmacro
-  "A more general but more verbose way to create predicate macros. Creates a function that takes in [invars outvars]
-   and returns a list of predicates. When making predicate macros this way, you must create intermediate variables
-   with gen-nullable-var(s). This is because unlike the (<- [?a :> ?b] ...) way of doing pred macros, Cascalog 
-   doesn't have a declaration for the inputs/outputs."
+  "A more general but more verbose way to create predicate macros.
+
+   Creates a function that takes in [invars outvars] and returns a
+   list of predicates. When making predicate macros this way, you must
+   create intermediate variables with gen-nullable-var(s). This is
+   because unlike the (<- [?a :> ?b] ...) way of doing pred macros,
+   Cascalog doesn't have a declaration for the inputs/outputs."
   [& body]
   `(predmacro* (fn ~@body)))
 
 (defn construct
+  "Construct a query or predicate macro functionally. When
+constructing queries this way, operations should either be vars for
+operations or values defined using one of Cascalog's def macros. Vars
+must be stringified when passed to construct. If you're using
+destructuring in a predicate macro, the & symbol must be stringified
+as well."
   [outvars preds]
-  "Construct a query or predicate macro functionally. When constructing queries this way, operations should either be vars for operations or values defined using one of Cascalog's def macros. Vars must be stringified when passed to construct. If you're using destructuring in a predicate macro, the & symbol must be stringified as well"
   (let [outvars (vars2str outvars)
         preds (for [[p & vars] preds] [p nil (vars2str vars)])]
-        (cascalog.rules/build-rule outvars preds)
-        ))
+    (cascalog.rules/build-rule outvars preds)
+    ))
 
 (defn union
-  "Merge the tuples from the subqueries together into a single subquery and ensure uniqueness of tuples."
+  "Merge the tuples from the subqueries together into a single
+  subquery and ensure uniqueness of tuples."
   [& gens]
   (cascalog.rules/combine* gens true))
 
 (defn combine
-  "Merge the tuples from the subqueries together into a single subquery. Doesn't ensure uniqueness of tuples."
+  "Merge the tuples from the subqueries together into a single
+  subquery. Doesn't ensure uniqueness of tuples."
   [& gens]
   (cascalog.rules/combine* gens false))
 
-(defn multigroup* [declared-group-vars buffer-out-vars buffer-spec & sqs]
+(defn multigroup*
+  [declared-group-vars buffer-out-vars buffer-spec & sqs]
   (let [[buffer-op hof-args] (if (sequential? buffer-spec) buffer-spec [buffer-spec nil])
         sq-out-vars (map get-out-fields sqs)
         group-vars (apply set/intersection (map set sq-out-vars))
@@ -236,18 +255,20 @@
       (throw (IllegalArgumentException. "Cannot do global grouping with multigroup")))
     (when-not (= (set group-vars) (set declared-group-vars))
       (throw (IllegalArgumentException. "Declared group vars must be same as intersection of vars of all subqueries")))
-    (p/predicate
-      p/generator nil
-                  true
-                  (apply merge (map :sourcemap sqs))
-                  ((apply buffer-op args) pipes num-vars)
-                  (concat declared-group-vars buffer-out-vars)
-                  (apply merge (map :trapmap sqs))
-                  )
-    ))
+    (p/predicate p/generator nil
+                 true
+                 (apply merge (map :sourcemap sqs))
+                 ((apply buffer-op args) pipes num-vars)
+                 (concat declared-group-vars buffer-out-vars)
+                 (apply merge (map :trapmap sqs))
+                 )))
 
-(defmacro multigroup [group-vars out-vars buffer-spec & sqs]
-  `(multigroup* ~(vars2str group-vars) ~(vars2str out-vars) ~buffer-spec ~@sqs))
+(defmacro multigroup
+  [group-vars out-vars buffer-spec & sqs]
+  `(multigroup* ~(vars2str group-vars)
+                ~(vars2str out-vars)
+                ~buffer-spec
+                ~@sqs))
 
 (defmulti select-fields cascalog.rules/generator-selector)
 
@@ -263,9 +284,10 @@
         outfields (:outfields query)]
     (when-not (set/subset? (set select-fields) (set outfields))
       (throw (IllegalArgumentException. (str "Cannot select " select-fields " from " outfields))))
-    (merge query {:pipe (w/assemble (:pipe query) (w/select select-fields))
-                  :outfields select-fields}
-                  )))
+    (merge query
+           {:pipe (w/assemble (:pipe query) (w/select select-fields))
+            :outfields select-fields}
+           )))
 
 (defmethod select-fields :cascalog-tap [cascalog-tap select-fields]
   (select-fields (:source cascalog-tap) select-fields))
@@ -298,27 +320,28 @@
 
 (defalias defparallelbuf p/defparallelbuf)
 
-
 ;; Knobs for Hadoop
 
 (defmacro with-job-conf
-  "Modifies the job conf for queries executed within the form. Nested with-job-conf calls 
-   will merge configuration maps together, with innermost calls taking precedence on conflicting
-   keys."
+  "Modifies the job conf for queries executed within the form. Nested
+   with-job-conf calls will merge configuration maps together, with
+   innermost calls taking precedence on conflicting keys."
   [conf & body]
   `(binding [cascalog.rules/*JOB-CONF* (merge cascalog.rules/*JOB-CONF* ~conf)]
-    ~@body ))
-
+     ~@body))
 
 ;; Miscellaneous helpers
 
 (defn div
-  "Perform floating point division on the arguments. Use this instead of / in Cascalog queries since / produces
-   Ratio types which aren't serializable by Hadoop."
-  [f & rest] (apply / (double f) rest))
+  "Perform floating point division on the arguments. Use this instead
+   of / in Cascalog queries since / produces Ratio types which aren't
+   serializable by Hadoop."
+  [f & rest]
+  (apply / (double f) rest))
 
 (defmacro with-debug
-  "Wrap queries in this macro to cause debug information for the query planner to be printed out."
+  "Wrap queries in this macro to cause debug information for the query
+   planner to be printed out."
   [& body]
   `(binding [cascalog.debug/*DEBUG* true]
-    ~@body ))
+     ~@body))
