@@ -22,13 +22,13 @@
   "Identity operation."
   {:stateful true
    :great-meta "yes!"}
-  ([] 0)
-  ([state x] (+ x y))
+  ([] 3)
+  ([state x] (+ x y state))
   ([state] nil))
 
 (deftest parse-defop-args-test
   (let [src [[1] [2]]]
-    (test?<- [[2] [3]] [?y] (src ?x) (ident-stateful [1] ?x :> ?y))
+    (test?<- [[5] [6]] [?y] (src ?x) (ident-stateful [1] ?x :> ?y))
     (doseq [func [ident ident-doc ident-meta ident-both]]
       (test?<- [[1] [2]] [?y] (src ?x) (func ?x :> ?y))
       )))
