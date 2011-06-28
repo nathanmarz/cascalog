@@ -114,14 +114,6 @@
       (assoc ret selector-default (argsmap selector-default))
       ret)))
 
-;; hacky, but best way to do it given restrictions of needing a var
-;; for regular functions, needing to seemlessly integrate with normal
-;; workflows, and lack of function metadata in clojure (until 1.2
-;; anyway)
-;;
-;; uses hacky function metadata so that operations can be passed in as
-;; arguments when constructing cascalog rules
-
 (defn- predicate-dispatcher
   [op & rest]
   (let [ret (cond
