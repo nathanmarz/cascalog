@@ -32,3 +32,11 @@
     (doseq [func [ident ident-doc ident-meta ident-both]]
       (test?<- [[1] [2]] [?y] (src ?x) (func ?x :> ?y))
       )))
+
+(deftest get-metadata-test
+  (is (= "yes!" (:great-meta (meta ident-stateful))))
+  (is (= "yes!" (:great-meta (meta #'ident-stateful))))
+  (is (= "Identity operation." (:doc (meta ident-doc))))
+  (is (= "Identity operation." (:doc (meta #'ident-doc))))
+  (is (= nil (:doc (meta #'ident-meta))))
+  )
