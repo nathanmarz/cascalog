@@ -27,7 +27,7 @@
 
 (def gen-non-nullable-var (gen-var-fn "?"))
 (def gen-nullable-var (gen-var-fn "!"))
-(def gen-ungounding-var (gen-var-fn "!!"))
+(def gen-ungrounding-var (gen-var-fn "!!"))
 
 (defn gen-nullable-vars
   ([amt] (gen-nullable-vars "" amt))
@@ -84,7 +84,7 @@
         true (sanitize-elem e anon-gen)))
 
 (defn vars2str [vars]
-  (let [anon-gen (if (some #(and (cascalog-var? %) (unground-var? %)) (flatten-vars vars)) gen-ungounding-var gen-nullable-var)]
+  (let [anon-gen (if (some #(and (cascalog-var? %) (unground-var? %)) (flatten-vars vars)) gen-ungrounding-var gen-nullable-var)]
     (vec (map sanitize-unknown vars (repeat anon-gen)))
   ))
 
