@@ -16,7 +16,7 @@
 (ns cascalog.workflow
   (:refer-clojure :exclude [group-by count first filter mapcat map identity min max])
   (:use [clojure.contrib.seq-utils :only [find-first indexed]]
-        [clojure.contrib.def :only (name-with-attributes)])
+        [clojure.contrib.def :only (name-with-attributes defnk)])
   (:use [cascalog util debug])
   (:import [cascading.tuple Tuple TupleEntry Fields]
            [cascading.scheme TextLine SequenceFile]
@@ -479,7 +479,7 @@
         :replace SinkMode/REPLACE
         SinkMode/KEEP))
 
-(defn hfs-tap
+(defnk hfs-tap
   "Returns a Cascading Hfs tap with support for the supplied scheme,
   opened up on the supplied path or file object. The tap's sinkmode
   can be specified as follows:
@@ -490,11 +490,11 @@
 
   Supported `:sinkmode` values are `:keep`, `:include` and
   `:replace`."
-  [#^Scheme scheme path-or-file & {:keys [sinkmode]}]
+  [#^Scheme scheme path-or-file :sinkmode nil]
   (let [mode (sink-mode sinkmode)]
     (Hfs. scheme (path path-or-file) mode)))
 
-(defn lfs-tap
+(defnk lfs-tap
   "Returns a Cascading Lfs tap with support for the supplied scheme,
   opened up on the supplied path or file object. The tap's sinkmode
   can be specified as follows:
@@ -505,7 +505,7 @@
 
   Supported `:sinkmode` values are `:keep`, `:include` and
   `:replace`."
-  [#^Scheme scheme path-or-file & {:keys [sinkmode]}]
+  [#^Scheme scheme path-or-file :sinkmode nil]
   (let [mode (sink-mode sinkmode)]
     (Lfs. scheme (path path-or-file) mode)))
 

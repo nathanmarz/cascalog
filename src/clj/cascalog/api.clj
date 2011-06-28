@@ -38,7 +38,7 @@
   [source sink]
   (struct-map cascalog.rules/cascalog-tap :type :cascalog-tap :source source :sink sink))
 
-(defn hfs-textline
+(defnk hfs-textline
   "Creates a tap on HDFS using textline format. Different filesystems
    can be selected by using different prefixes for {path}. (Optional
    `sinkmode` argument can be one of `:keep`, `:include` or
@@ -46,28 +46,24 @@
    
    See http://www.cascading.org/javadoc/cascading/tap/Hfs.html and
    http://www.cascading.org/javadoc/cascading/scheme/TextLine.html"
-  ([path]
-     (hfs-textline path nil))
-  ([path sinkmode]
-     (w/hfs-tap (w/text-line ["line"] Fields/ALL)
-                path
-                :sinkmode sinkmode)))
+  [path :sinkmode nil]
+  (w/hfs-tap (w/text-line ["line"] Fields/ALL)
+             path
+             :sinkmode sinkmode))
 
-(defn lfs-textline
+(defnk lfs-textline
   "Creates a tap on the local filesystem using textline
    format. (Optional `sinkmode` argument can be one of `:keep`,
    `:include` or `:replace`.)
    
    See http://www.cascading.org/javadoc/cascading/tap/Lfs.html and
    http://www.cascading.org/javadoc/cascading/scheme/TextLine.html"
-  ([path]
-     (lfs-textline path nil))
-  ([path sinkmode]
-     (w/lfs-tap (w/text-line ["line"] Fields/ALL)
-                path
-                :sinkmode sinkmode)))
+  [path :sinkmode nil]
+  (w/lfs-tap (w/text-line ["line"] Fields/ALL)
+             path
+             :sinkmode sinkmode))
 
-(defn hfs-seqfile
+(defnk hfs-seqfile
   "Creates a tap on HDFS using sequence file format. Different
    filesystems can be selected by using different prefixes for
    {path}. (Optional `sinkmode` argument can be one of `:keep`,
@@ -75,26 +71,22 @@
    
    See http://www.cascading.org/javadoc/cascading/tap/Hfs.html and
    http://www.cascading.org/javadoc/cascading/scheme/SequenceFile.html"
-  ([path]
-     (hfs-seqfile path nil))
-  ([path sinkmode]
-     (w/hfs-tap (w/sequence-file Fields/ALL)
-                path
-                :sinkmode sinkmode)))
+  [path :sinkmode nil]
+  (w/hfs-tap (w/sequence-file Fields/ALL)
+             path
+             :sinkmode sinkmode))
 
-(defn lfs-seqfile
+(defnk lfs-seqfile
   "Creates a tap that reads data off of the local filesystem in
    sequence file format. (Optional `sinkmode` argument can be one of
    `:keep`, `:include` or `:replace`.)
    
    See http://www.cascading.org/javadoc/cascading/tap/Lfs.html and
    http://www.cascading.org/javadoc/cascading/scheme/SequenceFile.html"
-  ([path]
-     (lfs-seqfile path nil))
-  ([path sinkmode]
-     (w/lfs-tap (w/sequence-file Fields/ALL)
-                path
-                :sinkmode sinkmode)))
+  [path :sinkmode nil]
+  (w/lfs-tap (w/sequence-file Fields/ALL)
+             path
+             :sinkmode sinkmode))
 
 (defn stdout
   "Creates a tap that prints tuples sunk to it to standard
