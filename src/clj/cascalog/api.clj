@@ -46,8 +46,8 @@
    
    See http://www.cascading.org/javadoc/cascading/tap/Hfs.html and
    http://www.cascading.org/javadoc/cascading/scheme/TextLine.html"
-  [path :sinkmode nil]
-  (w/hfs-tap (w/text-line ["line"] Fields/ALL)
+  [path :sinkmode nil :outfields Fields/ALL]
+  (w/hfs-tap (w/text-line ["line"] outfields)
              path
              :sinkmode sinkmode))
 
@@ -58,8 +58,8 @@
    
    See http://www.cascading.org/javadoc/cascading/tap/Lfs.html and
    http://www.cascading.org/javadoc/cascading/scheme/TextLine.html"
-  [path :sinkmode nil]
-  (w/lfs-tap (w/text-line ["line"] Fields/ALL)
+  [path :sinkmode nil :outfields Fields/ALL]
+  (w/lfs-tap (w/text-line ["line"] outfields)
              path
              :sinkmode sinkmode))
 
@@ -71,8 +71,8 @@
    
    See http://www.cascading.org/javadoc/cascading/tap/Hfs.html and
    http://www.cascading.org/javadoc/cascading/scheme/SequenceFile.html"
-  [path :sinkmode nil]
-  (w/hfs-tap (w/sequence-file Fields/ALL)
+  [path :sinkmode nil :outfields Fields/ALL]
+  (w/hfs-tap (w/sequence-file outfields)
              path
              :sinkmode sinkmode))
 
@@ -83,8 +83,8 @@
    
    See http://www.cascading.org/javadoc/cascading/tap/Lfs.html and
    http://www.cascading.org/javadoc/cascading/scheme/SequenceFile.html"
-  [path :sinkmode nil]
-  (w/lfs-tap (w/sequence-file Fields/ALL)
+  [path :sinkmode nil :outfields Fields/ALL]
+  (w/lfs-tap (w/sequence-file outfields)
              path
              :sinkmode sinkmode))
 
