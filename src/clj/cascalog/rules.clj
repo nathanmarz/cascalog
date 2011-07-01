@@ -58,9 +58,9 @@
         (recur (first inbound-nodes))
         ))))
 
-
-;; returns [generators operations aggregators]
-(defn- split-predicates [predicates]
+(defn- split-predicates
+  "returns [generators operations aggregators]."
+  [predicates]
   (let [{ops :operation
          aggs :aggregator
          gens :generator} (merge {:operation [] :aggregator [] :generator []}
@@ -556,23 +556,6 @@
 
 (defn connect-to-sink [gen sink]
   ((w/pipe-rename (uuid)) (:pipe gen)))
-
-(defn combine* [gens distinct?]
-  ;; it would be nice if cascalog supported Fields/UNKNOWN as output of generator
-  (let [outfields (:outfields (first gens))
-        pipes (map :pipe gens)
-        pipes (for [p pipes] (w/assemble p (w/identity Fields/ALL :fn> outfields :> Fields/RESULTS)))
-        outpipe (if-not distinct?
-                           (w/assemble pipes (w/group-by Fields/ALL))
-                           (w/assemble pipes (w/group-by Fields/ALL) (w/first)))]
-    (p/predicate p/generator
-      nil
-      true
-      (apply merge (map :sourcemap gens))
-      outpipe
-      outfields
-      (apply merge (map :trapmap gens)))
-    ))
 
 (defn generic-cascading-fields? [cfields]
   (or (.isSubstitution cfields)
