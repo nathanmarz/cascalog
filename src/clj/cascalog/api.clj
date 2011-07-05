@@ -31,7 +31,8 @@
 (defalias memory-source-tap w/memory-source-tap)
 
 (defn cascalog-tap
-  "Defines a cascalog tap which can be used to add additional abstraction over cascading taps.
+  "Defines a cascalog tap which can be used to add additional
+  abstraction over cascading taps.
   
    'source' can be a cascading tap, subquery, or a cascalog tap.
    'sink' can be a cascading tap, sink function, or a cascalog tap."
@@ -110,17 +111,6 @@
 (defmethod get-out-fields :cascalog-tap [cascalog-tap]
   (get-out-fields (:source cascalog-tap)))
 
-(declare name-vars)
-(defn clean-gen
-  "Accepts a cascalog generator; if `g` is well-formed, `clean-gen`
-  acts as `identity`. If the supplied generator is a vector or a list,
-  `clean-gen` returns a new generator with field-names."
-  [g]
-  (let [n (count (first g))]
-    (if (or (vector? g) (list? g))
-      (name-vars g (gen-nullable-vars n))
-      g)))
-
 ;; Query creation and execution
 
 (defmacro <-
@@ -143,12 +133,11 @@
    If the first argument is a string, that will be used as the name
   for the query and will show up in the JobTracker UI."
   [& args]
-  
   (let [[flow-name bindings] (cascalog.rules/parse-exec-args args)
         [sinks gens] (->> (partition 2 bindings)
                           (mapcat (partial apply cascalog.rules/normalize-sink-connection))
                           (unweave))
-        gens      (map clean-gen gens)
+        gens      (map cascalog.rules/clean-gen gens)
         sourcemap (apply merge (map :sourcemap gens))
         trapmap   (apply merge (map :trapmap gens))
         tails     (map cascalog.rules/connect-to-sink gens sinks)
@@ -242,36 +231,17 @@ as well."
     (cascalog.rules/build-rule outvars preds)
     ))
 
-(defn combine* [gens distinct?]
-  ;; it would be nice if cascalog supported Fields/UNKNOWN as output of generator
-  (let [gens (map clean-gen gens)
-        outfields (:outfields (first gens))
-        pipes (map :pipe gens)
-        pipes (for [p pipes]
-                (w/assemble p (w/identity Fields/ALL :fn> outfields :> Fields/RESULTS)))
-        outpipe (if-not distinct?
-                  (w/assemble pipes (w/group-by Fields/ALL))
-                  (w/assemble pipes (w/group-by Fields/ALL) (w/first)))]
-    (p/predicate p/generator
-                 nil
-                 true
-                 (apply merge (map :sourcemap gens))
-                 outpipe
-                 outfields
-                 (apply merge (map :trapmap gens)))
-    ))
-
 (defn union
   "Merge the tuples from the subqueries together into a single
   subquery and ensure uniqueness of tuples."
   [& gens]
-  (combine* gens true))
+  (cascalog.rules/combine* gens true))
 
 (defn combine
   "Merge the tuples from the subqueries together into a single
   subquery. Doesn't ensure uniqueness of tuples."
   [& gens]
-  (combine* gens false))
+  (cascalog.rules/combine* gens false))
 
 (defn multigroup*
   [declared-group-vars buffer-out-vars buffer-spec & sqs]

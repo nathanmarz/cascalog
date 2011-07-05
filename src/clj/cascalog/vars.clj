@@ -84,9 +84,13 @@
         true (sanitize-elem e anon-gen)))
 
 (defn vars2str [vars]
-  (let [anon-gen (if (some #(and (cascalog-var? %) (unground-var? %)) (flatten-vars vars)) gen-ungrounding-var gen-nullable-var)]
-    (vec (map sanitize-unknown vars (repeat anon-gen)))
-  ))
+  (let [anon-gen (if (some #(and (cascalog-var? %)
+                                 (unground-var? %))
+                           (flatten-vars vars))
+                   gen-ungrounding-var
+                   gen-nullable-var)]
+    (vec (map sanitize-unknown vars
+              (repeat anon-gen)))))
 
 (defn- var-updater-fn [force-unique?]
   (fn [[all equalities] v]

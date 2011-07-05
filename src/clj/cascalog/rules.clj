@@ -552,10 +552,41 @@
 (defn mk-raw-predicate [[op-sym & vars]]
   [op-sym (try-resolve op-sym) (vars2str vars)])
 
+(defn clean-gen
+  "Accepts a cascalog generator; if `g` is well-formed, `clean-gen`
+  acts as `identity`. If the supplied generator is a vector or a list,
+  `clean-gen` returns a new generator with field-names."
+  [g]
+  (let [vars (-> (first g) count gen-nullable-vars)]
+    (if (or (vector? g) (list? g))
+      (->> [[g :>> vars] [:distinct false]]
+           (map mk-raw-predicate)
+           (build-rule vars))
+      g)))
+
 (def *JOB-CONF* {})
 
 (defn connect-to-sink [gen sink]
   ((w/pipe-rename (uuid)) (:pipe gen)))
+
+(defn combine* [gens distinct?]
+  ;; it would be nice if cascalog supported Fields/UNKNOWN as output of generator
+  (let [gens (map clean-gen gens)
+        outfields (:outfields (first gens))
+        pipes (map :pipe gens)
+        pipes (for [p pipes]
+                (w/assemble p (w/identity Fields/ALL :fn> outfields :> Fields/RESULTS)))
+        outpipe (if-not distinct?
+                  (w/assemble pipes (w/group-by Fields/ALL))
+                  (w/assemble pipes (w/group-by Fields/ALL) (w/first)))]
+    (p/predicate p/generator
+                 nil
+                 true
+                 (apply merge (map :sourcemap gens))
+                 outpipe
+                 outfields
+                 (apply merge (map :trapmap gens)))
+    ))
 
 (defn generic-cascading-fields? [cfields]
   (or (.isSubstitution cfields)
