@@ -2,6 +2,9 @@
   (:use clojure.test)
   (:use cascalog.util))
 
+(deftest test-transpose
+  (is (= [[1 2] [3 4]] (transpose [[1 3] [2 4]]))))
+
 (def p 5)
 
 (deftest test-try-resolve
@@ -20,17 +23,11 @@
   (is (= ["aaa"] (collectify "aaa")))
   (is (= [{:a 1 :b 2}] (collectify {:a 1 :b 2}))))
 
-(defmacro throws? [eclass form]
-  `(try
-    ~form
-    (is (= true false))
-   (catch ~eclass e#)))
-
 (deftest test-remove-first
   (is (= [1 2 :a] (remove-first keyword? [1 :b 2 :a])))
   (is (= [1 2 3 4 5] (remove-first (partial = 1) [1 1 2 3 4 5])))
   (is (= [1 1 2 3 5] (remove-first (partial = 4) [1 1 2 3 4 5])))
-  (throws? IllegalArgumentException (remove-first even? [1 3 5]))
+  (is (thrown? IllegalArgumentException (remove-first even? [1 3 5])))
   )
 
 (deftest test-all-pairs
@@ -43,8 +40,8 @@
   (is (= [[1 3 5] [2 4 6]] (unweave [1 2 3 4 5 6])))
   (is (= [["a" "q"] [99 "c"]] (unweave ["a" 99 "q" "c"])))
   (is (= [[] []] (unweave [])))
-  (throws? IllegalArgumentException (unweave ["a" "b" "c"]))
-  (throws? IllegalArgumentException (unweave [100]))
+  (is (thrown? IllegalArgumentException (unweave ["a" "b" "c"])))
+  (is (thrown? IllegalArgumentException (unweave [100])))
   )
 
 (deftest test-count=

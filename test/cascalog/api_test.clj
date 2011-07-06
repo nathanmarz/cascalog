@@ -158,43 +158,52 @@
   (with-tmp-sources [person [["a"] ["b"] ["c"] ["d"]]
                      follows [["a" "b"] ["c" "e"] ["c" "d"]]]
     (test?<- [["a" "b"] ["c" "e"] ["c" "d"] ["b" nil] ["d" nil]]
-      [?p !!p2] (person ?p) (follows ?p !!p2))
+             [?p !!p2] (person ?p) (follows ?p !!p2))
     (test?<- [["a" "b" "b"] ["c" "e" "d"] ["c" "e" "e"]
               ["c" "d" "d"] ["c" "d" "e"] ["b" nil nil]
               ["d" nil nil]]
-      [?p !!p2 !!p3] (person ?p) (follows ?p !!p2) (follows ?p !!p3))
+             [?p !!p2 !!p3] (person ?p) (follows ?p !!p2) (follows ?p !!p3))
     (test?<- [["a" 1 1] ["c" 2 2] ["b" 0 1] ["d" 0 1]]
-      [?p ?c ?t] (person ?p) (follows ?p !!p2) (c/!count !!p2 :> ?c) (c/count ?t))
+             [?p ?c ?t] (person ?p) (follows ?p !!p2) (c/!count !!p2 :> ?c) (c/count ?t))
     (test?<- [["a" "some"] ["b" "none"] ["c" "some"] ["d" "none"]]
-      [?p ?s] (person ?p) (follows ?p !!p2) (existence2str !!p2 :> ?s))
-  ))
+             [?p ?s] (person ?p) (follows ?p !!p2) (existence2str !!p2 :> ?s))
+    ))
 
 (deftest test-outer-join-complex
- (with-tmp-sources [age [["a" 20] ["b" 30] ["c" 27] ["d" 40]]
-                    rec1 [["a" 1 2] ["b" 30 16] ["e" 3 4]]
-                    rec2 [["a" 20 6] ["c" 27 25] ["c" 1 11] ["f" 30 1] ["b" 100 16]] ]
-   (test?<- [["a" 20 1 2 6] ["c" 27 nil nil 25] ["d" 40 nil nil nil] ["b" 30 30 16 nil]]
-     [?p ?a !!f1 !!f2 !!f3] (age ?p ?a) (rec1 ?p !!f1 !!f2) (rec2 ?p ?a !!f3))
-  ))
+  (with-tmp-sources [age [["a" 20] ["b" 30] ["c" 27] ["d" 40]]
+                     rec1 [["a" 1 2] ["b" 30 16] ["e" 3 4]]
+                     rec2 [["a" 20 6] ["c" 27 25] ["c" 1 11] ["f" 30 1] ["b" 100 16]] ]
+    (test?<- [["a" 20 1 2 6] ["c" 27 nil nil 25] ["d" 40 nil nil nil] ["b" 30 30 16 nil]]
+             [?p ?a !!f1 !!f2 !!f3] (age ?p ?a) (rec1 ?p !!f1 !!f2) (rec2 ?p ?a !!f3))
+    ))
+
+(deftest test-outer-join-assertions
+  (with-tmp-sources [age [["a" 20] ["b" 30] ["c" 27] ["d" 40]]
+                     rec1 [["a" 1 2] ["b" 30 16] ["e" 3 4]]]
+    (thrown?<- IllegalArgumentException [!!a ?c] (age !!a ?b) (rec1 !!a ?f1 ?f2) (- ?b 2 :> ?c))
+    (thrown?<- IllegalArgumentException [!!a !!c] (age !!a ?b) (- ?b 2 :> !!c))))
 
 (deftest test-full-outer-join
   (with-tmp-sources [age [["A" 20] ["B" 30] ["C" 27] ["D" 40]]
-                    gender [["A" "m"] ["B" "f"] ["E" "m"] ["F" "f"]]
-                    follows [["A" "B"] ["B" "E"] ["B" "G"] ["E" "D"]]
-                    age-tokens [["B" 20 "d"] ["A" 30 "a"]]
-                    ]
-   (test?<- [["A" 20 "m"] ["B" 30 "f"] ["C" 27 nil] ["D" 40 nil] ["E" nil "m"] ["F" nil "f"]]
-     [?p !!a !!g] (age ?p !!a) (gender ?p !!g))
-   (test?<- [["A" "o" "o2"] ["B" "o" "o2"] ["C" "o" "n2"] ["D" "o" "n2"] ["E" "n" "o2"] ["F" "n" "o2"]]
-     [?p ?s ?s2]
-    (age ?p !!a) (gender ?p !!g) (outer-join-tester !!a :> ?s) (outer-join-tester2 !!g :> ?s2))
-   (test?<- [["A" 1] ["B" 1] ["C" 1] ["D" 1] ["E" 2] ["F" 2]]
-     [?p ?c] (age ?p !!a) (gender ?p !!g) (outer-join-tester3 !!a :> ?t) (c/count ?c))
-   (test?<- [["A" "a"] ["E" nil]]
-     [?p !!t] (follows ?p ?p2) (age ?p2 ?a2) (age-tokens ?p ?a2 !!t))
-   (test?<- [["E"]]
-     [?p] (follows ?p ?p2) (age ?p2 ?a2) (age-tokens ?p ?a2 !!t) (nil? !!t))
-  ))
+                     gender [["A" "m"] ["B" "f"] ["E" "m"] ["F" "f"]]
+                     follows [["A" "B"] ["B" "E"] ["B" "G"] ["E" "D"]]
+                     age-tokens [["B" 20 "d"] ["A" 30 "a"]]
+                     ]
+    (test?<- [["A" 20 "m"] ["B" 30 "f"] ["C" 27 nil] ["D" 40 nil] ["E" nil "m"] ["F" nil "f"]]
+             [?p !!a !!g] (age ?p !!a) (gender ?p !!g))
+
+    (test?<- [["A" "o" "o2"] ["B" "o" "o2"] ["C" "o" "n2"] ["D" "o" "n2"] ["E" "n" "o2"] ["F" "n" "o2"]]
+             [?p ?s ?s2] (age ?p !!a) (gender ?p !!g) (outer-join-tester !!a :> ?s) (outer-join-tester2 !!g :> ?s2))
+
+    (test?<- [["A" 1] ["B" 1] ["C" 1] ["D" 1] ["E" 2] ["F" 2]]
+             [?p ?c] (age ?p !!a) (gender ?p !!g) (outer-join-tester3 !!a :> ?t) (c/count ?c))
+
+    (test?<- [["A" "a"] ["E" nil]]
+             [?p !!t] (follows ?p ?p2) (age ?p2 ?a2) (age-tokens ?p ?a2 !!t))
+
+    (test?<- [["E"]]
+             [?p] (follows ?p ?p2) (age ?p2 ?a2) (age-tokens ?p ?a2 !!t) (nil? !!t))
+    ))
 
 (defmapop [hof-add [a]]
   "Adds the static variable `a` to dynamic input `n`."
@@ -212,10 +221,10 @@
 
 (deftest test-hof-ops
   (with-tmp-sources [integer [[1] [2] [6]]]
-    (test?<- [[4] [5] [9]] [?n] (integer ?v) (hof-add 3 ?v :> ?n))
+    (test?<- [[4] [5] [9]]   [?n] (integer ?v) (hof-add 3 ?v :> ?n))
     (test?<- [[-5] [-4] [0]] [?n] (integer ?v) (hof-add [-6] ?v :> ?n))
-    (test?<- [[3] [5] [13]] [?n] (integer ?v) (hof-arithmetic [2 1] ?v :> ?n))
-    (test?<- [[72]] [?n] (integer ?v) (sum-plus [21] ?v :> ?n))
+    (test?<- [[3] [5] [13]]  [?n] (integer ?v) (hof-arithmetic [2 1] ?v :> ?n))
+    (test?<- [[72]]          [?n] (integer ?v) (sum-plus [21] ?v :> ?n))
     ))
 
 (defn lala-appended [source]

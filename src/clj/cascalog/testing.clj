@@ -18,7 +18,8 @@
         clojure.contrib.java-utils
         cascalog.io
         cascalog.util
-        cascalog.api)
+        cascalog.api
+        [clojure.contrib.def :only (defalias)])
   (:import [cascading.tuple Fields Tuple TupleEntry TupleEntryCollector]
            [cascading.pipe Pipe]
            [cascading.operation ConcreteCall]
@@ -193,6 +194,11 @@
   (let [[specs out-tuples] (apply process?- bindings)]
     (is-specs= specs out-tuples)))
 
+(defmacro thrown?- [& bindings]
+  (let [error-pos (if (keyword? (first bindings)) 1 0)
+        [error binding] ((juxt nth wipe) bindings error-pos)]
+    `(is (~'thrown? ~error (process?- ~@binding)))))
+
 (defn check-tap-spec [tap spec]
   (is-tuplesets= (rules/get-tuples tap) spec))
 
@@ -224,3 +230,9 @@
                       (split-at 2 args)
                       (split-at 1 args))]
     `(test?- ~@begin (<- ~@body))))
+
+(defmacro thrown?<- [& args]
+  (let [[begin body] (if (keyword? (first args))
+                      (split-at 2 args)
+                      (split-at 1 args))]
+    `(thrown?- ~@begin (<- ~@body))))
