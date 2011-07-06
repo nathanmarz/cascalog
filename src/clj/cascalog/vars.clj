@@ -72,7 +72,7 @@
 (defn- sanitize-elem [e anon-gen]
   (cond (cascalog-var? e) (extract-varname e anon-gen)
         (= (str e) "&") (str e) ; to support destructuring in predicate macros
-        true e))
+        :else e))
 
 (defn- sanitize-vec [v anon-gen] (vec (map sanitize-elem v (repeat anon-gen))))
 
@@ -83,7 +83,7 @@
 (defn sanitize-unknown [e anon-gen]
   (cond (map? e) (sanitize-map e anon-gen)
         (vector? e) (sanitize-vec e anon-gen)
-        true (sanitize-elem e anon-gen)))
+        :else (sanitize-elem e anon-gen)))
 
 (defn vars2str [vars]
   (let [anon-gen (if (some #(and (cascalog-var? %)
@@ -100,7 +100,7 @@
       (let [existing (get equalities v [])
             varlist  (cond (empty? existing)  (conj existing v)
                            (and force-unique? (ground-var? v)) (conj existing (uniquify-var v))
-                           true               existing)
+                           :else               existing)
             newname  (if force-unique? (last varlist) (first varlist))]
             [(conj all newname) (assoc equalities v varlist)] )
       [(conj all v) equalities] )))

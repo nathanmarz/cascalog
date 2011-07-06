@@ -53,8 +53,8 @@
 (w/defmapcatop many-vals ["val"] [n]
   (cond (odd? n) [(* n 2) (* 3 n) (* n n)]
         (= n 2)  []
-        true     [(inc n)]
-    ))
+        :else     [(inc n)]
+        ))
 
 (deftest test-mapcat-pred
   (let [pred (build-predicate {} many-vals nil nil ["?a"] ["?b"])

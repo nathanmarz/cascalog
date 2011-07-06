@@ -337,7 +337,7 @@
 (defn- gen-join-type [gen]
   (cond (:join-set-var gen) :outerone
         (:ground? gen)      :inner
-        true                :outer
+        :else               :outer
         ))
 
 ;; split into inner-gens outer-gens join-set-gens
