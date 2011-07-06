@@ -5,6 +5,12 @@
 (deftest test-transpose
   (is (= [[1 2] [3 4]] (transpose [[1 3] [2 4]]))))
 
+(deftest test-wipe
+  (are [idx coll res] (= res (wipe coll idx))
+       1 [1 2 3 4] [1 3 4]
+       0 [1 2 3 4] [2 3 4]
+       6 [1 2 3 4] [1 2 3 4]))
+
 (def p 5)
 
 (deftest test-try-resolve
@@ -43,6 +49,11 @@
   (is (thrown? IllegalArgumentException (unweave ["a" "b" "c"])))
   (is (thrown? IllegalArgumentException (unweave [100])))
   )
+
+(deftest test-duplicates
+  (is (= [1 2]) (duplicates [1 2 2 1 3]))
+  (is (= []) (duplicates (range 4)))
+  (is (= ["face"]) (duplicates [1 "face" 2 "face"])))
 
 (deftest test-count=
   (is (= false (count= [1] [])))
