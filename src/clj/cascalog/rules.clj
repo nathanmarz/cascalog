@@ -30,7 +30,6 @@
            [org.apache.hadoop.mapred JobConf]
            [java.util ArrayList]))
 
-
 ;; source can be a cascalog-tap, subquery, or cascading tap sink can
 ;; be a cascading tap, a sink function, or a cascalog-tap
 (defstruct cascalog-tap :type :source :sink)
@@ -491,10 +490,35 @@
         {invars :<< outvars :>>} (p/parse-variables vars (p/predicate-default-var op))]
     [op opvar hof-args invars outvars]))
 
+(defn- parse-ungrounded-vars
+  "For the supplied list of raw cascalog predicates of the form
+  `[value, var, vars]`, returns a vector of two entries: a sequence of
+  all ungrounded vars that appear within generator predicates, and a
+  sequence of all ungrounded vars that appear within non-generator
+  predicates."
+  [raw-preds]
+  (->> raw-preds
+       ((juxt filter remove) (comp p/generator? first))
+       (map (comp (partial mapcat #(filter unground-var? %))
+                  (partial map last)))))
+
 (defn- pred-clean
   "Makes sure that ungrounding vars appear only once per query."
   [raw-preds]
-  raw-preds)
+  (let [[gen-vars pred-vars] (parse-ungrounded-vars raw-preds)
+        extra-vars  (vec (difference (set pred-vars) (set gen-vars)))
+        dups (duplicates gen-vars)]
+    (cond
+     (seq extra-vars)
+     (throw-illegal (str "Ungrounding vars must originate within a generator. "
+                         extra-vars
+                         " violate(s) the rules."))
+     
+     (seq dups)
+     (throw-illegal (str "Each ungrounding var can only appear once per query."
+                         "The following are duplicated: "
+                         dups))
+     :else raw-preds)))
 
 (defn- build-query [out-vars raw-predicates]
   (debug-print "outvars:" out-vars)

@@ -54,7 +54,7 @@
 
 (defn non-nullable-var? [sym-or-str]
   (try (.startsWith (extract-varname sym-or-str) "?")
-       (catch IllegalArgumentException e nil)))
+       (catch Exception e nil)))
 
 (def nullable-var? (complement non-nullable-var?))
 
@@ -62,7 +62,7 @@
   "!! vars that cause outer joins"
   [sym-or-str]
   (try (.startsWith (extract-varname sym-or-str) "!!")
-       (catch IllegalArgumentException e nil)))
+       (catch Exception e nil)))
 
 (def ground-var? (complement unground-var?))
 

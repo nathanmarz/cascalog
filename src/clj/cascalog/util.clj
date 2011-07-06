@@ -17,6 +17,9 @@
   (:use [clojure.contrib.seq-utils :only [find-first indexed]])
   (:import [java.util UUID Collection]))
 
+(defn throw-illegal [str]
+  (throw (IllegalArgumentException. str)))
+
 (defn transpose [m]
   (apply map list m))
 
@@ -68,6 +71,19 @@
     (throw (IllegalArgumentException. "Need even number of args to unweave")))
   [(take-nth 2 coll) (take-nth 2 (rest coll))])
 
+(defn duplicates
+  "Returns a vector of all values for which duplicates appear in the
+  supplied collection. For example:
+
+  (duplicates [1 2 2 1 3])
+  ;=> [1 2]"
+  [coll]
+  (loop [[x & more] coll, test-set #{}, dups #{}]
+    (if-not x
+      (vec dups)
+      (recur more
+             (conj test-set x)
+             (if (test-set x) (conj dups x) dups)))))
 
 (defn pairs2map [pairs]
   (apply hash-map (flatten pairs)))
