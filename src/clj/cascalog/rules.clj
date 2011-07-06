@@ -253,7 +253,6 @@
              (every? :parallel-agg aggs)  (mk-parallel-aggregator grouping-fields aggs)
              :else                        [[identity] (map :serial-agg-assembly aggs)]))
 
-;; TODO: MAYBE the problem. try printing sort and reverse.
 (defn- mk-group-by [grouping-fields options]
   (let [{s :sort rev :reverse} options]
     (if-not (empty? s)
