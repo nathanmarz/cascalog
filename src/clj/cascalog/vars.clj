@@ -53,14 +53,16 @@
   (str v (gen-unique-suffix)))
 
 (defn non-nullable-var? [sym-or-str]
-  (.startsWith (extract-varname sym-or-str) "?"))
+  (try (.startsWith (extract-varname sym-or-str) "?")
+       (catch IllegalArgumentException e nil)))
 
 (def nullable-var? (complement non-nullable-var?))
 
 (defn unground-var?
   "!! vars that cause outer joins"
   [sym-or-str]
-  (.startsWith (extract-varname sym-or-str) "!!"))
+  (try (.startsWith (extract-varname sym-or-str) "!!")
+       (catch IllegalArgumentException e nil)))
 
 (def ground-var? (complement unground-var?))
 
