@@ -470,8 +470,7 @@
 
 (def valid-sinkmode? #{:keep :append :replace})
 
-(defn sink-mode
-  [kwd]
+(defn- sink-mode [kwd]
   {:pre [(or (nil? kwd) (valid-sinkmode? kwd))]}
   (case kwd
         :keep SinkMode/KEEP
@@ -481,7 +480,7 @@
 
 (defnk hfs-tap
   "Returns a Cascading Hfs tap with support for the supplied scheme,
-  opened up on the supplied path or file object. The tap's sinkmode
+  opened up on the supplied path or file object. The tap's sink mode
   can be specified as follows:
 
     (w/hfs-tap (w/text-line [\"line\"] Fields/ALL)
@@ -490,13 +489,16 @@
 
   Supported `:sinkmode` values are `:keep`, `:include` and
   `:replace`."
-  [#^Scheme scheme path-or-file :sinkmode nil]
-  (let [mode (sink-mode sinkmode)]
+  [#^Scheme scheme path-or-file :sinkmode nil :sinkparts nil]
+  (let [mode (sink-mode sinkmode)
+        scheme (if sinkparts
+                 (doto scheme (.setNumSinkParts sinkparts))
+                 scheme)]
     (Hfs. scheme (path path-or-file) mode)))
 
 (defnk lfs-tap
   "Returns a Cascading Lfs tap with support for the supplied scheme,
-  opened up on the supplied path or file object. The tap's sinkmode
+  opened up on the supplied path or file object. The tap's sink mode
   can be specified as follows:
 
     (w/lfs-tap (w/text-line [\"line\"] Fields/ALL)
@@ -505,8 +507,11 @@
 
   Supported `:sinkmode` values are `:keep`, `:include` and
   `:replace`."
-  [#^Scheme scheme path-or-file :sinkmode nil]
-  (let [mode (sink-mode sinkmode)]
+  [#^Scheme scheme path-or-file :sinkmode nil :sinkparts nil]
+  (let [mode (sink-mode sinkmode)
+        scheme (if sinkparts
+                 (doto scheme (.setNumSinkParts sinkparts))
+                 scheme)]
     (Lfs. scheme (path path-or-file) mode)))
 
 (defn write-dot [#^Flow flow #^String path]
