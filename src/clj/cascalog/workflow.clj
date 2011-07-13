@@ -16,8 +16,8 @@
 (ns cascalog.workflow
   (:refer-clojure :exclude [group-by count first filter mapcat map identity min max])
   (:use [clojure.contrib.seq-utils :only [find-first indexed]]
-        [clojure.contrib.def :only (name-with-attributes defnk)])
-  (:use [cascalog util debug])
+        [clojure.contrib.def :only (name-with-attributes defnk)]
+        [cascalog util debug])
   (:import [cascading.tuple Tuple TupleEntry Fields]
            [cascading.scheme TextLine SequenceFile]
            [cascading.tap SinkMode]
@@ -29,7 +29,7 @@
            [cascading.pipe Pipe Each Every GroupBy CoGroup]
            [cascading.pipe.cogroup InnerJoin OuterJoin LeftJoin RightJoin MixedJoin]
            [cascading.scheme Scheme]
-           [cascading.tap Hfs Lfs Tap]
+           [cascading.tap Hfs Lfs GlobHfs Tap TemplateTap]
            [org.apache.hadoop.io Text]
            [org.apache.hadoop.mapred TextInputFormat TextOutputFormat
             OutputCollector JobConf]
@@ -467,6 +467,18 @@
   [x]
   (if (string? x) x (.getAbsolutePath #^File x)))
 
+;; source can be a cascalog-tap, subquery, or cascading tap sink can
+;; be a cascading tap, a sink function, or a cascalog-tap
+(defstruct cascalog-tap :type :source :sink)
+
+(defn mk-cascalog-tap
+  "Defines a cascalog tap which can be used to add additional
+  abstraction over cascading taps.
+  
+   'source' can be a cascading tap, subquery, or a cascalog tap.
+   'sink' can be a cascading tap, sink function, or a cascalog tap."
+  [source sink]
+  (struct-map cascalog-tap :type :cascalog-tap :source source :sink sink))
 
 (def valid-sinkmode? #{:keep :append :replace})
 
@@ -478,41 +490,60 @@
         :replace SinkMode/REPLACE
         SinkMode/KEEP))
 
+(defn- augment-scheme
+  "If `sinkparts` is truthy, returns the supplied cascading scheme
+with the `sinkparts` field updated appropriately; else, acts as
+identity.  identity."
+  [^Scheme scheme sinkparts]
+  (if sinkparts
+    (doto scheme (.setNumSinkParts sinkparts))
+    scheme))
+
+(defn- patternize
+  "If `pattern` is truthy, returns the supplied parent `Hfs` or `Lfs`
+  tap wrapped that responds as a `TemplateTap` when used as a sink,
+  and a `GlobHfs` tap when used as a source. Otherwise, acts as
+  identity."
+  [scheme type path-or-file sinkmode pattern templatefields]
+  (let [basepath (path path-or-file)
+        mode (sink-mode sinkmode)
+        parent (case type
+                     :hfs (Hfs. scheme basepath mode)
+                     :lfs (Lfs. scheme basepath mode))]
+    (if-not pattern
+      parent
+      (mk-cascalog-tap (GlobHfs. scheme (str basepath pattern))
+                       (TemplateTap. parent
+                                     pattern
+                                     (fields templatefields))))))
+
 (defnk hfs-tap
   "Returns a Cascading Hfs tap with support for the supplied scheme,
-  opened up on the supplied path or file object. The tap's sink mode
-  can be specified as follows:
+  opened up on the supplied path or file object. Supported keyword
+  options are:
 
-    (w/hfs-tap (w/text-line [\"line\"] Fields/ALL)
-               path
-               :sinkmode :keep)
-
-  Supported `:sinkmode` values are `:keep`, `:include` and
-  `:replace`."
-  [#^Scheme scheme path-or-file :sinkmode nil :sinkparts nil]
-  (let [mode (sink-mode sinkmode)
-        scheme (if sinkparts
-                 (doto scheme (.setNumSinkParts sinkparts))
-                 scheme)]
-    (Hfs. scheme (path path-or-file) mode)))
+  `:sinkmode`  - can be `:keep`, `:include` or `:replace`.
+  `:sinkparts` 
+  `:pattern`"
+  [scheme path-or-file
+   :sinkmode nil :sinkparts nil :pattern nil :templatefields Fields/ALL]
+  (-> scheme
+      (augment-scheme sinkparts)
+      (patternize :hfs path-or-file sinkmode pattern templatefields)))
 
 (defnk lfs-tap
   "Returns a Cascading Lfs tap with support for the supplied scheme,
-  opened up on the supplied path or file object. The tap's sink mode
-  can be specified as follows:
+  opened up on the supplied path or file object. Supported keyword
+  options are:
 
-    (w/lfs-tap (w/text-line [\"line\"] Fields/ALL)
-               path
-               :sinkmode :keep)
-
-  Supported `:sinkmode` values are `:keep`, `:include` and
-  `:replace`."
-  [#^Scheme scheme path-or-file :sinkmode nil :sinkparts nil]
-  (let [mode (sink-mode sinkmode)
-        scheme (if sinkparts
-                 (doto scheme (.setNumSinkParts sinkparts))
-                 scheme)]
-    (Lfs. scheme (path path-or-file) mode)))
+  `:sinkmode`  - can be `:keep`, `:include` or `:replace`.
+  `:sinkparts` 
+  `:pattern`"
+  [scheme path-or-file
+   :sinkmode nil :sinkparts nil :pattern nil :templatefields Fields/ALL]
+  (-> scheme
+      (augment-scheme sinkparts)
+      (patternize :lfs path-or-file sinkmode pattern templatefields)))
 
 (defn write-dot [#^Flow flow #^String path]
   (.writeDOT flow path))
@@ -523,5 +554,7 @@
 (defn memory-source-tap
   ([tuples] (memory-source-tap Fields/ALL tuples))
   ([fields-in tuples]
-     (let [tuples (ArrayList. (clojure.core/map #(Util/coerceToTuple %) tuples))]
+     (let [tuples (->> tuples
+                       (clojure.core/map #(Util/coerceToTuple %))
+                       (ArrayList.))]
        (MemorySourceTap. tuples (fields fields-in)))))

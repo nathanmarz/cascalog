@@ -30,10 +30,6 @@
            [org.apache.hadoop.mapred JobConf]
            [java.util ArrayList]))
 
-;; source can be a cascalog-tap, subquery, or cascading tap sink can
-;; be a cascading tap, a sink function, or a cascalog-tap
-(defstruct cascalog-tap :type :source :sink)
-
 ;; infields for a join are the names of the join fields
 (p/defpredicate join :infields)
 (p/defpredicate group :assembly :infields :totaloutfields)
@@ -57,7 +53,7 @@
   (let [{ops :operation
          aggs :aggregator
          gens :generator} (merge {:operation [] :aggregator [] :generator []}
-                                (group-by :type predicates))]
+                                 (group-by :type predicates))]
     (when (and (> (count aggs) 1) (some :buffer? aggs))
       (throw (IllegalArgumentException. "Cannot use both aggregators and buffers in same grouping")))
     [gens ops aggs]))
