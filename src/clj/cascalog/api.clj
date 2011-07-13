@@ -33,9 +33,10 @@
 
 (defn hfs-textline
   "Creates a tap on HDFS using textline format. Different filesystems
-   can be selected by using different prefixes for `path`. (Optional
-   `sinkmode` argument must be one of `:keep`, `:include` or
-   `:replace`.)
+   can be selected by using different prefixes for `path`.
+
+  Supports keyword option for `:outfields`. See
+  `cascalog.workflow/hfs-tap` for more keyword arguments.
    
    See http://www.cascading.org/javadoc/cascading/tap/Hfs.html and
    http://www.cascading.org/javadoc/cascading/scheme/TextLine.html"
@@ -45,10 +46,11 @@
     (apply w/hfs-tap scheme path opts)))
 
 (defn lfs-textline
-  "Creates a tap on the local filesystem using textline
-   format. (Optional `sinkmode` argument must be one of `:keep`,
-   `:include` or `:replace`.)
-   
+  "Creates a tap on the local filesystem using textline format.
+
+  Supports keyword option for `:outfields`. See
+  `cascalog.workflow/lfs-tap` for more keyword arguments.
+
    See http://www.cascading.org/javadoc/cascading/tap/Lfs.html and
    http://www.cascading.org/javadoc/cascading/scheme/TextLine.html"
   [path & {:keys [outfields] :or {outfields Fields/ALL} :as opts}]
@@ -58,8 +60,10 @@
 
 (defn hfs-seqfile
   "Creates a tap on HDFS using sequence file format. Different
-   filesystems can be selected by using different prefixes for
-   `path`.
+   filesystems can be selected by using different prefixes for `path`.
+
+  Supports keyword option for `:outfields`. See
+  `cascalog.workflow/hfs-tap` for more keyword arguments.
 
    See http://www.cascading.org/javadoc/cascading/tap/Hfs.html and
    http://www.cascading.org/javadoc/cascading/scheme/SequenceFile.html"
@@ -71,6 +75,9 @@
 (defn lfs-seqfile
   "Creates a tap that reads data off of the local filesystem in
    sequence file format.
+
+  Supports keyword option for `:outfields`. See
+  `cascalog.workflow/lfs-tap` for more keyword arguments.
    
    See http://www.cascading.org/javadoc/cascading/tap/Lfs.html and
    http://www.cascading.org/javadoc/cascading/scheme/SequenceFile.html"

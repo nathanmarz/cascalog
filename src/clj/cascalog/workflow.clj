@@ -522,9 +522,15 @@ identity.  identity."
   opened up on the supplied path or file object. Supported keyword
   options are:
 
-  `:sinkmode`  - can be `:keep`, `:include` or `:replace`.
-  `:sinkparts` 
-  `:pattern`"
+  `:sinkmode` - can be `:keep`, `:include` or `:replace`.
+
+  `:sinkparts` - used to constrain the segmentation of output files.
+
+  `:pattern` - Causes resulting tap to respond as a templatetap when
+  used as a sink, and as a GlobHfs tap when used as a source.
+
+  `:templatefields` - When pattern is supplied, this option allows a
+  subset of output fields to be used in the naming scheme."
   [scheme path-or-file
    :sinkmode nil :sinkparts nil :pattern nil :templatefields Fields/ALL]
   (-> scheme
@@ -536,9 +542,16 @@ identity.  identity."
   opened up on the supplied path or file object. Supported keyword
   options are:
 
-  `:sinkmode`  - can be `:keep`, `:include` or `:replace`.
-  `:sinkparts` 
-  `:pattern`"
+  `:sinkmode` - can be `:keep`, `:include` or `:replace`.
+
+  `:sinkparts` - used to constrain the segmentation of output files.
+
+  `:pattern` - Causes resulting tap to respond as a templatetap when
+  used as a sink, and as a GlobHfs tap when used as a source.
+
+  `:templatefields` - When pattern is supplied, this option allows a
+  subset of output fields to be used in the naming scheme."
+  
   [scheme path-or-file
    :sinkmode nil :sinkparts nil :pattern nil :templatefields Fields/ALL]
   (-> scheme
