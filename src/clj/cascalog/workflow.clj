@@ -504,18 +504,22 @@ identity.  identity."
   tap wrapped that responds as a `TemplateTap` when used as a sink,
   and a `GlobHfs` tap when used as a source. Otherwise, acts as
   identity."
-  [scheme type path-or-file sinkmode pattern templatefields]
+  [scheme type path-or-file sinkmode sink-template source-pattern templatefields]
   (let [basepath (path path-or-file)
         mode (sink-mode sinkmode)
         parent (case type
                      :hfs (Hfs. scheme basepath mode)
-                     :lfs (Lfs. scheme basepath mode))]
-    (if-not pattern
-      parent
-      (mk-cascalog-tap (GlobHfs. scheme (str basepath pattern))
-                       (TemplateTap. parent
-                                     pattern
-                                     (fields templatefields))))))
+                     :lfs (Lfs. scheme basepath mode))
+        source-pattern (str basepath source-pattern)
+        source (if-not source-pattern
+                 parent
+                 (GlobHfs. scheme source-pattern))
+        sink (if-not sink-template
+               parent
+               (TemplateTap. parent
+                             sink-template
+                             (fields templatefields)))]
+    (mk-cascalog-tap source sink)))
 
 (defnk hfs-tap
   "Returns a Cascading Hfs tap with support for the supplied scheme,
@@ -526,16 +530,21 @@ identity.  identity."
 
   `:sinkparts` - used to constrain the segmentation of output files.
 
-  `:pattern` - Causes resulting tap to respond as a templatetap when
-  used as a sink, and as a GlobHfs tap when used as a source.
+  `:source-pattern` - Causes resulting tap to respond as a GlobHfs tap
+  when used as source.
+
+  `:sink-template` - Causes resulting tap to respond as a TemplateTap when
+  used as a sink.
 
   `:templatefields` - When pattern is supplied, this option allows a
   subset of output fields to be used in the naming scheme."
   [scheme path-or-file
-   :sinkmode nil :sinkparts nil :pattern nil :templatefields Fields/ALL]
+   :sinkmode nil :sinkparts nil
+   :sink-template nil :source-pattern nil :templatefields Fields/ALL]
   (-> scheme
       (augment-scheme sinkparts)
-      (patternize :hfs path-or-file sinkmode pattern templatefields)))
+      (patternize :hfs path-or-file sinkmode
+                  sink-template source-pattern templatefields)))
 
 (defnk lfs-tap
   "Returns a Cascading Lfs tap with support for the supplied scheme,
@@ -546,17 +555,22 @@ identity.  identity."
 
   `:sinkparts` - used to constrain the segmentation of output files.
 
-  `:pattern` - Causes resulting tap to respond as a templatetap when
-  used as a sink, and as a GlobHfs tap when used as a source.
+  `:source-pattern` - Causes resulting tap to respond as a GlobHfs tap
+  when used as source.
+
+  `:sink-template` - Causes resulting tap to respond as a TemplateTap when
+  used as a sink.
 
   `:templatefields` - When pattern is supplied, this option allows a
   subset of output fields to be used in the naming scheme."
   
   [scheme path-or-file
-   :sinkmode nil :sinkparts nil :pattern nil :templatefields Fields/ALL]
+   :sinkmode nil :sinkparts nil
+   :sink-template nil :source-pattern nil :templatefields Fields/ALL]
   (-> scheme
       (augment-scheme sinkparts)
-      (patternize :lfs path-or-file sinkmode pattern templatefields)))
+      (patternize :lfs path-or-file sinkmode
+                  sink-template source-pattern templatefields)))
 
 (defn write-dot [#^Flow flow #^String path]
   (.writeDOT flow path))
