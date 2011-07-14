@@ -128,13 +128,12 @@
 (deftest test-nested-predmacro
   (with-tmp-sources [integers [[1] [4]]]
     (let [pm1 (predmacro [invars outvars]
-                (map (fn [i v] [#'append-! i :> v]) invars outvars)
-                )
+                         (map (fn [i v] [#'append-! i :> v]) invars outvars))
           pm2 (predmacro [invars outvars]
-                [[pm1 :<< invars :>> outvars]
-                 [small-op? (first invars)]])]
-        (test?<- [["1!"]] [?v] (integers ?i) (pm2 ?i :> ?v))
-        )))
+                         [[pm1 :<< invars :>> outvars]
+                          [small-op? (first invars)]])]
+      (test?<- [["1!"]] [?v] (integers ?i) (pm2 ?i :> ?v))
+      )))
 
 (defn positive? [num]
   (> num 0))

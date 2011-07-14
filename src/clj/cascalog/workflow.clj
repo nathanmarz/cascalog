@@ -433,16 +433,18 @@
   (Cascades/tapsMap (into-array Pipe pipes) (into-array Tap taps)))
 
 (defn mk-flow [sources sinks assembly]
-  (let
-    [sources (collectify sources)
-     sinks (collectify sinks)
-     source-pipes (clojure.core/map #(Pipe. (str "spipe" %2)) sources (iterate inc 0))
-     tail-pipes (clojure.core/map #(Pipe. (str "tpipe" %2) %1)
-                    (collectify (apply assembly source-pipes)) (iterate inc 0))]
-     (.connect (FlowConnector.)
-        (taps-map source-pipes sources)
-        (taps-map tail-pipes sinks)
-        (into-array Pipe tail-pipes))))
+  (let [sources (collectify sources)
+        sinks   (collectify sinks)
+        source-pipes (clojure.core/map #(Pipe. (str "spipe" %2))
+                                       sources
+                                       (iterate inc 0))
+        tail-pipes (clojure.core/map #(Pipe. (str "tpipe" %2) %1)
+                                     (collectify (apply assembly source-pipes))
+                                     (iterate inc 0))]
+    (.connect (FlowConnector.)
+              (taps-map source-pipes sources)
+              (taps-map tail-pipes sinks)
+              (into-array Pipe tail-pipes))))
 
 (defn text-line
  ([]
@@ -510,10 +512,9 @@ identity.  identity."
         parent (case type
                      :hfs (Hfs. scheme basepath mode)
                      :lfs (Lfs. scheme basepath mode))
-        source-pattern (str basepath source-pattern)
         source (if-not source-pattern
                  parent
-                 (GlobHfs. scheme source-pattern))
+                 (GlobHfs. scheme (str basepath source-pattern)))
         sink (if-not sink-template
                parent
                (TemplateTap. parent

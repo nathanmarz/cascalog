@@ -671,8 +671,10 @@
     ["" args]))
 
 (defn get-tuples [^Tap sink]
-  (with-open [it (.openForRead sink (hadoop/job-conf *JOB-CONF*))]
-    (doall
-     (for [^TupleEntry t (iterator-seq it)]
-       (vec (Util/coerceFromTuple (Tuple. (.getTuple t))))
-       ))))
+  (if (map? sink)
+    (get-tuples (:sink sink))
+    (with-open [it (.openForRead sink (hadoop/job-conf *JOB-CONF*))]
+      (doall
+       (for [^TupleEntry t (iterator-seq it)]
+         (vec (Util/coerceFromTuple (Tuple. (.getTuple t))))
+         )))))
