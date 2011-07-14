@@ -288,8 +288,8 @@ as well."
             :outfields select-fields}
            )))
 
-(defmethod select-fields :cascalog-tap [cascalog-tap select-fields]
-  (select-fields (:source cascalog-tap) select-fields))
+(defmethod select-fields :cascalog-tap [cascalog-tap fields]
+  (select-fields (:source cascalog-tap) fields))
 
 (defn name-vars [gen vars]
   (let [vars (collectify vars)]
