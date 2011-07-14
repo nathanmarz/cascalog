@@ -154,9 +154,4 @@
     ))
 
 (deftest test-errors
-  (is (thrown? RuntimeException (<- [?a ?b ?c :> ?d ?a] (+ ?a ?b ?c :> ?d))))
-  )
-
-
-
-
+  (thrown?<- RuntimeException [?a ?b ?c :> ?d ?a] (+ ?a ?b ?c :> ?d)))

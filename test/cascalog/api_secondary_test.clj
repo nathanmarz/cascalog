@@ -14,7 +14,7 @@
     ))
 
 (deftest test-outfields-tap
-  (is (thrown? IllegalArgumentException (get-out-fields (memory-source-tap Fields/ALL []))))
+  (thrown?- IllegalArgumentException (get-out-fields (memory-source-tap Fields/ALL [])))
   (is (= ["!age"] (get-out-fields (memory-source-tap ["!age"] []))))
   (is (= ["?age" "field2"] (get-out-fields (memory-source-tap ["?age" "field2"] []))))
   )
@@ -140,7 +140,7 @@
 (deftest test-negation-errors
   (let [nums [[1] [2] [3]]
         pairs [[3 4] [4 5]]]
-    (is (thrown? Exception (<- [?n] (nums ?n) (pairs ?n ?n2 :> false) (odd? ?n2))))
+    (thrown?<- Exception [?n] (nums ?n) (pairs ?n ?n2 :> false) (odd? ?n2))
     ))
 
 (defmultibufferop count-sum [seq1 seq2]
