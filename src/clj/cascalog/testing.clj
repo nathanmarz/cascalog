@@ -107,61 +107,74 @@
 (defn- mapify-spec [spec]
   (if (map? spec)
     spec
-    {:fields Fields/ALL :tuples spec} ))
+    {:fields Fields/ALL :tuples spec}))
 
 (defn mk-test-source [spec path]
-  (let [spec (mapify-spec spec)
-        source (mk-test-tap (:fields spec) path)]
-    ;; unable to use with-log-level here for some reason
-    (with-open [collector (.openForWrite source (hadoop/job-conf cascalog.rules/*JOB-CONF*))]
-      (doall (map #(.add collector (Util/coerceToTuple %)) (:tuples spec))))
-    source ))
+  ;; unable to use with-log-level here for some reason
+  (loop [source (mk-test-tap (:fields spec) path)]
+    (if (map? source)
+      (recur (:source source))
+      (with-open [collector (.openForWrite source (hadoop/job-conf cascalog.rules/*JOB-CONF*))]
+        (doall (map #(.add collector (Util/coerceToTuple %))
+                    (-> spec mapify-spec :tuples)))
+        source))))
 
 (defn mk-test-sink [spec path]
-  (mk-test-tap (:fields (mapify-spec spec)) path))
+  (loop [sink (mk-test-tap (:fields (mapify-spec spec)) path)]
+    (if (map? sink)
+      (recur (:sink sink))
+      sink)))
 
 (defn test-assembly
   ([source-specs sink-specs assembly]
-    (test-assembly :fatal source-specs sink-specs assembly))
+     (test-assembly :fatal source-specs sink-specs assembly))
   ([log-level source-specs sink-specs assembly]
-    (with-log-level log-level
-      (with-tmp-files [source-path (temp-dir "sources")
-                       sink-path (temp-path "sinks")]
-            (let
-              [source-specs   (collectify source-specs)
+     (with-log-level log-level
+       (with-tmp-files [source-path (temp-dir "sources")
+                        sink-path   (temp-path "sinks")]
+         (let [source-specs  (collectify source-specs)
                sink-specs     (collectify sink-specs)
-               sources        (map mk-test-source source-specs (unique-rooted-paths source-path))
-               sinks          (map mk-test-sink sink-specs (unique-rooted-paths sink-path))
+               sources        (map mk-test-source
+                                   source-specs
+                                   (unique-rooted-paths source-path))
+               sinks          (map mk-test-sink
+                                   sink-specs
+                                   (unique-rooted-paths sink-path))
                flow           (w/mk-flow sources sinks assembly)
                _              (w/exec flow)
                out-tuples     (doall (map rules/get-tuples sinks))
                expected-data  (map :tuples sink-specs)]
-               (is (= (map multi-set expected-data) (map multi-set out-tuples)))
-               )))))
+           (is (= (map multi-set expected-data)
+                  (map multi-set out-tuples)))
+           )))))
 
 (defn- mk-tmpfiles+forms [amt]
   (let [tmpfiles  (take amt (repeatedly (fn [] (gensym "tap"))))
-        tmpforms  (vec (mapcat (fn [f] [f `(File. (str (cascalog.io/temp-dir ~(str f)) "/" (uuid)))]) tmpfiles))]
-    [tmpfiles tmpforms]
-  ))
+        tmpforms  (->> tmpfiles
+                       (mapcat (fn [f]
+                                 [f `(File.
+                                      (str (cascalog.io/temp-dir ~(str f))
+                                           "/"
+                                           (uuid)))])))]
+    [tmpfiles (vec tmpforms)]))
 
-;; bindings are name spec, where spec is either {:fields :tuples} or vector of tuples
 ;; TODO: should rewrite this to use in memory tap
-(defmacro with-tmp-sources [bindings & body]
-  (let [parts     (partition 2 bindings)
-        names     (map first parts)
-        specs     (map second parts)
-        [tmpfiles tmpforms] (mk-tmpfiles+forms (count parts))
-        tmptaps   (vec (mapcat (fn [n t s] [n `(cascalog.testing/mk-test-source ~s ~t)])
-                    names tmpfiles specs))]
-        `(cascalog.io/with-tmp-files ~tmpforms
-           (let ~tmptaps
-              ~@body
-            ))))
+(defmacro with-tmp-sources
+  "bindings are name spec, where spec is either {:fields :tuples} or
+  vector of tuples."
+  [bindings & body]
+  (let [[names specs] (unweave bindings)
+        [tmpfiles tmpforms] (mk-tmpfiles+forms (count specs))
+        tmptaps   (vec (mapcat (fn [n t s]
+                                 [n `(cascalog.testing/mk-test-source ~s ~t)])
+                               names tmpfiles specs))]
+    `(cascalog.io/with-tmp-files ~tmpforms
+       (let ~tmptaps
+         ~@body))))
 
 (defn- doublify [tuples]
   (for [t tuples]
-  (map (fn [v] (if (number? v) (double v) v)) t)))
+    (map (fn [v] (if (number? v) (double v) v)) t)))
 
 (defn is-specs= [set1 set2]
   (is (= (map multi-set (map doublify set1))
