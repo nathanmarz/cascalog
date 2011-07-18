@@ -188,8 +188,15 @@
 (deftest test-outer-join-assertions
   (let [age [["a" 20] ["b" 30] ["c" 27] ["d" 40]]
         rec1 [["a" 1 2] ["b" 30 16] ["e" 3 4]]]
+
+    "Each unground var can only appear in one generator."
     (thrown?<- IllegalArgumentException [!!a ?c] (age !!a ?b) (rec1 !!a ?f1 ?f2) (- ?b 2 :> ?c))
-    (thrown?<- IllegalArgumentException [!!a !!c] (age !!a ?b) (- ?b 2 :> !!c))))
+
+    "Ungrounding vars have to spring from a generator."
+    (thrown?<- IllegalArgumentException [!!a !!c] (age !!a ?b) (- ?b 2 :> !!c))
+
+    "No ungrounding vars allowed in generators-as-sets."
+    (thrown?<- IllegalArgumentException [!!a] (age !!a ?b) (rec1 !!a _ _ :> true))))
 
 (deftest test-full-outer-join
   (let [age [["A" 20] ["B" 30] ["C" 27] ["D" 40]]
