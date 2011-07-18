@@ -41,9 +41,9 @@
    
    See http://www.cascading.org/javadoc/cascading/tap/Hfs.html and
    http://www.cascading.org/javadoc/cascading/scheme/TextLine.html"
-  [path & {:keys [outfields] :or {outfields Fields/ALL} :as opts}]
-  (let [opts (apply concat opts)
-        scheme (w/text-line ["line"] outfields)]
+  [path & opts]
+  (let [scheme (->> (:outfields opts Fields/ALL)
+                    (w/text-line ["line"]))]
     (apply tap/hfs-tap scheme path opts)))
 
 (defn lfs-textline
@@ -54,9 +54,9 @@
 
    See http://www.cascading.org/javadoc/cascading/tap/Lfs.html and
    http://www.cascading.org/javadoc/cascading/scheme/TextLine.html"
-  [path & {:keys [outfields] :or {outfields Fields/ALL} :as opts}]
-  (let [opts (apply concat opts)
-        scheme (w/text-line ["line"] outfields)]
+  [path & opts]
+  (let [scheme (->> (:outfields opts Fields/ALL)
+                    (w/text-line ["line"]))]
     (apply tap/lfs-tap scheme path opts)))
 
 (defn hfs-seqfile
@@ -68,9 +68,9 @@
 
    See http://www.cascading.org/javadoc/cascading/tap/Hfs.html and
    http://www.cascading.org/javadoc/cascading/scheme/SequenceFile.html"
-  [path & {:keys [outfields] :or {outfields Fields/ALL} :as opts}]
-  (let [opts (apply concat opts)
-        scheme (w/sequence-file outfields)]
+  [path & opts]
+  (let [scheme (->> (:outfields opts Fields/ALL)
+                    (w/sequence-file))]
     (apply tap/hfs-tap scheme path opts)))
 
 (defn lfs-seqfile
@@ -82,9 +82,9 @@
    
    See http://www.cascading.org/javadoc/cascading/tap/Lfs.html and
    http://www.cascading.org/javadoc/cascading/scheme/SequenceFile.html"
-  [path & {:keys [outfields] :or {outfields Fields/ALL} :as opts}]
-  (let [opts (apply concat opts)
-        scheme (w/sequence-file outfields)]
+  [path & opts]
+  (let [scheme (->> (:outfields opts Fields/ALL)
+                    (w/sequence-file))]
     (apply tap/lfs-tap scheme path opts)))
 
 (defn stdout
