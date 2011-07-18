@@ -135,7 +135,7 @@
         [sinks gens] (->> (partition 2 bindings)
                           (mapcat (partial apply cascalog.rules/normalize-sink-connection))
                           (unweave))
-        gens      (map cascalog.rules/clean-gen gens)
+        gens      (map cascalog.rules/enforce-gen-schema gens)
         sourcemap (apply merge (map :sourcemap gens))
         trapmap   (apply merge (map :trapmap gens))
         tails     (map cascalog.rules/connect-to-sink gens sinks)

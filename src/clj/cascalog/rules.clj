@@ -613,10 +613,10 @@
 (defn mk-raw-predicate [[op-sym & vars]]
   [op-sym (try-resolve op-sym) (vars2str vars)])
 
-(defn clean-gen
-  "Accepts a cascalog generator; if `g` is well-formed, `clean-gen`
-  acts as `identity`. If the supplied generator is a vector or a list,
-  `clean-gen` returns a new generator with field-names."
+(defn enforce-gen-schema
+  "Accepts a cascalog generator; if `g` is well-formed, acts as
+`identity`. If the supplied generator is a vector or a list, returns a
+new generator with field-names."
   [g]
   (let [vars (-> (first g) count gen-nullable-vars)]
     (if (or (vector? g) (list? g))
@@ -632,7 +632,7 @@
 
 (defn combine* [gens distinct?]
   ;; it would be nice if cascalog supported Fields/UNKNOWN as output of generator
-  (let [gens (map clean-gen gens)
+  (let [gens (map enforce-gen-schema gens)
         outfields (:outfields (first gens))
         pipes (map :pipe gens)
         pipes (for [p pipes]
