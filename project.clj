@@ -7,7 +7,7 @@
                  [org.clojure/clojure-contrib "1.2.0"]
                  ;; jgrapht exclusion works around cascading pom bug that causes projects dependent on
                  ;; cascalog to not be able to find jgrapht
-                 [cascading/cascading-core "1.2.1-wip-66"
+                 [cascading/cascading-core "1.2.1-wip-63"
                   :exclusions [org.codehaus.janino/janino
                                thirdparty/jgrapht-jdk1.6
                                riffle/riffle]]

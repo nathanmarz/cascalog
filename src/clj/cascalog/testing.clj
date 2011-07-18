@@ -202,13 +202,6 @@
   (let [[specs out-tuples] (apply process?- bindings)]
     (is-specs= specs out-tuples)))
 
-;; TODO: Implement support for pairs of errors and queries, rather
-;; than just one at a time. This is difficult, due to the way that
-;; clojure.test can't accept vars in place of classnames like
-;; AssertionError.
-(defmacro thrown?- [error query]
-  `(is (~'thrown? ~error ~query)))
-
 (defn check-tap-spec [tap spec]
   (is-tuplesets= (rules/get-tuples tap) spec))
 
@@ -241,6 +234,5 @@
                       (split-at 1 args))]
     `(test?- ~@begin (<- ~@body))))
 
-(defmacro thrown?<- [& args]
-  (let [[begin body] (split-at 1 args)]
-    `(thrown?- ~@begin (<- ~@body))))
+(defmacro thrown?<- [error & body]
+  `(is (~'thrown? ~error (<- ~@body))))
