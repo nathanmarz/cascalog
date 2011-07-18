@@ -18,7 +18,8 @@
         [clojure.contrib.def :only (defalias)])
   (:require cascalog.rules
             [clojure [set :as set]]
-            [cascalog [workflow :as w] [predicate :as p] [io :as io] [hadoop :as hadoop]])
+            [cascalog [tap :as tap]
+             [workflow :as w] [predicate :as p] [io :as io] [hadoop :as hadoop]])
   (:import [cascading.flow Flow FlowConnector]
            [cascading.tuple Fields]
            [cascalog StdoutTap Util MemorySourceTap]
@@ -29,7 +30,7 @@
 ;; Functions for creating taps and tap helpers
 
 (defalias memory-source-tap w/memory-source-tap)
-(defalias cascalog-tap w/mk-cascalog-tap)
+(defalias cascalog-tap tap/mk-cascalog-tap)
 
 (defn hfs-textline
   "Creates a tap on HDFS using textline format. Different filesystems
@@ -43,7 +44,7 @@
   [path & {:keys [outfields] :or {outfields Fields/ALL} :as opts}]
   (let [opts (apply concat opts)
         scheme (w/text-line ["line"] outfields)]
-    (apply w/hfs-tap scheme path opts)))
+    (apply tap/hfs-tap scheme path opts)))
 
 (defn lfs-textline
   "Creates a tap on the local filesystem using textline format.
@@ -56,35 +57,35 @@
   [path & {:keys [outfields] :or {outfields Fields/ALL} :as opts}]
   (let [opts (apply concat opts)
         scheme (w/text-line ["line"] outfields)]
-    (apply w/lfs-tap scheme path opts)))
+    (apply tap/lfs-tap scheme path opts)))
 
 (defn hfs-seqfile
   "Creates a tap on HDFS using sequence file format. Different
    filesystems can be selected by using different prefixes for `path`.
 
-  Supports keyword option for `:outfields`. See
-  `cascalog.workflow/hfs-tap` for more keyword arguments.
+  Supports keyword option for `:outfields`. See `cascalog.tap/hfs-tap`
+  for more keyword arguments.
 
    See http://www.cascading.org/javadoc/cascading/tap/Hfs.html and
    http://www.cascading.org/javadoc/cascading/scheme/SequenceFile.html"
   [path & {:keys [outfields] :or {outfields Fields/ALL} :as opts}]
   (let [opts (apply concat opts)
         scheme (w/sequence-file outfields)]
-    (apply w/hfs-tap scheme path opts)))
+    (apply tap/hfs-tap scheme path opts)))
 
 (defn lfs-seqfile
   "Creates a tap that reads data off of the local filesystem in
    sequence file format.
 
-  Supports keyword option for `:outfields`. See
-  `cascalog.workflow/lfs-tap` for more keyword arguments.
+  Supports keyword option for `:outfields`. See `cascalog.tap/lfs-tap`
+  for more keyword arguments.
    
    See http://www.cascading.org/javadoc/cascading/tap/Lfs.html and
    http://www.cascading.org/javadoc/cascading/scheme/SequenceFile.html"
   [path & {:keys [outfields] :or {outfields Fields/ALL} :as opts}]
   (let [opts (apply concat opts)
         scheme (w/sequence-file outfields)]
-    (apply w/lfs-tap scheme path opts)))
+    (apply tap/lfs-tap scheme path opts)))
 
 (defn stdout
   "Creates a tap that prints tuples sunk to it to standard

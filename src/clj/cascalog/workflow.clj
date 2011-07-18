@@ -15,30 +15,22 @@
 
 (ns cascalog.workflow
   (:refer-clojure :exclude [group-by count first filter mapcat map identity min max])
-  (:use [clojure.contrib.seq-utils :only [find-first indexed]]
-        [clojure.contrib.def :only (name-with-attributes defnk)]
+  (:use [clojure.contrib.def :only (name-with-attributes)]
         [cascalog util debug])
-  (:import [cascading.tuple Tuple TupleEntry Fields]
-           [cascading.scheme TextLine SequenceFile]
-           [cascading.tap SinkMode]
+  (:import [java.io File]
+           [cascading.tuple Tuple TupleEntry Fields]
+           [cascading.scheme Scheme TextLine SequenceFile]
+           [cascading.tap Hfs Lfs GlobHfs Tap TemplateTap SinkMode]
            [cascading.flow Flow FlowConnector]
            [cascading.cascade Cascades]
            [cascading.operation Identity Insert Debug]
-           [cascading.operation.regex RegexGenerator RegexFilter]
            [cascading.operation.aggregator First Count Sum Min Max]
            [cascading.pipe Pipe Each Every GroupBy CoGroup]
            [cascading.pipe.cogroup InnerJoin OuterJoin LeftJoin RightJoin MixedJoin]
-           [cascading.scheme Scheme]
-           [cascading.tap Hfs Lfs GlobHfs Tap TemplateTap]
-           [org.apache.hadoop.io Text]
-           [org.apache.hadoop.mapred TextInputFormat TextOutputFormat
-            OutputCollector JobConf]
-           [java.util Properties Map ArrayList]
+           [java.util ArrayList]
            [cascalog ClojureFilter ClojureMapcat ClojureMap
             ClojureAggregator Util ClojureBuffer ClojureBufferIter
-            FastFirst MemorySourceTap MultiGroupBy ClojureMultibuffer]
-           [java.io File]
-           [java.lang RuntimeException Comparable]))
+            FastFirst MemorySourceTap MultiGroupBy ClojureMultibuffer]))
 
 (defn ns-fn-name-pair [v]
   (let [m (meta v)]
@@ -69,9 +61,9 @@
   (if (or (nil? obj) (instance? Fields obj))
     obj
     (let [obj (collectify obj)]
-      (if (empty? obj) Fields/ALL  ; this is a hack since cascading doesn't support selecting no fields
-        (Fields. (into-array String (collectify obj)))
-      ))))
+      (if (empty? obj)
+        Fields/ALL ; this is a hack since cascading doesn't support selecting no fields
+        (Fields. (into-array String (collectify obj)))))))
 
 (defn fields-array
   [fields-seq]
@@ -467,20 +459,7 @@
 (defn path
   {:tag String}
   [x]
-  (if (string? x) x (.getAbsolutePath #^File x)))
-
-;; source can be a cascalog-tap, subquery, or cascading tap sink can
-;; be a cascading tap, a sink function, or a cascalog-tap
-(defstruct cascalog-tap :type :source :sink)
-
-(defn mk-cascalog-tap
-  "Defines a cascalog tap which can be used to add additional
-  abstraction over cascading taps.
-  
-   'source' can be a cascading tap, subquery, or a cascalog tap.
-   'sink' can be a cascading tap, sink function, or a cascalog tap."
-  [source sink]
-  (struct-map cascalog-tap :type :cascalog-tap :source source :sink sink))
+  (if (string? x) x (.getAbsolutePath ^File x)))
 
 (def valid-sinkmode? #{:keep :append :replace})
 
@@ -492,7 +471,7 @@
         :replace SinkMode/REPLACE
         SinkMode/KEEP))
 
-(defn- augment-scheme
+(defn set-sinkparts!
   "If `sinkparts` is truthy, returns the supplied cascading scheme
 with the `sinkparts` field updated appropriately; else, acts as
 identity.  identity."
@@ -501,77 +480,33 @@ identity.  identity."
     (doto scheme (.setNumSinkParts sinkparts))
     scheme))
 
-(defn- patternize
-  "If `pattern` is truthy, returns the supplied parent `Hfs` or `Lfs`
-  tap wrapped that responds as a `TemplateTap` when used as a sink,
-  and a `GlobHfs` tap when used as a source. Otherwise, acts as
-  identity."
-  [scheme type path-or-file sinkmode sink-template source-pattern templatefields]
-  (let [basepath (path path-or-file)
-        mode (sink-mode sinkmode)
-        parent (case type
-                     :hfs (Hfs. scheme basepath mode)
-                     :lfs (Lfs. scheme basepath mode))
-        source (if-not source-pattern
-                 parent
-                 (GlobHfs. scheme (str basepath source-pattern)))
-        sink (if-not sink-template
-               parent
-               (TemplateTap. parent
-                             sink-template
-                             (fields templatefields)))]
-    (mk-cascalog-tap source sink)))
+(defn hfs
+  ([scheme path-or-file]
+     (Hfs. scheme (path path-or-file)))
+  ([^Scheme scheme path-or-file sinkmode]
+     (Hfs. scheme
+           (path path-or-file)
+           (sink-mode sinkmode))))
 
-(defnk hfs-tap
-  "Returns a Cascading Hfs tap with support for the supplied scheme,
-  opened up on the supplied path or file object. Supported keyword
-  options are:
+(defn lfs
+  ([scheme path-or-file]
+     (Lfs. scheme (path path-or-file)))
+  ([^Scheme scheme path-or-file sinkmode]
+     (Lfs. scheme
+           (path path-or-file)
+           (sink-mode sinkmode))))
 
-  `:sinkmode` - can be `:keep`, `:include` or `:replace`.
+(defn glob-hfs [^Scheme scheme path-or-file source-pattern]
+  (GlobHfs. scheme (str (path path-or-file)
+                        source-pattern)))
 
-  `:sinkparts` - used to constrain the segmentation of output files.
-
-  `:source-pattern` - Causes resulting tap to respond as a GlobHfs tap
-  when used as source.
-
-  `:sink-template` - Causes resulting tap to respond as a TemplateTap when
-  used as a sink.
-
-  `:templatefields` - When pattern is supplied, this option allows a
-  subset of output fields to be used in the naming scheme."
-  [scheme path-or-file
-   :sinkmode nil :sinkparts nil
-   :sink-template nil :source-pattern nil :templatefields Fields/ALL]
-  (-> scheme
-      (augment-scheme sinkparts)
-      (patternize :hfs path-or-file sinkmode
-                  sink-template source-pattern templatefields)))
-
-(defnk lfs-tap
-  "Returns a Cascading Lfs tap with support for the supplied scheme,
-  opened up on the supplied path or file object. Supported keyword
-  options are:
-
-  `:sinkmode` - can be `:keep`, `:include` or `:replace`.
-
-  `:sinkparts` - used to constrain the segmentation of output files.
-
-  `:source-pattern` - Causes resulting tap to respond as a GlobHfs tap
-  when used as source.
-
-  `:sink-template` - Causes resulting tap to respond as a TemplateTap when
-  used as a sink.
-
-  `:templatefields` - When pattern is supplied, this option allows a
-  subset of output fields to be used in the naming scheme."
-  
-  [scheme path-or-file
-   :sinkmode nil :sinkparts nil
-   :sink-template nil :source-pattern nil :templatefields Fields/ALL]
-  (-> scheme
-      (augment-scheme sinkparts)
-      (patternize :lfs path-or-file sinkmode
-                  sink-template source-pattern templatefields)))
+(defn template-tap
+  ([^Hfs parent sink-template]
+     (TemplateTap. parent sink-template))
+  ([^Hfs parent sink-template templatefields]
+     (TemplateTap. parent
+                   sink-template
+                   (fields templatefields))))
 
 (defn write-dot [#^Flow flow #^String path]
   (.writeDOT flow path))

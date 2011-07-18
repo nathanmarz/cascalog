@@ -96,7 +96,7 @@
     (op-call-results ag-call)))
 
 (defn mk-test-tap [fields-def path]
-  (:source (w/lfs-tap (w/sequence-file fields-def) path)))
+  (w/lfs (w/sequence-file fields-def) path))
 
 (defn unique-rooted-paths [root]
   (map str (cycle [(str root "/")]) (repeatedly uuid)))
