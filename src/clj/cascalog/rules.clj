@@ -497,7 +497,7 @@
        (map (comp (partial mapcat #(filter unground-var? %))
                   (partial map last)))))
 
-(defn- pred-clean
+(defn- pred-clean!
   "Makes sure that ungrounding vars appear only once per query."
   [raw-preds]
   (let [[gen-vars pred-vars] (parse-ungrounded-vars raw-preds)
@@ -518,7 +518,7 @@
 (defn- build-query [out-vars raw-predicates]
   (debug-print "outvars:" out-vars)
   (debug-print "raw predicates:" raw-predicates)
-  (let [[out-vars raw-predicates drift-map] (->> (pred-clean raw-predicates)
+  (let [[out-vars raw-predicates drift-map] (->> (pred-clean! raw-predicates)
                                                  (map parse-predicate)
                                                  (mapcat split-outvar-constants)
                                                  (map rewrite-predicate)

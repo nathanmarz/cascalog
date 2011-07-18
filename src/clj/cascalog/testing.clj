@@ -96,7 +96,7 @@
     (op-call-results ag-call)))
 
 (defn mk-test-tap [fields-def path]
-  (w/lfs-tap (w/sequence-file fields-def) path))
+  (:source (w/lfs-tap (w/sequence-file fields-def) path)))
 
 (defn unique-rooted-paths [root]
   (map str (cycle [(str root "/")]) (repeatedly uuid)))
@@ -111,19 +111,14 @@
 
 (defn mk-test-source [spec path]
   ;; unable to use with-log-level here for some reason
-  (loop [source (mk-test-tap (:fields spec) path)]
-    (if (map? source)
-      (recur (:source source))
-      (with-open [collector (.openForWrite source (hadoop/job-conf cascalog.rules/*JOB-CONF*))]
-        (doall (map #(.add collector (Util/coerceToTuple %))
-                    (-> spec mapify-spec :tuples)))
-        source))))
+  (let [source (mk-test-tap (:fields spec) path)]
+    (with-open [collector (.openForWrite source (hadoop/job-conf cascalog.rules/*JOB-CONF*))]
+      (doall (map #(.add collector (Util/coerceToTuple %))
+                  (-> spec mapify-spec :tuples)))
+      source)))
 
 (defn mk-test-sink [spec path]
-  (loop [sink (mk-test-tap (:fields (mapify-spec spec)) path)]
-    (if (map? sink)
-      (recur (:sink sink))
-      sink)))
+  (mk-test-tap (:fields (mapify-spec spec)) path))
 
 (defn test-assembly
   ([source-specs sink-specs assembly]
