@@ -485,41 +485,54 @@
         {invars :<< outvars :>>} (p/parse-variables vars (p/predicate-default-var op))]
     [op opvar hof-args invars outvars]))
 
-(defn- parse-ungrounded-vars
-  "For the supplied list of raw cascalog predicates of the form
-  `[value, var, vars]`, returns a vector of two entries: a sequence of
-  all ungrounded vars that appear within generator predicates, and a
-  sequence of all ungrounded vars that appear within non-generator
-  predicates."
-  [raw-preds]
-  (->> raw-preds
-       ((juxt filter remove) (comp p/generator? first))
-       (map (comp (partial mapcat #(filter unground-var? %))
-                  (partial map last)))))
+(defn- parse-ungrounding-vars
+  "For the supplied sequence of parsed cascalog predicates of the form
+  `[op opvar hof-args invars outvars]`, returns a vector of two
+  entries: a sequence of all ungrounding vars that appear within
+  generator predicates, and a sequence of all ungrounding vars that
+  appear within non-generator predicates.
+
+  `var-type` determines whether the function explores the input or
+  output variables of the supplied predicates. `var-type` must be
+  either `:in` or `:out`."
+  [parsed-preds var-type]
+  (let [idx (case var-type :in 3 :out 4)]
+    (->> parsed-preds
+         ((juxt filter remove) (comp p/generator? first))
+         (map (comp (partial mapcat #(filter unground-var? %))
+                    (partial map #(nth % idx)))))))
 
 (defn- pred-clean!
   "Makes sure that ungrounding vars appear only once per query."
-  [raw-preds]
-  (let [[gen-vars pred-vars] (parse-ungrounded-vars raw-preds)
-        extra-vars  (vec (difference (set pred-vars) (set gen-vars)))
-        dups (duplicates gen-vars)]
+  [parsed-preds]
+  (let [[gen-outvars pred-outvars] (parse-ungrounding-vars parsed-preds :out)
+        [gen-invars _]             (parse-ungrounding-vars parsed-preds :in)
+        extra-vars  (vec (difference (set pred-outvars)
+                                     (set gen-outvars)))
+        dups (duplicates gen-outvars)]
     (cond
+     (seq gen-invars)
+     (throw-illegal (str "Can't have unground vars in generators-as-sets."
+                         (vec gen-invars)
+                         " violate(s) the rules."))
+
      (seq extra-vars)
      (throw-illegal (str "Ungrounding vars must originate within a generator. "
                          extra-vars
                          " violate(s) the rules."))
-     
+
      (seq dups)
      (throw-illegal (str "Each ungrounding var can only appear once per query."
                          "The following are duplicated: "
                          dups))
-     :else raw-preds)))
+     :else parsed-preds)))
 
 (defn- build-query [out-vars raw-predicates]
   (debug-print "outvars:" out-vars)
   (debug-print "raw predicates:" raw-predicates)
-  (let [[out-vars raw-predicates drift-map] (->> (pred-clean! raw-predicates)
+  (let [[out-vars raw-predicates drift-map] (->> raw-predicates
                                                  (map parse-predicate)
+                                                 (pred-clean!)
                                                  (mapcat split-outvar-constants)
                                                  (map rewrite-predicate)
                                                  (mapcat split-outvar-constants)
