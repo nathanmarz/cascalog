@@ -17,6 +17,9 @@
   (:use [clojure.contrib.seq-utils :only [find-first indexed]])
   (:import [java.util UUID Collection]))
 
+(defn multifn? [x]
+  (instance? clojure.lang.MultiFn x))
+
 (defn throw-illegal [str]
   (throw (IllegalArgumentException. str)))
 

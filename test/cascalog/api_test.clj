@@ -451,6 +451,16 @@
   ;; no aggregator
 )
 
+(defmulti multi-test class)
+(defmethod multi-test String [x] "string!")
+(defmethod multi-test Integer [x] "int!")
+(defmethod multi-test Double [x] "double!")
+
+(deftest test-multimethod-support
+  (let [src [["word."] [1] [1.0]]]
+    (test?<- [["string!"] ["int!"] ["double!"]]
+             [?result] (src ?thing) (multi-test ?thing :> ?result))))
+
 (deftest test-funcs)
 
 (deftest test-only-complex-agg)
