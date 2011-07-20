@@ -14,7 +14,7 @@
     ))
 
 (deftest test-outfields-tap
-  (thrown?- IllegalArgumentException (get-out-fields (memory-source-tap Fields/ALL [])))
+  (is (thrown? IllegalArgumentException (get-out-fields (memory-source-tap Fields/ALL []))))
   (is (= ["!age"] (get-out-fields (memory-source-tap ["!age"] []))))
   (is (= ["?age" "field2"] (get-out-fields (memory-source-tap ["?age" "field2"] []))))
   )
