@@ -36,8 +36,8 @@
   "Creates a tap on HDFS using textline format. Different filesystems
    can be selected by using different prefixes for `path`.
 
-  Supports keyword option for `:outfields`. See
-  `cascalog.workflow/hfs-tap` for more keyword arguments.
+  Supports keyword option for `:outfields`. See `cascalog.tap/hfs-tap`
+  for more keyword arguments.
    
    See http://www.cascading.org/javadoc/cascading/tap/Hfs.html and
    http://www.cascading.org/javadoc/cascading/scheme/TextLine.html"
@@ -49,8 +49,8 @@
 (defn lfs-textline
   "Creates a tap on the local filesystem using textline format.
 
-  Supports keyword option for `:outfields`. See
-  `cascalog.workflow/lfs-tap` for more keyword arguments.
+  Supports keyword option for `:outfields`. See `cascalog.tap/lfs-tap`
+  for more keyword arguments.
 
    See http://www.cascading.org/javadoc/cascading/tap/Lfs.html and
    http://www.cascading.org/javadoc/cascading/scheme/TextLine.html"
