@@ -32,7 +32,7 @@
 (defalias memory-source-tap w/memory-source-tap)
 (defalias cascalog-tap tap/mk-cascalog-tap)
 
-(defnk hfs-textline
+(defn hfs-textline
   "Creates a tap on HDFS using textline format. Different filesystems
    can be selected by using different prefixes for `path`.
 
