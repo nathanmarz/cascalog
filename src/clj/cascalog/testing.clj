@@ -137,7 +137,7 @@
                                    (unique-rooted-paths sink-path))
                flow           (w/mk-flow sources sinks assembly)
                _              (w/exec flow)
-               out-tuples     (doall (map rules/get-tuples sinks))
+               out-tuples     (doall (map rules/get-sink-tuples sinks))
                expected-data  (map :tuples sink-specs)]
            (is (= (map multi-set expected-data)
                   (map multi-set out-tuples)))
@@ -194,7 +194,7 @@
                 [specs rules]  (unweave bindings)
                 sinks          (map mk-test-sink specs (unique-rooted-paths sink-path))
                 _              (apply ?- (interleave sinks rules))
-                out-tuples     (doall (map rules/get-tuples sinks))]
+                out-tuples     (doall (map rules/get-sink-tuples sinks))]
             [specs out-tuples]
             ))))))
 
@@ -203,10 +203,10 @@
     (is-specs= specs out-tuples)))
 
 (defn check-tap-spec [tap spec]
-  (is-tuplesets= (rules/get-tuples tap) spec))
+  (is-tuplesets= (rules/get-sink-tuples tap) spec))
 
 (defn check-tap-spec-sets [tap spec]
-  (is (= (multi-set (map set (doublify (rules/get-tuples tap))))
+  (is (= (multi-set (map set (doublify (rules/get-sink-tuples tap))))
          (multi-set (map set (doublify spec))))))
 
 (defn with-expected-sinks-helper [checker bindings body]

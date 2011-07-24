@@ -15,7 +15,7 @@
 
 (ns cascalog.api
   (:use [cascalog vars util graph debug]
-        [clojure.contrib.def :only (defalias)])
+        [clojure.contrib.def :only [defalias]])
   (:require cascalog.rules
             [clojure [set :as set]]
             [cascalog [tap :as tap]
@@ -32,7 +32,7 @@
 (defalias memory-source-tap w/memory-source-tap)
 (defalias cascalog-tap tap/mk-cascalog-tap)
 
-(defn hfs-textline
+(defnk hfs-textline
   "Creates a tap on HDFS using textline format. Different filesystems
    can be selected by using different prefixes for `path`.
 
@@ -174,7 +174,7 @@
     (let [outtaps (for [q subqueries] (hfs-seqfile (str tmp "/" (uuid))))
           bindings (mapcat vector outtaps subqueries)]
       (apply ?- bindings)
-      (doall (map cascalog.rules/get-tuples outtaps))
+      (doall (map cascalog.rules/get-sink-tuples outtaps))
       )))
 
 (defmacro ?<-
@@ -194,7 +194,7 @@
   `(io/with-fs-tmp [fs# tmp1#]
      (let [outtap# (hfs-seqfile tmp1#)]
        (?<- outtap# ~@args)
-       (cascalog.rules/get-tuples outtap#))
+       (cascalog.rules/get-sink-tuples outtap#))
      ))
 
 (defn predmacro*
