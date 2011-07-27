@@ -702,18 +702,8 @@ new generator with field-names."
     [f rest]
     ["" args]))
 
-(defmulti get-sink-tuples generator-selector)
-
-(defmethod get-sink-tuples :tap [tap]
-  (with-open [it (.openForRead tap (hadoop/job-conf *JOB-CONF*))]
+(defn get-sink-tuples [^Tap sink]
+  (with-open [it (.openForRead sink (hadoop/job-conf *JOB-CONF*))]
     (doall
      (for [^TupleEntry t (iterator-seq it)]
        (vec (Util/coerceFromTuple (Tuple. (.getTuple t))))))))
-
-;; TODO: Implement get-sink-tuples support here.
-(defmethod get-sink-tuples :generator [query]
-  (throw-illegal "`get-sink-tuples` not yet supported for cascalog
-  generators."))
-
-(defmethod get-sink-tuples :cascalog-tap [cascalog-tap]
-  (get-sink-tuples (:sink cascalog-tap)))
