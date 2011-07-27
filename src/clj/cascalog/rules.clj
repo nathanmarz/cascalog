@@ -485,43 +485,62 @@
         {invars :<< outvars :>>} (p/parse-variables vars (p/predicate-default-var op))]
     [op opvar hof-args invars outvars]))
 
-(defn- parse-ungrounding-vars
+(defn- unzip-generators
+  "Returns a vector containing two sequences; the subset of the
+  supplied sequence of parsed-predicates identified as generators, and
+  the rest."
+  [parsed-preds]
+  ((juxt filter remove) (comp p/generator? first) parsed-preds))
+
+(defn gen-as-set?
+  "Returns true if the supplied parsed predicate is a generator meant
+  to be used as a set, false otherwise."
+  [parsed-pred]
+  (and (p/generator? (first parsed-pred))
+       (not-empty (nth parsed-pred 3))))
+
+(defn- gen-as-set-ungrounding-vars
+  "Returns a sequence of ungrounding vars present in the
+  generators-as-sets contained within the supplied sequence of parsed
+  predicates (of the form `[op opvar hof-args invars outvars]`)."
+  [parsed-preds]
+  (mapcat (comp (partial filter unground-var?)
+                #(->> % (take-last 2) (apply concat)))
+          (filter gen-as-set? parsed-preds)))
+
+(defn- parse-ungrounding-outvars
   "For the supplied sequence of parsed cascalog predicates of the form
   `[op opvar hof-args invars outvars]`, returns a vector of two
-  entries: a sequence of all ungrounding vars that appear within
-  generator predicates, and a sequence of all ungrounding vars that
-  appear within non-generator predicates.
-
-  `var-type` determines whether the function explores the input or
-  output variables of the supplied predicates. `var-type` must be
-  either `:in` or `:out`."
-  [parsed-preds var-type]
-  (let [idx (case var-type :in 3 :out 4)]
-    (->> parsed-preds
-         ((juxt filter remove) (comp p/generator? first))
-         (map (comp (partial mapcat #(filter unground-var? %))
-                    (partial map #(nth % idx)))))))
+  entries: a sequence of all output ungrounding vars that appear
+  within generator predicates, and a sequence of all ungrounding vars
+  that appear within non-generator predicates."
+  [parsed-preds]
+  (map (comp (partial mapcat #(filter unground-var? %))
+             (partial map last))
+       (unzip-generators parsed-preds)))
 
 (defn- pred-clean!
-  "Makes sure that ungrounding vars appear only once per query."
+  "Performs various validations on the supplied set of parsed
+  predicates. If all validations pass, returns the sequence
+  unchanged."
   [parsed-preds]
-  (let [[gen-outvars pred-outvars] (parse-ungrounding-vars parsed-preds :out)
-        [gen-invars _]             (parse-ungrounding-vars parsed-preds :in)
+  (let [gen-as-set-vars (gen-as-set-ungrounding-vars parsed-preds)
+        [gen-outvars pred-outvars] (parse-ungrounding-outvars parsed-preds)
         extra-vars  (vec (difference (set pred-outvars)
                                      (set gen-outvars)))
         dups (duplicates gen-outvars)]
     (cond
-     (seq gen-invars)
+     (not-empty gen-as-set-vars)
      (throw-illegal (str "Can't have unground vars in generators-as-sets."
-                         (vec gen-invars)
+                         (vec gen-as-set-vars)
                          " violate(s) the rules."))
 
-     (seq extra-vars)
+     (not-empty extra-vars)
      (throw-illegal (str "Ungrounding vars must originate within a generator. "
                          extra-vars
                          " violate(s) the rules."))
 
-     (seq dups)
+     (not-empty dups)
      (throw-illegal (str "Each ungrounding var can only appear once per query."
                          "The following are duplicated: "
                          dups))

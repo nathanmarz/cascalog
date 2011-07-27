@@ -182,8 +182,7 @@
         rec1 [["a" 1 2] ["b" 30 16] ["e" 3 4]]
         rec2 [["a" 20 6] ["c" 27 25] ["c" 1 11] ["f" 30 1] ["b" 100 16]] ]
     (test?<- [["a" 20 1 2 6] ["c" 27 nil nil 25] ["d" 40 nil nil nil] ["b" 30 30 16 nil]]
-             [?p ?a !!f1 !!f2 !!f3] (age ?p ?a) (rec1 ?p !!f1 !!f2) (rec2 ?p ?a !!f3))
-    ))
+             [?p ?a !!f1 !!f2 !!f3] (age ?p ?a) (rec1 ?p !!f1 !!f2) (rec2 ?p ?a !!f3))))
 
 (deftest test-outer-join-assertions
   (let [age [["a" 20] ["b" 30] ["c" 27] ["d" 40]]
@@ -196,7 +195,8 @@
     (thrown?<- IllegalArgumentException [!!a !!c] (age !!a ?b) (- ?b 2 :> !!c))
 
     "No ungrounding vars allowed in generators-as-sets."
-    (thrown?<- IllegalArgumentException [!!a] (age !!a ?b) (rec1 !!a _ _ :> true))))
+    (thrown?<- IllegalArgumentException [!!a] (age !!a ?b) (rec1 !!a _ _ :> true))
+    (thrown?<- IllegalArgumentException [?a !!c] (age ?a ?b) (rec1 ?a _ _ :> !!c))))
 
 (deftest test-full-outer-join
   (let [age [["A" 20] ["B" 30] ["C" 27] ["D" 40]]
