@@ -645,19 +645,31 @@
 (defn mk-raw-predicate [[op-sym & vars]]
   [op-sym (try-resolve op-sym) (vars2str vars)])
 
+(def *JOB-CONF* {})
+
+(defn- pluck-tuple [tap]
+  (with-open [it (.openForRead tap (hadoop/job-conf *JOB-CONF*))]
+    (if-let [iter (iterator-seq it)]
+      (-> iter first .getTuple Tuple. Util/coerceFromTuple vec)
+      (throw-illegal "Cascading tap is empty -- tap must contain tuples."))))
+
 (defn enforce-gen-schema
   "Accepts a cascalog generator; if `g` is well-formed, acts as
-`identity`. If the supplied generator is a vector or a list, returns a
-new generator with field-names."
+`identity`. If the supplied generator is a vector, list, or a straight
+cascading tap, returns a new generator with field-names."
   [g]
-  (let [vars (-> (first g) count gen-nullable-vars)]
-    (if (or (vector? g) (list? g))
-      (->> [[g :>> vars] [:distinct false]]
-           (map mk-raw-predicate)
-           (build-rule vars))
-      g)))
+  (cond (= (:type g) :cascalog-tap)
+        (enforce-gen-schema (:source g))
 
-(def *JOB-CONF* {})
+        (or (instance? Tap g)
+            (vector? g)
+            (list? g))
+        (let [pluck (if (instance? Tap g) pluck-tuple first)
+              vars  (gen-nullable-vars (count (pluck g)))]
+          (->> [[g :>> vars] [:distinct false]]
+               (map mk-raw-predicate)
+               (build-rule vars)))
+        :else g))
 
 (defn connect-to-sink [gen sink]
   ((w/pipe-rename (uuid)) (:pipe gen)))
