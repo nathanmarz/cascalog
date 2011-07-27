@@ -703,7 +703,9 @@ new generator with field-names."
     ["" args]))
 
 (defn get-sink-tuples [^Tap sink]
-  (with-open [it (.openForRead sink (hadoop/job-conf *JOB-CONF*))]
-    (doall
-     (for [^TupleEntry t (iterator-seq it)]
-       (vec (Util/coerceFromTuple (Tuple. (.getTuple t))))))))
+  (if (map? sink)
+    (get-sink-tuples (:sink sink))
+    (with-open [it (.openForRead sink (hadoop/job-conf *JOB-CONF*))]
+      (doall
+       (for [^TupleEntry t (iterator-seq it)]
+         (vec (Util/coerceFromTuple (Tuple. (.getTuple t)))))))))
