@@ -2,9 +2,10 @@
   (:use cascalog.tap
         clojure.test
         cascalog.testing)
-  (:require [cascalog.workflow :as w])
+  (:require [cascalog.api :as api]
+            [cascalog.workflow :as w])
   (:import [cascading.tuple Fields]
-           [cascading.tap Hfs Lfs GlobHfs TemplateTap]))
+           [cascading.tap Hfs Lfs GlobHfs TemplateTap Tap]))
 
 (defn tap-source [tap]
   (if (map? tap)
