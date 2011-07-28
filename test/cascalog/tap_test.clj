@@ -2,7 +2,8 @@
   (:use cascalog.tap
         clojure.test
         cascalog.testing)
-  (:require [cascalog.api :as api]
+  (:require [cascalog.io :as io]
+            [cascalog.api :as api]
             [cascalog.workflow :as w])
   (:import [cascading.tuple Fields]
            [cascading.tap Hfs Lfs GlobHfs TemplateTap Tap]))
@@ -32,10 +33,10 @@
 
 (deftest api-outfields-test
   (are [fields opts]
-       (= fields (str (.getSinkFields (tap-sink (apply api/hfs-textline "path" opts)))))
-       "ALL"         []
-       "'?a'"        [:outfields ["?a"]]
-       "'?a', '!b'"  [:outfields ["?a" "!b"]]))
+       (= fields (.getSinkFields (tap-sink (apply api/hfs-textline "path" opts))))
+       Fields/ALL []
+       (w/fields ["?a"]) [:outfields ["?a"]]
+       (w/fields ["?a" "!b"]) [:outfields ["?a" "!b"]]))
 
 (deftest tap-type-test
   (is (instance? TemplateTap (hfs-test-sink :sink-template "%s/")))
@@ -60,5 +61,11 @@
 
 (deftest tap-pattern-test
   (is (= "%s/" (.getPathTemplate (hfs-test-sink :sink-template "%s/"))))
-  (is (= "GlobHfs[/path/*/*]" (str (hfs-test-source :source-pattern "*/*")))))
-
+  (io/with-fs-tmp [_ tmp]
+    (let [tuples [[1 2] [2 3] [4 5]]
+          temp-tap (api/hfs-seqfile (str tmp "/")
+                                    :sink-template "%s/"
+                                    :source-pattern "{1,2}/*")]
+      temp-tap
+      (api/?<- temp-tap [?a ?b] (tuples ?a ?b))
+      (test?- [[1 2] [2 3]] temp-tap))))
