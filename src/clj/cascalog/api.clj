@@ -42,7 +42,7 @@
    See http://www.cascading.org/javadoc/cascading/tap/Hfs.html and
    http://www.cascading.org/javadoc/cascading/scheme/TextLine.html"
   [path & opts]
-  (let [scheme (->> (:outfields opts Fields/ALL)
+  (let [scheme (->> (:outfields (apply array-map opts) Fields/ALL)
                     (w/text-line ["line"]))]
     (apply tap/hfs-tap scheme path opts)))
 
@@ -55,7 +55,7 @@
    See http://www.cascading.org/javadoc/cascading/tap/Lfs.html and
    http://www.cascading.org/javadoc/cascading/scheme/TextLine.html"
   [path & opts]
-  (let [scheme (->> (:outfields opts Fields/ALL)
+  (let [scheme (->> (:outfields (apply array-map opts) Fields/ALL)
                     (w/text-line ["line"]))]
     (apply tap/lfs-tap scheme path opts)))
 
@@ -69,8 +69,8 @@
    See http://www.cascading.org/javadoc/cascading/tap/Hfs.html and
    http://www.cascading.org/javadoc/cascading/scheme/SequenceFile.html"
   [path & opts]
-  (let [scheme (->> (:outfields opts Fields/ALL)
-                    (w/sequence-file))]
+  (let [scheme (-> (:outfields (apply array-map opts) Fields/ALL)
+                   (w/sequence-file))]
     (apply tap/hfs-tap scheme path opts)))
 
 (defn lfs-seqfile
@@ -83,8 +83,8 @@
    See http://www.cascading.org/javadoc/cascading/tap/Lfs.html and
    http://www.cascading.org/javadoc/cascading/scheme/SequenceFile.html"
   [path & opts]
-  (let [scheme (->> (:outfields opts Fields/ALL)
-                    (w/sequence-file))]
+  (let [scheme (-> (:outfields (apply array-map opts) Fields/ALL)
+                   (w/sequence-file))]
     (apply tap/lfs-tap scheme path opts)))
 
 (defn stdout
