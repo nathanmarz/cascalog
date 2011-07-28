@@ -398,12 +398,14 @@
   (let [v1 (<- [?v] ([[1] [2] [3]] ?v) (:distinct false))
         v2 (<- [?v] ([[3] [4] [5]] ?v) (:distinct false))
         v3 (<- [?v] ([[2] [4] [6]] ?v) (:distinct false))]
-    (test?- [[1] [2] [3] [4] [5]] (union v1 v2))
-    (test?- [[1] [2] [3] [4] [5] [6]] (union v1 v2 v3))
-    (test?- [[3] [4] [5]] (union v2))
-    (test?- [[1] [2] [3] [2] [4] [6]] (combine v1 v3))
-    (test?- [[1] [2] [3] [3] [4] [5] [2] [4] [6]] (combine v1 v2 v3))
-    ))
+    (test?- [[1] [2]] (union [[1]] [[2]])
+            [[1]]     (union [[1]] [[1]])
+            [[1] [1]] (combine [[1]] [[1]]))
+    (test?- [[1] [2] [3] [4] [5]] (union v1 v2)
+            [[1] [2] [3] [4] [5] [6]] (union v1 v2 v3)
+            [[3] [4] [5]] (union v2)
+            [[1] [2] [3] [2] [4] [6]] (combine v1 v3)
+            [[1] [2] [3] [3] [4] [5] [2] [4] [6]] (combine v1 v2 v3))))
 
 (deftest test-select-fields-tap
   (let [data (memory-source-tap ["f1" "f2" "f3" "f4"]
