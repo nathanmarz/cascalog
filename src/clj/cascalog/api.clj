@@ -31,6 +31,10 @@
 
 (defalias memory-source-tap w/memory-source-tap)
 (defalias cascalog-tap tap/mk-cascalog-tap)
+(defalias hfs-tap tap/hfs-tap)
+(defalias lfs-tap tap/lfs-tap)
+(defalias sequence-file w/sequence-file)
+(defalias text-line w/text-line)
 
 (defn hfs-textline
   "Creates a tap on HDFS using textline format. Different filesystems
