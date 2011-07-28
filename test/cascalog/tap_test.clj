@@ -55,10 +55,10 @@
        (= result (.getNumSinkParts (get-scheme (apply func opts))))
        3 hfs-test-sink [:sinkparts 3]
        3 lfs-test-sink [:sinkparts 3]
-       1 hfs-test-sink []
+       0 hfs-test-sink []
        0 lfs-test-sink []))
 
 (deftest tap-pattern-test
   (is (= "%s/" (.getPathTemplate (hfs-test-sink :sink-template "%s/"))))
-  (is (= "GlobHfs[path*/*]" (str (hfs-test-source :source-pattern "*/*")))))
+  (is (= "GlobHfs[/path/*/*]" (str (hfs-test-source :source-pattern "*/*")))))
 
