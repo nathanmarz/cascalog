@@ -47,7 +47,7 @@
   `:sink-template` - Causes resulting tap to respond as a TemplateTap when
   used as a sink.
 
-  `:templatefields` - When pattern is supplied, this option allows a
+  `:templatefields` - When pattern is supplied via :sink-template, this option allows a
   subset of output fields to be used in the naming scheme."
   [scheme path-or-file
    :sinkmode nil :sinkparts nil
@@ -72,7 +72,7 @@
   `:sink-template` - Causes resulting tap to respond as a TemplateTap when
   used as a sink.
 
-  `:templatefields` - When pattern is supplied, this option allows a
+  `:templatefields` - When pattern is supplied via :sink-template, this option allows a
   subset of output fields to be used in the naming scheme."
   
   [scheme path-or-file
