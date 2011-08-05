@@ -127,6 +127,12 @@
     (mapcat identity (filter #(first %) pairs))
     ))
 
+(defn set-namespace-value
+  "Merges the supplied kv-pair into the metadata of the namespace in
+  which the function is called."
+  [key-name newval]
+  (alter-meta! *ns* merge {key-name newval}))
+
 (defn mk-destructured-seq-map [& bindings]
   ;; lhs needs to be symbolified
   (let [bindings (clean-nil-bindings bindings)

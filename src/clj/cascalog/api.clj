@@ -15,7 +15,8 @@
 
 (ns cascalog.api
   (:use [cascalog vars util graph debug]
-        [clojure.contrib.def :only [defalias]])
+        [clojure.contrib.def :only [defalias]]
+        [clojure.string :only (join)])
   (:require cascalog.rules
             [clojure [set :as set]]
             [cascalog [tap :as tap]
@@ -325,24 +326,61 @@ as well."
 
 ;; Knobs for Hadoop
 
+(defn ns-job-conf
+  "Modifies the job conf for all queries executed below the call to
+   `ns-job-conf`. The conf-maps of queries wrapped in `with-job-conf`
+   will be merged into this configuration, with `with-job-conf` taking
+   precedence on conflicting keys."
+  [conf-map]
+  (if (map? conf-map)
+    (set-namespace-value ::jobconf conf-map)
+    (throw-illegal (str "The supplied job-conf must be a map! You supplied: " conf-map))))
+
 (defmacro with-job-conf
   "Modifies the job conf for queries executed within the form. Nested
    with-job-conf calls will merge configuration maps together, with
    innermost calls taking precedence on conflicting keys."
   [conf & body]
-  `(binding [cascalog.rules/*JOB-CONF* (merge cascalog.rules/*JOB-CONF* ~conf)]
-     ~@body))
+  (let [ns-conf (::jobconf (meta *ns*))]
+    `(binding [cascalog.rules/*JOB-CONF* (merge cascalog.rules/*JOB-CONF* ~ns-conf ~conf)]
+       ~@body)))
+
+(defn- serialization-entry
+  [serial-vec]
+  (->> serial-vec
+       (map (fn [x] (cond (string? x) x
+                         (class? x) (.getName x)
+                         (symbol? x) (recur (resolve x)))))
+       (concat ["cascading.tuple.hadoop.BytesSerialization"
+                "cascading.tuple.hadoop.TupleSerialization"
+                "org.apache.hadoop.io.serializer.WritableSerialization"])
+       (join ",")))
+
+(defn ns-serializations
+  "Defines serializations meant to apply to all queries (below this
+  call) in the current namespace.
+
+  Note that queries wrapped in `with-serializations` will override the
+  serializations defined here; to layer serializers, make sure to
+  explicitly repeat them in `with-serializations`."
+  [serial-vec]
+  (ns-job-conf {"io.serializations" (serialization-entry serial-vec)}))
 
 (defmacro with-serializations
+  "Enables the supplied serializations for queries executed within the
+  form. Serializations should be provided as a vector of strings or
+  classes, like so:
+
+  (import 'org.apache.hadoop.io.serializer.JavaSerialization)
+  (with-serializations [JavaSerialization]
+     (?<- ...))
+
+  Serializations currently don't nest; nested calls to
+  with-serializations will override parent values, including those
+  defined for the entire namespace using `ns-serializations`."
   [serial-vec & forms]
   `(with-job-conf 
-     {"io.serializations"
-      ~(->> serial-vec
-            (map #(if (string? %) % (.getName (resolve %))))
-            (concat ["cascading.tuple.hadoop.BytesSerialization"
-                     "cascading.tuple.hadoop.TupleSerialization"
-                     "org.apache.hadoop.io.serializer.WritableSerialization"])
-            (join ","))}
+     {"io.serializations" ~(serialization-entry serial-vec)}
      ~@forms))
 
 ;; Miscellaneous helpers
