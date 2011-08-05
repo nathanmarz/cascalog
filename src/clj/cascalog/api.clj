@@ -333,6 +333,18 @@ as well."
   `(binding [cascalog.rules/*JOB-CONF* (merge cascalog.rules/*JOB-CONF* ~conf)]
      ~@body))
 
+(defmacro with-serializations
+  [serial-vec & forms]
+  `(with-job-conf 
+     {"io.serializations"
+      ~(->> serial-vec
+            (map #(if (string? %) % (.getName (resolve %))))
+            (concat ["cascading.tuple.hadoop.BytesSerialization"
+                     "cascading.tuple.hadoop.TupleSerialization"
+                     "org.apache.hadoop.io.serializer.WritableSerialization"])
+            (join ","))}
+     ~@forms))
+
 ;; Miscellaneous helpers
 
 (defn div
