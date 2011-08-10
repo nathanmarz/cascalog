@@ -181,8 +181,11 @@
 
 (defn- init-trap-map [options]
   (if-let [trap (:trap options)]
-    {(:name trap) (:tap trap)}
-    {} ))
+    (loop [tap (:tap trap)]  
+      (if (map? tap)
+        (recur (:sink tap))
+        {(:name trap) tap}))
+    {}))
 
 (defn- init-pipe-name [options]
    (if-let [trap (:trap options)]
