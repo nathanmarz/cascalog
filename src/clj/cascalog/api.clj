@@ -147,7 +147,8 @@
         tails     (map cascalog.rules/connect-to-sink gens sinks)
         sinkmap   (w/taps-map tails sinks)]
     (.connect (->> cascalog.rules/*JOB-CONF*
-                   (merge {"cascading.flow.job.pollinginterval" 100})
+                   (merge (::jobconf (meta *ns*))
+                          {"cascading.flow.job.pollinginterval" 100})
                    (FlowConnector.))
               flow-name
               sourcemap
@@ -341,9 +342,8 @@ as well."
    with-job-conf calls will merge configuration maps together, with
    innermost calls taking precedence on conflicting keys."
   [conf & body]
-  (let [ns-conf (::jobconf (meta *ns*))]
-    `(binding [cascalog.rules/*JOB-CONF* (merge cascalog.rules/*JOB-CONF* ~ns-conf ~conf)]
-       ~@body)))
+  `(binding [cascalog.rules/*JOB-CONF* (merge cascalog.rules/*JOB-CONF* ~conf)]
+     ~@body))
 
 (defn- serialization-entry
   [serial-vec]
