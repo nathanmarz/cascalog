@@ -18,7 +18,8 @@
         clojure.contrib.java-utils
         cascalog.io
         cascalog.util
-        cascalog.api)
+        cascalog.api
+        [clojure.contrib.def :only (defalias)])
   (:import [cascading.tuple Fields Tuple TupleEntry TupleEntryCollector]
            [cascading.pipe Pipe]
            [cascading.operation ConcreteCall]
@@ -95,7 +96,7 @@
     (op-call-results ag-call)))
 
 (defn mk-test-tap [fields-def path]
-  (w/lfs-tap (w/sequence-file fields-def) path))
+  (w/lfs (w/sequence-file fields-def) path))
 
 (defn unique-rooted-paths [root]
   (map str (cycle [(str root "/")]) (repeatedly uuid)))
@@ -106,61 +107,70 @@
 (defn- mapify-spec [spec]
   (if (map? spec)
     spec
-    {:fields Fields/ALL :tuples spec} ))
+    {:fields Fields/ALL :tuples spec}))
 
 (defn mk-test-source [spec path]
+  ;; unable to use with-log-level here for some reason
   (let [spec (mapify-spec spec)
         source (mk-test-tap (:fields spec) path)]
-    ;; unable to use with-log-level here for some reason
     (with-open [collector (.openForWrite source (hadoop/job-conf cascalog.rules/*JOB-CONF*))]
-      (doall (map #(.add collector (Util/coerceToTuple %)) (:tuples spec))))
-    source ))
+      (doall (map #(.add collector (Util/coerceToTuple %))
+                  (-> spec mapify-spec :tuples)))
+      source)))
 
 (defn mk-test-sink [spec path]
   (mk-test-tap (:fields (mapify-spec spec)) path))
 
 (defn test-assembly
   ([source-specs sink-specs assembly]
-    (test-assembly :fatal source-specs sink-specs assembly))
+     (test-assembly :fatal source-specs sink-specs assembly))
   ([log-level source-specs sink-specs assembly]
-    (with-log-level log-level
-      (with-tmp-files [source-path (temp-dir "sources")
-                       sink-path (temp-path "sinks")]
-            (let
-              [source-specs   (collectify source-specs)
+     (with-log-level log-level
+       (with-tmp-files [source-path (temp-dir "sources")
+                        sink-path   (temp-path "sinks")]
+         (let [source-specs  (collectify source-specs)
                sink-specs     (collectify sink-specs)
-               sources        (map mk-test-source source-specs (unique-rooted-paths source-path))
-               sinks          (map mk-test-sink sink-specs (unique-rooted-paths sink-path))
+               sources        (map mk-test-source
+                                   source-specs
+                                   (unique-rooted-paths source-path))
+               sinks          (map mk-test-sink
+                                   sink-specs
+                                   (unique-rooted-paths sink-path))
                flow           (w/mk-flow sources sinks assembly)
                _              (w/exec flow)
-               out-tuples     (doall (map rules/get-tuples sinks))
+               out-tuples     (doall (map rules/get-sink-tuples sinks))
                expected-data  (map :tuples sink-specs)]
-               (is (= (map multi-set expected-data) (map multi-set out-tuples)))
-               )))))
+           (is (= (map multi-set expected-data)
+                  (map multi-set out-tuples)))
+           )))))
 
 (defn- mk-tmpfiles+forms [amt]
   (let [tmpfiles  (take amt (repeatedly (fn [] (gensym "tap"))))
-        tmpforms  (vec (mapcat (fn [f] [f `(File. (str (cascalog.io/temp-dir ~(str f)) "/" (uuid)))]) tmpfiles))]
-    [tmpfiles tmpforms]
-  ))
+        tmpforms  (->> tmpfiles
+                       (mapcat (fn [f]
+                                 [f `(File.
+                                      (str (cascalog.io/temp-dir ~(str f))
+                                           "/"
+                                           (uuid)))])))]
+    [tmpfiles (vec tmpforms)]))
 
-;; bindings are name spec, where spec is either {:fields :tuples} or vector of tuples
 ;; TODO: should rewrite this to use in memory tap
-(defmacro with-tmp-sources [bindings & body]
-  (let [parts     (partition 2 bindings)
-        names     (map first parts)
-        specs     (map second parts)
-        [tmpfiles tmpforms] (mk-tmpfiles+forms (count parts))
-        tmptaps   (vec (mapcat (fn [n t s] [n `(cascalog.testing/mk-test-source ~s ~t)])
-                    names tmpfiles specs))]
-        `(cascalog.io/with-tmp-files ~tmpforms
-           (let ~tmptaps
-              ~@body
-            ))))
+(defmacro with-tmp-sources
+  "bindings are name spec, where spec is either {:fields :tuples} or
+  vector of tuples."
+  [bindings & body]
+  (let [[names specs] (unweave bindings)
+        [tmpfiles tmpforms] (mk-tmpfiles+forms (count specs))
+        tmptaps   (vec (mapcat (fn [n t s]
+                                 [n `(cascalog.testing/mk-test-source ~s ~t)])
+                               names tmpfiles specs))]
+    `(cascalog.io/with-tmp-files ~tmpforms
+       (let ~tmptaps
+         ~@body))))
 
 (defn- doublify [tuples]
   (for [t tuples]
-  (map (fn [v] (if (number? v) (double v) v)) t)))
+    (map (fn [v] (if (number? v) (double v) v)) t)))
 
 (defn is-specs= [set1 set2]
   (is (= (map multi-set (map doublify set1))
@@ -169,42 +179,48 @@
 (defn is-tuplesets= [set1 set2]
   (is-specs= [set1] [set2] ))
 
-(defn test?- [& bindings]
-  (let [[log-level bindings] (if (keyword? (first bindings))
-                                [(first bindings) (rest bindings)]
-                                [:fatal bindings])]
+(defn process?-
+  "Returns a 2-tuple containing a sequence of the original result
+  vectors and a sequence of the output tuples generated by running the
+  supplied queries with test settings."
+  [& [ll :as bindings]]
+  (let [[log-level bindings] (if (keyword? ll)
+                               [ll (rest bindings)]
+                               [:fatal bindings])]
     (with-log-level log-level
       (with-tmp-files [sink-path (temp-dir "sink")]
         (with-job-conf {"io.sort.mb" 1}
-          (let [bindings (mapcat (partial apply rules/normalize-sink-connection) (partition 2 bindings))
+          (let [bindings (mapcat (partial apply rules/normalize-sink-connection)
+                                 (partition 2 bindings))
                 [specs rules]  (unweave bindings)
                 sinks          (map mk-test-sink specs (unique-rooted-paths sink-path))
                 _              (apply ?- (interleave sinks rules))
-                out-tuples     (doall (map rules/get-tuples sinks))]
-            (is-specs= specs out-tuples)
+                out-tuples     (doall (map rules/get-sink-tuples sinks))]
+            [specs out-tuples]
             ))))))
 
+(defn test?- [& bindings]
+  (let [[specs out-tuples] (apply process?- bindings)]
+    (is-specs= specs out-tuples)))
+
 (defn check-tap-spec [tap spec]
-  (is-tuplesets= (rules/get-tuples tap) spec))
+  (is-tuplesets= (rules/get-sink-tuples tap) spec))
 
 (defn check-tap-spec-sets [tap spec]
-  (is (= (multi-set (map set (doublify (rules/get-tuples tap))))
+  (is (= (multi-set (map set (doublify (rules/get-sink-tuples tap))))
          (multi-set (map set (doublify spec))))))
 
-
 (defn with-expected-sinks-helper [checker bindings body]
-  (let [parts     (partition 2 bindings)
-        names     (vec (map first parts))
-        specs     (vec (map second parts))
-        [tmpfiles tmpforms] (mk-tmpfiles+forms (count parts))
-        tmptaps   (vec (mapcat (fn [n t s] [n `(cascalog.testing/mk-test-sink ~s ~t)])
-                    names tmpfiles specs))]
-        `(cascalog.io/with-tmp-files ~tmpforms
-           (let ~tmptaps
-               ~@body
-               (dorun (map ~checker ~names ~specs)))
-            )))
-
+  (let [[names specs] (map vec (unweave bindings))
+        [tmpfiles tmpforms] (mk-tmpfiles+forms (count names))
+        tmptaps (mapcat (fn [n t s]
+                          [n `(cascalog.testing/mk-test-sink ~s ~t)])
+                        names tmpfiles specs)]
+    `(cascalog.io/with-tmp-files ~tmpforms
+       (let [~@tmptaps]
+         ~@body
+         (dorun (map ~checker ~names ~specs)))
+       )))
 
 ;; bindings are name spec, where spec is either {:fields :tuples} or vector of tuples
 (defmacro with-expected-sinks [bindings & body]
@@ -213,9 +229,11 @@
 (defmacro with-expected-sink-sets [bindings & body]
   (with-expected-sinks-helper check-tap-spec-sets bindings body))
 
-
 (defmacro test?<- [& args]
   (let [[begin body] (if (keyword? (first args))
                       (split-at 2 args)
                       (split-at 1 args))]
-  `(test?- ~@begin (<- ~@body))))
+    `(test?- ~@begin (<- ~@body))))
+
+(defmacro thrown?<- [error & body]
+  `(is (~'thrown? ~error (<- ~@body))))

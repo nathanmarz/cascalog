@@ -34,7 +34,7 @@
 (w/defmapcatop keeper-dropper ["a"] [v]
   (cond (= v 1) [v]
         (odd? v) []
-        true    [v (inc v)]))
+        :else    [v (inc v)]))
 
 (deftest test-mapcat-op
   (let [source-data {:fields ["n"] :tuples [[1] [2] [3] [4] [9]]}

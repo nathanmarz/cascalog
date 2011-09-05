@@ -27,7 +27,7 @@
 
 (def gen-non-nullable-var (gen-var-fn "?"))
 (def gen-nullable-var (gen-var-fn "!"))
-(def gen-ungounding-var (gen-var-fn "!!"))
+(def gen-ungrounding-var (gen-var-fn "!!"))
 
 (defn gen-nullable-vars
   ([amt] (gen-nullable-vars "" amt))
@@ -53,14 +53,16 @@
   (str v (gen-unique-suffix)))
 
 (defn non-nullable-var? [sym-or-str]
-  (.startsWith (extract-varname sym-or-str) "?"))
+  (try (.startsWith (extract-varname sym-or-str) "?")
+       (catch Exception e nil)))
 
 (def nullable-var? (complement non-nullable-var?))
 
 (defn unground-var?
   "!! vars that cause outer joins"
   [sym-or-str]
-  (.startsWith (extract-varname sym-or-str) "!!"))
+  (try (.startsWith (extract-varname sym-or-str) "!!")
+       (catch Exception e nil)))
 
 (def ground-var? (complement unground-var?))
 
@@ -70,7 +72,7 @@
 (defn- sanitize-elem [e anon-gen]
   (cond (cascalog-var? e) (extract-varname e anon-gen)
         (= (str e) "&") (str e) ; to support destructuring in predicate macros
-        true e))
+        :else e))
 
 (defn- sanitize-vec [v anon-gen] (vec (map sanitize-elem v (repeat anon-gen))))
 
@@ -81,12 +83,16 @@
 (defn sanitize-unknown [e anon-gen]
   (cond (map? e) (sanitize-map e anon-gen)
         (vector? e) (sanitize-vec e anon-gen)
-        true (sanitize-elem e anon-gen)))
+        :else (sanitize-elem e anon-gen)))
 
 (defn vars2str [vars]
-  (let [anon-gen (if (some #(and (cascalog-var? %) (unground-var? %)) (flatten-vars vars)) gen-ungounding-var gen-nullable-var)]
-    (vec (map sanitize-unknown vars (repeat anon-gen)))
-  ))
+  (let [anon-gen (if (some #(and (cascalog-var? %)
+                                 (unground-var? %))
+                           (flatten-vars vars))
+                   gen-ungrounding-var
+                   gen-nullable-var)]
+    (vec (map sanitize-unknown vars
+              (repeat anon-gen)))))
 
 (defn- var-updater-fn [force-unique?]
   (fn [[all equalities] v]
@@ -94,7 +100,7 @@
       (let [existing (get equalities v [])
             varlist  (cond (empty? existing)  (conj existing v)
                            (and force-unique? (ground-var? v)) (conj existing (uniquify-var v))
-                           true               existing)
+                           :else               existing)
             newname  (if force-unique? (last varlist) (first varlist))]
             [(conj all newname) (assoc equalities v varlist)] )
       [(conj all v) equalities] )))

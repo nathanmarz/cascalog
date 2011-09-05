@@ -87,7 +87,7 @@
 (defn- copy-local* [#^FileSystem fs #^Path path #^String target-local-path #^bytes buffer]
   (let [status (.getFileStatus fs path)]
     (cond (.isDir status) (copy-dir-local fs path target-local-path buffer)
-          true (copy-file-local fs path target-local-path buffer)
+          :else (copy-file-local fs path target-local-path buffer)
           )))
 
 (defn copy-local [#^FileSystem fs #^String spath #^String local-path]
@@ -100,9 +100,9 @@
                                           (IllegalArgumentException.
                                            (str "File exists " local-path)))
                    (.isDirectory target-file) (str-path local-path source-name)
-                   true (throw
-                         (IllegalArgumentException.
-                          (str "Unknown error, local file is neither file nor dir " local-path))))]
+                   :else (throw
+                          (IllegalArgumentException.
+                           (str "Unknown error, local file is neither file nor dir " local-path))))]
     (when-not (.exists fs (path spath))
       (throw
        (FileNotFoundException.

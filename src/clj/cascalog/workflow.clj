@@ -15,29 +15,22 @@
 
 (ns cascalog.workflow
   (:refer-clojure :exclude [group-by count first filter mapcat map identity min max])
-  (:use [clojure.contrib.seq-utils :only [find-first indexed]]
-        [clojure.contrib.def :only (name-with-attributes)])
-  (:use [cascalog util debug])
-  (:import [cascading.tuple Tuple TupleEntry Fields]
-           [cascading.scheme TextLine SequenceFile]
+  (:use [clojure.contrib.def :only (name-with-attributes)]
+        [cascalog util debug])
+  (:import [java.io File]
+           [cascading.tuple Tuple TupleEntry Fields]
+           [cascading.scheme Scheme TextLine SequenceFile]
+           [cascading.tap Hfs Lfs GlobHfs Tap TemplateTap SinkMode]
            [cascading.flow Flow FlowConnector]
            [cascading.cascade Cascades]
            [cascading.operation Identity Insert Debug]
-           [cascading.operation.regex RegexGenerator RegexFilter]
            [cascading.operation.aggregator First Count Sum Min Max]
            [cascading.pipe Pipe Each Every GroupBy CoGroup]
            [cascading.pipe.cogroup InnerJoin OuterJoin LeftJoin RightJoin MixedJoin]
-           [cascading.scheme Scheme]
-           [cascading.tap Hfs Lfs Tap]
-           [org.apache.hadoop.io Text]
-           [org.apache.hadoop.mapred TextInputFormat TextOutputFormat
-            OutputCollector JobConf]
-           [java.util Properties Map ArrayList]
+           [java.util ArrayList]
            [cascalog ClojureFilter ClojureMapcat ClojureMap
             ClojureAggregator Util ClojureBuffer ClojureBufferIter
-            FastFirst MemorySourceTap MultiGroupBy ClojureMultibuffer]
-           [java.io File]
-           [java.lang RuntimeException Comparable]))
+            FastFirst MemorySourceTap MultiGroupBy ClojureMultibuffer]))
 
 (defn ns-fn-name-pair [v]
   (let [m (meta v)]
@@ -51,15 +44,16 @@
    by applying the first element, which should be a var, to the rest of the
    elements."
   (cond
-    (var? v-or-coll)
-      (into-array Object (ns-fn-name-pair v-or-coll))
-    (coll? v-or-coll)
-      (into-array Object
-        (concat
-          (ns-fn-name-pair (clojure.core/first v-or-coll))
-          (next v-or-coll)))
-    :else
-      (throw (IllegalArgumentException. (str v-or-coll)))))
+   (var? v-or-coll)
+   (into-array Object (ns-fn-name-pair v-or-coll))
+
+   (coll? v-or-coll)
+   (into-array Object
+               (concat
+                (ns-fn-name-pair (clojure.core/first v-or-coll))
+                (next v-or-coll)))
+
+   :else (throw (IllegalArgumentException. (str v-or-coll)))))
 
 (defn fields
   {:tag Fields}
@@ -67,9 +61,9 @@
   (if (or (nil? obj) (instance? Fields obj))
     obj
     (let [obj (collectify obj)]
-      (if (empty? obj) Fields/ALL  ; this is a hack since cascading doesn't support selecting no fields
-        (Fields. (into-array String (collectify obj)))
-      ))))
+      (if (empty? obj)
+        Fields/ALL ; this is a hack since cascading doesn't support selecting no fields
+        (Fields. (into-array String (collectify obj)))))))
 
 (defn fields-array
   [fields-seq]
@@ -82,9 +76,9 @@
 (defn- fields-obj? [obj]
   "Returns true for a Fields instance, a string, or an array of strings."
   (or
-    (instance? Fields obj)
-    (string? obj)
-    (and (sequential? obj) (every? string? obj))))
+   (instance? Fields obj)
+   (string? obj)
+   (and (sequential? obj) (every? string? obj))))
 
 (defn parse-args
   "
@@ -431,16 +425,18 @@
   (Cascades/tapsMap (into-array Pipe pipes) (into-array Tap taps)))
 
 (defn mk-flow [sources sinks assembly]
-  (let
-    [sources (collectify sources)
-     sinks (collectify sinks)
-     source-pipes (clojure.core/map #(Pipe. (str "spipe" %2)) sources (iterate inc 0))
-     tail-pipes (clojure.core/map #(Pipe. (str "tpipe" %2) %1)
-                    (collectify (apply assembly source-pipes)) (iterate inc 0))]
-     (.connect (FlowConnector.)
-        (taps-map source-pipes sources)
-        (taps-map tail-pipes sinks)
-        (into-array Pipe tail-pipes))))
+  (let [sources (collectify sources)
+        sinks   (collectify sinks)
+        source-pipes (clojure.core/map #(Pipe. (str "spipe" %2))
+                                       sources
+                                       (iterate inc 0))
+        tail-pipes (clojure.core/map #(Pipe. (str "tpipe" %2) %1)
+                                     (collectify (apply assembly source-pipes))
+                                     (iterate inc 0))]
+    (.connect (FlowConnector.)
+              (taps-map source-pipes sources)
+              (taps-map tail-pipes sinks)
+              (into-array Pipe tail-pipes))))
 
 (defn text-line
  ([]
@@ -463,13 +459,54 @@
 (defn path
   {:tag String}
   [x]
-  (if (string? x) x (.getAbsolutePath #^File x)))
+  (if (string? x) x (.getAbsolutePath ^File x)))
 
-(defn hfs-tap [#^Scheme scheme path-or-file]
-  (Hfs. scheme (path path-or-file)))
+(def valid-sinkmode? #{:keep :append :replace})
 
-(defn lfs-tap [#^Scheme scheme path-or-file]
-  (Lfs. scheme (path path-or-file)))
+(defn- sink-mode [kwd]
+  {:pre [(or (nil? kwd) (valid-sinkmode? kwd))]}
+  (case kwd
+        :keep SinkMode/KEEP
+        :append SinkMode/APPEND
+        :replace SinkMode/REPLACE
+        SinkMode/KEEP))
+
+(defn set-sinkparts!
+  "If `sinkparts` is truthy, returns the supplied cascading scheme
+with the `sinkparts` field updated appropriately; else, acts as
+identity.  identity."
+  [^Scheme scheme sinkparts]
+  (if sinkparts
+    (doto scheme (.setNumSinkParts sinkparts))
+    scheme))
+
+(defn hfs
+  ([scheme path-or-file]
+     (Hfs. scheme (path path-or-file)))
+  ([^Scheme scheme path-or-file sinkmode]
+     (Hfs. scheme
+           (path path-or-file)
+           (sink-mode sinkmode))))
+
+(defn lfs
+  ([scheme path-or-file]
+     (Lfs. scheme (path path-or-file)))
+  ([^Scheme scheme path-or-file sinkmode]
+     (Lfs. scheme
+           (path path-or-file)
+           (sink-mode sinkmode))))
+
+(defn glob-hfs [^Scheme scheme path-or-file source-pattern]
+  (GlobHfs. scheme (str (path path-or-file)
+                        source-pattern)))
+
+(defn template-tap
+  ([^Hfs parent sink-template]
+     (TemplateTap. parent sink-template))
+  ([^Hfs parent sink-template templatefields]
+     (TemplateTap. parent
+                   sink-template
+                   (fields templatefields))))
 
 (defn write-dot [#^Flow flow #^String path]
   (.writeDOT flow path))
@@ -480,5 +517,7 @@
 (defn memory-source-tap
   ([tuples] (memory-source-tap Fields/ALL tuples))
   ([fields-in tuples]
-    (let [tuples (ArrayList. (clojure.core/map #(Util/coerceToTuple %) tuples))]
-      (MemorySourceTap. tuples (fields fields-in)))))
+     (let [tuples (->> tuples
+                       (clojure.core/map #(Util/coerceToTuple %))
+                       (ArrayList.))]
+       (MemorySourceTap. tuples (fields fields-in)))))

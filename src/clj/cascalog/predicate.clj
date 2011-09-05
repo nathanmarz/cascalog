@@ -125,7 +125,7 @@
              (map? op)                       (:type op)
              (or (vector? op) (list? op))    ::data-structure
              (:pred-type (meta op))          (:pred-type (meta op))
-             (fn? op)                        ::vanilla-function
+             (or (fn? op) (multifn? op))     ::vanilla-function
              :else (throw (IllegalArgumentException. "Bad predicate")))]
     (if (= ret :bufferiter) :buffer ret)))
 

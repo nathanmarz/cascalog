@@ -87,6 +87,6 @@
         c (add-component! flow (failing-component) [b])
         d (add-component! flow (deps-component state "d" #{"b" "a" "r1"}) [c])
         ]
-      (throws? Exception (exec-basic-flow flow))
-      (is (= #{"r1" "a" "b"} @state))
+    (is (thrown? Exception (exec-basic-flow flow)))
+    (is (= #{"r1" "a" "b"} @state))
     ))
