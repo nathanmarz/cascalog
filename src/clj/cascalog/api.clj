@@ -168,7 +168,7 @@
   [& bindings]
   (let [^Flow flow (apply compile-flow bindings)]
     (.complete flow)
-    (when (-> flow .getFlowStats .isFailed)
+    (when-not (-> flow .getFlowStats .isSuccessful)
       (throw (RuntimeException. "Flow failed to complete.")))))
 
 (defn ??-
