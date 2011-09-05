@@ -1,9 +1,9 @@
 (defproject cascalog/cascalog "1.8.1-SNAPSHOT"
   :source-path "src/clj"
   :java-source-path "src/jvm"
-  :jvm-opts ["-Xmx768m"]
+  :jvm-opts ["-Xmx768m" "-server"]
   :javac-options {:debug "true" :fork "true"}
-  :dependencies [[org.clojure/clojure "1.2.0"]
+  :dependencies [[org.clojure/clojure "1.2.1"]
                  [org.clojure/clojure-contrib "1.2.0"]
                  ;; jgrapht exclusion works around cascading pom bug that causes projects dependent on
                  ;; cascalog to not be able to find jgrapht
@@ -13,11 +13,9 @@
                                riffle/riffle]]
                  [thirdparty/jgrapht-jdk1.6 "0.8.1"]
                  [riffle/riffle "0.1-dev"]
-                 [log4j/log4j "1.2.16"]
-                 ]
+                 [log4j/log4j "1.2.16"]]
   :repositories {"conjars" "http://conjars.org/repo/"}
-  :dev-dependencies [
-                     [org.apache.hadoop/hadoop-core "0.20.2-dev"]
-                     [swank-clojure "1.2.1"]
-                     ]
+  :dev-dependencies [[swank-clojure "1.4.0-SNAPSHOT"]
+                     [clojure-source "1.2.0"]
+                     [org.apache.hadoop/hadoop-core "0.20.2-dev"]]
   :aot :all)
