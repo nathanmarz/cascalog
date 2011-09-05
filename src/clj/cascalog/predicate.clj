@@ -116,6 +116,7 @@
 
 (defn- predicate-dispatcher
   [op & rest]
+  (def my-op op)
   (let [ret (cond
              (keyword? op)                   ::option
              (instance? Tap op)              ::tap
@@ -126,7 +127,7 @@
              (or (vector? op) (list? op))    ::data-structure
              (:pred-type (meta op))          (:pred-type (meta op))
              (or (fn? op) (multifn? op))     ::vanilla-function
-             :else (throw (IllegalArgumentException. "Bad predicate")))]
+             :else (throw-illegal (str op " is an invalid predicate.")))]
     (if (= ret :bufferiter) :buffer ret)))
 
 (defn generator? [p]
@@ -193,13 +194,12 @@
     (uuid) ))
 
 (defmethod build-predicate-specific ::tap [tap _ _ infields outfields options]
-  (let
-    [sourcename (uuid)
-     pname (init-pipe-name options)
-     pipe (w/assemble (w/pipe sourcename) (w/pipe-rename pname) (w/identity Fields/ALL :fn> outfields :> Fields/RESULTS))]
-    (when-not (empty? infields) (throw (IllegalArgumentException. "Cannot use :> in a taps vars declaration")))
-    (predicate generator nil (ground-fields? outfields) {sourcename tap} pipe outfields (init-trap-map options))
-  ))
+  (let [sourcename (uuid)
+        pname (init-pipe-name options)
+        pipe (w/assemble (w/pipe sourcename) (w/pipe-rename pname) (w/identity Fields/ALL :fn> outfields :> Fields/RESULTS))]
+    (when-not (empty? infields)
+      (throw-illegal "Cannot use :> in a taps vars declaration"))
+    (predicate generator nil (ground-fields? outfields) {sourcename tap} pipe outfields (init-trap-map options))))
 
 (defmethod build-predicate-specific ::data-structure [tuples _ _ infields outfields options]
   (build-predicate-specific (w/memory-source-tap tuples) nil nil infields outfields options))
@@ -259,8 +259,7 @@
         assem (if (empty? outfields)
                 (w/raw-each c-infields op)
                 (w/raw-each c-infields (CascadingFilterToFunction. (first outfields) op) Fields/ALL))]
-    (predicate operation assem infields outfields false)
-    ))
+    (predicate operation assem infields outfields false)))
 
 (defn- mk-hof-fn-spec [avar args]
   (w/fn-spec (cons avar args)))
@@ -322,7 +321,9 @@
 (defn- variable-substitution
   "Returns [newvars {map of newvars to values to substitute}]"
   [vars]
-  (substitute-if (complement cascalog-var?) (fn [_] (gen-nullable-var)) vars))
+  (substitute-if (complement cascalog-var?)
+                 (fn [_] (gen-nullable-var))
+                 vars))
 
 (w/deffilterop non-null? [& objs]
   (every? (complement nil?) objs))
@@ -387,22 +388,23 @@
     (predicate option op infields))
 
 (defn build-predicate
-  "Build a predicate. Calls down to build-predicate-specific for predicate-specific building 
-  and adds constant substitution and null checking of ? vars."
+  "Build a predicate. Calls down to build-predicate-specific for
+  predicate-specific building and adds constant substitution and null
+  checking of ? vars."
   [options op opvar hof-args orig-infields outvars]
-    (let [outvars                        (replace-ignored-vars outvars)
-          [infields infield-subs]        (variable-substitution orig-infields)
-          [infields dupvars
-            duplicate-assem]             (fix-duplicate-infields infields)
-          predicate                      (build-predicate-specific op opvar hof-args infields outvars options)
-          new-outvars                    (concat outvars (keys infield-subs) dupvars)
-          in-insertion-assembly          (when-not (empty? infields) (w/compose-straight-assemblies
-                                            (mk-insertion-assembly infield-subs)
-                                            duplicate-assem))
-          null-check-out                 (mk-null-check outvars)
-          ]
-          (enhance-predicate predicate
-                             (filter cascalog-var? orig-infields)
-                             in-insertion-assembly
-                             new-outvars
-                             null-check-out)))
+  (let [outvars                  (replace-ignored-vars outvars)
+        [infields infield-subs]  (variable-substitution orig-infields)
+        [infields dupvars
+         duplicate-assem]        (fix-duplicate-infields infields)
+        predicate                (build-predicate-specific op opvar hof-args infields outvars options)
+        new-outvars              (concat outvars (keys infield-subs) dupvars)
+        in-insertion-assembly          (when-not (empty? infields)
+                                         (w/compose-straight-assemblies
+                                          (mk-insertion-assembly infield-subs)
+                                          duplicate-assem))
+        null-check-out                 (mk-null-check outvars)]
+    (enhance-predicate predicate
+                       (filter cascalog-var? orig-infields)
+                       in-insertion-assembly
+                       new-outvars
+                       null-check-out)))

@@ -23,6 +23,9 @@
 (defn throw-illegal [str]
   (throw (IllegalArgumentException. str)))
 
+(defn throw-runtime [str]
+  (throw (RuntimeException. str)))
+
 (defn transpose [m]
   (apply map list m))
 
