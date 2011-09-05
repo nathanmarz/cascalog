@@ -166,10 +166,9 @@
    If the first argument is a string, that will be used as the name
   for the query and will show up in the JobTracker UI."
   [& bindings]
-  (let [^Flow flow (apply compile-flow bindings)
-        stats (.getFlowStats flow)]
+  (let [^Flow flow (apply compile-flow bindings)]
     (.complete flow)
-    (when (.isFailed stats)
+    (when (-> flow .getFlowStats .isFailed)
       (throw (RuntimeException. "Flow failed to complete.")))))
 
 (defn ??-
