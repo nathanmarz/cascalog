@@ -164,7 +164,10 @@
    If the first argument is a string, that will be used as the name
   for the query and will show up in the JobTracker UI."
   [& bindings]
-  (.complete (apply compile-flow bindings)))
+  (let [^Flow flow (apply compile-flow bindings)]
+    (.complete flow)
+    (when-not (-> flow .getFlowStats .isSuccessful)
+      (throw (RuntimeException. "Flow failed to complete.")))))
 
 (defn ??-
   "Executes one or more queries and returns a seq of seqs of tuples
