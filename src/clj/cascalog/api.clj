@@ -124,6 +124,9 @@
         outvars-str (if (vector? outvars) (vars2str outvars) outvars)]
     `(cascalog.rules/build-rule ~outvars-str ~predicate-builders)))
 
+(def cross-join
+  (<- [:>] (identity 1 :> _)))
+
 (defn compile-flow
   "Attaches output taps to some number of subqueries and creates a
   Cascading flow. The flow can be executed with `.complete`, or
