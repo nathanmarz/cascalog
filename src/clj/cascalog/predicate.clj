@@ -116,7 +116,6 @@
 
 (defn- predicate-dispatcher
   [op & rest]
-  (def my-op op)
   (let [ret (cond
              (keyword? op)                   ::option
              (instance? Tap op)              ::tap
