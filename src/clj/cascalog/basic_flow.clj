@@ -1,8 +1,7 @@
 (ns cascalog.basic-flow
   (:use [cascalog graph util])
   (:import [java.util.concurrent Semaphore])
-  (:import [org.apache.log4j Logger])
-  )
+  (:import [org.apache.log4j Logger]))
 
 (defstruct basic-flow ::graph)
 (defstruct basic-component ::id ::fn)
@@ -28,8 +27,7 @@
     (catch Throwable t
       (.error log "Component failed" t)
       (swap! state merge {:status :failed :exception t}))
-    (finally (.release sem)))
-    ))
+    (finally (.release sem)))))
 
 (defn- init-node-states [log bflow sem]
   (let [update-fn (fn [m node]

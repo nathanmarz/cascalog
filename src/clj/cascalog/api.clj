@@ -104,10 +104,8 @@
 (defmethod get-out-fields :tap [tap]
   (let [cfields (.getSourceFields tap)]
     (if (cascalog.rules/generic-cascading-fields? cfields)
-      (throw (IllegalArgumentException.
-              (str "Cannot get specific out-fields from tap. Tap source fields: " cfields)))
-      (vec (seq cfields))
-      )))
+      (throw-illegal (str "Cannot get specific out-fields from tap. Tap source fields: " cfields))
+      (vec (seq cfields)))))
 
 (defmethod get-out-fields :generator [query]
   (:outfields query))
@@ -169,7 +167,7 @@
   (let [^Flow flow (apply compile-flow bindings)]
     (.complete flow)
     (when-not (-> flow .getFlowStats .isSuccessful)
-      (throw (RuntimeException. "Flow failed to complete.")))))
+      (throw-runtime "Flow failed to complete."))))
 
 (defn ??-
   "Executes one or more queries and returns a seq of seqs of tuples
@@ -183,8 +181,7 @@
     (let [outtaps (for [q subqueries] (hfs-seqfile (str tmp "/" (uuid))))
           bindings (mapcat vector outtaps subqueries)]
       (apply ?- bindings)
-      (doall (map cascalog.rules/get-sink-tuples outtaps))
-      )))
+      (doall (map cascalog.rules/get-sink-tuples outtaps)))))
 
 (defmacro ?<-
   "Helper that both defines and executes a query in a single call.
@@ -203,8 +200,7 @@
   `(io/with-fs-tmp [fs# tmp1#]
      (let [outtap# (hfs-seqfile tmp1#)]
        (?<- outtap# ~@args)
-       (cascalog.rules/get-sink-tuples outtap#))
-     ))
+       (cascalog.rules/get-sink-tuples outtap#))))
 
 (defn predmacro*
   "Functional version of predmacro. See predmacro for details."
@@ -212,8 +208,7 @@
   (p/predicate p/predicate-macro
                (fn [invars outvars]
                  (for [[op & vars] (pred-macro-fn invars outvars)]
-                   [op nil vars])
-                 )))
+                   [op nil vars]))))
 
 (defmacro predmacro
   "A more general but more verbose way to create predicate macros.
@@ -261,16 +256,15 @@ as well."
         args [declared-group-vars :fn> buffer-out-vars]
         args (if hof-args (cons hof-args args) args)]
     (when (empty? declared-group-vars)
-      (throw (IllegalArgumentException. "Cannot do global grouping with multigroup")))
+      (throw-illegal "Cannot do global grouping with multigroup"))
     (when-not (= (set group-vars) (set declared-group-vars))
-      (throw (IllegalArgumentException. "Declared group vars must be same as intersection of vars of all subqueries")))
+      (throw-illegal "Declared group vars must be same as intersection of vars of all subqueries"))
     (p/predicate p/generator nil
                  true
                  (apply merge (map :sourcemap sqs))
                  ((apply buffer-op args) pipes num-vars)
                  (concat declared-group-vars buffer-out-vars)
-                 (apply merge (map :trapmap sqs))
-                 )))
+                 (apply merge (map :trapmap sqs)))))
 
 (defmacro multigroup
   [group-vars out-vars buffer-spec & sqs]
@@ -292,7 +286,7 @@ as well."
   (let [select-fields (collectify select-fields)
         outfields (:outfields query)]
     (when-not (set/subset? (set select-fields) (set outfields))
-      (throw (IllegalArgumentException. (str "Cannot select " select-fields " from " outfields))))
+      (throw-illegal (str "Cannot select " select-fields " from " outfields)))
     (merge query
            {:pipe (w/assemble (:pipe query) (w/select select-fields))
             :outfields select-fields}

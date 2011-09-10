@@ -20,7 +20,7 @@
 
 (defn path
   ([str-or-path]
-    (if (instance? Path str-or-path) str-or-path (Path. str-or-path)))
+     (if (instance? Path str-or-path) str-or-path (Path. str-or-path)))
   ([parent child] (Path. parent child)))
 
 (defn str-path
