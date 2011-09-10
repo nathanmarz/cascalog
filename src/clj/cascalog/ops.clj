@@ -103,17 +103,17 @@
 ;; Common patterns
 
 (defnk first-n
-  "Returns a subquery getting the first n elements from sq it finds. Can pass in sorting arguments."
+  "Returns a subquery getting the first n elements from sq it
+  finds. Can pass in sorting arguments."
   [gen n :reverse false :sort nil]
-  (let [in-fields (get-out-fields gen)
-        out-fields (v/gen-nullable-vars (clojure.core/count in-fields))]
+  (let [field-count (clojure.core/count (get-out-fields gen))
+        in-fields  (v/gen-nullable-vars field-count)
+        out-fields (v/gen-nullable-vars field-count)]
     (<- out-fields
         (gen :>> in-fields)
         (:sort :<< (when sort (collectify sort)))
         (:reverse reverse)
-        (limit [n] :<< in-fields :>> out-fields)
-        )))
-
+        (limit [n] :<< in-fields :>> out-fields))))
 
 ;; Helpers to use within ops
 
