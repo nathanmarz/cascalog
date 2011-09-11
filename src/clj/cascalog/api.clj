@@ -114,6 +114,12 @@
 (defmethod get-out-fields :cascalog-tap [cascalog-tap]
   (get-out-fields (:source cascalog-tap)))
 
+(defn num-out-fields [gen]
+  (if (or (list? gen) (vector? gen))
+    (count (first gen))
+    ;; TODO: should pluck from Tap if it doesn't define out-fields
+    (count (get-out-fields gen))))
+
 ;; Query creation and execution
 
 (defmacro <-

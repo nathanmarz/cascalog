@@ -106,14 +106,19 @@
   "Returns a subquery getting the first n elements from sq it
   finds. Can pass in sorting arguments."
   [gen n :reverse false :sort nil]
-  (let [field-count (clojure.core/count (get-out-fields gen))
-        in-fields  (v/gen-nullable-vars field-count)
-        out-fields (v/gen-nullable-vars field-count)]
-    (<- out-fields
-        (gen :>> in-fields)
-        (:sort :<< (when sort (collectify sort)))
+  (let [num-fields (num-out-fields gen)
+        in-vars  (v/gen-nullable-vars num-fields)
+        out-vars (v/gen-nullable-vars num-fields)
+        sort-set (if sort (-> sort collectify set) #{})
+        sort-vars (if sort
+                    (mapcat (fn [f v] (if (sort-set f) [v]))
+                            (get-out-fields gen)
+                            in-vars))]
+    (<- out-vars
+        (gen :>> in-vars)
+        (:sort :<< sort-vars)
         (:reverse reverse)
-        (limit [n] :<< in-fields :>> out-fields))))
+        (limit [n] :<< in-vars :>> out-vars))))
 
 ;; Helpers to use within ops
 
