@@ -15,7 +15,7 @@
 
 (ns cascalog.util
   (:use [clojure.contrib.seq-utils :only [find-first indexed]]
-        [clojure.set :only (union)])
+        [clojure.set :only (difference)])
   (:import [java.util UUID Collection]))
 
 (defn multifn? [x]
@@ -45,7 +45,8 @@
   [& xs]
   (->> xs
        (map #(if (coll? %) (set %) #{%}))
-       (apply (comp vec union))))
+       (reduce #(concat % (difference %2 %)))
+       (vec)))
 
 (defn transpose [m]
   (apply map list m))
