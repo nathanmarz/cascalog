@@ -26,4 +26,4 @@ syntax: glob
 *.pyc
 *.dot
 .cake/
-.lein_failures
+.lein-failures
