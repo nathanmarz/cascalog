@@ -14,7 +14,8 @@
  ;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (ns cascalog.util
-  (:use [clojure.contrib.seq-utils :only [find-first indexed]])
+  (:use [clojure.contrib.seq-utils :only [find-first indexed]]
+        [clojure.set :only (union)])
   (:import [java.util UUID Collection]))
 
 (defn multifn? [x]
@@ -25,6 +26,26 @@
 
 (defn throw-runtime [str]
   (throw (RuntimeException. str)))
+
+(defn try-update-in
+  [m key-vec f & args]
+  (reduce #(%2 %1) m
+          (for [k key-vec]
+            #(if (get % k)
+               (apply update-in % [k] f args)
+               %))))
+
+(defn merge-to-vec
+  "Returns a vector representation of the union of all supplied
+  items. Entries in xs can be collections or individual items. For
+  example,
+
+  (merge-to-vec [1 2] :help 2 1)
+  => [1 2 :help]"
+  [& xs]
+  (->> xs
+       (map #(if (coll? %) (set %) #{%}))
+       (apply (comp vec union))))
 
 (defn transpose [m]
   (apply map list m))
