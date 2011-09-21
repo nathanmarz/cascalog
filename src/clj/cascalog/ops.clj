@@ -17,8 +17,7 @@
   (:refer-clojure :exclude [count min max comp juxt])
   (:use [cascalog ops-impl api util])
   (:use [clojure.contrib.def :only [defnk]])
-  (:require [cascalog [vars :as v]])
-  (:import [java.util.concurrent Future TimeoutException TimeUnit]))
+  (:require [cascalog [vars :as v]]))
 
 ;; Operation composition functions
 
@@ -123,10 +122,10 @@
 ;; Helpers to use within ops
 
 (defmacro with-timeout [[ms] & body]
-  `(let [#^Future f# (future ~@body)]
+  `(let [^java.util.concurrent.Future f# (future ~@body)]
      (try
-       (.get f# ~ms TimeUnit/MILLISECONDS)
-     (catch TimeoutException e#
+       (.get f# ~ms java.util.concurrent.TimeUnit/MILLISECONDS)
+     (catch java.util.concurrent.TimeoutException e#
        (.cancel f# true)
        nil
        ))))
