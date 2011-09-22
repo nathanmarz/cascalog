@@ -14,7 +14,6 @@
  ;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (ns cascalog.predicate
-  (:use [clojure.contrib.seq-utils :only [find-first]])
   (:use [cascalog vars util])
   (:require [cascalog [workflow :as w]])
   (:import [java.util ArrayList])
@@ -68,22 +67,23 @@
 (defstruct predicate-variables :in :out)
 
 (defn- implicit-var-flag [vars selector-default]
-  (if (find-first keyword? vars)
+  (if (some cascalog-keyword? vars)
     :<
     selector-default))
 
 (defn- mk-args-map [normed-vars]
-  (let [partitioned (partition-by keyword? normed-vars)
+  (let [partitioned (partition-by cascalog-keyword?
+                                  normed-vars)
         keys (map first (take-nth 2 partitioned))
         vals (take-nth 2 (rest partitioned))]
-      (zipmap keys vals)))
+    (zipmap keys vals)))
 
 (defn- vectorify-arg [argsmap sugararg outarg]
   (cond (not (or (contains? argsmap sugararg) (contains? argsmap outarg)))
           argsmap
         (contains? argsmap outarg) (assoc argsmap outarg (first (argsmap outarg)))
         :else (assoc argsmap outarg (argsmap sugararg))
-    ))
+        ))
 
 (defn vectorify-pos-selector [argsmap]
   (if-let [[amt selector-map] (argsmap :#>)]
@@ -99,7 +99,7 @@
   "parses variables of the form ['?a' '?b' :> '!!c']
    If there is no :>, defaults to flag-default"
   [vars selector-default]
-  (let [vars (if (keyword? (first vars))
+  (let [vars (if (cascalog-keyword? (first vars))
                vars
                (cons (implicit-var-flag vars selector-default)
                      vars))
@@ -108,8 +108,7 @@
                     (vectorify-arg :> :>>)
                     (vectorify-arg :< :<<)
                     (vectorify-pos-selector))
-        ret {:<< (:<< argsmap)
-             :>> (:>> argsmap)}]
+        ret (select-keys argsmap [:<< :>>])]
     (if-not (#{:< :>} selector-default)
       (assoc ret selector-default (argsmap selector-default))
       ret)))
