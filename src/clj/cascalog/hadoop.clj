@@ -1,22 +1,19 @@
 (ns cascalog.hadoop
+  (:use [clojure.contrib.def :only [defalias]])
   (:import [org.apache.hadoop.fs FileSystem Path]
            [org.apache.hadoop.conf Configuration]
-           [org.apache.hadoop.mapred JobConf])
-  (:import [java.io File FileNotFoundException FileOutputStream BufferedOutputStream])
-  )
+           [org.apache.hadoop.mapred JobConf]
+           [java.io File FileNotFoundException FileOutputStream
+                    BufferedOutputStream]))
 
 ;; TODO: put this into own project
 
-(defmulti conf-set (fn [obj] (class (:value obj))))
+(defn job-conf [conf-map]
+  (let [default (conf-map "cascading.hadoop.jobconf")]
+    (cascading.flow.hadoop.HadoopUtil/createJobConf conf-map default)))
 
-(defmethod conf-set String [{key :key value :value conf :conf}]
-  (.set conf key value))
-
-(defmethod conf-set Integer [{key :key value :value conf :conf}]
-  (.setInt conf key value))
-
-(defmethod conf-set Float [{key :key value :value conf :conf}]
-  (.setFloat conf key value))
+;; JobConf is a subclass of Configuration
+(defalias configuration job-conf)
 
 (defn path
   ([str-or-path]
@@ -28,20 +25,6 @@
     part1)
   ([part1 part2 & components]
     (apply str-path (str (path part1 (str part2))) components)))
-
-(defn configuration [conf-map]
-  (let [ret (Configuration.)]
-    (doall
-      (for [config conf-map]
-        (conf-set {:key (first config) :value (last config) :conf ret})))
-    ret))
-
-(defn job-conf [conf-map]
-  (let [ret (JobConf.)]
-    (doall
-      (for [config conf-map]
-        (conf-set {:key (first config) :value (last config) :conf ret})))
-    ret))
 
 (defn filesystem
   ([] (FileSystem/get (Configuration.)))
