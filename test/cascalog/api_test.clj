@@ -437,7 +437,7 @@
     ))
 
 (deftest test-keyword-args
-  (test?<- [[":onetwo"]] [] ([["two"]] ?a) (str :one ?a :> ?b))
+  (test?<- [[":onetwo"]] [?b] ([["two"]] ?a) (str :one ?a :> ?b))
   (test?<- [["face"]] [?a] ([["face" :cake]] ?a :cake)))
 
 (deftest test-select-fields-query
