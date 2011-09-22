@@ -436,6 +436,10 @@
     (test?<- [[1 3 4] [11 13 14] [21 23 24]] [?f1 ?f2 ?f3] ((select-fields data ["f1" "f3" "f4"]) ?f1 ?f2 ?f3))
     ))
 
+(deftest test-keyword-args
+  (test?<- [[":onetwo"]] [] ([["two"]] ?a) (str :one ?a :> ?b))
+  (test?<- [["face"]] [?a] ([["face" :cake]] ?a :cake)))
+
 (deftest test-select-fields-query
   (let [wide [[1 2 3 4 5 6]]
         sq (<- [!f1 !f4 !f5 ?f6] (wide !f1 !f2 !f3 !f4 !f5 ?f6) (:distinct false))]
