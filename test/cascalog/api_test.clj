@@ -453,10 +453,11 @@
   (let [pairs [[1 2] [2 10]]
         double-second-sink (fn [sq]
                              [[[1 2 4] [2 10 20]]
-                              (<- [?a ?b ?c] (sq ?a ?b) (* 2 ?b :> ?c) (:distinct false)) ])]
-    (test?- double-second-sink pairs)
-    ))
-
+                              (<- [?a ?b ?c]
+                                  (sq ?a ?b)
+                                  (* 2 ?b :> ?c)
+                                  (:distinct false)) ])]
+    (test?- double-second-sink pairs)))
 
 (deftest test-constant-substitution
   (let [pairs [[1 2] [1 3] [2 5]]]
