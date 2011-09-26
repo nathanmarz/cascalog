@@ -129,9 +129,9 @@
 (defn- serialization-entry
   [serial-vec]
   (->> serial-vec
-       (map (fn [x] (cond (string? x) x
-                         (class? x) (.getName x)
-                         (symbol? x) (recur (resolve x)))))
+       (map (fn [x]
+              (cond (string? x) x
+                    (class? x) (.getName x))))
        (merge-to-vec default-serializations)
        (join ",")))
 
@@ -176,7 +176,7 @@
   `with-serializations` or `with-job-conf`."
   [serial-vec & forms]
   `(with-job-conf 
-     {"io.serializations" ~(serialization-entry serial-vec)}
+     {"io.serializations" (serialization-entry ~serial-vec)}
      ~@forms))
 
 ;; Query creation and execution
