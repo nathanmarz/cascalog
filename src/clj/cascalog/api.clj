@@ -15,7 +15,8 @@
 
 (ns cascalog.api
   (:use [cascalog vars util graph debug]
-        [clojure.contrib.def :only [defalias]])
+        [clojure.contrib.def :only (defalias)]
+        [clojure.string :only (join split)])
   (:require cascalog.rules
             [clojure [set :as set]]
             [cascalog [tap :as tap]
@@ -103,10 +104,8 @@
 (defmethod get-out-fields :tap [tap]
   (let [cfields (.getSourceFields tap)]
     (if (cascalog.rules/generic-cascading-fields? cfields)
-      (throw (IllegalArgumentException.
-              (str "Cannot get specific out-fields from tap. Tap source fields: " cfields)))
-      (vec (seq cfields))
-      )))
+      (throw-illegal (str "Cannot get specific out-fields from tap. Tap source fields: " cfields))
+      (vec (seq cfields)))))
 
 (defmethod get-out-fields :generator [query]
   (:outfields query))
@@ -119,6 +118,66 @@
     (count (first gen))
     ;; TODO: should pluck from Tap if it doesn't define out-fields
     (count (get-out-fields gen))))
+
+;; Knobs for Hadoop
+
+(def default-serializations
+  ["cascading.tuple.hadoop.BytesSerialization"
+   "cascading.tuple.hadoop.TupleSerialization"
+   "org.apache.hadoop.io.serializer.WritableSerialization"])
+
+(defn- serialization-entry
+  [serial-vec]
+  (->> serial-vec
+       (map (fn [x] (cond (string? x) x
+                         (class? x) (.getName x)
+                         (symbol? x) (recur (resolve x)))))
+       (merge-to-vec default-serializations)
+       (join ",")))
+
+(defn merge-serialization-strings
+  [& ser-strings]
+  (->> ser-strings
+       (filter identity)
+       (mapcat #(split % #","))
+       (serialization-entry)))
+
+(defn conf-merge
+  "TODO: Come up with a more general version of this, similar to
+  merge-with, that takes a map of key-func pairs, and merges with
+  those functions."
+  [& maps]
+  (reduce (fn [m1 m2]
+            (let [m2 (try-update-in m2 ["io.serializations"]
+                                    merge-serialization-strings
+                                    (get m1 "io.serializations"))]
+              (conj (or m1 {}) m2)))
+          maps))
+
+(defmacro with-job-conf
+  "Modifies the job conf for queries executed within the form. Nested
+   with-job-conf calls will merge configuration maps together, with
+   innermost calls taking precedence on conflicting keys."
+  [conf & body]
+  `(binding [cascalog.rules/*JOB-CONF* (conf-merge cascalog.rules/*JOB-CONF* ~conf)]
+     ~@body))
+
+(defmacro with-serializations
+  "Enables the supplied serializations for queries executed within the
+  form. Serializations should be provided as a vector of strings or
+  classes, like so:
+
+  (import 'org.apache.hadoop.io.serializer.JavaSerialization)
+  (with-serializations [JavaSerialization]
+     (?<- ...))
+
+  Serializations nest; nested calls to with-serializations will merge
+  and unique with serializations currently specified by other calls to
+  `with-serializations` or `with-job-conf`."
+  [serial-vec & forms]
+  `(with-job-conf 
+     {"io.serializations" ~(serialization-entry serial-vec)}
+     ~@forms))
 
 ;; Query creation and execution
 
@@ -155,7 +214,8 @@
         tails     (map cascalog.rules/connect-to-sink gens sinks)
         sinkmap   (w/taps-map tails sinks)]
     (.connect (->> cascalog.rules/*JOB-CONF*
-                   (merge {"cascading.flow.job.pollinginterval" 100})
+                   (conf-merge (::jobconf (meta *ns*))
+                               {"cascading.flow.job.pollinginterval" 100})
                    (FlowConnector.))
               flow-name
               sourcemap
@@ -176,7 +236,7 @@
   (let [^Flow flow (apply compile-flow bindings)]
     (.complete flow)
     (when-not (-> flow .getFlowStats .isSuccessful)
-      (throw (RuntimeException. "Flow failed to complete.")))))
+      (throw-runtime "Flow failed to complete."))))
 
 (defn ??-
   "Executes one or more queries and returns a seq of seqs of tuples
@@ -190,8 +250,7 @@
     (let [outtaps (for [q subqueries] (hfs-seqfile (str tmp "/" (uuid))))
           bindings (mapcat vector outtaps subqueries)]
       (apply ?- bindings)
-      (doall (map cascalog.rules/get-sink-tuples outtaps))
-      )))
+      (doall (map cascalog.rules/get-sink-tuples outtaps)))))
 
 (defmacro ?<-
   "Helper that both defines and executes a query in a single call.
@@ -210,8 +269,7 @@
   `(io/with-fs-tmp [fs# tmp1#]
      (let [outtap# (hfs-seqfile tmp1#)]
        (?<- outtap# ~@args)
-       (cascalog.rules/get-sink-tuples outtap#))
-     ))
+       (cascalog.rules/get-sink-tuples outtap#))))
 
 (defn predmacro*
   "Functional version of predmacro. See predmacro for details."
@@ -219,8 +277,7 @@
   (p/predicate p/predicate-macro
                (fn [invars outvars]
                  (for [[op & vars] (pred-macro-fn invars outvars)]
-                   [op nil vars])
-                 )))
+                   [op nil vars]))))
 
 (defmacro predmacro
   "A more general but more verbose way to create predicate macros.
@@ -268,16 +325,15 @@ as well."
         args [declared-group-vars :fn> buffer-out-vars]
         args (if hof-args (cons hof-args args) args)]
     (when (empty? declared-group-vars)
-      (throw (IllegalArgumentException. "Cannot do global grouping with multigroup")))
+      (throw-illegal "Cannot do global grouping with multigroup"))
     (when-not (= (set group-vars) (set declared-group-vars))
-      (throw (IllegalArgumentException. "Declared group vars must be same as intersection of vars of all subqueries")))
+      (throw-illegal "Declared group vars must be same as intersection of vars of all subqueries"))
     (p/predicate p/generator nil
                  true
                  (apply merge (map :sourcemap sqs))
                  ((apply buffer-op args) pipes num-vars)
                  (concat declared-group-vars buffer-out-vars)
-                 (apply merge (map :trapmap sqs))
-                 )))
+                 (apply merge (map :trapmap sqs)))))
 
 (defmacro multigroup
   [group-vars out-vars buffer-spec & sqs]
@@ -299,19 +355,17 @@ as well."
   (let [select-fields (collectify select-fields)
         outfields (:outfields query)]
     (when-not (set/subset? (set select-fields) (set outfields))
-      (throw (IllegalArgumentException. (str "Cannot select " select-fields " from " outfields))))
+      (throw-illegal (str "Cannot select " select-fields " from " outfields)))
     (merge query
            {:pipe (w/assemble (:pipe query) (w/select select-fields))
-            :outfields select-fields}
-           )))
+            :outfields select-fields})))
 
 (defmethod select-fields :cascalog-tap [cascalog-tap fields]
   (select-fields (:source cascalog-tap) fields))
 
 (defn name-vars [gen vars]
   (let [vars (collectify vars)]
-    (<- vars (gen :>> vars) (:distinct false))
-    ))
+    (<- vars (gen :>> vars) (:distinct false))))
 
 ;; Defining custom operations
 
@@ -335,16 +389,6 @@ as well."
 
 (defalias defparallelbuf p/defparallelbuf)
 
-;; Knobs for Hadoop
-
-(defmacro with-job-conf
-  "Modifies the job conf for queries executed within the form. Nested
-   with-job-conf calls will merge configuration maps together, with
-   innermost calls taking precedence on conflicting keys."
-  [conf & body]
-  `(binding [cascalog.rules/*JOB-CONF* (merge cascalog.rules/*JOB-CONF* ~conf)]
-     ~@body))
-
 ;; Miscellaneous helpers
 
 (defn div
@@ -360,3 +404,19 @@ as well."
   [& body]
   `(binding [cascalog.debug/*DEBUG* true]
      ~@body))
+
+;; Class Creation
+
+(defmacro defmain
+  "Defines an AOT-compiled function with the supplied
+  `name`. Containing namespace must be marked for AOT compilation to
+  have any effect."
+  [name & forms]
+  (let [classname (str *ns* "." name)
+        sym (with-meta
+              (symbol (str name "-main"))
+              (meta name))]
+    `(do (gen-class :name ~classname
+                    :main true
+                    :prefix ~(str name "-"))
+         (defn ~sym ~@forms))))

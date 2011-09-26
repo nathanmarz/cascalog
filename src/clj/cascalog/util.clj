@@ -14,7 +14,8 @@
  ;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (ns cascalog.util
-  (:use [clojure.contrib.seq-utils :only [find-first indexed]])
+  (:use [clojure.contrib.seq-utils :only [find-first indexed]]
+        [clojure.set :only (difference)])
   (:import [java.util UUID Collection]))
 
 (defn multifn? [x]
@@ -22,6 +23,30 @@
 
 (defn throw-illegal [str]
   (throw (IllegalArgumentException. str)))
+
+(defn throw-runtime [str]
+  (throw (RuntimeException. str)))
+
+(defn try-update-in
+  [m key-vec f & args]
+  (reduce #(%2 %1) m
+          (for [k key-vec]
+            #(if (get % k)
+               (apply update-in % [k] f args)
+               %))))
+
+(defn merge-to-vec
+  "Returns a vector representation of the union of all supplied
+  items. Entries in xs can be collections or individual items. For
+  example,
+
+  (merge-to-vec [1 2] :help 2 1)
+  => [1 2 :help]"
+  [& xs]
+  (->> xs
+       (map #(if (coll? %) (set %) #{%}))
+       (reduce #(concat % (difference %2 %)))
+       (vec)))
 
 (defn transpose [m]
   (apply map list m))
@@ -124,8 +149,13 @@
 
 (defn- clean-nil-bindings [bindings]
   (let [pairs (partition 2 bindings)]
-    (mapcat identity (filter #(first %) pairs))
-    ))
+    (mapcat identity (filter #(first %) pairs))))
+
+(defn set-namespace-value
+  "Merges the supplied kv-pair into the metadata of the namespace in
+  which the function is called."
+  [key-name newval]
+  (alter-meta! *ns* merge {key-name newval}))
 
 (defn mk-destructured-seq-map [& bindings]
   ;; lhs needs to be symbolified

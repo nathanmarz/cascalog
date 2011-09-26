@@ -43,6 +43,8 @@
     (let [actname (if (symbol? v) (name v) v)]
       (if (= "_" actname) (gen-var) actname))))
 
+(def cascalog-keyword? #{:> :< :<< :>> :fn> :#> :?})
+
 (defn cascalog-var? [obj]
     (if (or (symbol? obj) (string? obj))
       (let [obj (extract-varname obj)]

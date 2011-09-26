@@ -188,16 +188,11 @@
                                [ll (rest bindings)]
                                [:fatal bindings])]
     (with-log-level log-level
-      (with-tmp-files [sink-path (temp-dir "sink")]
-        (with-job-conf {"io.sort.mb" 1}
-          (let [bindings (mapcat (partial apply rules/normalize-sink-connection)
-                                 (partition 2 bindings))
-                [specs rules]  (unweave bindings)
-                sinks          (map mk-test-sink specs (unique-rooted-paths sink-path))
-                _              (apply ?- (interleave sinks rules))
-                out-tuples     (doall (map rules/get-sink-tuples sinks))]
-            [specs out-tuples]
-            ))))))
+      (with-job-conf {"io.sort.mb" 1}
+        (let [bindings (mapcat (partial apply rules/normalize-sink-connection)
+                               (partition 2 bindings))
+              [specs rules]  (unweave bindings)]
+          [specs (apply ??- rules)])))))
 
 (defn test?- [& bindings]
   (let [[specs out-tuples] (apply process?- bindings)]
