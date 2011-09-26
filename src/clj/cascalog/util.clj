@@ -149,8 +149,7 @@
 
 (defn- clean-nil-bindings [bindings]
   (let [pairs (partition 2 bindings)]
-    (mapcat identity (filter #(first %) pairs))
-    ))
+    (mapcat identity (filter #(first %) pairs))))
 
 (defn set-namespace-value
   "Merges the supplied kv-pair into the metadata of the namespace in

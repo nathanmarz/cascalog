@@ -121,16 +121,6 @@
 
 ;; Knobs for Hadoop
 
-(defn ns-job-conf
-  "Modifies the job conf for all queries executed below the call to
-   `ns-job-conf`. The conf-maps of queries wrapped in `with-job-conf`
-   will be merged into this configuration, with `with-job-conf` taking
-   precedence on conflicting keys."
-  [conf-map]
-  (if (map? conf-map)
-    (set-namespace-value ::jobconf conf-map)
-    (throw-illegal (str "The supplied job-conf must be a map! You supplied: " conf-map))))
-
 (def default-serializations
   ["cascading.tuple.hadoop.BytesSerialization"
    "cascading.tuple.hadoop.TupleSerialization"
@@ -172,16 +162,6 @@
   `(binding [cascalog.rules/*JOB-CONF* (conf-merge cascalog.rules/*JOB-CONF* ~conf)]
      ~@body))
 
-(defn ns-serializations
-  "Defines serializations meant to apply to all queries (below this
-  call) in the current namespace.
-
-  Note that queries wrapped in `with-serializations` will override the
-  serializations defined here; to layer serializers, make sure to
-  explicitly repeat them in `with-serializations`."
-  [serial-vec]
-  (ns-job-conf {"io.serializations" (serialization-entry serial-vec)}))
-
 (defmacro with-serializations
   "Enables the supplied serializations for queries executed within the
   form. Serializations should be provided as a vector of strings or
@@ -191,9 +171,9 @@
   (with-serializations [JavaSerialization]
      (?<- ...))
 
-  Serializations currently don't nest; nested calls to
-  with-serializations will override parent values, including those
-  defined for the entire namespace using `ns-serializations`."
+  Serializations nest; nested calls to with-serializations will merge
+  and unique with serializations currently specified by other calls to
+  `with-serializations` or `with-job-conf`."
   [serial-vec & forms]
   `(with-job-conf 
      {"io.serializations" ~(serialization-entry serial-vec)}
