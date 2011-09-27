@@ -513,7 +513,7 @@
            {"io.serializations" (s/join "," (conj default-serializations "java.lang.String"))})))
 
   (with-serializations [String]
-    (with-job-conf {"io.serializations" "SomeSerialization"}
+    (with-job-conf {"io.serializations" "java.lang.String,SomeSerialization"}
       (is (= cascalog.rules/*JOB-CONF*
              {"io.serializations" (s/join "," (concat default-serializations
                                                       ["java.lang.String"
