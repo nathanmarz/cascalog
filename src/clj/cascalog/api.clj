@@ -122,11 +122,11 @@
 ;; Knobs for Hadoop
 
 (def default-serializations
-  ["cascading.tuple.hadoop.BytesSerialization"
-   "cascading.tuple.hadoop.TupleSerialization"
-   "org.apache.hadoop.io.serializer.WritableSerialization"])
+  ["org.apache.hadoop.io.serializer.WritableSerialization"
+   "cascading.tuple.hadoop.BytesSerialization"
+   "cascading.tuple.hadoop.TupleSerialization"])
 
-(defn- serialization-entry
+(defn serialization-entry
   [serial-vec]
   (->> serial-vec
        (map (fn [x]
