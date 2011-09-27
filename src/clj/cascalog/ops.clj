@@ -1,17 +1,17 @@
- ;    Copyright 2010 Nathan Marz
- ; 
- ;    This program is free software: you can redistribute it and/or modify
- ;    it under the terms of the GNU General Public License as published by
- ;    the Free Software Foundation, either version 3 of the License, or
- ;    (at your option) any later version.
- ; 
- ;    This program is distributed in the hope that it will be useful,
- ;    but WITHOUT ANY WARRANTY; without even the implied warranty of
- ;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- ;    GNU General Public License for more details.
- ; 
- ;    You should have received a copy of the GNU General Public License
- ;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+;;    Copyright 2010 Nathan Marz
+;; 
+;;    This program is free software: you can redistribute it and/or modify
+;;    it under the terms of the GNU General Public License as published by
+;;    the Free Software Foundation, either version 3 of the License, or
+;;    (at your option) any later version.
+;; 
+;;    This program is distributed in the hope that it will be useful,
+;;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;    GNU General Public License for more details.
+;; 
+;;    You should have received a copy of the GNU General Public License
+;;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (ns cascalog.ops
   (:refer-clojure :exclude [count min max comp juxt])
@@ -25,8 +25,7 @@
 (defn negate [op]
   (<- [:<< !invars :> !true?]
       (op :<< !invars :> !curr?)
-      (not !curr? :> !true?)
-      ))
+      (not !curr? :> !true?)))
 
 (defn all [& ops]
   (logical-comp ops #'bool-and))
@@ -39,32 +38,34 @@
         intvars (map vector (v/gen-nullable-vars (dec (clojure.core/count ops))))
         intvars (vec (cons "!invars" intvars))
         allvars (conj intvars ["!result"])
-        varpairs (partition 2 1 allvars)
-        ]
+        varpairs (partition 2 1 allvars)]
     (construct
      [:<< "!invars" :> "!result"]
-     (map (fn [o [invars outvars]] [o :<< invars :>> outvars]) ops varpairs)
-     )))
+     (map (fn [o [invars outvars]]
+            [o :<< invars :>> outvars])
+          ops
+          varpairs))))
 
 (defn juxt [& ops]
   (let [outvars (v/gen-nullable-vars (clojure.core/count ops))]
     (construct
      [:<< "!invars" :>> outvars]
-     (map (fn [o v] [o :<< "!invars" :> v]) ops outvars))
-    ))
+     (map (fn [o v]
+            [o :<< "!invars" :> v])
+          ops
+          outvars))))
 
 (defn each [op]
   (predmacro [invars outvars]
-    {:pre [(or (= 0 (clojure.core/count outvars))
-               (= (clojure.core/count invars) (clojure.core/count outvars)))]}
-    (if (empty? outvars)
-      (for [i invars]
-        [op i])
-      (map
-        (fn [i v]
-          [op i :> v] )
-        invars
-        outvars ))))
+             {:pre [(or (= 0 (clojure.core/count outvars))
+                        (= (clojure.core/count invars) (clojure.core/count outvars)))]}
+             (if (empty? outvars)
+               (for [i invars]
+                 [op i])
+               (map (fn [i v]
+                      [op i :> v] )
+                    invars
+                    outvars ))))
 
 
 ;; Operations to use within queries
@@ -73,7 +74,7 @@
   (re-seq pattern str))
 
 (defparallelagg count :init-var #'one
-                      :combine-var #'+)
+  :combine-var #'+)
 
 (def sum (each sum-parallel))
 
@@ -84,21 +85,24 @@
 (def !count (each !count-parallel))
 
 (defparallelbuf limit :hof? true
-                      :init-hof-var #'limit-init
-                      :combine-hof-var #'limit-combine
-                      :extract-hof-var #'limit-extract
-                      :num-intermediate-vars-fn (fn [infields outfields] (clojure.core/count infields))
-                      :buffer-hof-var #'limit-buffer )
+  :init-hof-var #'limit-init
+  :combine-hof-var #'limit-combine
+  :extract-hof-var #'limit-extract
+  :num-intermediate-vars-fn (fn [infields outfields] (clojure.core/count infields))
+  :buffer-hof-var #'limit-buffer )
 
 (def limit-rank (merge limit {:buffer-hof-var #'limit-rank-buffer} ))
 
 (def avg
   (<- [!v :> !avg]
-    (count !c) (sum !v :> !s) (div !s !c :> !avg)))
+      (count !c)
+      (sum !v :> !s)
+      (div !s !c :> !avg)))
 
 (def distinct-count
   (<- [:<< !invars :> !c]
-      (:sort :<< !invars) (distinct-count-agg :<< !invars :> !c)))
+      (:sort :<< !invars)
+      (distinct-count-agg :<< !invars :> !c)))
 
 ;; Common patterns
 

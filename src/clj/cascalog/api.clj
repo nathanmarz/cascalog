@@ -1,32 +1,34 @@
- ;    Copyright 2010 Nathan Marz
- ; 
- ;    This program is free software: you can redistribute it and/or modify
- ;    it under the terms of the GNU General Public License as published by
- ;    the Free Software Foundation, either version 3 of the License, or
- ;    (at your option) any later version.
- ; 
- ;    This program is distributed in the hope that it will be useful,
- ;    but WITHOUT ANY WARRANTY; without even the implied warranty of
- ;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- ;    GNU General Public License for more details.
- ; 
- ;    You should have received a copy of the GNU General Public License
- ;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+;;    Copyright 2010 Nathan Marz
+;; 
+;;    This program is free software: you can redistribute it and/or modify
+;;    it under the terms of the GNU General Public License as published by
+;;    the Free Software Foundation, either version 3 of the License, or
+;;    (at your option) any later version.
+;; 
+;;    This program is distributed in the hope that it will be useful,
+;;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;    GNU General Public License for more details.
+;; 
+;;    You should have received a copy of the GNU General Public License
+;;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (ns cascalog.api
   (:use [cascalog vars util graph debug]
         [clojure.contrib.def :only (defalias)]
         [clojure.string :only (join split)])
   (:require cascalog.rules
-            [clojure [set :as set]]
-            [cascalog [tap :as tap]
-             [workflow :as w] [predicate :as p] [io :as io] [hadoop :as hadoop]])
+            [clojure.set :as set]
+            [cascalog.tap :as tap]
+            [cascalog.workflow :as w]
+            [cascalog.predicate :as p]
+            [cascalog.io :as io]
+            [cascalog.hadoop :as hadoop])
   (:import [cascading.flow Flow FlowConnector]
            [cascading.tuple Fields]
            [cascalog StdoutTap Util MemorySourceTap]
            [cascading.pipe Pipe]
            [java.util ArrayList]))
-
 
 ;; Functions for creating taps and tap helpers
 
@@ -371,8 +373,7 @@ as well."
 (defalias defmapop w/defmapop
   "Defines a custom operation that appends new fields to the input tuple.")
 
-(defalias defmapcatop w/defmapcatop
-  "")
+(defalias defmapcatop w/defmapcatop)
 
 (defalias defbufferop w/defbufferop)
 

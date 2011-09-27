@@ -1,17 +1,17 @@
- ;    Copyright 2010 Nathan Marz
- ; 
- ;    This program is free software: you can redistribute it and/or modify
- ;    it under the terms of the GNU General Public License as published by
- ;    the Free Software Foundation, either version 3 of the License, or
- ;    (at your option) any later version.
- ; 
- ;    This program is distributed in the hope that it will be useful,
- ;    but WITHOUT ANY WARRANTY; without even the implied warranty of
- ;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- ;    GNU General Public License for more details.
- ; 
- ;    You should have received a copy of the GNU General Public License
- ;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+;;    Copyright 2010 Nathan Marz
+;; 
+;;    This program is free software: you can redistribute it and/or modify
+;;    it under the terms of the GNU General Public License as published by
+;;    the Free Software Foundation, either version 3 of the License, or
+;;    (at your option) any later version.
+;; 
+;;    This program is distributed in the hope that it will be useful,
+;;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;    GNU General Public License for more details.
+;; 
+;;    You should have received a copy of the GNU General Public License
+;;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (ns cascalog.util
   (:use [clojure.set :only (difference)])
@@ -67,11 +67,11 @@
   "Returns [newseq {map of newvals to oldvals}]"
   [pred subfn aseq]
   (reduce (fn [[newseq subs] val]
-    (let [[newval sub] (if (pred val)
-            (let [subbed (subfn val)] [subbed {subbed val}])
-            [val {}])]
-      [(conj newseq newval) (merge subs sub)]))
-    [[] {}] aseq))
+            (let [[newval sub] (if (pred val)
+                                 (let [subbed (subfn val)] [subbed {subbed val}])
+                                 [val {}])]
+              [(conj newseq newval) (merge subs sub)]))
+          [[] {}] aseq))
 
 (defn try-resolve [obj]
   (when (symbol? obj) (resolve obj)))
@@ -81,7 +81,7 @@
   `idx` from `coll`."
   [coll idx]
   (concat (take idx coll) (drop (inc idx) coll)))
-  
+
 (defn collectify [obj]
   (if (or (sequential? obj) (instance? Collection obj)) obj [obj]))
 
@@ -106,8 +106,8 @@
   (let [pair-up (fn [v vals]
                   (map (partial vector v) vals))]
     (apply concat (for [i (range (dec (count coll)))]
-      (pair-up (nth coll i) (drop (inc i) coll))
-      ))))
+                    (pair-up (nth coll i) (drop (inc i) coll))
+                    ))))
 
 (defn unweave
   "[1 2 3 4 5 6] -> [[1 3 5] [2 4 6]]"
@@ -137,9 +137,9 @@
   "{:a 1 :b 1 :c 2} -> {1 [:a :b] 2 :c}"
   [amap]
   (reduce (fn [m [k v]]
-    (let [existing (get m v [])]
-      (assoc m v (conj existing k))))
-    {} amap))
+            (let [existing (get m v [])]
+              (assoc m v (conj existing k))))
+          {} amap))
 
 (defn some? [pred coll]
   ((complement nil?) (some pred coll)))
@@ -155,12 +155,20 @@
 
 (defmacro if-ret [form else-form]
   `(if-let [ret# ~form]
-    ret#
-    ~else-form ))
+     ret#
+     ~else-form))
 
 (defn- clean-nil-bindings [bindings]
   (let [pairs (partition 2 bindings)]
     (mapcat identity (filter #(first %) pairs))))
+
+(defn meta-conj
+  "Returns the supplied symbol with the supplied `attr` map conj-ed
+  onto the symbol's current metadata."
+  [sym attr]
+  (with-meta sym (if (meta sym)
+                   (conj (meta sym) attr)
+                   attr)))
 
 (defn set-namespace-value
   "Merges the supplied kv-pair into the metadata of the namespace in
@@ -180,6 +188,4 @@
         extract-code (vec (for [s syms] [(str s) s]))]
     (eval
      `(let ~destructured
-        (into {} ~extract-code)
-        ))
-    ))
+        (into {} ~extract-code)))))

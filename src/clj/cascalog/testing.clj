@@ -1,21 +1,22 @@
- ;    Copyright 2010 Nathan Marz
- ; 
- ;    This program is free software: you can redistribute it and/or modify
- ;    it under the terms of the GNU General Public License as published by
- ;    the Free Software Foundation, either version 3 of the License, or
- ;    (at your option) any later version.
- ; 
- ;    This program is distributed in the hope that it will be useful,
- ;    but WITHOUT ANY WARRANTY; without even the implied warranty of
- ;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- ;    GNU General Public License for more details.
- ; 
- ;    You should have received a copy of the GNU General Public License
- ;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+;;    Copyright 2010 Nathan Marz
+;; 
+;;    This program is free software: you can redistribute it and/or modify
+;;    it under the terms of the GNU General Public License as published by
+;;    the Free Software Foundation, either version 3 of the License, or
+;;    (at your option) any later version.
+;; 
+;;    This program is distributed in the hope that it will be useful,
+;;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;    GNU General Public License for more details.
+;; 
+;;    You should have received a copy of the GNU General Public License
+;;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (ns cascalog.testing
   (:use clojure.test
         [cascalog io util api])
+  (:require [cascalog [workflow :as w] [rules :as rules] [hadoop :as hadoop]])
   (:import [cascading.tuple Fields Tuple TupleEntry TupleEntryCollector]
            [cascading.pipe Pipe]
            [cascading.operation ConcreteCall]
@@ -25,12 +26,11 @@
            [java.util ArrayList]
            [clojure.lang IPersistentCollection]
            [org.apache.hadoop.mapred JobConf]
-           [java.io File])
-  (:require [cascalog [workflow :as w] [rules :as rules] [hadoop :as hadoop]]))
+           [java.io File]))
 
 (defn roundtrip [obj]
   (cascading.util.Util/deserializeBase64
-    (cascading.util.Util/serializeBase64 obj)))
+   (cascading.util.Util/serializeBase64 obj)))
 
 (defn invoke-filter [fil coll]
   (let [fil     (roundtrip fil)
@@ -55,7 +55,7 @@
       (setArguments [tuple]
         (swap! args-atom (constantly tuple)))
       (getArguments []
-         @args-atom)
+        @args-atom)
       (getOutputCollector []
         (output-collector out-atom))
       (setContext [context]
@@ -214,8 +214,7 @@
     `(cascalog.io/with-tmp-files ~tmpforms
        (let [~@tmptaps]
          ~@body
-         (dorun (map ~checker ~names ~specs)))
-       )))
+         (dorun (map ~checker ~names ~specs))))))
 
 ;; bindings are name spec, where spec is either {:fields :tuples} or vector of tuples
 (defmacro with-expected-sinks [bindings & body]
@@ -226,8 +225,8 @@
 
 (defmacro test?<- [& args]
   (let [[begin body] (if (keyword? (first args))
-                      (split-at 2 args)
-                      (split-at 1 args))]
+                       (split-at 2 args)
+                       (split-at 1 args))]
     `(test?- ~@begin (<- ~@body))))
 
 (defmacro thrown?<- [error & body]

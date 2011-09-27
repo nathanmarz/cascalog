@@ -1,22 +1,22 @@
- ;    Copyright 2010 Nathan Marz
- ; 
- ;    This program is free software: you can redistribute it and/or modify
- ;    it under the terms of the GNU General Public License as published by
- ;    the Free Software Foundation, either version 3 of the License, or
- ;    (at your option) any later version.
- ; 
- ;    This program is distributed in the hope that it will be useful,
- ;    but WITHOUT ANY WARRANTY; without even the implied warranty of
- ;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- ;    GNU General Public License for more details.
- ; 
- ;    You should have received a copy of the GNU General Public License
- ;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+;;    Copyright 2010 Nathan Marz
+;; 
+;;    This program is free software: you can redistribute it and/or modify
+;;    it under the terms of the GNU General Public License as published by
+;;    the Free Software Foundation, either version 3 of the License, or
+;;    (at your option) any later version.
+;; 
+;;    This program is distributed in the hope that it will be useful,
+;;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;    GNU General Public License for more details.
+;; 
+;;    You should have received a copy of the GNU General Public License
+;;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (ns cascalog.rules
   (:use [cascalog vars util graph debug]
         [clojure.set :only (intersection union difference subset?)]
-        [clojure.walk :only [postwalk]])
+        [clojure.walk :only (postwalk)])
   (:require [cascalog [workflow :as w] [predicate :as p] [hadoop :as hadoop]])
   (:import [cascading.tap Tap]
            [cascading.tuple Fields Tuple TupleEntry]
@@ -34,15 +34,13 @@
 (defn- find-generator-join-set-vars [node]
   (let [pred (get-value node)
         inbound-nodes (get-inbound-nodes node)]
-    (cond
-     (#{:join :group} (:type pred)) nil
-     (= :generator (:type pred)) (if-let [v (:join-set-var pred)] [v])
-     :else (do
-             (if-not (= 1 (count inbound-nodes))
-               (throw
-                (RuntimeException. (str "Planner exception: Unexpected number of "
-                                        "inbound nodes to non-generator predicate.")))
-               (recur (first inbound-nodes)))))))
+    (cond (#{:join :group} (:type pred)) nil
+          (= :generator (:type pred)) (if-let [v (:join-set-var pred)] [v])
+          :else (do
+                  (if-not (= 1 (count inbound-nodes))
+                    (throw-runtime (str "Planner exception: Unexpected number of "
+                                        "inbound nodes to non-generator predicate."))
+                    (recur (first inbound-nodes)))))))
 
 (defn- split-predicates
   "returns [generators operations aggregators]."
@@ -51,8 +49,9 @@
          aggs :aggregator
          gens :generator} (merge {:operation [] :aggregator [] :generator []}
                                  (group-by :type predicates))]
-    (when (and (> (count aggs) 1) (some :buffer? aggs))
-      (throw (IllegalArgumentException. "Cannot use both aggregators and buffers in same grouping")))
+    (when (and (> (count aggs) 1)
+               (some :buffer? aggs))
+      (throw-illegal "Cannot use both aggregators and buffers in same grouping"))
     [gens ops aggs]))
 
 (defstruct tailstruct :ground? :operations :drift-map :available-fields :node)
@@ -70,7 +69,7 @@
   (debug-print "Adding op to tail " op tail)
   (let [tail (connect-op tail op)
         new-ops (remove-first (partial = op) (:operations tail))]
-        (merge tail {:operations new-ops})))
+    (merge tail {:operations new-ops})))
 
 
 (defn- op-allowed? [tail op]
@@ -80,15 +79,14 @@
         infields-set (set (:infields op))]
     (and (or (:allow-on-genfilter? op) (empty? join-set-vars))
          (subset? infields-set (set available-fields))
-         (or ground? (every? ground-var? infields-set)))
-    ))
+         (or ground? (every? ground-var? infields-set)))))
 
 (defn- fixed-point-operations
   "Adds operations to tail until can't anymore. Returns new tail"
   [tail]
   (if-let [op (find-first (partial op-allowed? tail) (:operations tail))]
     (recur (add-op tail op))
-    tail ))
+    tail))
 
 ;; TODO: refactor and simplify drift algorithm
 (defn- add-drift-op [tail equality-sets rename-map new-drift-map]
@@ -103,7 +101,7 @@
         infields (vec (apply concat rename-in equality-sets))
         tail (connect-op tail (p/predicate p/operation assembly infields outfields false))
         newout (difference (set (:available-fields tail)) (set rename-in))]
-        (merge tail {:drift-map new-drift-map :available-fields newout} )))
+    (merge tail {:drift-map new-drift-map :available-fields newout} )))
 
 (defn- determine-drift [drift-map available-fields]
   (let [available-set (set available-fields)
@@ -126,7 +124,8 @@
   [tail]
   (let [{:keys [drift-map available-fields] :as tail} (fixed-point-operations tail)
         [new-drift-map equality-sets rename-map] (determine-drift drift-map available-fields)]
-    (if (and (empty? equality-sets) (empty? rename-map))
+    (if (and (empty? equality-sets)
+             (empty? rename-map))
       tail
       (recur (add-drift-op tail equality-sets rename-map new-drift-map)))))
 
@@ -158,7 +157,7 @@
                       (sort-by count)
                       (last))]
     (if (empty? max-join)
-      (throw (IllegalArgumentException. "Unable to join predicates together"))
+      (throw-illegal "Unable to join predicates together")
       (cons (vec max-join)
             (separate (partial joinable? max-join) tails)))))
 
@@ -191,8 +190,7 @@
         (debug-print "Available fields" available-fields)
         (dorun (map #(create-edge (:node %) join-node) join-set))
         (recur graph (cons (struct tailstruct (some? :ground? join-set) new-ops new-drift-map
-                                   available-fields join-node) rest-tails))
-        ))))
+                                   available-fields join-node) rest-tails))))))
 
 (defn- agg-available-fields [grouping-fields aggs]
   (vec (union (set grouping-fields) (apply union (map #(set (:outfields %)) aggs)))))
@@ -204,10 +202,9 @@
   "Returns [new-grouping-fields inserter-assembly]"
   [grouping-fields]
   (if-not (empty? grouping-fields)
-          [grouping-fields identity]
-          (let [newvar (gen-nullable-var)]
-            [[newvar] (w/insert newvar 1)]
-            )))
+    [grouping-fields identity]
+    (let [newvar (gen-nullable-var)]
+      [[newvar] (w/insert newvar 1)])))
 
 (defn- specify-parallel-agg [{pagg :parallel-agg}]
   (CombinerSpec. (w/fn-spec (:init-var pagg))
@@ -230,8 +227,8 @@
                                    argfields
                                    (w/fields (apply concat tempfields))
                                    specs)]
-        [[(w/raw-each Fields/ALL combiner Fields/RESULTS)]
-         (map mk-combined-aggregator specs tempfields (map :outfields aggs))] ))
+    [[(w/raw-each Fields/ALL combiner Fields/RESULTS)]
+     (map mk-combined-aggregator specs tempfields (map :outfields aggs))] ))
 
 (defn- mk-parallel-buffer-agg [grouping-fields agg]
   [[((:parallel-agg agg) grouping-fields)]
@@ -255,7 +252,7 @@
 (defn- build-agg-tail [options prev-tail grouping-fields aggs]
   (debug-print "Adding aggregators to tail" options prev-tail grouping-fields aggs)
   (when (and (empty? aggs) (:sort options))
-    (throw (IllegalArgumentException. "Cannot specify a sort when there are no aggregators" )))
+    (throw-illegal "Cannot specify a sort when there are no aggregators"))
   (if (and (not (:distinct options)) (empty? aggs))
     prev-tail
     (let [aggs              (if-not (empty? aggs) aggs [p/distinct-aggregator])
@@ -274,8 +271,7 @@
           node         (create-node (get-graph prev-node)
                                     (p/predicate group assem all-agg-infields total-fields))]
       (create-edge prev-node node)
-      (struct tailstruct (:ground? prev-tail) (:operations prev-tail) (:drift-map prev-tail) total-fields node))
-    ))
+      (struct tailstruct (:ground? prev-tail) (:operations prev-tail) (:drift-map prev-tail) total-fields node))))
 
 (defn projection-fields [needed-vars allfields]
   (let [needed-set (set needed-vars)
@@ -289,8 +285,7 @@
      ;; this happens during global aggregation, need to keep one field
      ;; in
      (empty? inter) [(first allfields)]
-     :else (vec inter)
-     )))
+     :else (vec inter))))
 
 (defn- mk-projection-assembly
   [forceproject projection-fields allfields]
@@ -303,7 +298,7 @@
 (defmethod node->generator :generator [pred prevgens]
   (when (not-empty prevgens)
     (throw (RuntimeException. "Planner exception: Generator has inbound nodes")))
-  pred )
+  pred)
 
 (w/defmapop [join-fields-selector [num-fields]] [& args]
   (let [joins (partition num-fields args)]
@@ -330,8 +325,7 @@
 (defn- gen-join-type [gen]
   (cond (:join-set-var gen) :outerone
         (:ground? gen)      :inner
-        :else               :outer
-        ))
+        :else               :outer))
 
 ;; split into inner-gens outer-gens join-set-gens
 (defmethod node->generator :join [pred prevgens]
@@ -345,36 +339,33 @@
          outer-gens :outer
          outerone-gens :outerone} (group-by gen-join-type prevgens)
         join-set-fields (map :join-set-var outerone-gens)
-        prevgens    (concat inner-gens outer-gens outerone-gens)  ; put them in order
+        prevgens    (concat inner-gens outer-gens outerone-gens) ; put them in order
         infields    (map :outfields prevgens)
-        inpipes     (map (fn [p f] (w/assemble p (w/select f) (w/pipe-rename (uuid)))) (map :pipe prevgens) infields)  ; is this necessary?
+        inpipes     (map (fn [p f] (w/assemble p (w/select f) (w/pipe-rename (uuid)))) (map :pipe prevgens) infields) ; is this necessary?
         join-renames (generate-join-fields num-join-fields (count prevgens))
         rename-fields (flatten (map (partial replace-join-fields join-fields) join-renames infields))
         keep-fields (vec (set (apply concat
-                      (cons join-set-fields
-                            (map :outfields
-                              (concat inner-gens outer-gens))))))
+                                     (cons join-set-fields
+                                           (map :outfields
+                                                (concat inner-gens outer-gens))))))
         cascalogjoin (concat (repeat (count inner-gens) CascalogJoiner$JoinType/INNER)
                              (repeat (count outer-gens) CascalogJoiner$JoinType/OUTER)
-                             (repeat (count outerone-gens) CascalogJoiner$JoinType/EXISTS)
-                             )
+                             (repeat (count outerone-gens) CascalogJoiner$JoinType/EXISTS))
         joined      (apply w/assemble inpipes
-                      (concat
-                        [(w/co-group (repeat (count inpipes) join-fields)
-                          rename-fields (CascalogJoiner. cascalogjoin))]
-                        (mapcat
-                          (fn [gen joinfields]
-                            (if-let [join-set-var (:join-set-var gen)]
-                              [(truthy? (take 1 joinfields) :fn> [join-set-var] :> Fields/ALL)]
-                              ))
-                          prevgens join-renames)
-                        [(join-fields-selector [num-join-fields]
-                          (flatten join-renames) :fn> join-fields :> Fields/SWAP)
-                         (w/select keep-fields)
-                        ;; maintain the pipe name (important for setting traps on subqueries)
-                        (w/pipe-rename (new-pipe-name prevgens))]))]
-        (p/predicate p/generator nil true sourcemap joined keep-fields trapmap)
-    ))
+                           (concat
+                            [(w/co-group (repeat (count inpipes) join-fields)
+                                         rename-fields (CascalogJoiner. cascalogjoin))]
+                            (mapcat
+                             (fn [gen joinfields]
+                               (if-let [join-set-var (:join-set-var gen)]
+                                 [(truthy? (take 1 joinfields) :fn> [join-set-var] :> Fields/ALL)]))
+                             prevgens join-renames)
+                            [(join-fields-selector [num-join-fields]
+                                                   (flatten join-renames) :fn> join-fields :> Fields/SWAP)
+                             (w/select keep-fields)
+                             ;; maintain the pipe name (important for setting traps on subqueries)
+                             (w/pipe-rename (new-pipe-name prevgens))]))]
+    (p/predicate p/generator nil true sourcemap joined keep-fields trapmap)))
 
 (defmethod node->generator :operation [pred prevgens]
   (when-not (= 1 (count prevgens))
@@ -399,8 +390,8 @@
         project-fields (projection-fields needed-vars (:outfields newgen)) ]
     (debug-print "build gen:" my-needed project-fields pred)
     (if (and forceproject (not= project-fields needed-vars))
-      (throw (RuntimeException. (str "Only able to build to " project-fields
-                                     " but need " needed-vars)))
+      (throw-runtime (str "Only able to build to " project-fields
+                          " but need " needed-vars))
       (merge newgen
              {:pipe ((mk-projection-assembly forceproject
                                              project-fields
@@ -416,9 +407,8 @@
 
 (defn- validate-option-merge! [val-old val-new]
   (if (and (not (nil? val-old)) (not= val-old val-new))
-    (throw (RuntimeException. "Same option set to conflicting values!"))
-    val-new
-    ))
+    (throw-runtime "Same option set to conflicting values!")
+    val-new))
 
 (defn- mk-options [opt-predicates]
   (->> opt-predicates
@@ -427,8 +417,7 @@
                     v (if (= :trap k) {:tap v :name (uuid)} v)]
                 (if (contains? DEFAULT-OPTIONS k)
                   {k v}
-                  (throw
-                   (IllegalArgumentException. (str k " is not a valid option predicate")))))))
+                  (throw-illegal (str k " is not a valid option predicate"))))))
        (apply merge-with validate-option-merge!)
        (merge DEFAULT-OPTIONS)))
 
@@ -436,8 +425,7 @@
   (fn [[preds vmap] [op opvar hof-args invars outvars]]
     (let [[updatevars vmap] (uniquify-vars (if out? outvars invars) out? vmap)
           [invars outvars] (if out? [invars updatevars] [updatevars outvars])]
-      [(conj preds [op opvar hof-args invars outvars]) vmap]
-      )))
+      [(conj preds [op opvar hof-args invars outvars]) vmap])))
 
 (defn- uniquify-query-vars
   "TODO: this won't handle drift for generator filter outvars should
@@ -459,21 +447,18 @@
                                     (let [newvar (gen-nullable-var)]
                                       [(conj outvars newvar)
                                        (conj preds [(p/predicate p/outconstant-equal)
-                                                    nil nil [v newvar] []])]
-                                      )))
+                                                    nil nil [v newvar] []])])))
                                 [[] []]
                                 outvars)]
-    (cons [op opvar hof-args invars new-outvars] newpreds)
-    ))
+    (cons [op opvar hof-args invars new-outvars] newpreds)))
 
 (defn- rewrite-predicate [[op opvar hof-args invars outvars :as predicate]]
   (if-not (and (p/generator? op), (not (empty? invars)))
     predicate
     (if (= 1 (count outvars))
       [(p/predicate p/generator-filter op (first outvars)) nil hof-args [] invars]
-      (throw
-       (IllegalArgumentException. (str "Generator filter can only have one outvar -> "
-                                       outvars))))))
+      (throw-illegal (str "Generator filter can only have one outvar -> "
+                          outvars)))))
 
 (defn- parse-predicate [[op opvar vars]]
   (let [[vars hof-args] (if (p/hof-predicate? op)
@@ -571,7 +556,7 @@
         agg-tail                  (build-agg-tail options joined grouping-fields aggs)
         {:keys [operations node]} (add-ops-fixed-point agg-tail)]
     (if (not-empty operations)
-      (throw (RuntimeException. (str "Could not apply all operations " (pr-str operations))))
+      (throw-runtime (str "Could not apply all operations " (pr-str operations)))
       (build-generator true out-vars node))))
 
 (defn- new-var-name! [replacements v]
@@ -579,7 +564,7 @@
                     (@replacements v)
                     (uniquify-var v))]
     (swap! replacements assoc v new-name)
-    new-name ))
+    new-name))
 
 (defn- pred-macro-updater [[replacements ret] [op opvar vars]]
   (let [newvars (postwalk #(if (cascalog-var? %)
@@ -626,8 +611,7 @@
   (for [[p v vars] raw-predicates]
     (if (var? p)
       [(var-get p) p vars]
-      [p v vars]
-      )))
+      [p v vars])))
 
 (defn build-rule [out-vars raw-predicates]
   (let [raw-predicates (-> raw-predicates

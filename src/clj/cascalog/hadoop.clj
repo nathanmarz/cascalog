@@ -1,12 +1,10 @@
 (ns cascalog.hadoop
-  (:import [org.apache.hadoop.fs FileSystem Path]
+  (:import [java.io File FileNotFoundException FileOutputStream BufferedOutputStream]
+           [org.apache.hadoop.fs FileSystem Path]
            [org.apache.hadoop.conf Configuration]
-           [org.apache.hadoop.mapred JobConf])
-  (:import [java.io File FileNotFoundException FileOutputStream BufferedOutputStream])
-  )
+           [org.apache.hadoop.mapred JobConf]))
 
 ;; TODO: put this into own project
-
 (defmulti conf-set (fn [obj] (class (:value obj))))
 
 (defmethod conf-set String [{key :key value :value conf :conf}]
@@ -25,28 +23,28 @@
 
 (defn str-path
   ([part1]
-    part1)
+     part1)
   ([part1 part2 & components]
-    (apply str-path (str (path part1 (str part2))) components)))
+     (apply str-path (str (path part1 (str part2))) components)))
 
 (defn configuration [conf-map]
   (let [ret (Configuration.)]
     (doall
-      (for [config conf-map]
-        (conf-set {:key (first config) :value (last config) :conf ret})))
+     (for [config conf-map]
+       (conf-set {:key (first config) :value (last config) :conf ret})))
     ret))
 
 (defn job-conf [conf-map]
   (let [ret (JobConf.)]
     (doall
-      (for [config conf-map]
-        (conf-set {:key (first config) :value (last config) :conf ret})))
+     (for [config conf-map]
+       (conf-set {:key (first config) :value (last config) :conf ret})))
     ret))
 
 (defn filesystem
   ([] (FileSystem/get (Configuration.)))
   ([conf-map]
-    (FileSystem/get (configuration conf-map))))
+     (FileSystem/get (configuration conf-map))))
 
 (defn mkdirs [fs path]
   (.mkdirs fs (Path. path)))
@@ -54,14 +52,13 @@
 (defn delete
   ([fs path] (delete fs path false))
   ([fs path rec]
-  (.delete fs (Path. path) rec)))
+     (.delete fs (Path. path) rec)))
 
 (defn clear-dir [fs path]
   (delete fs path true)
   (mkdirs fs path))
 
 (defn local-filesystem [] (FileSystem/getLocal (Configuration.)))
-
 
 (declare copy-local*)
 
@@ -73,22 +70,19 @@
       (let [amt (.read is buffer)]
         (when (> amt 0)
           (.write os buffer 0 amt)
-          (recur)))
-      )))
+          (recur))))))
 
 (defn copy-dir-local [#^FileSystem fs #^Path path #^String target-local-path #^bytes buffer]
   (.mkdir (File. target-local-path))
   (let [contents (seq (.listStatus fs path))]
     (doseq [c contents]
       (let [subpath (.getPath c)]
-        (copy-local* fs subpath (str-path target-local-path (.getName subpath)) buffer)
-        ))))
+        (copy-local* fs subpath (str-path target-local-path (.getName subpath)) buffer)))))
 
 (defn- copy-local* [#^FileSystem fs #^Path path #^String target-local-path #^bytes buffer]
   (let [status (.getFileStatus fs path)]
     (cond (.isDir status) (copy-dir-local fs path target-local-path buffer)
-          :else (copy-file-local fs path target-local-path buffer)
-          )))
+          :else (copy-file-local fs path target-local-path buffer))))
 
 (defn copy-local [#^FileSystem fs #^String spath #^String local-path]
   (let [target-file (File. local-path)
@@ -107,5 +101,4 @@
       (throw
        (FileNotFoundException.
         (str "Could not find on remote " spath))))
-    (copy-local* fs (path spath) dest-path buffer)
-    ))
+    (copy-local* fs (path spath) dest-path buffer)))

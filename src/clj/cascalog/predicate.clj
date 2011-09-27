@@ -1,28 +1,28 @@
- ;    Copyright 2010 Nathan Marz
- ; 
- ;    This program is free software: you can redistribute it and/or modify
- ;    it under the terms of the GNU General Public License as published by
- ;    the Free Software Foundation, either version 3 of the License, or
- ;    (at your option) any later version.
- ; 
- ;    This program is distributed in the hope that it will be useful,
- ;    but WITHOUT ANY WARRANTY; without even the implied warranty of
- ;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- ;    GNU General Public License for more details.
- ; 
- ;    You should have received a copy of the GNU General Public License
- ;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+;;    Copyright 2010 Nathan Marz
+;; 
+;;    This program is free software: you can redistribute it and/or modify
+;;    it under the terms of the GNU General Public License as published by
+;;    the Free Software Foundation, either version 3 of the License, or
+;;    (at your option) any later version.
+;; 
+;;    This program is distributed in the hope that it will be useful,
+;;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;    GNU General Public License for more details.
+;; 
+;;    You should have received a copy of the GNU General Public License
+;;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (ns cascalog.predicate
   (:use [cascalog vars util])
-  (:require [cascalog [workflow :as w]])
-  (:import [java.util ArrayList])
-  (:import [cascading.tap Tap])
-  (:import [cascading.operation Filter])
-  (:import [cascading.tuple Fields])
-  (:import [cascalog ClojureParallelAggregator ClojureBuffer ClojureBufferCombiner
-                     CombinerSpec CascalogFunction CascalogFunctionExecutor CascadingFilterToFunction
-                     CascalogBuffer CascalogBufferExecutor]))
+  (:require [cascalog.workflow :as w])
+  (:import [java.util ArrayList]
+           [cascading.tap Tap]
+           [cascading.operation Filter]
+           [cascading.tuple Fields]
+           [cascalog ClojureParallelAggregator ClojureBuffer ClojureBufferCombiner
+            CombinerSpec CascalogFunction CascalogFunctionExecutor CascadingFilterToFunction
+            CascalogBuffer CascalogBufferExecutor]))
 
 ;; doing it this way b/c pain to put metadata directly on a function
 ;; assembly-maker is a function that takes in infields & outfields and returns
@@ -34,10 +34,12 @@
 
 
 (defmacro defparallelagg [name & body]
-  `(def ~name (struct-map cascalog.predicate/parallel-aggregator :type ::parallel-aggregator ~@body)))
+  `(def ~name
+     (struct-map cascalog.predicate/parallel-aggregator :type ::parallel-aggregator ~@body)))
 
 (defmacro defparallelbuf [name & body]
-  `(def ~name (struct-map cascalog.predicate/parallel-buffer :type ::parallel-buffer ~@body)))
+  `(def ~name
+     (struct-map cascalog.predicate/parallel-buffer :type ::parallel-buffer ~@body)))
 
 ;; ids are so they can be used in sets safely
 (defmacro defpredicate [name & attrs]
@@ -80,20 +82,19 @@
 
 (defn- vectorify-arg [argsmap sugararg outarg]
   (cond (not (or (contains? argsmap sugararg) (contains? argsmap outarg)))
-          argsmap
+        argsmap
         (contains? argsmap outarg) (assoc argsmap outarg (first (argsmap outarg)))
-        :else (assoc argsmap outarg (argsmap sugararg))
-        ))
+        :else (assoc argsmap outarg (argsmap sugararg))))
 
 (defn vectorify-pos-selector [argsmap]
   (if-let [[amt selector-map] (argsmap :#>)]
     (let [all-post-map (reduce (fn [m i]
-                                  (assoc m i (if-let [v (selector-map i)]
-                                    v (gen-nullable-var))))
+                                 (assoc m i (if-let [v (selector-map i)]
+                                              v (gen-nullable-var))))
                                {}
                                (range amt))]
       (assoc argsmap :>> (map second (sort-by first (seq all-post-map)))))
-      argsmap ))
+    argsmap))
 
 (defn parse-variables
   "parses variables of the form ['?a' '?b' :> '!!c']
@@ -187,9 +188,9 @@
     {}))
 
 (defn- init-pipe-name [options]
-   (if-let [trap (:trap options)]
+  (if-let [trap (:trap options)]
     (:name trap)
-    (uuid) ))
+    (uuid)))
 
 (defmethod build-predicate-specific ::tap [tap _ _ infields outfields options]
   (let [sourcename (uuid)
@@ -207,12 +208,11 @@
   (let [pname (init-pipe-name options)
         trapmap (merge (:trapmap gen) (init-trap-map options))
         gen-pipe (w/assemble (:pipe gen) (w/pipe-rename pname) (w/identity Fields/ALL :fn> outfields :> Fields/RESULTS))]
-  (predicate generator nil (ground-fields? outfields) (:sourcemap gen) gen-pipe outfields trapmap )))
+    (predicate generator nil (ground-fields? outfields) (:sourcemap gen) gen-pipe outfields trapmap )))
 
 (defmethod build-predicate-specific :generator-filter [op _ _ infields outfields options]
   (let [gen (build-predicate-specific (:generator op) nil nil infields outfields options)]
-    (assoc gen :join-set-var (:outvar op))
-    ))
+    (assoc gen :join-set-var (:outvar op))))
 
 
 (defmethod build-predicate-specific :cascalog-tap [gen _ _ infields outfields options]
@@ -231,7 +231,7 @@
   (if hof-args (cons hof-args args) args))
 
 (defn- simpleop-build-predicate [op _ hof-args infields outfields options]
-    (predicate operation (apply op (hof-prepend hof-args infields :fn> outfields :> Fields/ALL)) infields outfields false))
+  (predicate operation (apply op (hof-prepend hof-args infields :fn> outfields :> Fields/ALL)) infields outfields false))
 
 (defmethod build-predicate-specific :map [& args]
   (apply simpleop-build-predicate args))
@@ -241,14 +241,14 @@
 
 (defmethod build-predicate-specific :filter [op _ hof-args infields outfields options]
   (let [[func-fields out-selector] (if (not-empty outfields) [outfields Fields/ALL] [nil nil])
-     assembly (apply op (hof-prepend hof-args infields :fn> func-fields :> out-selector))]
+        assembly (apply op (hof-prepend hof-args infields :fn> func-fields :> out-selector))]
     (predicate operation assembly infields outfields false)))
 
 (defmethod build-predicate-specific ::cascalog-function [op _ _ infields outfields options]
   (predicate operation (w/raw-each (w/fields infields) (CascalogFunctionExecutor. (w/fields outfields) op) Fields/ALL)
-                       infields
-                       outfields
-                       false))
+             infields
+             outfields
+             false))
 
 (defmethod build-predicate-specific ::cascading-filter [op _ _ infields outfields options]
   (when (> (count outfields) 1)
@@ -271,30 +271,30 @@
                                      (mk-hof-fn-spec (:combine-hof-var pbuf) hof-args)
                                      (mk-hof-fn-spec (:extract-hof-var pbuf) hof-args))
         combiner (fn [group-fields]
-                    (w/raw-each Fields/ALL
-                                (ClojureBufferCombiner.
-                                            (w/fields group-fields)
-                                            (w/fields sort-fields)
-                                            (w/fields infields)
-                                            (w/fields temp-vars)
-                                            combiner-spec)
-                                Fields/RESULTS))
+                   (w/raw-each Fields/ALL
+                               (ClojureBufferCombiner.
+                                (w/fields group-fields)
+                                (w/fields sort-fields)
+                                (w/fields infields)
+                                (w/fields temp-vars)
+                                combiner-spec)
+                               Fields/RESULTS))
         group-assembly (w/raw-every (w/fields temp-vars)
                                     (ClojureBuffer. (w/fields outfields)
                                                     (mk-hof-fn-spec (:buffer-hof-var pbuf) hof-args)
                                                     false)
                                     Fields/ALL)]
-       (predicate aggregator true combiner identity group-assembly identity infields outfields)))
+    (predicate aggregator true combiner identity group-assembly identity infields outfields)))
 
 (defmethod build-predicate-specific ::parallel-aggregator [pagg _ _ infields outfields options]
   (let [init-spec (w/fn-spec (:init-var pagg))
         combine-spec (w/fn-spec (:combine-var pagg))
         cascading-agg (ClojureParallelAggregator. (w/fields outfields) init-spec combine-spec (count infields))
         serial-assem (if (empty? infields)
-                        (w/raw-every cascading-agg Fields/ALL)
-                        (w/raw-every (w/fields infields)
-                                  cascading-agg
-                                  Fields/ALL))]
+                       (w/raw-every cascading-agg Fields/ALL)
+                       (w/raw-every (w/fields infields)
+                                    cascading-agg
+                                    Fields/ALL))]
     (predicate aggregator false pagg identity serial-assem identity infields outfields)))
 
 (defn- simpleagg-build-predicate [buffer? op _ hof-args infields outfields options]
@@ -308,13 +308,13 @@
 
 (defmethod build-predicate-specific ::cascalog-buffer [op _ _ infields outfields options]
   (predicate aggregator
-    true
-    nil
-    identity
-    (w/raw-every (w/fields infields) (CascalogBufferExecutor. (w/fields outfields) op) Fields/ALL)
-    identity
-    infields
-    outfields))
+             true
+             nil
+             identity
+             (w/raw-every (w/fields infields) (CascalogBufferExecutor. (w/fields outfields) op) Fields/ALL)
+             identity
+             infields
+             outfields))
 
 (defn- variable-substitution
   "Returns [newvars {map of newvars to values to substitute}]"
@@ -329,7 +329,7 @@
 (defn- mk-insertion-assembly [subs]
   (if (not-empty subs)
     (apply w/insert (transpose (seq subs)))
-    identity ))
+    identity))
 
 (defn- replace-ignored-vars [vars]
   (map #(if (= "_" %) (gen-nullable-var) %) vars))
@@ -338,12 +338,12 @@
   (let [non-null-fields (filter non-nullable-var? fields)]
     (if (not-empty non-null-fields)
       (non-null? non-null-fields)
-      identity )))
+      identity)))
 
 (defmulti enhance-predicate (fn [pred & rest] (:type pred)))
 
 (defn- identity-if-nil [a]
-  (if a a identity))
+  (or a identity))
 
 (defmethod enhance-predicate :operation [pred infields inassem outfields outassem]
   (let [inassem (identity-if-nil inassem)
@@ -357,8 +357,8 @@
         outassem (identity-if-nil outassem)]
     (merge pred {:pregroup-assembly (w/compose-straight-assemblies inassem (:pregroup-assembly pred))
                  :post-assembly (w/compose-straight-assemblies (:post-assembly pred) outassem
-                                  ; work-around to cascading bug, TODO: remove when fixed in cascading
-                                  (w/identity Fields/ALL :> Fields/RESULTS))
+                                        ; work-around to cascading bug, TODO: remove when fixed in cascading
+                                                               (w/identity Fields/ALL :> Fields/RESULTS))
                  :outfields outfields
                  :infields infields})))
 
@@ -383,7 +383,7 @@
     (reduce update-fn [[] [] identity] infields)))
 
 (defn mk-option-predicate [[op _ _ infields _]]
-    (predicate option op infields))
+  (predicate option op infields))
 
 (defn build-predicate
   "Build a predicate. Calls down to build-predicate-specific for
