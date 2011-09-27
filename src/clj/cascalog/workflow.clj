@@ -17,10 +17,13 @@
   (:refer-clojure :exclude [group-by count first filter mapcat map identity min max])
   (:use [clojure.contrib.def :only (name-with-attributes)]
         [cascalog util debug])
-  (:import [java.io File]
+  (:import [cascalog Util]
+           [org.apache.hadoop.mapred JobConf]
+           [java.io File]
            [cascading.tuple Tuple TupleEntry Fields]
            [cascading.scheme Scheme TextLine SequenceFile]
            [cascading.tap Hfs Lfs GlobHfs Tap TemplateTap SinkMode]
+           [cascading.tuple TupleEntryCollector]
            [cascading.flow Flow FlowConnector]
            [cascading.cascade Cascades]
            [cascading.operation Identity Insert Debug]
@@ -110,10 +113,10 @@
    unique random name."
   ([]
    (pipe (uuid)))
-  ([#^String name]
+  ([^String name]
    (Pipe. name)))
 
-(defn pipe-rename [#^String name]
+(defn pipe-rename [^String name]
   (fn [p]
     (debug-print "pipe-rename" name)
     (Pipe. name p)))
@@ -167,22 +170,22 @@
       (debug-print "groupby" group-fields sort-fields reverse-order)
       (GroupBy. (as-pipes previous) (fields group-fields) (fields sort-fields) reverse-order))))
 
-(defn count [#^String count-field]
+(defn count [^String count-field]
   (fn [previous]
     (debug-print "count" count-field)
     (Every. previous (Count. (fields count-field)))))
 
-(defn sum [#^String in-fields #^String sum-fields]
+(defn sum [^String in-fields ^String sum-fields]
   (fn [previous]
     (debug-print "sum" in-fields sum-fields)
     (Every. previous (fields in-fields) (Sum. (fields sum-fields)))))
 
-(defn min [#^String in-fields #^String min-fields]
+(defn min [^String in-fields ^String min-fields]
   (fn [previous]
     (debug-print "min" in-fields min-fields)
     (Every. previous (fields in-fields) (Min. (fields min-fields)))))
 
-(defn max [#^String in-fields #^String max-fields]
+(defn max [^String in-fields ^String max-fields]
   (fn [previous]
     (debug-print "groupby" in-fields max-fields)
     (Every. previous (fields in-fields) (Max. (fields max-fields)))))
@@ -240,23 +243,23 @@
     (Every. p arg1 arg2 arg3))))
 
 (defn aggregate [& args]
-  (fn [#^Pipe previous]
+  (fn [^Pipe previous]
     (debug-print "aggregate" args)
-    (let [[#^Fields in-fields func-fields specs #^Fields out-fields stateful] (parse-args args Fields/ALL)]
+    (let [[^Fields in-fields func-fields specs ^Fields out-fields stateful] (parse-args args Fields/ALL)]
       (Every. previous in-fields
         (ClojureAggregator. func-fields specs stateful) out-fields))))
 
 (defn buffer [& args]
-  (fn [#^Pipe previous]
+  (fn [^Pipe previous]
     (debug-print "buffer" args)
-    (let [[#^Fields in-fields func-fields specs #^Fields out-fields stateful] (parse-args args Fields/ALL)]
+    (let [[^Fields in-fields func-fields specs ^Fields out-fields stateful] (parse-args args Fields/ALL)]
       (Every. previous in-fields
         (ClojureBuffer. func-fields specs stateful) out-fields))))
 
 (defn bufferiter [& args]
-  (fn [#^Pipe previous]
+  (fn [^Pipe previous]
     (debug-print "bufferiter" args)
-    (let [[#^Fields in-fields func-fields specs #^Fields out-fields stateful] (parse-args args Fields/ALL)]
+    (let [[^Fields in-fields func-fields specs ^Fields out-fields stateful] (parse-args args Fields/ALL)]
       (Every. previous in-fields
         (ClojureBufferIter. func-fields specs stateful) out-fields))))
 
@@ -508,11 +511,16 @@ identity.  identity."
                    sink-template
                    (fields templatefields))))
 
-(defn write-dot [#^Flow flow #^String path]
+(defn write-dot [^Flow flow ^String path]
   (.writeDOT flow path))
 
-(defn exec [#^Flow flow]
+(defn exec [^Flow flow]
   (.complete flow))
+
+(defn fill-tap! [^Tap tap xs] 
+  (with-open [^TupleEntryCollector collector (.openForWrite tap (JobConf.))]
+    (doseq [item xs]
+      (.add collector (Util/coerceToTuple item)))))
 
 (defn memory-source-tap
   ([tuples] (memory-source-tap Fields/ALL tuples))

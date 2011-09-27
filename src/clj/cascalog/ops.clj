@@ -15,9 +15,11 @@
 
 (ns cascalog.ops
   (:refer-clojure :exclude [count min max comp juxt])
-  (:use [cascalog ops-impl api util])
-  (:use [clojure.contrib.def :only [defnk]])
-  (:require [cascalog [vars :as v]]))
+  (:use [cascalog ops-impl api util]
+        [clojure.contrib.def :only (defnk)]
+        [cascalog.workflow :only (fill-tap!)]
+        [cascalog.io :only (with-fs-tmp)])
+  (:require [cascalog.vars :as v]))
 
 ;; Operation composition functions
 
@@ -97,9 +99,31 @@
 
 (def distinct-count
   (<- [:<< !invars :> !c]
-    (:sort :<< !invars) (distinct-count-agg :<< !invars :> !c)))
+      (:sort :<< !invars) (distinct-count-agg :<< !invars :> !c)))
 
 ;; Common patterns
+
+(defn lazy-generator
+  "Returns a cascalog generator on the supplied sequence of
+  tuples. `lazy-generator` serializes each item in the lazy sequence
+  into a sequencefile located at the supplied temporary directory, and
+  returns a tap into its guts.
+
+  I recommend wrapping queries that use this tap with
+  `cascalog.io/with-fs-tmp`; for example,
+
+    (with-fs-tmp [_ tmp-dir]
+      (let [lazy-tap (pixel-generator tmp-dir lazy-seq)]
+      (?<- (stdout)
+           [?field1 ?field2 ... etc]
+           (lazy-tap ?field1 ?field2)
+           ...)))"
+  [tmp-path [tuple :as l-seq]]
+  {:pre [(coll? tuple)]}
+  (let [tap (:sink (hfs-seqfile tmp-path))
+        n-fields (clojure.core/count tuple)]
+    (fill-tap! tap l-seq)
+    (name-vars tap (v/gen-non-nullable-vars n-fields))))
 
 (defnk first-n
   "Returns a subquery getting the first n elements from sq it
@@ -123,9 +147,7 @@
 
 (defmacro with-timeout [[ms] & body]
   `(let [^java.util.concurrent.Future f# (future ~@body)]
-     (try
-       (.get f# ~ms java.util.concurrent.TimeUnit/MILLISECONDS)
-     (catch java.util.concurrent.TimeoutException e#
-       (.cancel f# true)
-       nil
-       ))))
+     (try (.get f# ~ms java.util.concurrent.TimeUnit/MILLISECONDS)
+          (catch java.util.concurrent.TimeoutException e#
+            (.cancel f# true)
+            nil))))
