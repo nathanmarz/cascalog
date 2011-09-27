@@ -14,11 +14,8 @@
  ;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (ns cascalog.rules
-  (:use clojure.contrib.set
-        [cascalog vars util graph debug]
-        [clojure.set :only [intersection union difference]]
-        [clojure.contrib.set :only [subset?]]
-        [clojure.contrib.seq-utils :only [find-first separate]]
+  (:use [cascalog vars util graph debug]
+        [clojure.set :only (intersection union difference subset?)]
         [clojure.walk :only [postwalk]])
   (:require [cascalog [workflow :as w] [predicate :as p] [hadoop :as hadoop]])
   (:import [cascading.tap Tap]
@@ -89,9 +86,9 @@
 (defn- fixed-point-operations
   "Adds operations to tail until can't anymore. Returns new tail"
   [tail]
-    (if-let [op (find-first (partial op-allowed? tail) (:operations tail))]
-      (recur (add-op tail op))
-      tail ))
+  (if-let [op (find-first (partial op-allowed? tail) (:operations tail))]
+    (recur (add-op tail op))
+    tail ))
 
 ;; TODO: refactor and simplify drift algorithm
 (defn- add-drift-op [tail equality-sets rename-map new-drift-map]
@@ -490,7 +487,7 @@
   supplied sequence of parsed-predicates identified as generators, and
   the rest."
   [parsed-preds]
-  ((juxt filter remove) (comp p/generator? first) parsed-preds))
+  (separate (comp p/generator? first) parsed-preds))
 
 (defn gen-as-set?
   "Returns true if the supplied parsed predicate is a generator meant

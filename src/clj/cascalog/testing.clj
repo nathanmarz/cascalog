@@ -15,11 +15,7 @@
 
 (ns cascalog.testing
   (:use clojure.test
-        clojure.contrib.java-utils
-        cascalog.io
-        cascalog.util
-        cascalog.api
-        [clojure.contrib.def :only (defalias)])
+        [cascalog io util api])
   (:import [cascading.tuple Fields Tuple TupleEntry TupleEntryCollector]
            [cascading.pipe Pipe]
            [cascading.operation ConcreteCall]

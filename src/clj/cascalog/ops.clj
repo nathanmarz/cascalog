@@ -16,7 +16,6 @@
 (ns cascalog.ops
   (:refer-clojure :exclude [count min max comp juxt])
   (:use [cascalog ops-impl api util]
-        [clojure.contrib.def :only (defnk)]
         [cascalog.workflow :only (fill-tap!)]
         [cascalog.io :only (with-fs-tmp)])
   (:require [cascalog.vars :as v]))
@@ -125,10 +124,10 @@
     (fill-tap! tap l-seq)
     (name-vars tap (v/gen-non-nullable-vars n-fields))))
 
-(defnk first-n
+(defn first-n
   "Returns a subquery getting the first n elements from sq it
   finds. Can pass in sorting arguments."
-  [gen n :reverse false :sort nil]
+  [gen n & {:keys [reverse sort] :or {reverse false}}]
   (let [num-fields (num-out-fields gen)
         in-vars  (v/gen-nullable-vars num-fields)
         out-vars (v/gen-nullable-vars num-fields)

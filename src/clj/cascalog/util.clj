@@ -14,8 +14,7 @@
  ;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (ns cascalog.util
-  (:use [clojure.contrib.seq-utils :only [find-first indexed]]
-        [clojure.set :only (difference)])
+  (:use [clojure.set :only (difference)])
   (:import [java.util UUID Collection]))
 
 (defn multifn? [x]
@@ -51,6 +50,19 @@
 (defn transpose [m]
   (apply map list m))
 
+(defn find-first
+  "Returns the first item of coll for which (pred item) returns logical true.
+  Consumes sequences up to the first match, will consume the entire sequence
+  and return nil if no match is found."
+  [pred coll]
+  (first (filter pred coll)))
+
+(def ^{:doc "Accepts a predicate and a sequence, and returns:
+
+   [(filter pred xs) (remove pred xs)]"}
+  separate
+  (juxt filter remove))
+
 (defn substitute-if
   "Returns [newseq {map of newvals to oldvals}]"
   [pred subfn aseq]
@@ -80,11 +92,10 @@
          (map #(hash-map % 1) aseq)))
 
 (defn remove-first [f coll]
-  (let [i (indexed coll)
+  (let [i (map-indexed vector coll)
         ri (find-first #(f (second %)) i)]
-        (when-not ri (throw (IllegalArgumentException. "Couldn't find an item to remove")))
-        (map second (remove (partial = ri) i))
-      ))
+    (when-not ri (throw-illegal "Couldn't find an item to remove"))
+    (map second (remove (partial = ri) i))))
 
 (defn uuid []
   (str (UUID/randomUUID)))
@@ -96,13 +107,13 @@
                   (map (partial vector v) vals))]
     (apply concat (for [i (range (dec (count coll)))]
       (pair-up (nth coll i) (drop (inc i) coll))
-    ))))
+      ))))
 
 (defn unweave
   "[1 2 3 4 5 6] -> [[1 3 5] [2 4 6]]"
   [coll]
   (when (odd? (count coll))
-    (throw (IllegalArgumentException. "Need even number of args to unweave")))
+    (throw-illegal "Need even number of args to unweave"))
   [(take-nth 2 coll) (take-nth 2 (rest coll))])
 
 (defn duplicates
