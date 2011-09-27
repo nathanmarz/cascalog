@@ -1,11 +1,11 @@
 (ns cascalog.api-test
   (:use clojure.test
-        cascalog.testing
-        cascalog.api)
-  (:import [cascading.tuple Fields])
-  (:import [cascalog.test KeepEven OneBuffer])
-  (:import [cascalog.ops IdentityBuffer])
-  (:require [cascalog [ops :as c]]))
+        [cascalog testing api])
+  (:require [cascalog.ops :as c]
+            [clojure.string :as s])
+  (:import [cascading.tuple Fields]
+           [cascalog.test KeepEven OneBuffer]
+           [cascalog.ops IdentityBuffer]))
 
 (defmapop mk-one "Returns 1 for any input." [& tuple] 1)
 
@@ -499,3 +499,23 @@
 (deftest test-only-one-buffer)
 
 (deftest test-error-on-lacking-output-fields)
+
+(deftest test-jobconf-bindings
+  (with-job-conf {"key" "val"}
+    (is (= {"key" "val"} cascalog.rules/*JOB-CONF*)))
+
+  (with-job-conf {"io.serializations" "java.lang.String"}
+    (is (= cascalog.rules/*JOB-CONF*
+           {"io.serializations" (s/join "," (conj default-serializations "java.lang.String"))})))
+
+  (with-serializations [String]
+    (is (= cascalog.rules/*JOB-CONF*
+           {"io.serializations" (s/join "," (conj default-serializations "java.lang.String"))})))
+
+  (with-serializations [String]
+    (with-job-conf {"io.serializations" "SomeSerialization"}
+      (is (= cascalog.rules/*JOB-CONF*
+             {"io.serializations" (s/join "," (concat default-serializations
+                                                      ["java.lang.String"
+                                                       "SomeSerialization"]))})))))
+
