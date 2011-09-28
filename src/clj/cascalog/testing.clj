@@ -16,7 +16,9 @@
 (ns cascalog.testing
   (:use clojure.test
         [cascalog io util api])
-  (:require [cascalog [workflow :as w] [rules :as rules] [hadoop :as hadoop]])
+  (:require [cascalog.workflow :as w]
+            [cascalog.rules :as rules]
+            [hadoop-util.core :as hadoop])
   (:import [cascading.tuple Fields Tuple TupleEntry TupleEntryCollector]
            [cascading.pipe Pipe]
            [cascading.operation ConcreteCall]

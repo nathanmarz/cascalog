@@ -23,7 +23,7 @@
             [cascalog.workflow :as w]
             [cascalog.predicate :as p]
             [cascalog.io :as io]
-            [cascalog.hadoop :as hadoop])
+            [hadoop-util.core :as hadoop])
   (:import [cascading.flow Flow FlowConnector]
            [cascading.tuple Fields]
            [cascalog StdoutTap Util MemorySourceTap]

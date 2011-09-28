@@ -17,7 +17,7 @@
   (:use cascalog.util
         clojure.contrib.java-utils
         [clojure.contrib.duck-streams :only (write-lines)])
-  (:require [cascalog.hadoop :as hadoop])
+  (:require [hadoop-util.core :as hadoop])
   (:import [java.io File]
            [java.util UUID]
            [org.apache.log4j Logger Level]))
