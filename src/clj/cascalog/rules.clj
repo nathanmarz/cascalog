@@ -17,7 +17,9 @@
   (:use [cascalog vars util graph debug]
         [clojure.set :only (intersection union difference subset?)]
         [clojure.walk :only (postwalk)])
-  (:require [cascalog [workflow :as w] [predicate :as p] [hadoop :as hadoop]])
+  (:require [cascalog.workflow :as w]
+            [cascalog.predicate :as p]
+            [hadoop-util.core :as hadoop])
   (:import [cascading.tap Tap]
            [cascading.tuple Fields Tuple TupleEntry]
            [cascading.flow Flow FlowConnector]

@@ -16,7 +16,7 @@
                  [thirdparty/jgrapht-jdk1.6 "0.8.1"]
                  [riffle/riffle "0.1-dev"]
                  [log4j/log4j "1.2.16"]
-                 [hadoop-util "0.2.0"]]
+                 [hadoop-util "0.2.1"]]
   :dev-dependencies [[swank-clojure "1.4.0-SNAPSHOT"]
                      [clojure-source "1.2.0"]
                      [org.apache.hadoop/hadoop-core "0.20.2-dev"]]
