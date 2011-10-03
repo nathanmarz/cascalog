@@ -15,8 +15,7 @@
 
 (ns cascalog.api
   (:use [cascalog vars util graph debug]
-        [clojure.contrib.def :only (defalias)]
-        [clojure.string :only (join split)])
+        [clojure.contrib.def :only (defalias)])
   (:require cascalog.rules
             [clojure.set :as set]
             [cascalog.tap :as tap]
@@ -122,39 +121,6 @@
     (count (get-out-fields gen))))
 
 ;; Knobs for Hadoop
-
-(def default-serializations
-  ["org.apache.hadoop.io.serializer.WritableSerialization"
-   "cascading.tuple.hadoop.BytesSerialization"
-   "cascading.tuple.hadoop.TupleSerialization"])
-
-(defn serialization-entry
-  [serial-vec]
-  (->> serial-vec
-       (map (fn [x]
-              (cond (string? x) x
-                    (class? x) (.getName x))))
-       (merge-to-vec default-serializations)
-       (join ",")))
-
-(defn merge-serialization-strings
-  [& ser-strings]
-  (->> ser-strings
-       (filter identity)
-       (mapcat #(split % #","))
-       (serialization-entry)))
-
-(defn conf-merge
-  "TODO: Come up with a more general version of this, similar to
-  merge-with, that takes a map of key-func pairs, and merges with
-  those functions."
-  [& maps]
-  (reduce (fn [m1 m2]
-            (let [m2 (try-update-in m2 ["io.serializations"]
-                                    merge-serialization-strings
-                                    (get m1 "io.serializations"))]
-              (conj (or m1 {}) m2)))
-          maps))
 
 (defmacro with-job-conf
   "Modifies the job conf for queries executed within the form. Nested

@@ -14,7 +14,13 @@
 ;;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (ns cascalog.util
+<<<<<<< HEAD
   (:use [clojure.set :only (difference)])
+=======
+  (:use [clojure.contrib.seq-utils :only [find-first indexed]]
+        [clojure.set :only (difference)])
+  (:require [clojure.string :as s])
+>>>>>>> master
   (:import [java.util UUID Collection]))
 
 (defn multifn? [x]
@@ -189,3 +195,37 @@
     (eval
      `(let ~destructured
         (into {} ~extract-code)))))
+
+(def default-serializations
+  ["org.apache.hadoop.io.serializer.WritableSerialization"
+   "cascading.tuple.hadoop.BytesSerialization"
+   "cascading.tuple.hadoop.TupleSerialization"])
+
+(defn serialization-entry
+  [serial-vec]
+  (->> serial-vec
+       (map (fn [x]
+              (cond (string? x) x
+                    (class? x) (.getName x))))
+       (merge-to-vec default-serializations)
+       (s/join ",")))
+
+(defn merge-serialization-strings
+  [& ser-strings]
+  (->> ser-strings
+       (filter identity)
+       (mapcat #(s/split % #","))
+       (serialization-entry)))
+
+(defn conf-merge
+  "TODO: Come up with a more general version of this, similar to
+  merge-with, that takes a map of key-func pairs, and merges with
+  those functions."
+  [& maps]
+  (reduce (fn [m1 m2]
+            (let [m2 (try-update-in m2 ["io.serializations"]
+                                    merge-serialization-strings
+                                    (get m1 "io.serializations"))]
+              (conj (or m1 {}) m2)))
+          maps))
+>>>>>>> master
