@@ -4,8 +4,7 @@
   :jvm-opts ["-Xmx768m" "-server"]
   :javac-options {:debug "true" :fork "true"}
   :repositories {"conjars" "http://conjars.org/repo/"}
-  :dependencies [[org.clojure/clojure "1.2.1"]
-                 [org.clojure/clojure-contrib "1.2.0"]
+  :dependencies [[org.clojure/clojure "1.3.0"]
                  ;; jgrapht exclusion works around cascading pom bug
                  ;; that causes projects dependent on cascalog to not
                  ;; be able to find jgrapht.
@@ -16,8 +15,10 @@
                  [thirdparty/jgrapht-jdk1.6 "0.8.1"]
                  [riffle/riffle "0.1-dev"]
                  [log4j/log4j "1.2.16"]
-                 [hadoop-util "0.2.1"]]
+                 [hadoop-util "0.2.2"]]
   :dev-dependencies [[swank-clojure "1.4.0-SNAPSHOT"]
-                     [clojure-source "1.2.0"]
-                     [org.apache.hadoop/hadoop-core "0.20.2-dev"]]
+                     [org.apache.hadoop/hadoop-core "0.20.2-dev"]
+                     [lein-multi "1.1.0-SNAPSHOT"]]
+  :multi-deps {"1.2" [[org.clojure/clojure "1.2.1"]
+                      [org.clojure/clojure-contrib "1.2.0"]]}
   :aot :all)
