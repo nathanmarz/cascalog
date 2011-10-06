@@ -2,6 +2,7 @@
   (:use clojure.test
         [cascalog testing api])
   (:require [cascalog.ops :as c]
+            [cascalog.util :as u]
             [clojure.string :as s])
   (:import [cascading.tuple Fields]
            [cascalog.test KeepEven OneBuffer]
@@ -482,12 +483,13 @@
 
 (defmulti multi-test class)
 (defmethod multi-test String [x] "string!")
-(defmethod multi-test Integer [x] "int!")
+(defmethod multi-test Long [x] "number!")
+(defmethod multi-test Integer [x] "number!")
 (defmethod multi-test Double [x] "double!")
 
 (deftest test-multimethod-support
   (let [src [["word."] [1] [1.0]]]
-    (test?<- [["string!"] ["int!"] ["double!"]]
+    (test?<- [["string!"] ["number!"] ["double!"]]
              [?result] (src ?thing) (multi-test ?thing :> ?result))))
 
 (deftest test-funcs)
@@ -506,16 +508,15 @@
 
   (with-job-conf {"io.serializations" "java.lang.String"}
     (is (= cascalog.rules/*JOB-CONF*
-           {"io.serializations" (s/join "," (conj default-serializations "java.lang.String"))})))
+           {"io.serializations" (s/join "," (conj u/default-serializations "java.lang.String"))})))
 
   (with-serializations [String]
     (is (= cascalog.rules/*JOB-CONF*
-           {"io.serializations" (s/join "," (conj default-serializations "java.lang.String"))})))
+           {"io.serializations" (s/join "," (conj u/default-serializations "java.lang.String"))})))
 
   (with-serializations [String]
     (with-job-conf {"io.serializations" "java.lang.String,SomeSerialization"}
       (is (= cascalog.rules/*JOB-CONF*
-             {"io.serializations" (s/join "," (concat default-serializations
+             {"io.serializations" (s/join "," (concat u/default-serializations
                                                       ["java.lang.String"
                                                        "SomeSerialization"]))})))))
-

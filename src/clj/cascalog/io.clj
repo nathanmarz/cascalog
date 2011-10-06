@@ -15,12 +15,32 @@
 
 (ns cascalog.io
   (:use cascalog.util
-        clojure.contrib.java-utils
-        [clojure.contrib.duck-streams :only (write-lines)])
+        clojure.java.io)
   (:require [hadoop-util.core :as hadoop])
-  (:import [java.io File]
+  (:import [java.io File PrintWriter]
            [java.util UUID]
            [org.apache.log4j Logger Level]))
+
+(defn write-lines
+  "Writes lines (a seq) to f, separated by newlines.  f is opened with
+  writer, and automatically closed at the end of the sequence."
+  [f lines]
+  (with-open [^PrintWriter writer (writer f)]
+    (loop [lines lines]
+      (when-let [line (first lines)]
+        (.write writer (str line))
+        (.println writer)
+        (recur (rest lines))))))
+
+(defn delete-file-recursively
+  "Delete file f. If it's a directory, recursively delete all its contents.
+Raise an exception if any deletion fails unless silently is true."
+  [f & [silently]]
+  (let [f (file f)]
+    (if (.isDirectory f)
+      (doseq [child (.listFiles f)]
+        (delete-file-recursively child silently)))
+    (delete-file f silently)))
 
 (defn temp-path [sub-path]
   (file (System/getProperty "java.io.tmpdir") sub-path))
