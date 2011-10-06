@@ -14,15 +14,14 @@
 ;;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (ns cascalog.api
-  (:use [cascalog vars util graph debug]
-        [clojure.contrib.def :only (defalias)])
+  (:use [cascalog vars util graph debug])
   (:require cascalog.rules
             [clojure.set :as set]
             [cascalog.tap :as tap]
             [cascalog.workflow :as w]
             [cascalog.predicate :as p]
             [cascalog.io :as io]
-            [hadoop-util.core :as hadoop])
+            [hadoop-util.core :as hadoop])  
   (:import [cascading.flow Flow FlowConnector]
            [cascading.tuple Fields]
            [cascalog StdoutTap Util MemorySourceTap]
@@ -267,8 +266,7 @@ as well."
   [outvars preds]
   (let [outvars (vars2str outvars)
         preds (for [[p & vars] preds] [p nil (vars2str vars)])]
-    (cascalog.rules/build-rule outvars preds)
-    ))
+    (cascalog.rules/build-rule outvars preds)))
 
 (defn union
   "Merge the tuples from the subqueries together into a single

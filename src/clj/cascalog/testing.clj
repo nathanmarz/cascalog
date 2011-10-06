@@ -218,7 +218,7 @@
          ~@body
          (dorun (map ~checker ~names ~specs))))))
 
-;; bindings are name spec, where spec is either {:fields :tuples} or vector of tuples
+;; bindings are name spec, where spec is either {:fields :tuples} or vector of tuplesou
 (defmacro with-expected-sinks [bindings & body]
   (with-expected-sinks-helper check-tap-spec bindings body))
 

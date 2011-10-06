@@ -14,14 +14,53 @@
 ;;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (ns cascalog.util
-<<<<<<< HEAD
   (:use [clojure.set :only (difference)])
-=======
-  (:use [clojure.contrib.seq-utils :only [find-first indexed]]
-        [clojure.set :only (difference)])
   (:require [clojure.string :as s])
->>>>>>> master
   (:import [java.util UUID Collection]))
+
+(defmacro defalias
+  "Defines an alias for a var: a new var with the same root binding (if
+  any) and similar metadata. The metadata of the alias is its initial
+  metadata (as provided by def) merged into the metadata of the original."
+  ([name orig]
+     `(do
+        (alter-meta!
+         (if (.hasRoot (var ~orig))
+           (def ~name (.getRawRoot (var ~orig)))
+           (def ~name))
+         ;; When copying metadata, disregard {:macro false}.
+         ;; Workaround for http://www.assembla.com/spaces/clojure/tickets/273
+         #(conj (dissoc % :macro)
+                (apply dissoc (meta (var ~orig)) (remove #{:macro} (keys %)))))
+        (var ~name)))
+  ([name orig doc]
+     (list `defalias (with-meta name (assoc (meta name) :doc doc)) orig)))
+
+;; name-with-attributes by Konrad Hinsen:
+(defn name-with-attributes
+  "To be used in macro definitions.
+   Handles optional docstrings and attribute maps for a name to be defined
+   in a list of macro arguments. If the first macro argument is a string,
+   it is added as a docstring to name and removed from the macro argument
+   list. If afterwards the first macro argument is a map, its entries are
+   added to the name's metadata map and the map is removed from the
+   macro argument list. The return value is a vector containing the name
+   with its extended metadata map and the list of unprocessed macro
+   arguments."
+  [name macro-args]
+  (let [[docstring macro-args] (if (string? (first macro-args))
+                                 [(first macro-args) (next macro-args)]
+                                 [nil macro-args])
+    [attr macro-args]          (if (map? (first macro-args))
+                                 [(first macro-args) (next macro-args)]
+                                 [{} macro-args])
+    attr                       (if docstring
+                                 (assoc attr :doc docstring)
+                                 attr)
+    attr                       (if (meta name)
+                                 (conj (meta name) attr)
+                                 attr)]
+    [(with-meta name attr) macro-args]))
 
 (defn multifn? [x]
   (instance? clojure.lang.MultiFn x))
@@ -228,4 +267,3 @@
                                     (get m1 "io.serializations"))]
               (conj (or m1 {}) m2)))
           maps))
->>>>>>> master

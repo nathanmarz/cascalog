@@ -629,7 +629,7 @@
 (defn mk-raw-predicate [[op-sym & vars]]
   [op-sym (try-resolve op-sym) (vars2str vars)])
 
-(def *JOB-CONF* {})
+(def ^:dynamic *JOB-CONF* {})
 
 (defn- pluck-tuple [tap]
   (with-open [it (.openForRead tap (hadoop/job-conf *JOB-CONF*))]
