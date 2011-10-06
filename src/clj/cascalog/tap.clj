@@ -1,5 +1,4 @@
 (ns cascalog.tap
-  (:use [clojure.contrib.def :only (defnk)])
   (:require [cascalog.workflow :as w])
   (:import [cascading.tuple Fields]))
 
@@ -32,7 +31,7 @@
                parent)]
     (mk-cascalog-tap source sink)))
 
-(defnk hfs-tap
+(defn hfs-tap
   "Returns a Cascading Hfs tap with support for the supplied scheme,
   opened up on the supplied path or file object. Supported keyword
   options are:
@@ -49,15 +48,15 @@
 
   `:templatefields` - When pattern is supplied via :sink-template, this option allows a
   subset of output fields to be used in the naming scheme."
-  [scheme path-or-file
-   :sinkmode nil :sinkparts nil
-   :sink-template nil :source-pattern nil :templatefields Fields/ALL]
+  [scheme path-or-file & {:keys [sinkmode sinkparts sink-template
+                                 source-pattern templatefields]
+                          :or {templatefields Fields/ALL}}]
   (-> scheme
       (w/set-sinkparts! sinkparts)
       (patternize :hfs path-or-file sinkmode
                   sink-template source-pattern templatefields)))
 
-(defnk lfs-tap
+(defn lfs-tap
   "Returns a Cascading Lfs tap with support for the supplied scheme,
   opened up on the supplied path or file object. Supported keyword
   options are:
@@ -75,9 +74,9 @@
   `:templatefields` - When pattern is supplied via :sink-template, this option allows a
   subset of output fields to be used in the naming scheme."
   
-  [scheme path-or-file
-   :sinkmode nil :sinkparts nil
-   :sink-template nil :source-pattern nil :templatefields Fields/ALL]
+  [scheme path-or-file & {:keys [sinkmode sinkparts sink-template
+                                 source-pattern templatefields]
+                          :or {templatefields Fields/ALL}}]
   (-> scheme
       (w/set-sinkparts! sinkparts)
       (patternize :lfs path-or-file sinkmode

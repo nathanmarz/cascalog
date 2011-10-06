@@ -1,17 +1,17 @@
- ;    Copyright 2010 Nathan Marz
- ; 
- ;    This program is free software: you can redistribute it and/or modify
- ;    it under the terms of the GNU General Public License as published by
- ;    the Free Software Foundation, either version 3 of the License, or
- ;    (at your option) any later version.
- ; 
- ;    This program is distributed in the hope that it will be useful,
- ;    but WITHOUT ANY WARRANTY; without even the implied warranty of
- ;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- ;    GNU General Public License for more details.
- ; 
- ;    You should have received a copy of the GNU General Public License
- ;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+;;    Copyright 2010 Nathan Marz
+;; 
+;;    This program is free software: you can redistribute it and/or modify
+;;    it under the terms of the GNU General Public License as published by
+;;    the Free Software Foundation, either version 3 of the License, or
+;;    (at your option) any later version.
+;; 
+;;    This program is distributed in the hope that it will be useful,
+;;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;    GNU General Public License for more details.
+;; 
+;;    You should have received a copy of the GNU General Public License
+;;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (ns cascalog.vars)
 
@@ -32,7 +32,7 @@
 (defn gen-nullable-vars
   ([amt] (gen-nullable-vars "" amt))
   ([suffix amt]
-    (vec (take amt (repeatedly (partial gen-nullable-var suffix))))))
+     (vec (take amt (repeatedly (partial gen-nullable-var suffix))))))
 
 (defn gen-non-nullable-vars [amt]
   (vec (take amt (repeatedly gen-non-nullable-var))))
@@ -40,16 +40,16 @@
 (defn- extract-varname
   ([v] (extract-varname v gen-nullable-var))
   ([v gen-var]
-    (let [actname (if (symbol? v) (name v) v)]
-      (if (= "_" actname) (gen-var) actname))))
+     (let [actname (if (symbol? v) (name v) v)]
+       (if (= "_" actname) (gen-var) actname))))
 
 (def cascalog-keyword? #{:> :< :<< :>> :fn> :#> :?})
 
 (defn cascalog-var? [obj]
-    (if (or (symbol? obj) (string? obj))
-      (let [obj (extract-varname obj)]
-          ((complement nil?) (some #(.startsWith obj %) ["?" "!" "!!"])))
-      false ))
+  (if (or (symbol? obj) (string? obj))
+    (let [obj (extract-varname obj)]
+      ((complement nil?) (some #(.startsWith obj %) ["?" "!" "!!"])))
+    false))
 
 (defn uniquify-var [v]
   (str v (gen-unique-suffix)))
@@ -80,7 +80,7 @@
 
 (defn- sanitize-map [m anon-gen]
   (reduce (fn [ret k] (assoc ret k (sanitize-elem (m k) anon-gen)))
-    {} (keys m)))
+          {} (keys m)))
 
 (defn sanitize-unknown [e anon-gen]
   (cond (map? e) (sanitize-map e anon-gen)
@@ -104,15 +104,15 @@
                            (and force-unique? (ground-var? v)) (conj existing (uniquify-var v))
                            :else               existing)
             newname  (if force-unique? (last varlist) (first varlist))]
-            [(conj all newname) (assoc equalities v varlist)] )
+        [(conj all newname) (assoc equalities v varlist)] )
       [(conj all v) equalities] )))
 
 (defn uniquify-vars [vars force-unique? equalities]
   (let [[vars equalities] (reduce (var-updater-fn force-unique?) [[] equalities] vars)]
-      [vars equalities] ))
+    [vars equalities] ))
 
 (defn mk-drift-map [vmap]
   (let [update-fn (fn [m [_ vals]]
-                     (let [target (first vals)]
-                       (reduce #(assoc %1 %2 target) m (rest vals))))]
-      (reduce update-fn {} (seq vmap))))
+                    (let [target (first vals)]
+                      (reduce #(assoc %1 %2 target) m (rest vals))))]
+    (reduce update-fn {} (seq vmap))))

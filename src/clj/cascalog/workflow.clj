@@ -1,26 +1,28 @@
- ;    Copyright 2010 Nathan Marz
- ; 
- ;    This program is free software: you can redistribute it and/or modify
- ;    it under the terms of the GNU General Public License as published by
- ;    the Free Software Foundation, either version 3 of the License, or
- ;    (at your option) any later version.
- ; 
- ;    This program is distributed in the hope that it will be useful,
- ;    but WITHOUT ANY WARRANTY; without even the implied warranty of
- ;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- ;    GNU General Public License for more details.
- ; 
- ;    You should have received a copy of the GNU General Public License
- ;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+;;    Copyright 2010 Nathan Marz
+;; 
+;;    This program is free software: you can redistribute it and/or modify
+;;    it under the terms of the GNU General Public License as published by
+;;    the Free Software Foundation, either version 3 of the License, or
+;;    (at your option) any later version.
+;; 
+;;    This program is distributed in the hope that it will be useful,
+;;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;    GNU General Public License for more details.
+;; 
+;;    You should have received a copy of the GNU General Public License
+;;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (ns cascalog.workflow
   (:refer-clojure :exclude [group-by count first filter mapcat map identity min max])
-  (:use [clojure.contrib.def :only (name-with-attributes)]
-        [cascalog util debug])
-  (:import [java.io File]
+  (:use [cascalog util debug])
+  (:import [cascalog Util]
+           [org.apache.hadoop.mapred JobConf]
+           [java.io File]
            [cascading.tuple Tuple TupleEntry Fields]
            [cascading.scheme Scheme TextLine SequenceFile]
            [cascading.tap Hfs Lfs GlobHfs Tap TemplateTap SinkMode]
+           [cascading.tuple TupleEntryCollector]
            [cascading.flow Flow FlowConnector]
            [cascading.cascade Cascades]
            [cascading.operation Identity Insert Debug]
@@ -89,31 +91,30 @@
   ([arr] (parse-args arr Fields/RESULTS))
   ([arr defaultout]
      (let
-       [func-args           (clojure.core/first arr)
-        varargs             (rest arr)
-        spec                (fn-spec func-args)
-        func-var            (if (var? func-args) func-args (clojure.core/first func-args))
-        first-elem (clojure.core/first varargs)
-        [in-fields keyargs] (if (or (nil? first-elem)
-                                    (keyword? first-elem))
-                                  [Fields/ALL (apply hash-map varargs)]
-                                  [(fields (clojure.core/first varargs))
-                                   (apply hash-map (rest varargs))])
-        stateful            (get (meta func-var) :stateful false)
-        options             (merge {:fn> (:fields (meta func-var)) :> defaultout} keyargs)
-        result              [in-fields (fields (:fn> options)) spec (fields (:> options)) stateful]]
-
-        result )))
+         [func-args           (clojure.core/first arr)
+          varargs             (rest arr)
+          spec                (fn-spec func-args)
+          func-var            (if (var? func-args) func-args (clojure.core/first func-args))
+          first-elem (clojure.core/first varargs)
+          [in-fields keyargs] (if (or (nil? first-elem)
+                                      (keyword? first-elem))
+                                [Fields/ALL (apply hash-map varargs)]
+                                [(fields (clojure.core/first varargs))
+                                 (apply hash-map (rest varargs))])
+          stateful            (get (meta func-var) :stateful false)
+          options             (merge {:fn> (:fields (meta func-var)) :> defaultout} keyargs)
+          result              [in-fields (fields (:fn> options)) spec (fields (:> options)) stateful]]
+       result)))
 
 (defn pipe
   "Returns a Pipe of the given name, or if one is not supplied with a
    unique random name."
   ([]
-   (pipe (uuid)))
-  ([#^String name]
-   (Pipe. name)))
+     (pipe (uuid)))
+  ([^String name]
+     (Pipe. name)))
 
-(defn pipe-rename [#^String name]
+(defn pipe-rename [^String name]
   (fn [p]
     (debug-print "pipe-rename" name)
     (Pipe. name p)))
@@ -121,8 +122,8 @@
 (defn- as-pipes
   [pipe-or-pipes]
   (let [pipes (if (instance? Pipe pipe-or-pipes)
-[pipe-or-pipes] pipe-or-pipes)]
-  (into-array Pipe pipes)))
+                [pipe-or-pipes] pipe-or-pipes)]
+    (into-array Pipe pipes)))
 
 ;; with a :fn> defined, turns into a function
 (defn filter [& args]
@@ -131,58 +132,58 @@
     (let [[in-fields func-fields spec out-fields stateful] (parse-args args)]
       (if func-fields
         (Each. previous in-fields
-          (ClojureMap. func-fields spec stateful) out-fields)
+               (ClojureMap. func-fields spec stateful) out-fields)
         (Each. previous in-fields
-          (ClojureFilter. spec stateful))))))
+               (ClojureFilter. spec stateful))))))
 
 (defn mapcat [& args]
   (fn [previous]
     (debug-print "mapcat" args)
     (let [[in-fields func-fields spec out-fields stateful] (parse-args args)]
-    (Each. previous in-fields
-      (ClojureMapcat. func-fields spec stateful) out-fields))))
+      (Each. previous in-fields
+             (ClojureMapcat. func-fields spec stateful) out-fields))))
 
 (defn map [& args]
   (fn [previous]
     (debug-print "map" args)
     (let [[in-fields func-fields spec out-fields stateful] (parse-args args)]
-    (Each. previous in-fields
-      (ClojureMap. func-fields spec stateful) out-fields))))
+      (Each. previous in-fields
+             (ClojureMap. func-fields spec stateful) out-fields))))
 
 (defn group-by
   ([]
-    (fn [& previous]
-      (debug-print "groupby no grouping fields")
-      (GroupBy. (as-pipes previous))))
+     (fn [& previous]
+       (debug-print "groupby no grouping fields")
+       (GroupBy. (as-pipes previous))))
   ([group-fields]
-    (fn [& previous]
-      (debug-print "groupby" group-fields)
-      (GroupBy. (as-pipes previous) (fields group-fields))))
+     (fn [& previous]
+       (debug-print "groupby" group-fields)
+       (GroupBy. (as-pipes previous) (fields group-fields))))
   ([group-fields sort-fields]
-    (fn [& previous]
-      (debug-print "groupby" group-fields sort-fields)
-      (GroupBy. (as-pipes previous) (fields group-fields) (fields sort-fields))))
+     (fn [& previous]
+       (debug-print "groupby" group-fields sort-fields)
+       (GroupBy. (as-pipes previous) (fields group-fields) (fields sort-fields))))
   ([group-fields sort-fields reverse-order]
-    (fn [& previous]
-      (debug-print "groupby" group-fields sort-fields reverse-order)
-      (GroupBy. (as-pipes previous) (fields group-fields) (fields sort-fields) reverse-order))))
+     (fn [& previous]
+       (debug-print "groupby" group-fields sort-fields reverse-order)
+       (GroupBy. (as-pipes previous) (fields group-fields) (fields sort-fields) reverse-order))))
 
-(defn count [#^String count-field]
+(defn count [^String count-field]
   (fn [previous]
     (debug-print "count" count-field)
     (Every. previous (Count. (fields count-field)))))
 
-(defn sum [#^String in-fields #^String sum-fields]
+(defn sum [^String in-fields ^String sum-fields]
   (fn [previous]
     (debug-print "sum" in-fields sum-fields)
     (Every. previous (fields in-fields) (Sum. (fields sum-fields)))))
 
-(defn min [#^String in-fields #^String min-fields]
+(defn min [^String in-fields ^String min-fields]
   (fn [previous]
     (debug-print "min" in-fields min-fields)
     (Every. previous (fields in-fields) (Min. (fields min-fields)))))
 
-(defn max [#^String in-fields #^String max-fields]
+(defn max [^String in-fields ^String max-fields]
   (fn [previous]
     (debug-print "groupby" in-fields max-fields)
     (Every. previous (fields in-fields) (Max. (fields max-fields)))))
@@ -202,7 +203,7 @@
     (debug-print "select" keep-fields)
     (let [ret (Each. previous (fields keep-fields) (Identity.))]
       ret
-    )))
+      )))
 
 (defn identity [& args]
   (fn [previous]
@@ -210,7 +211,7 @@
     ;;  + is a hack. TODO: split up parse-args into parse-args and parse-selector-args
     (let [[in-fields func-fields _ out-fields _] (parse-args (cons #'+ args) Fields/RESULTS)
           id-func (if func-fields (Identity. func-fields) (Identity.))]
-    (Each. previous in-fields id-func out-fields))))
+      (Each. previous in-fields id-func out-fields))))
 
 (defn pipe-name [name]
   (fn [p]
@@ -226,8 +227,8 @@
   ([arg1] (fn [p] (debug-print "raw-each" arg1) (Each. p arg1)))
   ([arg1 arg2] (fn [p] (debug-print "raw-each" arg1 arg2) (Each. p arg1 arg2)))
   ([arg1 arg2 arg3] (fn [p]
-    (debug-print "raw-each" arg1 arg2 arg3)
-    (Each. p arg1 arg2 arg3))))
+                      (debug-print "raw-each" arg1 arg2 arg3)
+                      (Each. p arg1 arg2 arg3))))
 
 (defn debug []
   (raw-each (Debug. true)))
@@ -236,40 +237,39 @@
   ([arg1] (fn [p] (debug-print "raw-every" arg1) (Every. p arg1)))
   ([arg1 arg2] (fn [p] (debug-print "raw-every" arg1 arg2) (Every. p arg1 arg2)))
   ([arg1 arg2 arg3] (fn [p]
-    (debug-print "raw-every" arg1 arg2 arg3)
-    (Every. p arg1 arg2 arg3))))
+                      (debug-print "raw-every" arg1 arg2 arg3)
+                      (Every. p arg1 arg2 arg3))))
 
 (defn aggregate [& args]
-  (fn [#^Pipe previous]
+  (fn [^Pipe previous]
     (debug-print "aggregate" args)
-    (let [[#^Fields in-fields func-fields specs #^Fields out-fields stateful] (parse-args args Fields/ALL)]
+    (let [[^Fields in-fields func-fields specs ^Fields out-fields stateful] (parse-args args Fields/ALL)]
       (Every. previous in-fields
-        (ClojureAggregator. func-fields specs stateful) out-fields))))
+              (ClojureAggregator. func-fields specs stateful) out-fields))))
 
 (defn buffer [& args]
-  (fn [#^Pipe previous]
+  (fn [^Pipe previous]
     (debug-print "buffer" args)
-    (let [[#^Fields in-fields func-fields specs #^Fields out-fields stateful] (parse-args args Fields/ALL)]
+    (let [[^Fields in-fields func-fields specs ^Fields out-fields stateful] (parse-args args Fields/ALL)]
       (Every. previous in-fields
-        (ClojureBuffer. func-fields specs stateful) out-fields))))
+              (ClojureBuffer. func-fields specs stateful) out-fields))))
 
 (defn bufferiter [& args]
-  (fn [#^Pipe previous]
+  (fn [^Pipe previous]
     (debug-print "bufferiter" args)
-    (let [[#^Fields in-fields func-fields specs #^Fields out-fields stateful] (parse-args args Fields/ALL)]
+    (let [[^Fields in-fields func-fields specs ^Fields out-fields stateful] (parse-args args Fields/ALL)]
       (Every. previous in-fields
-        (ClojureBufferIter. func-fields specs stateful) out-fields))))
+              (ClojureBufferIter. func-fields specs stateful) out-fields))))
 
 (defn multibuffer [& args]
   (fn [pipes fields-sum]
     (debug-print "multibuffer" args)
     (let [[group-fields func-fields specs _ stateful] (parse-args args Fields/ALL)]
       (MultiGroupBy.
-        pipes
-        group-fields
-        fields-sum
-        (ClojureMultibuffer. func-fields specs stateful)
-        ))))
+       pipes
+       group-fields
+       fields-sum
+       (ClojureMultibuffer. func-fields specs stateful)))))
 
 ;; we shouldn't need a seq for fields (b/c we know how many pipes we have)
 (defn co-group
@@ -286,14 +286,6 @@
   (MixedJoin. (boolean-array bool-seq)))
 
 (defn outer-joiner [] (OuterJoin.))
-
-(defn meta-conj
-  "Returns the supplied symbol with the supplied `attr` map conj-ed
-  onto the symbol's current metadata."
-  [sym attr]
-  (with-meta sym (if (meta sym)
-                   (conj (meta sym) attr)
-                   attr)))
 
 (defn- update-arglists
   "Scans the forms of a def* operation and adds an appropriate
@@ -393,27 +385,27 @@
 
 (defmacro assembly
   ([args return]
-    `(assembly ~args [] ~return))
+     `(assembly ~args [] ~return))
   ([args bindings return]
-    (let [pipify (fn [forms] (if (or (not (sequential? forms))
+     (let [pipify (fn [forms] (if (or (not (sequential? forms))
                                      (vector? forms))
-                              forms
-                              (cons 'cascalog.workflow/assemble forms)))
-          return (pipify return)
-          bindings (vec (clojure.core/map #(%1 %2) (cycle [clojure.core/identity pipify]) bindings))]
-      `(fn ~args
+                               forms
+                               (cons 'cascalog.workflow/assemble forms)))
+           return (pipify return)
+           bindings (vec (clojure.core/map #(%1 %2) (cycle [clojure.core/identity pipify]) bindings))]
+       `(fn ~args
           (let ~bindings
             ~return)))))
 
 (defmacro defassembly
   ([name args return]
-    `(defassembly ~name ~args [] ~return))
+     `(defassembly ~name ~args [] ~return))
   ([name args bindings return]
-    `(def ~name (cascalog.workflow/assembly ~args ~bindings ~return))))
+     `(def ~name (cascalog.workflow/assembly ~args ~bindings ~return))))
 
 (defn join-assembly [fields-seq declared-fields joiner]
   (assembly [& pipes-seq]
-    (pipes-seq (co-group fields-seq declared-fields joiner))))
+            (pipes-seq (co-group fields-seq declared-fields joiner))))
 
 (defn inner-join [fields-seq declared-fields]
   (join-assembly fields-seq declared-fields (InnerJoin.)))
@@ -439,12 +431,12 @@
               (into-array Pipe tail-pipes))))
 
 (defn text-line
- ([]
-  (TextLine.))
- ([field-names]
-  (TextLine. (fields field-names) (fields field-names)))
- ([source-fields sink-fields]
-  (TextLine. (fields source-fields) (fields sink-fields))))
+  ([]
+     (TextLine.))
+  ([field-names]
+     (TextLine. (fields field-names) (fields field-names)))
+  ([source-fields sink-fields]
+     (TextLine. (fields source-fields) (fields sink-fields))))
 
 (defn sequence-file [field-names]
   (SequenceFile. (fields field-names)))
@@ -466,10 +458,10 @@
 (defn- sink-mode [kwd]
   {:pre [(or (nil? kwd) (valid-sinkmode? kwd))]}
   (case kwd
-        :keep SinkMode/KEEP
-        :append SinkMode/APPEND
-        :replace SinkMode/REPLACE
-        SinkMode/KEEP))
+    :keep SinkMode/KEEP
+    :append SinkMode/APPEND
+    :replace SinkMode/REPLACE
+    SinkMode/KEEP))
 
 (defn set-sinkparts!
   "If `sinkparts` is truthy, returns the supplied cascading scheme
@@ -508,11 +500,16 @@ identity.  identity."
                    sink-template
                    (fields templatefields))))
 
-(defn write-dot [#^Flow flow #^String path]
+(defn write-dot [^Flow flow ^String path]
   (.writeDOT flow path))
 
-(defn exec [#^Flow flow]
+(defn exec [^Flow flow]
   (.complete flow))
+
+(defn fill-tap! [^Tap tap xs] 
+  (with-open [^TupleEntryCollector collector (.openForWrite tap (JobConf.))]
+    (doseq [item xs]
+      (.add collector (Util/coerceToTuple item)))))
 
 (defn memory-source-tap
   ([tuples] (memory-source-tap Fields/ALL tuples))
