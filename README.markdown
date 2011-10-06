@@ -17,6 +17,8 @@ The best way to get started with Cascalog is experiment with the toy datasets th
 5. lein deps && lein compile && lein repl
 6. Work through the examples in the [introductory](http://nathanmarz.com/blog/introducing-cascalog-a-clojure-based-query-language-for-hado.html) [tutorials](http://nathanmarz.com/blog/new-cascalog-features-outer-joins-combiners-sorting-and-more.html)
 
+(Note that Cascalog is compatible with Clojure 1.2.0, 1.2.1 and 1.3.0.)
+
 # Documentation and Issue Tracker
 
 Documentation and issue tracker can be found on the [Cascalog wiki](https://www.assembla.com/wiki/show/d9Z8_q-Omr35zteJe5cbLr)
