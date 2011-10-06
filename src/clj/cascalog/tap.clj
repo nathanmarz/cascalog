@@ -1,6 +1,7 @@
 (ns cascalog.tap
   (:require [cascalog.workflow :as w])
-  (:import [cascading.tuple Fields]))
+  (:import [cascading.tuple Fields])
+  (:use [cascalog util]))
 
 ;; source can be a cascalog-tap, subquery, or cascading tap sink can
 ;; be a cascading tap, a sink function, or a cascalog-tap
@@ -31,7 +32,7 @@
                parent)]
     (mk-cascalog-tap source sink)))
 
-(defn hfs-tap
+(defnk hfs-tap
   "Returns a Cascading Hfs tap with support for the supplied scheme,
   opened up on the supplied path or file object. Supported keyword
   options are:
@@ -48,15 +49,13 @@
 
   `:templatefields` - When pattern is supplied via :sink-template, this option allows a
   subset of output fields to be used in the naming scheme."
-  [scheme path-or-file & {:keys [sinkmode sinkparts sink-template
-                                 source-pattern templatefields]
-                          :or {templatefields Fields/ALL}}]
+  [scheme path-or-file :sinkmode nil :sinkparts nil :sink-template nil :source-pattern nil :templatefields Fields/ALL]
   (-> scheme
       (w/set-sinkparts! sinkparts)
       (patternize :hfs path-or-file sinkmode
                   sink-template source-pattern templatefields)))
 
-(defn lfs-tap
+(defnk lfs-tap
   "Returns a Cascading Lfs tap with support for the supplied scheme,
   opened up on the supplied path or file object. Supported keyword
   options are:
@@ -74,10 +73,8 @@
   `:templatefields` - When pattern is supplied via :sink-template, this option allows a
   subset of output fields to be used in the naming scheme."
   
-  [scheme path-or-file & {:keys [sinkmode sinkparts sink-template
-                                 source-pattern templatefields]
-                          :or {templatefields Fields/ALL}}]
-  (-> scheme
+  [scheme path-or-file :sinkmode nil :sinkparts nil :sink-template nil :source-pattern nil :templatefields Fields/ALL]
+    (-> scheme
       (w/set-sinkparts! sinkparts)
       (patternize :lfs path-or-file sinkmode
                   sink-template source-pattern templatefields)))
