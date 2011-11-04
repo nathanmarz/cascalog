@@ -83,38 +83,34 @@
    (and (sequential? obj) (every? string? obj))))
 
 (defn parse-args
-  "
-  arr => func-spec in-fields? :fn> func-fields :> out-fields
+  "arr => func-spec in-fields? :fn> func-fields :> out-fields
   
-  returns [in-fields func-fields spec out-fields]
-  "
+  returns [in-fields func-fields spec out-fields]"
   ([arr] (parse-args arr Fields/RESULTS))
-  ([arr defaultout]
-     (let
-         [func-args           (clojure.core/first arr)
-          varargs             (rest arr)
-          spec                (fn-spec func-args)
-          func-var            (if (var? func-args) func-args (clojure.core/first func-args))
-          first-elem (clojure.core/first varargs)
-          [in-fields keyargs] (if (or (nil? first-elem)
-                                      (keyword? first-elem))
-                                [Fields/ALL (apply hash-map varargs)]
-                                [(fields (clojure.core/first varargs))
-                                 (apply hash-map (rest varargs))])
-          stateful            (get (meta func-var) :stateful false)
-          options             (merge {:fn> (:fields (meta func-var)) :> defaultout} keyargs)
-          result              [in-fields (fields (:fn> options)) spec (fields (:> options)) stateful]]
-       result)))
+  ([[func-args & varargs] defaultout]
+     (let [spec      (fn-spec func-args)
+           func-var  (if (var? func-args)
+                       func-args
+                       (clojure.core/first func-args))
+           first-elem (clojure.core/first varargs)
+           [in-fields keyargs] (if (or (nil? first-elem)
+                                       (keyword? first-elem))
+                                 [Fields/ALL (apply hash-map varargs)]
+                                 [(fields (clojure.core/first varargs))
+                                  (apply hash-map (rest varargs))])
+           stateful (get (meta func-var) :stateful false)
+           options  (merge {:fn> (:fields (meta func-var)) :> defaultout} keyargs)]
+       [in-fields (fields (:fn> options)) spec (fields (:> options)) stateful])))
 
 (defn pipe
   "Returns a Pipe of the given name, or if one is not supplied with a
    unique random name."
-  ([]
-     (pipe (uuid)))
+  ([] (pipe (uuid)))
   ([^String name]
      (Pipe. name)))
 
-(defn pipe-rename [^String name]
+(defn pipe-rename
+  [^String name]
   (fn [p]
     (debug-print "pipe-rename" name)
     (Pipe. name p)))

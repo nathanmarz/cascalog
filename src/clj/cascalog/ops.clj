@@ -128,10 +128,10 @@
     (fill-tap! tap l-seq)
     (name-vars tap (v/gen-non-nullable-vars n-fields))))
 
-(defn first-n
+(defnk first-n
   "Returns a subquery getting the first n elements from sq it
   finds. Can pass in sorting arguments."
-  [gen n & {:keys [reverse sort] :or {reverse false}}]
+  [gen n :sort nil :reverse false]
   (let [num-fields (num-out-fields gen)
         in-vars  (v/gen-nullable-vars num-fields)
         out-vars (v/gen-nullable-vars num-fields)
