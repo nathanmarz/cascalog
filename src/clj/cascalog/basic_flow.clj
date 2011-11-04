@@ -1,37 +1,40 @@
 (ns cascalog.basic-flow
   (:use [cascalog graph util])
-  (:import [java.util.concurrent Semaphore])
-  (:import [org.apache.log4j Logger]))
+  (:import [java.util.concurrent Semaphore]
+           [org.apache.log4j Logger]))
 
 (defstruct basic-flow ::graph)
 (defstruct basic-component ::id ::fn)
 ;; status can be :unstarted, :running, :successful, :failed
 (defstruct component-state :status :thread :exception)
 
-
-(defn mk-basic-flow [] (struct basic-flow (mk-graph)))
+(defn mk-basic-flow []
+  (struct basic-flow (mk-graph)))
 
 (defn add-component!
   "Add a function to the flow with dependent components. Returns the new component."
   ([bflow func] (add-component! bflow func []))
   ([bflow func deps]
      (let [node (create-node (::graph bflow) (struct basic-component (uuid) func))]
-       (doseq [d deps] (create-edge d node))
-       node )))
+       (doseq [d deps]
+         (create-edge d node))
+       node)))
 
 (defn- mk-runner-fn [log sem state component]
-  (fn [] (try
-          ((::fn component))
-          (swap! state assoc :status :successful)
-          (catch Throwable t
-            (.error log "Component failed" t)
-            (swap! state merge {:status :failed :exception t}))
-          (finally (.release sem)))))
+  (fn []
+    (try ((::fn component))
+         (swap! state assoc :status :successful)
+         (catch Throwable t
+           (.error log "Component failed" t)
+           (swap! state merge {:status :failed :exception t}))
+         (finally (.release sem)))))
 
 (defn- init-node-states [log bflow sem]
   (let [update-fn (fn [m node]
-                    (let [state (atom (struct component-state :unstarted nil nil))
-                          thread (Thread. (mk-runner-fn log sem state (get-value node)))]
+                    (let [state (atom (struct component-state
+                                              :unstarted nil nil))
+                          thread (Thread. (mk-runner-fn log sem state
+                                                        (get-value node)))]
                       (swap! state assoc :thread thread)
                       (assoc m node state)))]
     (reduce update-fn {} (.vertexSet (::graph bflow)))))

@@ -4,5 +4,3 @@
 
 (defn debug-print [& args]
   (when *DEBUG* (apply println args)))
-
-
