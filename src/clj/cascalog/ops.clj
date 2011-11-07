@@ -73,7 +73,8 @@
 (defmapop [re-parse [pattern]] [str]
   (re-seq pattern str))
 
-(defparallelagg count :init-var #'one
+(defparallelagg count
+  :init-var #'one
   :combine-var #'+)
 
 (def sum (each sum-parallel))
