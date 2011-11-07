@@ -392,14 +392,14 @@
   [options op opvar hof-args orig-infields outvars]
   (let [outvars                  (replace-ignored-vars outvars)
         [infields infield-subs]  (variable-substitution orig-infields)
-        [infields dupvars
-         duplicate-assem]        (fix-duplicate-infields infields)
-        predicate                (build-predicate-specific op opvar hof-args infields outvars options)
-        new-outvars              (concat outvars (keys infield-subs) dupvars)
-        in-insertion-assembly          (when-not (empty? infields)
-                                         (w/compose-straight-assemblies
-                                          (mk-insertion-assembly infield-subs)
-                                          duplicate-assem))
+        [infields dupvars duplicate-assem] (fix-duplicate-infields infields)
+        predicate             (build-predicate-specific op opvar hof-args
+                                                        infields outvars options)
+        new-outvars           (concat outvars (keys infield-subs) dupvars)
+        in-insertion-assembly (when-not (empty? infields)
+                                (w/compose-straight-assemblies
+                                 (mk-insertion-assembly infield-subs)
+                                 duplicate-assem))
         null-check-out                 (mk-null-check outvars)]
     (enhance-predicate predicate
                        (filter cascalog-var? orig-infields)

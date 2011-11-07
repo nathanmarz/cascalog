@@ -30,13 +30,30 @@
   (let [src [[1] [2]]]
     (test?<- [[5] [6]] [?y] (src ?x) (ident-stateful [1] ?x :> ?y))
     (doseq [func [ident ident-doc ident-meta ident-both]]
-      (test?<- [[1] [2]] [?y] (src ?x) (func ?x :> ?y))
-      )))
+      (test?<- [[1] [2]] [?y] (src ?x) (func ?x :> ?y)))))
 
 (deftest get-metadata-test
   (is (= "yes!" (:great-meta (meta ident-stateful))))
   (is (= "yes!" (:great-meta (meta #'ident-stateful))))
   (is (= "Identity operation." (:doc (meta ident-doc))))
   (is (= "Identity operation." (:doc (meta #'ident-doc))))
-  (is (= nil (:doc (meta #'ident-meta))))
-  )
+  (is (= nil (:doc (meta #'ident-meta)))))
+
+(defn five->two [a b c d e]
+  [(+ a b c) (+ d e)])
+
+(defn four->one [a b c d]
+  (+ a b c d))
+
+(defparallelagg multi-combine
+  :init-var #'five->two
+  :combine-var #'four->one)
+
+(deftest multiple-aggregator-args-test
+  (let [src [[1 2 3 4 5] [5 6 7 8 9]]]
+    "init-var takes n args, outputs x. combine-var takes 2*x args,
+     outputs x."
+    (test?<- [[50]]
+             [?sum]
+             (src ?a ?b ?c ?d ?e)
+             (multi-combine ?a ?b ?c ?d ?e :> ?sum))))

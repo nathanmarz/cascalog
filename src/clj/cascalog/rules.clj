@@ -256,8 +256,8 @@
   (when (and (empty? aggs) (:sort options))
     (throw-illegal "Cannot specify a sort when there are no aggregators"))
   (if (and (not (:distinct options)) (empty? aggs))
-    prev-tail
-    (let [aggs              (if-not (empty? aggs) aggs [p/distinct-aggregator])
+    prev-tail  
+    (let [aggs (if-not (empty? aggs) aggs [p/distinct-aggregator])      
           [grouping-fields inserter] (normalize-grouping grouping-fields)
           [prep-aggs postgroup-aggs] (build-agg-assemblies grouping-fields aggs)
           assem        (apply w/compose-straight-assemblies
@@ -271,9 +271,11 @@
           all-agg-infields  (agg-infields (:sort options) aggs)
           prev-node    (:node prev-tail)
           node         (create-node (get-graph prev-node)
-                                    (p/predicate group assem all-agg-infields total-fields))]
+                                    (p/predicate group assem
+                                                 all-agg-infields total-fields))]
       (create-edge prev-node node)
-      (struct tailstruct (:ground? prev-tail) (:operations prev-tail) (:drift-map prev-tail) total-fields node))))
+      (struct tailstruct (:ground? prev-tail) (:operations prev-tail)
+              (:drift-map prev-tail) total-fields node))))
 
 (defn projection-fields [needed-vars allfields]
   (let [needed-set (set needed-vars)
@@ -387,7 +389,8 @@
 (defn build-generator [forceproject needed-vars node]
   (let [pred           (get-value node)
         my-needed      (vec (set (concat (:infields pred) needed-vars)))
-        prev-gens      (doall (map (partial build-generator false my-needed) (get-inbound-nodes node)))
+        prev-gens      (doall (map (partial build-generator false my-needed)
+                                   (get-inbound-nodes node)))
         newgen         (node->generator pred prev-gens)
         project-fields (projection-fields needed-vars (:outfields newgen)) ]
     (debug-print "build gen:" my-needed project-fields pred)
