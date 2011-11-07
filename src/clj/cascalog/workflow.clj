@@ -239,14 +239,16 @@
 (defn aggregate [& args]
   (fn [^Pipe previous]
     (debug-print "aggregate" args)
-    (let [[^Fields in-fields func-fields specs ^Fields out-fields stateful] (parse-args args Fields/ALL)]
+    (let [[^Fields in-fields func-fields specs ^Fields out-fields stateful]
+          (parse-args args Fields/ALL)]
       (Every. previous in-fields
               (ClojureAggregator. func-fields specs stateful) out-fields))))
 
 (defn buffer [& args]
   (fn [^Pipe previous]
     (debug-print "buffer" args)
-    (let [[^Fields in-fields func-fields specs ^Fields out-fields stateful] (parse-args args Fields/ALL)]
+    (let [[^Fields in-fields func-fields specs ^Fields out-fields stateful]
+          (parse-args args Fields/ALL)]
       (Every. previous in-fields
               (ClojureBuffer. func-fields specs stateful) out-fields))))
 
