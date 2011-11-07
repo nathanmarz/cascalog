@@ -14,7 +14,7 @@
 ;;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (ns cascalog.ops
-  (:refer-clojure :exclude [count min max comp juxt])
+  (:refer-clojure :exclude [count min max comp juxt partial])
   (:use [cascalog ops-impl api util]
         [cascalog.workflow :only (fill-tap!)]
         [cascalog.io :only (with-fs-tmp)])
@@ -57,16 +57,20 @@
 
 (defn each [op]
   (predmacro [invars outvars]
-             {:pre [(or (= 0 (clojure.core/count outvars))
-                        (= (clojure.core/count invars) (clojure.core/count outvars)))]}
+             {:pre [(or (zero? (clojure.core/count outvars))
+                        (= (clojure.core/count invars)
+                           (clojure.core/count outvars)))]}
              (if (empty? outvars)
                (for [i invars]
                  [op i])
-               (map (fn [i v]
-                      [op i :> v] )
+               (map (fn [i v] [op i :> v])
                     invars
-                    outvars ))))
+                    outvars))))
 
+(defn partial [op & args]
+  (predmacro
+   [invars outvars]
+   [[op :<< (concat args invars) :>> outvars]]))
 
 ;; Operations to use within queries
 
