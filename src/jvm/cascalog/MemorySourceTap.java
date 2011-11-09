@@ -17,6 +17,7 @@
 
 package cascalog;
 
+import cascalog.RecordReaderIterator;
 import cascading.flow.hadoop.HadoopFlowProcess;
 import cascading.flow.hadoop.HadoopUtil;
 import cascading.scheme.Scheme;
@@ -24,6 +25,7 @@ import cascading.scheme.SinkCall;
 import cascading.scheme.SourceCall;
 import cascading.tap.SourceTap;
 import cascading.tap.Tap;
+import cascading.tap.hadoop.MultiRecordReaderIterator;
 import cascading.tuple.Fields;
 import cascading.tuple.Tuple;
 import cascading.tuple.TupleEntry;
@@ -71,18 +73,18 @@ public class MemorySourceTap extends SourceTap<HadoopFlowProcess, JobConf, Recor
         
         @Override
             public boolean source(HadoopFlowProcess flowProcess, SourceCall<Object[], RecordReader> sourceCall) throws IOException {
+            
             Tuple key = (Tuple) sourceCall.getContext()[ 0 ];
             Tuple value = (Tuple) sourceCall.getContext()[ 1 ];
+            
             boolean result = sourceCall.getInput().next( key, value );
 
             if( !result )
                 return false;
-
+            
             Tuple tuple = sourceCall.getIncomingEntry().getTuple();
-            tuple.clear();
-
             tuple.addAll( key );
-            return true;
+            return true;            
         }
 
         @Override
@@ -123,29 +125,22 @@ public class MemorySourceTap extends SourceTap<HadoopFlowProcess, JobConf, Recor
         MemorySourceTap other = (MemorySourceTap) object;
         return id.equals(other.id);
     }
-
     
     @Override
-        // Gotta get this shit working, then we're good
         public TupleEntryIterator openForRead( HadoopFlowProcess flowProcess, RecordReader input ) throws IOException
         {
-            MemorySourceScheme scheme = (MemorySourceScheme) getScheme();
-            TupleEntryIterator iter =  scheme.getTuples().iterator();
-            return iter;
+            if( input != null )
+                return new TupleEntrySchemeIterator( flowProcess, getScheme(), new RecordReaderIterator( input ) );
             
-            // if( input != null )
-            //     return new TupleEntrySchemeIterator( flowProcess, getScheme(), new RecordReaderIterator( input ) );
+            Map<Object, Object> properties = HadoopUtil.createProperties( flowProcess.getJobConf() );
 
-            // Map<Object, Object> properties = HadoopUtil.createProperties( flowProcess.getJobConf() );
-            
-            // properties.remove( "mapred.input.dir" );
+            properties.remove( "mapred.input.dir" );
 
-            // JobConf conf = HadoopUtil.createJobConf( properties, null );
+            JobConf conf = HadoopUtil.createJobConf( properties, null );
 
-            // return new TupleEntrySchemeIterator( flowProcess, getScheme(), new MultiRecordReaderIterator( this, conf ) );
-            // throw new UnsupportedOperationException( "SourceTap instance doesn't support this!" );
+            return new TupleEntrySchemeIterator( flowProcess, getScheme(), new MultiRecordReaderIterator( this, conf ) );
         }
-
+ 
     @Override
         public long getModifiedTime( JobConf conf ) throws IOException
         {
