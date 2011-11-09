@@ -24,6 +24,7 @@
            [cascading.tuple Fields Tuple TupleEntry]
            [cascading.flow Flow FlowConnector]
            [cascading.pipe Pipe]
+           [cascading.flow.hadoop HadoopFlowProcess]
            [cascading.pipe.cogroup CascalogJoiner CascalogJoiner$JoinType]
            [cascalog CombinerSpec ClojureCombiner ClojureCombinedAggregator Util]
            [org.apache.hadoop.mapred JobConf]
@@ -635,7 +636,8 @@
 (def ^:dynamic *JOB-CONF* {})
 
 (defn- pluck-tuple [tap]
-  (with-open [it (.openForRead tap (hadoop/job-conf *JOB-CONF*))]
+  (with-open [it (-> (HadoopFlowProcess. (hadoop/job-conf *JOB-CONF*))
+                     (.openTapForRead tap))]
     (if-let [iter (iterator-seq it)]
       (-> iter first .getTuple Tuple. Util/coerceFromTuple vec)
       (throw-illegal "Cascading tap is empty -- tap must contain tuples."))))
@@ -704,7 +706,8 @@ cascading tap, returns a new generator with field-names."
 (defn get-sink-tuples [^Tap sink]
   (if (map? sink)
     (get-sink-tuples (:sink sink))
-    (with-open [it (.openForRead sink (hadoop/job-conf *JOB-CONF*))]
+    (with-open [it (-> (HadoopFlowProcess. (hadoop/job-conf *JOB-CONF*))
+                       (.openTapForRead sink))]
       (doall
        (for [^TupleEntry t (iterator-seq it)]
          (vec (Util/coerceFromTuple (Tuple. (.getTuple t)))))))))

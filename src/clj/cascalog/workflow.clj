@@ -20,10 +20,13 @@
            [org.apache.hadoop.mapred JobConf]
            [java.io File]
            [cascading.tuple Tuple TupleEntry Fields]
-           [cascading.scheme Scheme TextLine SequenceFile]
-           [cascading.tap Hfs Lfs GlobHfs Tap TemplateTap SinkMode]
+           [cascading.scheme.hadoop TextLine SequenceFile]
+           [cascading.scheme Scheme]
+           [cascading.tap Tap SinkMode]
+           [cascading.tap.hadoop Hfs Lfs GlobHfs TemplateTap]
            [cascading.tuple TupleEntryCollector]
-           [cascading.flow Flow FlowConnector]
+           [cascading.flow Flow]
+           [cascading.flow.hadoop HadoopFlowProcess HadoopFlowConnector]
            [cascading.cascade Cascades]
            [cascading.operation Identity Insert Debug]
            [cascading.operation.aggregator First Count Sum Min Max]
@@ -429,7 +432,7 @@
         tail-pipes (clojure.core/map #(Pipe. (str "tpipe" %2) %1)
                                      (collectify (apply assembly source-pipes))
                                      (iterate inc 0))]
-    (.connect (FlowConnector.)
+    (.connect (HadoopFlowConnector.)
               (taps-map source-pipes sources)
               (taps-map tail-pipes sinks)
               (into-array Pipe tail-pipes))))
@@ -457,13 +460,13 @@
   [x]
   (if (string? x) x (.getAbsolutePath ^File x)))
 
-(def valid-sinkmode? #{:keep :append :replace})
+(def valid-sinkmode? #{:keep :update :replace})
 
 (defn- sink-mode [kwd]
   {:pre [(or (nil? kwd) (valid-sinkmode? kwd))]}
   (case kwd
     :keep SinkMode/KEEP
-    :append SinkMode/APPEND
+    :update SinkMode/UPDATE
     :replace SinkMode/REPLACE
     SinkMode/KEEP))
 
@@ -510,8 +513,9 @@ identity.  identity."
 (defn exec [^Flow flow]
   (.complete flow))
 
-(defn fill-tap! [^Tap tap xs] 
-  (with-open [^TupleEntryCollector collector (.openForWrite tap (JobConf.))]
+(defn fill-tap! [^Tap tap xs]
+  (with-open [^TupleEntryCollector collector (-> (HadoopFlowProcess. (JobConf.))
+                                                 (.openTapForWrite tap))]
     (doseq [item xs]
       (.add collector (Util/coerceToTuple item)))))
 

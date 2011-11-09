@@ -22,7 +22,8 @@
             [cascalog.predicate :as p]
             [cascalog.io :as io]
             [hadoop-util.core :as hadoop])  
-  (:import [cascading.flow Flow FlowConnector]
+  (:import [cascading.flow Flow]
+           [cascading.flow.hadoop HadoopFlowConnector]
            [cascading.tuple Fields]
            [cascalog StdoutTap Util MemorySourceTap]
            [cascading.pipe Pipe]
@@ -182,7 +183,7 @@
         sinkmap   (w/taps-map tails sinks)]
     (.connect (->> cascalog.rules/*JOB-CONF*
                    (conf-merge {"cascading.flow.job.pollinginterval" 100})
-                   (FlowConnector.))
+                   (HadoopFlowConnector.))
               flow-name
               sourcemap
               sinkmap

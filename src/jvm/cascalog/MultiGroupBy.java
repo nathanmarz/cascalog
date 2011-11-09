@@ -29,7 +29,7 @@ import cascading.pipe.SubAssembly;
 import cascading.pipe.cogroup.GroupClosure;
 import cascading.pipe.cogroup.Joiner;
 import cascading.tuple.Fields;
-import cascading.tuple.SpillableTupleList;
+import cascading.flow.hadoop.HadoopSpillableTupleList;
 import cascading.tuple.Tuple;
 import java.util.UUID;
 
@@ -40,7 +40,7 @@ public class MultiGroupBy extends SubAssembly {
 
   public static class MultiBufferContext {
       GroupClosure _closure;
-      SpillableTupleList _results = new SpillableTupleList();
+      HadoopSpillableTupleList _results = new HadoopSpillableTupleList((long) 10000, null, null);
       int _pipeFieldsSum;
 
       public MultiBufferContext(GroupClosure closure, int pipeFieldsSum) {
@@ -65,7 +65,7 @@ public class MultiGroupBy extends SubAssembly {
           return _closure.getIterator(pos);
       }
 
-      public SpillableTupleList getResults() {
+      public HadoopSpillableTupleList getResults() {
           return _results;
       }
   }
@@ -86,7 +86,7 @@ public class MultiGroupBy extends SubAssembly {
        _context = new MultiBufferContext(closure, _pipeFieldsSum);
     }
     
-    public SpillableTupleList getResults() {
+    public HadoopSpillableTupleList getResults() {
       return _context.getResults();
     }
 

@@ -19,8 +19,8 @@ package cascalog;
 
 import cascading.flow.Flow;
 import cascading.flow.FlowListener;
-import cascading.scheme.SequenceFile;
-import cascading.tap.Lfs;
+import cascading.scheme.hadoop.SequenceFile;
+import cascading.tap.hadoop.Lfs;
 import cascading.tuple.Fields;
 import cascading.tuple.TupleEntryIterator;
 import java.io.File;
@@ -56,7 +56,7 @@ public class StdoutTap extends Lfs implements FlowListener {
 
     public void onCompleted(Flow flow) {
         try {
-            TupleEntryIterator it = this.openForRead(flow.getJobConf());
+            TupleEntryIterator it = flow.openTapForRead(this);
             System.out.println("");
             System.out.println("");
             System.out.println("RESULTS");
