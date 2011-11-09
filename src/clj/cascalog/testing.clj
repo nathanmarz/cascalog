@@ -23,16 +23,18 @@
            [cascading.pipe Pipe]
            [cascading.operation ConcreteCall]
            [cascading.flow FlowProcess]
+           [cascading.flow.hadoop HadoopFlowProcess]
            [cascalog Util ClojureMap MemorySourceTap]
            [java.lang Comparable]
            [java.util ArrayList]
            [clojure.lang IPersistentCollection]
            [org.apache.hadoop.mapred JobConf]
+           [cascading.flow.hadoop HadoopUtil]
            [java.io File]))
 
 (defn roundtrip [obj]
-  (cascading.util.Util/deserializeBase64
-   (cascading.util.Util/serializeBase64 obj)))
+  (HadoopUtil/deserializeBase64
+   (HadoopUtil/serializeBase64 obj)))
 
 (defn invoke-filter [fil coll]
   (let [fil     (roundtrip fil)

@@ -384,4 +384,5 @@ as well."
     `(do (gen-class :name ~classname
                     :main true
                     :prefix ~(str name "-"))
+
          (defn ~sym ~@forms))))

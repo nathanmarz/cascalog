@@ -28,9 +28,7 @@ import cascading.tap.Tap;
 import cascading.tap.hadoop.MultiRecordReaderIterator;
 import cascading.tuple.Fields;
 import cascading.tuple.Tuple;
-import cascading.tuple.TupleEntry;
 import cascading.tuple.TupleEntryIterator;
-import cascading.tuple.TupleIterator;
 import cascading.tuple.TupleEntrySchemeIterator;
 import java.io.IOException;
 import java.util.List;
@@ -42,6 +40,7 @@ import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.OutputCollector;
 import org.apache.hadoop.mapred.RecordReader;
 import org.apache.hadoop.mapred.FileInputFormat;
+import org.apache.hadoop.io.NullWritable;
 
 public class MemorySourceTap extends SourceTap<HadoopFlowProcess, JobConf, RecordReader, OutputCollector> {
     public static class MemorySourceScheme extends Scheme<HadoopFlowProcess, JobConf, RecordReader, OutputCollector, Object[], Void> {
@@ -58,37 +57,48 @@ public class MemorySourceTap extends SourceTap<HadoopFlowProcess, JobConf, Recor
         {
             return this.tuples;
         }
-
+        
         @Override
-            public void sourceConfInit(HadoopFlowProcess flowProcess, Tap tap, JobConf jc) {
-            FileInputFormat.setInputPaths( jc, "/" + UUID.randomUUID().toString());
-            jc.setInputFormat(TupleMemoryInputFormat.class);
-            TupleMemoryInputFormat.setObject(jc, TupleMemoryInputFormat.TUPLES_PROPERTY, this.tuples);
+        public void sourceConfInit(HadoopFlowProcess flowProcess, Tap tap, JobConf conf) {
+            FileInputFormat.setInputPaths( conf, "/" + UUID.randomUUID().toString());
+            conf.setInputFormat(TupleMemoryInputFormat.class);
+            TupleMemoryInputFormat.setObject(conf, TupleMemoryInputFormat.TUPLES_PROPERTY, this.tuples);
         }
 
         @Override
-            public void sinkConfInit(HadoopFlowProcess flowProcess, Tap tap, JobConf jc) {
+        public void sinkConfInit(HadoopFlowProcess flowProcess, Tap tap, JobConf jc) {
             throw new UnsupportedOperationException("Not supported yet.");
+        }
+
+        @Override
+        public void sourcePrepare( HadoopFlowProcess flowProcess, SourceCall<Object[], RecordReader> sourceCall ) {            
+            sourceCall.setContext( new Object[ 2 ] );
+            
+            sourceCall.getContext()[ 0 ] = sourceCall.getInput().createKey();
+            sourceCall.getContext()[ 1 ] = sourceCall.getInput().createValue();
         }
         
         @Override
             public boolean source(HadoopFlowProcess flowProcess, SourceCall<Object[], RecordReader> sourceCall) throws IOException {
-            
-            Tuple key = (Tuple) sourceCall.getContext()[ 0 ];
-            Tuple value = (Tuple) sourceCall.getContext()[ 1 ];
+            TupleWrapper key = (TupleWrapper) sourceCall.getContext()[ 0 ];
+            NullWritable value = (NullWritable) sourceCall.getContext()[ 1 ];
             
             boolean result = sourceCall.getInput().next( key, value );
 
             if( !result )
                 return false;
-            
-            Tuple tuple = sourceCall.getIncomingEntry().getTuple();
-            tuple.addAll( key );
+           
+            sourceCall.getIncomingEntry().setTuple(key.tuple);
             return true;            
         }
 
         @Override
-            public void sink(HadoopFlowProcess flowProcess, SinkCall<Void, OutputCollector> sinkCall ) throws IOException {
+            public void sourceCleanup( HadoopFlowProcess flowProcess, SourceCall<Object[], RecordReader> sourceCall ) {
+            sourceCall.setContext( null );
+        }
+
+        @Override
+        public void sink(HadoopFlowProcess flowProcess, SinkCall<Void, OutputCollector> sinkCall ) throws IOException {
             throw new UnsupportedOperationException("Not supported.");
         }
         
@@ -112,13 +122,12 @@ public class MemorySourceTap extends SourceTap<HadoopFlowProcess, JobConf, Recor
     }
 
     @Override
-        public boolean resourceExists( JobConf conf ) throws IOException
-        {
-            return true;
-        }
+    public boolean resourceExists( JobConf conf ) throws IOException {
+        return true;
+    }
 
     @Override
-        public boolean equals(Object object) {
+    public boolean equals(Object object) {
         if(!getClass().equals(object.getClass())) {
             return false;
         }
@@ -127,23 +136,12 @@ public class MemorySourceTap extends SourceTap<HadoopFlowProcess, JobConf, Recor
     }
     
     @Override
-        public TupleEntryIterator openForRead( HadoopFlowProcess flowProcess, RecordReader input ) throws IOException
-        {
-            if( input != null )
-                return new TupleEntrySchemeIterator( flowProcess, getScheme(), new RecordReaderIterator( input ) );
-            
-            Map<Object, Object> properties = HadoopUtil.createProperties( flowProcess.getJobConf() );
-
-            properties.remove( "mapred.input.dir" );
-
-            JobConf conf = HadoopUtil.createJobConf( properties, null );
-
-            return new TupleEntrySchemeIterator( flowProcess, getScheme(), new MultiRecordReaderIterator( this, conf ) );
-        }
+    public TupleEntryIterator openForRead( HadoopFlowProcess flowProcess, RecordReader input ) throws IOException {
+        return new TupleEntrySchemeIterator( flowProcess, getScheme(), new RecordReaderIterator( input ) );
+    }
  
     @Override
-        public long getModifiedTime( JobConf conf ) throws IOException
-        {
-            return System.currentTimeMillis();
-        }
+    public long getModifiedTime( JobConf conf ) throws IOException {
+        return System.currentTimeMillis();
+    }
 }

@@ -67,6 +67,5 @@
           temp-tap (api/hfs-seqfile (str tmp "/")
                                     :sink-template "%s/"
                                     :source-pattern "{1,2}/*")]
-      temp-tap
       (api/?<- temp-tap [?a ?b] (tuples ?a ?b))
       (test?- [[1 2] [2 3]] temp-tap))))
