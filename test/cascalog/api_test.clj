@@ -326,6 +326,7 @@
     (is (thrown? Exception
                  (test?<- [[2]] [?n] (num ?n) (odd-fail ?n))))))
 
+;; TODO: Fix this.
 (deftest test-trap-joins
   (let [age [["A" 20] ["B" 21]]
         gender [["A" "m"] ["B" "f"]]]
