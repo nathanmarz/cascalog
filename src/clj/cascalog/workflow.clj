@@ -23,7 +23,7 @@
            [cascading.scheme.hadoop TextLine SequenceFile]
            [cascading.scheme Scheme]
            [cascading.tap Tap SinkMode]
-           [cascading.tap.hadoop Hfs Lfs GlobHfs TemplateTap]
+           [cascading.tap.hadoop Hfs Lfs GlobHfs TemplateTap TemplateTap$TemplateScheme]
            [cascading.tuple TupleEntryCollector]
            [cascading.flow Flow]
            [cascading.flow.hadoop HadoopFlowProcess HadoopFlowConnector]
@@ -395,9 +395,9 @@
      `(assembly ~args [] ~return))
   ([args bindings return]
      (let [pipify (fn [forms] (if (or (not (sequential? forms))
-                                     (vector? forms))
-                               forms
-                               (cons 'cascalog.workflow/assemble forms)))
+                                      (vector? forms))
+                                forms
+                                (cons 'cascalog.workflow/assemble forms)))
            return (pipify return)
            bindings (vec (clojure.core/map #(%1 %2) (cycle [clojure.core/identity pipify]) bindings))]
        `(fn ~args
