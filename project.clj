@@ -10,15 +10,20 @@
                  ;; be able to find jgrapht.
                  [cascading/cascading-hadoop "2.0.0-wip-153"
                   :exclusions [org.codehaus.janino/janino
-                               org.apache.hadoop/hadoop-core]]
+                               org.apache.hadoop/hadoop-core
+                               thirdparty/jgrapht-jdk1.6
+                               riffle/riffle]]
+                 [thirdparty/jgrapht-jdk1.6 "0.8.1"]
+                 [riffle/riffle "0.1-dev"]
                  [log4j/log4j "1.2.16"]
                  [hadoop-util "0.2.4"]]
   :dev-dependencies [[swank-clojure "1.4.0-SNAPSHOT"]
                      [org.apache.hadoop/hadoop-core "0.20.2-dev"]
                      [lein-multi "1.1.0-SNAPSHOT"]]
   :multi-deps {"1.2" [[org.clojure/clojure "1.2.1"]
-                      [cascading/cascading-core "2.0.0-wip-153"
+                      [cascading/cascading-hadoop "2.0.0-wip-153"
                        :exclusions [org.codehaus.janino/janino
+                                    org.apache.hadoop/hadoop-core
                                     thirdparty/jgrapht-jdk1.6
                                     riffle/riffle]]
                       [thirdparty/jgrapht-jdk1.6 "0.8.1"]
