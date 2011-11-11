@@ -33,12 +33,14 @@ Come chat in the #cascalog or #cascading rooms on freenode
 
 Cascalog is hosted at [Clojars](http://clojars.org/cascalog). Clojars is a maven repo that is trivially easy to use with maven or leiningen.
 
+To include Cascalog in your leiningen or cake project, add the following to your `project.clj`:
+
+    [cascalog "0.8.3"]
 
 # Priorities for Cascalog development
 
 1. Replicated and bloom joins
 2. Cross query optimization: push constants and filters down into subqueries when possible
-
 
 # Acknowledgements
 
