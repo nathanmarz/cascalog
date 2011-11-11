@@ -185,9 +185,9 @@
   supplied input variable. For example:
 
   (let [src [[1] [2]]]
-  (<- [?avg]
-      (src ?x)
-      (avg ?x :> ?avg)))
+    (<- [?avg]
+        (src ?x)
+        (avg ?x :> ?avg)))
   ;;=> ([1.5])"}
   avg
   (<- [!v :> !avg]
