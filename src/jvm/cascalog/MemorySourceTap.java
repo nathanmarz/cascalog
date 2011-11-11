@@ -79,7 +79,7 @@ public class MemorySourceTap extends SourceTap<HadoopFlowProcess, JobConf, Recor
         }
         
         @Override
-            public boolean source(HadoopFlowProcess flowProcess, SourceCall<Object[], RecordReader> sourceCall) throws IOException {
+        public boolean source(HadoopFlowProcess flowProcess, SourceCall<Object[], RecordReader> sourceCall) throws IOException {
             TupleWrapper key = (TupleWrapper) sourceCall.getContext()[ 0 ];
             NullWritable value = (NullWritable) sourceCall.getContext()[ 1 ];
             
