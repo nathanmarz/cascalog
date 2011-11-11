@@ -20,8 +20,9 @@
            [cascading.tap Tap]
            [cascading.operation Filter]
            [cascading.tuple Fields]
-           [cascalog ClojureParallelAggregator ClojureBuffer ClojureBufferCombiner
-            CombinerSpec CascalogFunction CascalogFunctionExecutor CascadingFilterToFunction
+           [cascalog ClojureParallelAggregator ClojureBuffer
+            ClojureBufferCombiner CombinerSpec CascalogFunction
+            CascalogFunctionExecutor CascadingFilterToFunction
             CascalogBuffer CascalogBufferExecutor]))
 
 ;; doing it this way b/c pain to put metadata directly on a function
@@ -30,16 +31,19 @@
 (defstruct parallel-aggregator :type :init-var :combine-var)
 
 ;; :num-intermediate-vars-fn takes as input infields, outfields
-(defstruct parallel-buffer :type :hof? :init-hof-var :combine-hof-var :extract-hof-var :num-intermediate-vars-fn :buffer-hof-var)
-
+(defstruct parallel-buffer
+  :type :hof? :init-hof-var :combine-hof-var :extract-hof-var
+  :num-intermediate-vars-fn :buffer-hof-var)
 
 (defmacro defparallelagg [name & body]
   `(def ~name
-     (struct-map cascalog.predicate/parallel-aggregator :type ::parallel-aggregator ~@body)))
+     (struct-map cascalog.predicate/parallel-aggregator
+       :type ::parallel-aggregator ~@body)))
 
 (defmacro defparallelbuf [name & body]
   `(def ~name
-     (struct-map cascalog.predicate/parallel-buffer :type ::parallel-buffer ~@body)))
+     (struct-map cascalog.predicate/parallel-buffer
+       :type ::parallel-buffer ~@body)))
 
 ;; ids are so they can be used in sets safely
 (defmacro defpredicate [name & attrs]
