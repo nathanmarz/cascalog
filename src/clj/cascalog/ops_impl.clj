@@ -25,16 +25,20 @@
 
 (defn existence-int [v] (if v 1 0))
 
-(defparallelagg sum-parallel :init-var #'identity
+(defparallelagg sum-parallel
+  :init-var #'identity
   :combine-var #'+)
 
-(defparallelagg min-parallel :init-var #'identity
+(defparallelagg min-parallel
+  :init-var #'identity
   :combine-var #'min)
 
-(defparallelagg max-parallel :init-var #'identity
+(defparallelagg max-parallel
+  :init-var #'identity
   :combine-var #'max)
 
-(defparallelagg !count-parallel :init-var #'existence-int
+(defparallelagg !count-parallel
+  :init-var #'existence-int
   :combine-var #'+)
 
 (defn limit-init [options limit]
@@ -48,7 +52,7 @@
   (fn [[#^Comparable o1 _] [#^Comparable o2 _]]
     (if (:sort options)
       (* (.compareTo o1 o2) (if (boolean (:reverse options)) -1 1))
-      0 )))
+      0)))
 
 (defn limit-combine [options limit]
   (let [compare-fn (mk-limit-comparator options)]
@@ -62,7 +66,9 @@
 (defn limit-extract [options limit]
   (let [compare-fn (mk-limit-comparator options)]
     (fn [alist]
-      (let [alist (if (<= (count alist) limit) alist (take limit (sort compare-fn alist)))]
+      (let [alist (if (<= (count alist) limit)
+                    alist
+                    (take limit (sort compare-fn alist)))]
         (map (partial apply concat) alist)))))
 
 (defn limit-buffer [options limit]
