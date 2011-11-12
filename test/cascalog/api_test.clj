@@ -389,9 +389,12 @@
 ;; TODO: Fix these tests.
 (deftest test-java-buffer
   (let [vals [["a" 1 10] ["a" 2 20] ["b" 3 31]]]
-    (test?<- :info [["a" 1] ["b" 1]] [?f1 ?o] (vals ?f1 _ _) ((OneBuffer.) :> ?o))
-    (test?<- :info [["a" 1 10] ["a" 2 20] ["b" 3 31]] [?f1 ?f2out ?f3out]
-             (vals ?f1 ?f2 ?f3) ((IdentityBuffer.) ?f2 ?f3 :> ?f2out ?f3out))))
+    (test?<- [["a" 1] ["b" 1]] [?f1 ?o] (vals ?f1 _ _) ((OneBuffer.) :> ?o))
+    (test?<- :info
+             [["a" 1 10] ["a" 2 20] ["b" 3 31]]
+             [?f1 ?f2out ?f3out]
+             (vals ?f1 ?f2 ?f3)
+             ((IdentityBuffer.) ?f2 ?f3 :> ?f2out ?f3out))))
 
 (defn run-union-combine-tests
   "Runs a series of tests on the union and combine operations. v1,

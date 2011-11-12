@@ -295,12 +295,16 @@
 (defmethod build-predicate-specific :buffer [& args]
   (apply simpleagg-build-predicate true args))
 
-(defmethod build-predicate-specific ::cascalog-buffer [op _ _ infields outfields options]
+;; TODO: Fix test at this spot.
+(defmethod build-predicate-specific ::cascalog-buffer
+  [op _ _ infields outfields options]
   (predicate aggregator
              true
              nil
              identity
-             (w/raw-every (w/fields infields) (CascalogBufferExecutor. (w/fields outfields) op) Fields/ALL)
+             (w/raw-every (w/fields infields)
+                          (CascalogBufferExecutor. (w/fields outfields) op)
+                          Fields/ALL)
              identity
              infields
              outfields))
