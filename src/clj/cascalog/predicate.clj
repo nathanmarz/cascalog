@@ -44,7 +44,8 @@
 (defpredicate aggregator :buffer? :parallel-agg :pregroup-assembly :serial-agg-assembly :post-assembly :infields :outfields)
 
 ;; automatically generates source pipes and attaches to sources
-(defpredicate generator :join-set-var :ground? :sourcemap :pipe :outfields :trapmap)
+(defpredicate generator
+  :join-set-var :ground? :sourcemap :pipe :outfields :trapmap)
 (defpredicate generator-filter :generator :outvar)
 (defpredicate outconstant-equal)
 
@@ -197,7 +198,7 @@
   (let [pname (init-pipe-name options)
         trapmap (merge (:trapmap gen) (init-trap-map options))
         gen-pipe (w/assemble (:pipe gen) (w/pipe-rename pname) (w/identity Fields/ALL :fn> outfields :> Fields/RESULTS))]
-    (predicate generator nil (ground-fields? outfields) (:sourcemap gen) gen-pipe outfields trapmap )))
+    (predicate generator nil (ground-fields? outfields) (:sourcemap gen) gen-pipe outfields trapmap)))
 
 (defmethod build-predicate-specific :generator-filter [op _ _ infields outfields options]
   (let [gen (build-predicate-specific (:generator op) nil nil infields outfields options)]

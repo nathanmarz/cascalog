@@ -528,8 +528,7 @@
                                                  (mapcat split-outvar-constants)
                                                  (map rewrite-predicate)
                                                  (mapcat split-outvar-constants)
-                                                 (uniquify-query-vars out-vars)
-                                                 )
+                                                 (uniquify-query-vars out-vars))
         [raw-opts raw-predicates] (separate #(keyword? (first %)) raw-predicates)
         options                   (mk-options (map p/mk-option-predicate raw-opts))
         [gens ops aggs]           (->> raw-predicates
