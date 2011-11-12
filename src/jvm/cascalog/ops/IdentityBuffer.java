@@ -28,7 +28,7 @@ public class IdentityBuffer extends CascalogBuffer {
   public void operate(FlowProcess flowProcess, BufferCall bufCall) {
       Iterator<TupleEntry> it = bufCall.getArgumentsIterator();
       while(it.hasNext()) {
-          bufCall.getOutputCollector().add(it.next());
+          bufCall.getOutputCollector().add(it.next().getTuple());
       }
   }
 }
