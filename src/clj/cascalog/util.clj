@@ -299,3 +299,9 @@
                                     (get m1 "io.serializations"))]
               (conj (or m1 {}) m2)))
           maps))
+
+(defn stringify-keys [m]
+  (into {} (for [[k v] m]
+             [(if (keyword? k)
+                (name k)
+                (str k)) v])))

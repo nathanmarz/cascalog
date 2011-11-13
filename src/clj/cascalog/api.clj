@@ -180,9 +180,11 @@
         trapmap   (apply merge (map :trapmap gens))
         tails     (map cascalog.rules/connect-to-sink gens sinks)
         sinkmap   (w/taps-map tails sinks)]
-    (.connect (->> cascalog.rules/*JOB-CONF*
-                   (conf-merge {"cascading.flow.job.pollinginterval" 100})
-                   (FlowConnector.))
+    (.connect (FlowConnector.
+               (stringify-keys
+                (conf-merge (cascalog.rules/project-settings)
+                            cascalog.rules/*JOB-CONF*
+                            {"cascading.flow.job.pollinginterval" 100})))
               flow-name
               sourcemap
               sinkmap
