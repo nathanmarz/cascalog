@@ -41,7 +41,7 @@ public class ClojureBuffer extends ClojureCascadingBase
     ISeq result_seq = RT.seq(invokeFunction(IteratorSeq.create(new TupleSeqConverter(buff_call.getArgumentsIterator()))));
     TupleEntryCollector collector = buff_call.getOutputCollector();
     while (result_seq != null) {
-       Object obj = result_seq.first();
+        Object obj = result_seq.first();
        collector.add(Util.coerceToTuple(obj));
        result_seq = result_seq.next();
     }

@@ -332,8 +332,8 @@
   (if (= "a" n)
     (throw (RuntimeException.)) true))
 
-;; TODO: Fix this.
-
+;; Remaining Problems:
+;; 
 ;; Self join from data structure       FAILS
 ;; self join from memory-source-tap    WORKS
 ;; self join from hfs-textline         WORKS
@@ -341,34 +341,16 @@
 ;; join between two data structures    FAILS
 ;; join between 2 hfs-textlines        WORKS
 
-(defn mk-good []
-  (let [src (hfs-textline "/Users/sritchie/Desktop/runningforma.txt")
-        src2 (hfs-textline "/Users/sritchie/Desktop/runningformacopy.txt")]
-    (?- (stdout)
-        (<- [!a]
-            (src !a)
-            (src2 !a)
-            (:distinct false)
-            (:trap (stdout))))
-    (cascalog.workflow/write-dot
-       (compile-flow (stdout)
-                     (<- [!a]
-                         (src !a)
-                         (src2 !a)
-                         (:distinct false)
-                         (:trap (stdout))))
-       "/Users/sritchie/Desktop/textoldbad.dot")))
+(deftest memory-self-join-test
+  (let [src [["a"]]
+        src2 (memory-source-tap [["a"]])]
+    (with-expected-sink-sets [empty1 [[]]
+                              empty2 [[]]]
+      ;; Self join from data structure FAILS
+      (test?<- src [!a] (src !a) (src !a) (:distinct false) (:trap empty1))
 
-(defn breaking-test []
-  (let [src  [["a"]]]
-    (.complete (compile-flow (stdout)
-                             (<- [!s]
-                                 (src !s)
-                                 ;; (src :> !s)
-                                 (:distinct false)
-                                 ;; (:trap (stdout))
-                                 )))
-    ))
+      ;; self join from memory-source-tap WORKS
+      (test?<- src [!a] (src2 !a) (src2 !a) (:distinct false) (:trap empty2)))))
 
 (deftest test-trap-joins
   (let [age    [["A" 20] ["B" 21]]

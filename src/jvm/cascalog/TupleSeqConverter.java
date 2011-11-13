@@ -34,7 +34,7 @@ public class TupleSeqConverter implements Iterator<ISeq> {
     }
 
     public ISeq next() {
-        return Util.coerceFromTuple(_tuples.next());
+        return Util.coerceFromTuple(_tuples.next().getTuple());
     }
 
     public void remove() {
