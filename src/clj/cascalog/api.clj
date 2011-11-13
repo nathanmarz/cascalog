@@ -1,10 +1,10 @@
 (ns cascalog.api
   (:use [cascalog vars util graph debug])
-  (:require cascalog.rules
-            [clojure.set :as set]
+  (:require [clojure.set :as set]
             [cascalog.tap :as tap]
             [cascalog.workflow :as w]
             [cascalog.predicate :as p]
+            [cascalog.rules :as rules]
             [cascalog.io :as io]
             [hadoop-util.core :as hadoop])  
   (:import [cascading.flow Flow]
@@ -85,7 +85,7 @@
 
 ;; Query introspection
 
-(defmulti get-out-fields cascalog.rules/generator-selector)
+(defmulti get-out-fields rules/generator-selector)
 
 (defmethod get-out-fields :tap [tap]
   (let [cfields (.getSourceFields tap)]
@@ -112,7 +112,7 @@
    with-job-conf calls will merge configuration maps together, with
    innermost calls taking precedence on conflicting keys."
   [conf & body]
-  `(binding [cascalog.rules/*JOB-CONF* (conf-merge cascalog.rules/*JOB-CONF* ~conf)]
+  `(binding [rules/*JOB-CONF* (conf-merge rules/*JOB-CONF* ~conf)]
      ~@body))
 
 (defmacro with-serializations
@@ -139,9 +139,9 @@
   predicates. Predicate macros support destructuring of the input and
   output variables."
   [outvars & predicates]
-  (let [predicate-builders (vec (map cascalog.rules/mk-raw-predicate predicates))
+  (let [predicate-builders (vec (map rules/mk-raw-predicate predicates))
         outvars-str (if (vector? outvars) (vars2str outvars) outvars)]
-    `(cascalog.rules/build-rule ~outvars-str ~predicate-builders)))
+    `(rules/build-rule ~outvars-str ~predicate-builders)))
 
 (def cross-join
   (<- [:>] (identity 1 :> _)))
@@ -157,23 +157,23 @@
    If the first argument is a string, that will be used as the name
   for the query and will show up in the JobTracker UI."
   [& args]
-  (let [[flow-name bindings] (cascalog.rules/parse-exec-args args)
+  (let [[flow-name bindings] (rules/parse-exec-args args)
         [sinks gens] (->> (partition 2 bindings)
-                          (mapcat (partial apply cascalog.rules/normalize-sink-connection))
+                          (mapcat (partial apply rules/normalize-sink-connection))
                           (unweave))
-        gens      (map cascalog.rules/enforce-gen-schema gens)
+        gens      (map rules/enforce-gen-schema gens)
         sourcemap (apply merge (map :sourcemap gens))
         trapmap   (apply merge (map :trapmap gens))
-        tails     (map cascalog.rules/connect-to-sink gens sinks)
+        tails     (map rules/connect-to-sink gens sinks)
         sinkmap   (w/taps-map tails sinks)]
-    (.connect (->> cascalog.rules/*JOB-CONF*
+    (.connect (->> rules/*JOB-CONF*
                    (conf-merge {"cascading.flow.job.pollinginterval" 100})
                    (HadoopFlowConnector.))
-              flow-name
-              sourcemap
-              sinkmap
-              trapmap
-              (into-array Pipe tails))))
+              (w/flow-def flow-name
+                          sourcemap
+                          sinkmap
+                          trapmap
+                          tails))))
 
 (defn ?-
   "Executes 1 or more queries and emits the results of each query to
@@ -202,7 +202,7 @@
     (let [outtaps (for [q subqueries] (hfs-seqfile (str tmp "/" (uuid))))
           bindings (mapcat vector outtaps subqueries)]
       (apply ?- bindings)
-      (doall (map cascalog.rules/get-sink-tuples outtaps)))))
+      (doall (map rules/get-sink-tuples outtaps)))))
 
 (defmacro ?<-
   "Helper that both defines and executes a query in a single call.
@@ -212,7 +212,7 @@
   within the ?<- form."
   [& args]
   ;; This is the best we can do... if want non-static name should just use ?-
-  (let [[name [output & body]] (cascalog.rules/parse-exec-args args)]
+  (let [[name [output & body]] (rules/parse-exec-args args)]
     `(?- ~name ~output (<- ~@body))))
 
 (defmacro ??<-
@@ -221,7 +221,7 @@
   `(io/with-fs-tmp [fs# tmp1#]
      (let [outtap# (hfs-seqfile tmp1#)]
        (?<- outtap# ~@args)
-       (cascalog.rules/get-sink-tuples outtap#))))
+       (rules/get-sink-tuples outtap#))))
 
 (defn predmacro*
   "Functional version of predmacro. See predmacro for details."
@@ -252,19 +252,19 @@ as well."
   [outvars preds]
   (let [outvars (vars2str outvars)
         preds (for [[p & vars] preds] [p nil (vars2str vars)])]
-    (cascalog.rules/build-rule outvars preds)))
+    (rules/build-rule outvars preds)))
 
 (defn union
   "Merge the tuples from the subqueries together into a single
   subquery and ensure uniqueness of tuples."
   [& gens]
-  (cascalog.rules/combine* gens true))
+  (rules/combine* gens true))
 
 (defn combine
   "Merge the tuples from the subqueries together into a single
   subquery. Doesn't ensure uniqueness of tuples."
   [& gens]
-  (cascalog.rules/combine* gens false))
+  (rules/combine* gens false))
 
 (defn multigroup*
   [declared-group-vars buffer-out-vars buffer-spec & sqs]
@@ -293,7 +293,7 @@ as well."
                 ~buffer-spec
                 ~@sqs))
 
-(defmulti select-fields cascalog.rules/generator-selector)
+(defmulti select-fields rules/generator-selector)
 
 (defmethod select-fields :tap [tap fields]
   (let [fields (collectify fields)

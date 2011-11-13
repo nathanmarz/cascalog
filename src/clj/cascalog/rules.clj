@@ -639,11 +639,13 @@ cascading tap, returns a new generator with field-names."
             (list? g))
         (let [pluck (if (instance? Tap g) pluck-tuple first)
               vars  (gen-nullable-vars (count (pluck g)))]
+          
           (->> [[g :>> vars] [:distinct false]]
                (map mk-raw-predicate)
                (build-rule vars)))
         :else g))
 
+;; TODO: Why does this not use gen?
 (defn connect-to-sink [gen sink]
   ((w/pipe-rename (uuid)) (:pipe gen)))
 

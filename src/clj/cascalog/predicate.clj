@@ -182,22 +182,26 @@
     (:name trap)
     (uuid)))
 
-(defmethod build-predicate-specific ::tap [tap _ _ infields outfields options]
+(defmethod build-predicate-specific ::tap
+  [tap _ _ infields outfields options]
   (let [sourcename (uuid)
         pname (init-pipe-name options)
-        pipe (w/assemble (w/pipe sourcename) (w/pipe-rename pname) (w/identity Fields/ALL :fn> outfields :> Fields/RESULTS))]
+        pipe (w/assemble (w/pipe sourcename) (w/pipe-rename pname)
+                         (w/identity Fields/ALL :fn> outfields :> Fields/RESULTS))]
     (when-not (empty? infields)
       (throw-illegal "Cannot use :> in a taps vars declaration"))
     (predicate generator nil (ground-fields? outfields) {sourcename tap} pipe outfields (init-trap-map options))))
 
-(defmethod build-predicate-specific ::data-structure [tuples _ _ infields outfields options]
+(defmethod build-predicate-specific ::data-structure
+  [tuples _ _ infields outfields options]
   (build-predicate-specific (w/memory-source-tap tuples) nil nil infields outfields options))
 
-
-(defmethod build-predicate-specific :generator [gen _ _ infields outfields options]
+(defmethod build-predicate-specific :generator
+  [gen _ _ infields outfields options]
   (let [pname (init-pipe-name options)
         trapmap (merge (:trapmap gen) (init-trap-map options))
-        gen-pipe (w/assemble (:pipe gen) (w/pipe-rename pname) (w/identity Fields/ALL :fn> outfields :> Fields/RESULTS))]
+        gen-pipe (w/assemble (:pipe gen) (w/pipe-rename pname)
+                             (w/identity Fields/ALL :fn> outfields :> Fields/RESULTS))]
     (predicate generator nil (ground-fields? outfields) (:sourcemap gen) gen-pipe outfields trapmap)))
 
 (defmethod build-predicate-specific :generator-filter [op _ _ infields outfields options]

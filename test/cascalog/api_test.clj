@@ -328,7 +328,30 @@
                (:trap trap1)))
     (is (thrown? Exception (test?<- [[2]] [?n] (num ?n) (odd-fail ?n))))))
 
+(deffilterop a-fail [n & all]
+  (if (= "a" n)
+    (throw (RuntimeException.)) true))
+
 ;; TODO: Fix this.
+
+;; Self join from data structure       FAILS
+;; self join from memory-source-tap    WORKS
+;; self join from hfs-textline         WORKS
+;; join between two memory source taps FAILS
+;; join between two data structures    FAILS
+;; join between 2 hfs-textlines        WORKS
+
+(defn breaking-test []
+  (let [src  [["a"]]
+        src2 [["a"]]]
+    (with-job-conf {"mapred.job.tracker" "local"}
+      (?<- (stdout)
+           [!s]
+           (src :> !s)
+           (src2 :> !s)
+           (:distinct false)
+           (:trap (stdout))))))
+
 (deftest test-trap-joins
   (let [age    [["A" 20] ["B" 21]]
         gender [["A" "m"] ["B" "f"]]]
@@ -348,7 +371,7 @@
                (odd-fail ?a ?g)
                (:trap trap2)))))
 
-;; TODO: Fix this.
+;; TODO: Fix this. See above for ideas.
 (deftest test-multi-trap
   (let [age [["A" 20] ["B" 21]]
         weight [["A" 191] ["B" 192]]]
@@ -383,7 +406,7 @@
   [(+ v1 v3) (* v2 v4)])
 
 (defparallelagg multipagg :init-var #'multipagg-init
-                          :combine-var #'multipagg-combiner)
+  :combine-var #'multipagg-combiner)
 
 (defaggregateop slow-count
   ([] 0)
@@ -487,7 +510,7 @@
 
 (deftest test-outer-join-with-funcs
   ;; TODO: needed
-)
+  )
 
 (deftest test-mongo
   ;; function required for join
@@ -495,7 +518,7 @@
   ;; functions -> joins -> functions -> joins
   ;; functions that run after outer join
   ;; no aggregator
-)
+  )
 
 (defmulti multi-test class)
 (defmethod multi-test String [x] "string!")

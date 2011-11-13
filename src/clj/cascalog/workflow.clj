@@ -1,5 +1,6 @@
 (ns cascalog.workflow
-  (:refer-clojure :exclude [group-by count first filter mapcat map identity min max])
+  (:refer-clojure :exclude [group-by count first filter mapcat
+                            map identity min max])
   (:use [cascalog util debug])
   (:import [cascalog Util]
            [org.apache.hadoop.mapred JobConf]
@@ -8,15 +9,17 @@
            [cascading.scheme.hadoop TextLine SequenceFile]
            [cascading.scheme Scheme]
            [cascading.tap Tap SinkMode]
-           [cascading.tap.hadoop Hfs Lfs GlobHfs TemplateTap TemplateTap$TemplateScheme]
+           [cascading.tap.hadoop Hfs Lfs GlobHfs TemplateTap
+            TemplateTap$TemplateScheme]
            [cascading.tuple TupleEntryCollector]
-           [cascading.flow Flow]
+           [cascading.flow Flow  FlowDef]
            [cascading.flow.hadoop HadoopFlowProcess HadoopFlowConnector]
            [cascading.cascade Cascades]
            [cascading.operation Identity Insert Debug]
            [cascading.operation.aggregator First Count Sum Min Max]
            [cascading.pipe Pipe Each Every GroupBy CoGroup]
-           [cascading.pipe.cogroup InnerJoin OuterJoin LeftJoin RightJoin MixedJoin]
+           [cascading.pipe.cogroup InnerJoin OuterJoin
+            LeftJoin RightJoin MixedJoin]
            [java.util ArrayList]
            [cascalog ClojureFilter ClojureMapcat ClojureMap
             ClojureAggregator Util ClojureBuffer ClojureBufferIter
@@ -52,7 +55,7 @@
     obj
     (let [obj (collectify obj)]
       (if (empty? obj)
-        Fields/ALL ; this is a hack since cascading doesn't support selecting no fields
+        Fields/ALL ; TODO: add Fields/NONE support
         (Fields. (into-array String (collectify obj)))))))
 
 (defn fields-array
@@ -298,8 +301,10 @@
 
 (defn assert-nonvariadic [args]
   (assert (not (some #{'&} args))
-          (str "Defops currently don't support variadic arguments.\n"
-               "The following argument vector is invalid: " args)))
+          ))
+;; TODO: Split on clojure version. 
+#_(str "Defops currently don't support variadic arguments.\n"
+               "The following argument vector is invalid: " args)
 
 (defn- parse-defop-args
   "Accepts a def* type and the body of a def* operation binding,
@@ -408,6 +413,15 @@
 (defn taps-map [pipes taps]
   (Cascades/tapsMap (into-array Pipe pipes) (into-array Tap taps)))
 
+(defn flow-def
+  [flow-name sourcemap sinkmap trapmap tails]
+  (doto (FlowDef.)
+    (.setName flow-name)
+    (.addSources sourcemap)
+    (.addSinks sinkmap)
+    (.addTraps trapmap)
+    (.addTails (into-array Pipe tails))))
+
 (defn mk-flow [sources sinks assembly]
   (let [sources (collectify sources)
         sinks   (collectify sinks)
@@ -450,8 +464,8 @@
 (defn- sink-mode [kwd]
   {:pre [(or (nil? kwd) (valid-sinkmode? kwd))]}
   (case kwd
-    :keep SinkMode/KEEP
-    :update SinkMode/UPDATE
+    :keep    SinkMode/KEEP
+    :update  SinkMode/UPDATE
     :replace SinkMode/REPLACE
     SinkMode/KEEP))
 
