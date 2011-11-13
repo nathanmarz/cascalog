@@ -139,9 +139,9 @@
   The following two forms are equivalent: 
 
   (let [plus-10 (c/partial plus 10)]
-     (<- [?y] (plus-10 ?x :> ?y)))
+     (<- [?y] (src ?x) (plus-10 ?x :> ?y)))
 
-  (<- [?y] (plus 10 ?x :> ?y))
+  (<- [?y] (src ?x) (plus-10 ?x :> ?y))
 
   With the benefit that `10` doesn't need to be hardcoded into the
   first query."
