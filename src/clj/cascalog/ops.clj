@@ -1,20 +1,5 @@
-;;    Copyright 2010 Nathan Marz
-;; 
-;;    This program is free software: you can redistribute it and/or modify
-;;    it under the terms of the GNU General Public License as published by
-;;    the Free Software Foundation, either version 3 of the License, or
-;;    (at your option) any later version.
-;; 
-;;    This program is distributed in the hope that it will be useful,
-;;    but WITHOUT ANY WARRANTY; without even the implied warranty of
-;;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-;;    GNU General Public License for more details.
-;; 
-;;    You should have received a copy of the GNU General Public License
-;;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 (ns cascalog.ops
-  (:refer-clojure :exclude [count min max comp juxt])
+  (:refer-clojure :exclude [count min max comp juxt partial reduce])
   (:use [cascalog ops-impl api util]
         [cascalog.workflow :only (fill-tap!)]
         [cascalog.io :only (with-fs-tmp)])
@@ -22,18 +7,69 @@
 
 ;; Operation composition functions
 
-(defn negate [op]
+(defn negate
+  "Accepts a filtering op and returns an new op that acts as the
+  negation (or complement) of the original. For example:
+
+  ((negate #'string?) ?string-var) ;; within some query
+
+  Is equivalent to
+
+  ;; within some query
+  (string? ?string-var :> ?temp-bool)
+  (not ?temp-bool)"
+  [op]
   (<- [:<< !invars :> !true?]
       (op :<< !invars :> !curr?)
       (not !curr? :> !true?)))
 
-(defn all [& ops]
+(defn all
+  "Accepts any number of filtering ops and returns a new op that
+  checks that every every one of the original filters passes. For
+  example:
+
+  ((all #'even? #'positive? #'small?) ?x) ;; within some query
+
+  Is equivalent to:
+
+  ;; within some query
+  (even? ?x :> ?temp1)
+  (positive? ?x :> ?temp2)
+  (small? ?x) :> ?temp3)
+  (and ?temp1 ?temp2 ?temp3)"
+  [& ops]
   (logical-comp ops #'bool-and))
 
-(defn any [& ops]
+(defn any
+  "Accepts any number of filtering ops and returns a new op that
+  checks that at least one of the original filters passes. For
+  example:
+
+  ((any #'even? #'positive? #'small?) ?x) ;; within some query
+
+  Is equivalent to:
+
+  ;; within some query
+  (even? ?x :> ?temp1)
+  (positive? ?x :> ?temp2)
+  (small? ?x :> ?temp3)
+  (or ?temp1 ?temp2 ?temp3)"
+  [& ops]
   (logical-comp ops #'bool-or))
 
-(defn comp [& ops]
+(defn comp
+  "Accepts any number of predicate ops and returns an op that is the
+  composition of those ops.
+
+  (require '[cascalog.ops :as c])
+  ((c/comp #'str #'+) ?x ?y :> ?sum-string) ;; within some query
+
+  Is equivalent to:
+
+  ;; within some query
+  (+ ?x ?y :> ?intermediate)
+  (str ?intermediate :> ?sum-string)"
+  [& ops]
   (let [ops (reverse ops)
         intvars (map vector (v/gen-nullable-vars (dec (clojure.core/count ops))))
         intvars (vec (cons "!invars" intvars))
@@ -46,7 +82,20 @@
           ops
           varpairs))))
 
-(defn juxt [& ops]
+(defn juxt
+  "Accepts any number of predicate ops and returns an op that is the
+  juxtaposition of those ops.
+
+  (require '[cascalog.ops :as c])
+  ((c/juxt #'+ #'- #'<) !x !y :> !sum !diff !mult) ;; within some query
+
+  Is equivalent to:
+
+  ;; within some query
+  (+ !x !y :> !sum)
+  (- !x !y :> !diff)
+  (* !x !y :> !mult)"
+  [& ops]
   (let [outvars (v/gen-nullable-vars (clojure.core/count ops))]
     (construct
      [:<< "!invars" :>> outvars]
@@ -55,25 +104,62 @@
           ops
           outvars))))
 
-(defn each [op]
+(defn each
+  "Accepts an operation and returns a predicate macro that maps `op`
+  across any number of input variables. For example:
+
+  ((each #'str) ?x ?y ?z :> ?x-str ?y-str ?z-str) ;; within some query
+
+  Is equivalent to
+
+  ;; within some query
+  (str ?x :> ?x-str)
+  (str ?y :> ?y-str)
+  (str ?z :> ?z-str)"
+  [op]
   (predmacro [invars outvars]
-             {:pre [(or (= 0 (clojure.core/count outvars))
-                        (= (clojure.core/count invars) (clojure.core/count outvars)))]}
+             {:pre [(or (zero? (clojure.core/count outvars))
+                        (= (clojure.core/count invars)
+                           (clojure.core/count outvars)))]}
              (if (empty? outvars)
                (for [i invars]
                  [op i])
-               (map (fn [i v]
-                      [op i :> v] )
+               (map (fn [i v] [op i :> v])
                     invars
-                    outvars ))))
+                    outvars))))
 
+(defn partial
+  "Accepts an operation and fewer than normal arguments, and returns a
+  new operation that can be called with the remaining unspecified
+  args. For example, given this require and defmapop:
+
+  (require '[cascalog.ops :as c])
+  (defmapop plus [x y] (+ x y))
+
+  The following two forms are equivalent: 
+
+  (let [plus-10 (c/partial plus 10)]
+     (<- [?y] (src  ?x) (plus-10 ?x :> ?y)))
+
+  (<- [?y] (src ?x) (plus 10 ?x :> ?y))
+
+  With the benefit that `10` doesn't need to be hardcoded into the
+  first query."
+  [op & args]
+  (predmacro
+   [invars outvars]
+   [[op :<< (concat args invars) :>> outvars]]))
 
 ;; Operations to use within queries
 
-(defmapop [re-parse [pattern]] [str]
+(defmapop [re-parse [pattern]]
+  "Accepts a regex `pattern` and a string argument `str` and returns
+  the groups within `str` that match the supplied `pattern`."
+  [str]
   (re-seq pattern str))
 
-(defparallelagg count :init-var #'one
+(defparallelagg count
+  :init-var #'one
   :combine-var #'+)
 
 (def sum (each sum-parallel))
@@ -84,22 +170,40 @@
 
 (def !count (each !count-parallel))
 
-(defparallelbuf limit :hof? true
+(defparallelbuf limit
+  :hof? true
   :init-hof-var #'limit-init
   :combine-hof-var #'limit-combine
   :extract-hof-var #'limit-extract
   :num-intermediate-vars-fn (fn [infields outfields] (clojure.core/count infields))
-  :buffer-hof-var #'limit-buffer )
+  :buffer-hof-var #'limit-buffer)
 
-(def limit-rank (merge limit {:buffer-hof-var #'limit-rank-buffer} ))
+(def limit-rank
+  (merge limit {:buffer-hof-var #'limit-rank-buffer}))
 
-(def avg
+(def ^{:doc "Predicate operation that produces the average value of the
+  supplied input variable. For example:
+
+  (let [src [[1] [2]]]
+    (<- [?avg]
+        (src ?x)
+        (avg ?x :> ?avg)))
+  ;;=> ([1.5])"}
+  avg
   (<- [!v :> !avg]
       (count !c)
       (sum !v :> !s)
       (div !s !c :> !avg)))
 
-(def distinct-count
+(def ^{:doc "Predicate operation that produces a count of all distinct
+  values of the supplied input variable. For example:
+
+  (let [src [[1] [2] [2]]]
+  (<- [?count]
+      (src ?x)
+      (distinct-count ?x :> ?count)))
+  ;;=> ([2])"}
+  distinct-count
   (<- [:<< !invars :> !c]
       (:sort :<< !invars)
       (distinct-count-agg :<< !invars :> !c)))
@@ -129,8 +233,23 @@
     (name-vars tap (v/gen-non-nullable-vars n-fields))))
 
 (defnk first-n
-  "Returns a subquery getting the first n elements from sq it
-  finds. Can pass in sorting arguments."
+  "Accepts a generator and a number `n` and returns a subquery that
+   produces the first n elements from the supplied generator. Two
+   boolean keyword arguments are supported:
+
+  :sort -- accepts a vector of variables on which to sort. Defaults to
+           nil (unsorted).
+  :reverse -- If true, sorts items in reverse order. (false by default).
+
+  For example:
+ 
+  (def src [[1] [3] [2]]) ;; produces 3 tuples
+
+  ;; produces ([1 2] [3 4] [2 3]) when executed
+  (def query (<- [?x ?y] (src ?x) (inc ?x :> ?y)))
+
+  ;; produces ([3 4]) when executed
+  (first-n query 1 :sort [\"?x\"] :reverse true)"
   [gen n :sort nil :reverse false]
   (let [num-fields (num-out-fields gen)
         in-vars  (v/gen-nullable-vars num-fields)
@@ -148,7 +267,21 @@
 
 ;; Helpers to use within ops
 
-(defmacro with-timeout [[ms] & body]
+(defmacro with-timeout
+  "Accepts a vector with a timeout (in ms) and any number of forms and
+  executes those forms sequentially. returns the result of the last
+  form or nil (if the timeout is reached.) For example:
+
+  (with-timeout [100]
+    (Thread/sleep 50)
+    \"done!\")
+  ;;=> \"done!\"
+
+  (with-timeout [100]
+    (Thread/sleep 200)
+    \"done!\")
+  ;;=> nil"
+  [[ms] & body]
   `(let [^java.util.concurrent.Future f# (future ~@body)]
      (try (.get f# ~ms java.util.concurrent.TimeUnit/MILLISECONDS)
           (catch java.util.concurrent.TimeoutException e#

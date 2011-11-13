@@ -6,7 +6,8 @@
             [cascalog.api :as api]
             [cascalog.workflow :as w])
   (:import [cascading.tuple Fields]
-           [cascading.tap Hfs Lfs GlobHfs TemplateTap Tap]))
+           [cascading.tap Tap]
+           [cascading.tap.hadoop Hfs Lfs GlobHfs TemplateTap]))
 
 (defn tap-source [tap]
   (if (map? tap)
@@ -48,7 +49,7 @@
 (deftest sinkmode-test
   (is (.isKeep (hfs-test-sink)))
   (is (.isKeep (hfs-test-sink :sinkmode :keep)))
-  (is (.isAppend (hfs-test-sink :sinkmode :append)))
+  (is (.isUpdate (hfs-test-sink :sinkmode :update)))
   (is (.isReplace (hfs-test-sink :sinkmode :replace))))
 
 (deftest sink-parts-test
@@ -66,6 +67,5 @@
           temp-tap (api/hfs-seqfile (str tmp "/")
                                     :sink-template "%s/"
                                     :source-pattern "{1,2}/*")]
-      temp-tap
       (api/?<- temp-tap [?a ?b] (tuples ?a ?b))
       (test?- [[1 2] [2 3]] temp-tap))))

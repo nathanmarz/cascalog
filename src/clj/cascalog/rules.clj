@@ -1,18 +1,3 @@
-;;    Copyright 2010 Nathan Marz
-;; 
-;;    This program is free software: you can redistribute it and/or modify
-;;    it under the terms of the GNU General Public License as published by
-;;    the Free Software Foundation, either version 3 of the License, or
-;;    (at your option) any later version.
-;; 
-;;    This program is distributed in the hope that it will be useful,
-;;    but WITHOUT ANY WARRANTY; without even the implied warranty of
-;;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-;;    GNU General Public License for more details.
-;; 
-;;    You should have received a copy of the GNU General Public License
-;;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 (ns cascalog.rules
   (:use [cascalog vars util graph debug]
         [clojure.set :only (intersection union difference subset?)]
@@ -24,6 +9,7 @@
            [cascading.tuple Fields Tuple TupleEntry]
            [cascading.flow Flow FlowConnector]
            [cascading.pipe Pipe]
+           [cascading.flow.hadoop HadoopFlowProcess]
            [cascading.pipe.cogroup CascalogJoiner CascalogJoiner$JoinType]
            [cascalog CombinerSpec ClojureCombiner ClojureCombinedAggregator Util]
            [org.apache.hadoop.mapred JobConf]
@@ -256,8 +242,8 @@
   (when (and (empty? aggs) (:sort options))
     (throw-illegal "Cannot specify a sort when there are no aggregators"))
   (if (and (not (:distinct options)) (empty? aggs))
-    prev-tail
-    (let [aggs              (if-not (empty? aggs) aggs [p/distinct-aggregator])
+    prev-tail  
+    (let [aggs (if-not (empty? aggs) aggs [p/distinct-aggregator])      
           [grouping-fields inserter] (normalize-grouping grouping-fields)
           [prep-aggs postgroup-aggs] (build-agg-assemblies grouping-fields aggs)
           assem        (apply w/compose-straight-assemblies
@@ -271,9 +257,11 @@
           all-agg-infields  (agg-infields (:sort options) aggs)
           prev-node    (:node prev-tail)
           node         (create-node (get-graph prev-node)
-                                    (p/predicate group assem all-agg-infields total-fields))]
+                                    (p/predicate group assem
+                                                 all-agg-infields total-fields))]
       (create-edge prev-node node)
-      (struct tailstruct (:ground? prev-tail) (:operations prev-tail) (:drift-map prev-tail) total-fields node))))
+      (struct tailstruct (:ground? prev-tail) (:operations prev-tail)
+              (:drift-map prev-tail) total-fields node))))
 
 (defn projection-fields [needed-vars allfields]
   (let [needed-set (set needed-vars)
@@ -387,7 +375,8 @@
 (defn build-generator [forceproject needed-vars node]
   (let [pred           (get-value node)
         my-needed      (vec (set (concat (:infields pred) needed-vars)))
-        prev-gens      (doall (map (partial build-generator false my-needed) (get-inbound-nodes node)))
+        prev-gens      (doall (map (partial build-generator false my-needed)
+                                   (get-inbound-nodes node)))
         newgen         (node->generator pred prev-gens)
         project-fields (projection-fields needed-vars (:outfields newgen)) ]
     (debug-print "build gen:" my-needed project-fields pred)
@@ -539,8 +528,7 @@
                                                  (mapcat split-outvar-constants)
                                                  (map rewrite-predicate)
                                                  (mapcat split-outvar-constants)
-                                                 (uniquify-query-vars out-vars)
-                                                 )
+                                                 (uniquify-query-vars out-vars))
         [raw-opts raw-predicates] (separate #(keyword? (first %)) raw-predicates)
         options                   (mk-options (map p/mk-option-predicate raw-opts))
         [gens ops aggs]           (->> raw-predicates
@@ -632,7 +620,8 @@
 (def ^:dynamic *JOB-CONF* {})
 
 (defn- pluck-tuple [tap]
-  (with-open [it (.openForRead tap (hadoop/job-conf *JOB-CONF*))]
+  (with-open [it (-> (HadoopFlowProcess. (hadoop/job-conf *JOB-CONF*))
+                     (.openTapForRead tap))]
     (if-let [iter (iterator-seq it)]
       (-> iter first .getTuple Tuple. Util/coerceFromTuple vec)
       (throw-illegal "Cascading tap is empty -- tap must contain tuples."))))
@@ -650,11 +639,13 @@ cascading tap, returns a new generator with field-names."
             (list? g))
         (let [pluck (if (instance? Tap g) pluck-tuple first)
               vars  (gen-nullable-vars (count (pluck g)))]
+          
           (->> [[g :>> vars] [:distinct false]]
                (map mk-raw-predicate)
                (build-rule vars)))
         :else g))
 
+;; TODO: Why does this not use gen?
 (defn connect-to-sink [gen sink]
   ((w/pipe-rename (uuid)) (:pipe gen)))
 
@@ -701,7 +692,8 @@ cascading tap, returns a new generator with field-names."
 (defn get-sink-tuples [^Tap sink]
   (if (map? sink)
     (get-sink-tuples (:sink sink))
-    (with-open [it (.openForRead sink (hadoop/job-conf *JOB-CONF*))]
+    (with-open [it (-> (HadoopFlowProcess. (hadoop/job-conf *JOB-CONF*))
+                       (.openTapForRead sink))]
       (doall
        (for [^TupleEntry t (iterator-seq it)]
          (vec (Util/coerceFromTuple (Tuple. (.getTuple t)))))))))

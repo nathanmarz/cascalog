@@ -1,18 +1,19 @@
 /*
     Copyright 2010 Nathan Marz
  
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
- 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
- 
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    Project and contact information: http://www.cascalog.org/ 
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+   
+        http://www.apache.org/licenses/LICENSE-2.0
+   
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
 */
 
 package cascalog;
@@ -20,6 +21,7 @@ package cascalog;
 import cascading.operation.Aggregator;
 import cascading.operation.AggregatorCall;
 import cascading.flow.FlowProcess;
+import cascading.tuple.TupleEntryCollector;
 import cascading.tuple.Fields;
 import clojure.lang.RT;
 import clojure.lang.ISeq;
@@ -44,8 +46,13 @@ public class ClojureAggregator extends ClojureCascadingBase
 
   public void complete(FlowProcess flow_process, AggregatorCall ag_call) {
     Collection coll = (Collection) invokeFunction(ag_call.getContext());
-    for(Object o: coll) {
-        ag_call.getOutputCollector().add(Util.coerceToTuple(o));
+    
+    TupleEntryCollector collector = ag_call.getOutputCollector();
+
+    if (coll != null) {
+        for(Object o: coll) {
+            collector.add(Util.coerceToTuple(o));
+        }
     }
   }
 }

@@ -321,43 +321,83 @@
 
 (deftest test-trap
   (let [num [[1] [2]]]
-    (with-expected-sink-sets [trap1 [[1]] ]
-      (test?<- [[2]] [?n] (num ?n) (odd-fail ?n) (:trap trap1)))
-    (is (thrown? Exception
-                 (test?<- [[2]] [?n] (num ?n) (odd-fail ?n))))
-    ))
+    (with-expected-sink-sets [trap1 [[1]]]
+      (test?<- [[2]] [?n]
+               (num ?n)
+               (odd-fail ?n)
+               (:trap trap1)))
+    (is (thrown? Exception (test?<- [[2]] [?n] (num ?n) (odd-fail ?n))))))
+
+(deffilterop a-fail [n & all]
+  (if (= "a" n)
+    (throw (RuntimeException.)) true))
+
+;; TODO: Fix this.
+
+;; Self join from data structure       FAILS
+;; self join from memory-source-tap    WORKS
+;; self join from hfs-textline         WORKS
+;; join between two memory source taps FAILS
+;; join between two data structures    FAILS
+;; join between 2 hfs-textlines        WORKS
+
+(defn breaking-test []
+  (let [src  [["a"]]
+        src2 [["a"]]]
+    (with-job-conf {"mapred.job.tracker" "local"}
+      (?<- (stdout)
+           [!s]
+           (src :> !s)
+           (src2 :> !s)
+           (:distinct false)
+           (:trap (stdout))))))
 
 (deftest test-trap-joins
-  (let [age [["A" 20] ["B" 21]]
+  (let [age    [["A" 20] ["B" 21]]
         gender [["A" "m"] ["B" "f"]]]
     (with-expected-sink-sets [trap1 [["B" 21]]
                               trap2 [["B" 21 "f"]]]
       (test?<- [["A" 20 "m"]]
-               [?p ?a ?g] (age ?p ?a) (gender ?p ?g) (odd-fail ?a) (:trap trap1))
-      (test?<- [["A" 20 "m"]]
-               [?p ?a ?g] (age ?p ?a) (gender ?p ?g) (odd-fail ?a ?g) (:trap trap2)))
-    ))
+               [?p ?a ?g]
+               (age ?p ?a)
+               (gender ?p ?g)
+               (odd-fail ?a)
+               (:trap trap1))
 
+      (test?<- [["A" 20 "m"]]
+               [?p ?a ?g]
+               (age ?p ?a)
+               (gender ?p ?g)
+               (odd-fail ?a ?g)
+               (:trap trap2)))))
+
+;; TODO: Fix this. See above for ideas.
 (deftest test-multi-trap
   (let [age [["A" 20] ["B" 21]]
         weight [["A" 191] ["B" 192]]]
     (with-expected-sink-sets [trap1 [["B" 21]]
                               trap2 [["A" 20 191]] ]
-      (let [sq (<- [?p ?a] (age ?p ?a) (odd-fail ?a) (:trap trap1) (:distinct false))]
-        (test?<- [] [?p ?a ?w] (sq ?p ?a) (weight ?p ?w) (odd-fail ?w ?p ?a) (:trap trap2))
-        ))))
+      (let [sq (<- [?p ?a]
+                   (age ?p ?a)
+                   (odd-fail ?a)
+                   (:trap trap1)
+                   (:distinct false))]
+        (test?<- []
+                 [?p ?a ?w]
+                 (sq ?p ?a)
+                 (weight ?p ?w)
+                 (odd-fail ?w ?p ?a)
+                 (:trap trap2))))))
 
 (deftest test-trap-isolation
   (let [num [[1] [2]]]
     (is (thrown? Exception
                  (with-expected-sink-sets [trap1 [[]] ]
                    (let [sq (<- [?n] (num ?n) (odd-fail ?n))]
-                     (test?<- [[2]] [?n] (sq ?n) (:trap trap1))
-                     ))))
+                     (test?<- [[2]] [?n] (sq ?n) (:trap trap1))))))
     (with-expected-sink-sets [trap1 [[1]] ]
       (let [sq (<- [?n] (num ?n) (odd-fail ?n) (:trap trap1))]
-        (test?<- [[2]] [?n] (sq ?n))
-        ))))
+        (test?<- [[2]] [?n] (sq ?n))))))
 
 (defn multipagg-init [v1 v2 v3]
   [v1 (+ v2 v3)])
@@ -366,7 +406,7 @@
   [(+ v1 v3) (* v2 v4)])
 
 (defparallelagg multipagg :init-var #'multipagg-init
-                          :combine-var #'multipagg-combiner)
+  :combine-var #'multipagg-combiner)
 
 (defaggregateop slow-count
   ([] 0)
@@ -385,15 +425,15 @@
 (deftest test-cascading-filter
   (let [vals [[0] [1] [2] [3]] ]
     (test?<- [[0] [2]] [?v] (vals ?v) ((KeepEven.) ?v) (:distinct false))
-    (test?<- [[0 true] [1 false] [2 true] [3 false]] [?v ?b] (vals ?v) ((KeepEven.) ?v :> ?b) (:distinct false))
-    ))
+    (test?<- [[0 true] [1 false] [2 true] [3 false]] [?v ?b] (vals ?v) ((KeepEven.) ?v :> ?b) (:distinct false))))
 
 (deftest test-java-buffer
   (let [vals [["a" 1 10] ["a" 2 20] ["b" 3 31]]]
     (test?<- [["a" 1] ["b" 1]] [?f1 ?o] (vals ?f1 _ _) ((OneBuffer.) :> ?o))
-    (test?<- [["a" 1 10] ["a" 2 20] ["b" 3 31]] [?f1 ?f2out ?f3out]
-             (vals ?f1 ?f2 ?f3) ((IdentityBuffer.) ?f2 ?f3 :> ?f2out ?f3out))
-    ))
+    (test?<- [["a" 1 10] ["a" 2 20] ["b" 3 31]]
+             [?f1 ?f2out ?f3out]
+             (vals ?f1 ?f2 ?f3)
+             ((IdentityBuffer.) ?f2 ?f3 :> ?f2out ?f3out))))
 
 (defn run-union-combine-tests
   "Runs a series of tests on the union and combine operations. v1,
@@ -423,7 +463,7 @@
   (with-tmp-sources [v1 [[1] [2] [3]]
                      v2 [[3] [4] [5]]
                      v3 [[2] [4] [6]]
-                     e1 [[]]]
+                     e1 []]
     (run-union-combine-tests v1 v2 v3)
 
     "Can't use empty taps inside of a union or combine."
@@ -434,8 +474,7 @@
   (let [data (memory-source-tap ["f1" "f2" "f3" "f4"]
                                 [[1 2 3 4] [11 12 13 14] [21 22 23 24]])]
     (test?<- [[4 2] [14 12] [24 22]] [?a ?b] ((select-fields data ["f4" "f2"]) ?a ?b))
-    (test?<- [[1 3 4] [11 13 14] [21 23 24]] [?f1 ?f2 ?f3] ((select-fields data ["f1" "f3" "f4"]) ?f1 ?f2 ?f3))
-    ))
+    (test?<- [[1 3 4] [11 13 14] [21 23 24]] [?f1 ?f2 ?f3] ((select-fields data ["f1" "f3" "f4"]) ?f1 ?f2 ?f3))))
 
 (deftest test-keyword-args
   (test?<- [[":onetwo"]] [?b] ([["two"]] ?a) (str :one ?a :> ?b))
@@ -471,7 +510,7 @@
 
 (deftest test-outer-join-with-funcs
   ;; TODO: needed
-)
+  )
 
 (deftest test-mongo
   ;; function required for join
@@ -479,7 +518,7 @@
   ;; functions -> joins -> functions -> joins
   ;; functions that run after outer join
   ;; no aggregator
-)
+  )
 
 (defmulti multi-test class)
 (defmethod multi-test String [x] "string!")

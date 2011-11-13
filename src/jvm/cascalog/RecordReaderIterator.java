@@ -16,15 +16,26 @@
     limitations under the License.
 */
 
-package cascalog.test;
+package cascalog;
 
-import cascading.operation.FilterCall;
-import cascading.operation.Filter;
-import cascading.operation.BaseOperation;
-import cascading.flow.FlowProcess;
+import java.io.IOException;
 
-public class KeepEven extends BaseOperation implements Filter {
-  public boolean isRemove(FlowProcess process, FilterCall call) {
-      return call.getArguments().getInteger(0) % 2 == 1;
+import cascading.util.SingleValueIterator;
+import org.apache.hadoop.mapred.RecordReader;
+
+/**
+ *
+ */
+class RecordReaderIterator extends SingleValueIterator<RecordReader>
+  {
+  public RecordReaderIterator( RecordReader input )
+    {
+    super( input );
+    }
+
+  @Override
+  public void close() throws IOException
+    {
+    getCloseableInput().close();
+    }
   }
-}

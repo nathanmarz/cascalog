@@ -1,34 +1,25 @@
-;;    Copyright 2010 Nathan Marz
-;; 
-;;    This program is free software: you can redistribute it and/or modify
-;;    it under the terms of the GNU General Public License as published by
-;;    the Free Software Foundation, either version 3 of the License, or
-;;    (at your option) any later version.
-;; 
-;;    This program is distributed in the hope that it will be useful,
-;;    but WITHOUT ANY WARRANTY; without even the implied warranty of
-;;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-;;    GNU General Public License for more details.
-;; 
-;;    You should have received a copy of the GNU General Public License
-;;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 (ns cascalog.workflow
-  (:refer-clojure :exclude [group-by count first filter mapcat map identity min max])
+  (:refer-clojure :exclude [group-by count first filter mapcat
+                            map identity min max])
   (:use [cascalog util debug])
   (:import [cascalog Util]
            [org.apache.hadoop.mapred JobConf]
            [java.io File]
            [cascading.tuple Tuple TupleEntry Fields]
-           [cascading.scheme Scheme TextLine SequenceFile]
-           [cascading.tap Hfs Lfs GlobHfs Tap TemplateTap SinkMode]
+           [cascading.scheme.hadoop TextLine SequenceFile]
+           [cascading.scheme Scheme]
+           [cascading.tap Tap SinkMode]
+           [cascading.tap.hadoop Hfs Lfs GlobHfs TemplateTap
+            TemplateTap$TemplateScheme]
            [cascading.tuple TupleEntryCollector]
-           [cascading.flow Flow FlowConnector]
+           [cascading.flow Flow  FlowDef]
+           [cascading.flow.hadoop HadoopFlowProcess HadoopFlowConnector]
            [cascading.cascade Cascades]
            [cascading.operation Identity Insert Debug]
            [cascading.operation.aggregator First Count Sum Min Max]
            [cascading.pipe Pipe Each Every GroupBy CoGroup]
-           [cascading.pipe.cogroup InnerJoin OuterJoin LeftJoin RightJoin MixedJoin]
+           [cascading.pipe.cogroup InnerJoin OuterJoin
+            LeftJoin RightJoin MixedJoin]
            [java.util ArrayList]
            [cascalog ClojureFilter ClojureMapcat ClojureMap
             ClojureAggregator Util ClojureBuffer ClojureBufferIter
@@ -64,7 +55,7 @@
     obj
     (let [obj (collectify obj)]
       (if (empty? obj)
-        Fields/ALL ; this is a hack since cascading doesn't support selecting no fields
+        Fields/ALL ; TODO: add Fields/NONE support
         (Fields. (into-array String (collectify obj)))))))
 
 (defn fields-array
@@ -239,14 +230,16 @@
 (defn aggregate [& args]
   (fn [^Pipe previous]
     (debug-print "aggregate" args)
-    (let [[^Fields in-fields func-fields specs ^Fields out-fields stateful] (parse-args args Fields/ALL)]
+    (let [[^Fields in-fields func-fields specs ^Fields out-fields stateful]
+          (parse-args args Fields/ALL)]
       (Every. previous in-fields
               (ClojureAggregator. func-fields specs stateful) out-fields))))
 
 (defn buffer [& args]
   (fn [^Pipe previous]
     (debug-print "buffer" args)
-    (let [[^Fields in-fields func-fields specs ^Fields out-fields stateful] (parse-args args Fields/ALL)]
+    (let [[^Fields in-fields func-fields specs ^Fields out-fields stateful]
+          (parse-args args Fields/ALL)]
       (Every. previous in-fields
               (ClojureBuffer. func-fields specs stateful) out-fields))))
 
@@ -306,6 +299,13 @@
     [(meta-conj sym {:fields form}) (rest forms)]
     [sym forms]))
 
+(defn assert-nonvariadic [args]
+  (assert (not (some #{'&} args))
+          ))
+;; TODO: Split on clojure version. 
+#_(str "Defops currently don't support variadic arguments.\n"
+               "The following argument vector is invalid: " args)
+
 (defn- parse-defop-args
   "Accepts a def* type and the body of a def* operation binding,
   outfits the function var with all appropriate metadata, and returns
@@ -314,7 +314,7 @@
   * `fname`: the function var.
   * `f-args`: static variable declaration vector.
   * `args`: dynamic variable declaration vector."
-  [type [spec & args]]
+  [type [spec & args]]  
   (let [[fname f-args] (if (sequential? spec)
                          [(clojure.core/first spec) (second spec)]
                          [spec nil])
@@ -324,6 +324,7 @@
         fname (update-arglists fname args)
         fname (meta-conj fname {:pred-type (keyword (name type))
                                 :hof? (boolean f-args)})]
+    (assert-nonvariadic f-args)
     [fname f-args args]))
 
 (defn- defop-helper
@@ -348,7 +349,7 @@
     `(do (defn ~runner-name ~(meta fname) ~@runner-body)
          (def ~fname          
            (with-meta
-             (fn [ & ~args-sym-all]
+             (fn [& ~args-sym-all]
                (let [~assembly-args ~args-sym-all]
                  (apply ~type ~func-form ~args-sym)))
              ~(meta fname))))))
@@ -384,9 +385,9 @@
      `(assembly ~args [] ~return))
   ([args bindings return]
      (let [pipify (fn [forms] (if (or (not (sequential? forms))
-                                     (vector? forms))
-                               forms
-                               (cons 'cascalog.workflow/assemble forms)))
+                                      (vector? forms))
+                                forms
+                                (cons 'cascalog.workflow/assemble forms)))
            return (pipify return)
            bindings (vec (clojure.core/map #(%1 %2) (cycle [clojure.core/identity pipify]) bindings))]
        `(fn ~args
@@ -412,6 +413,15 @@
 (defn taps-map [pipes taps]
   (Cascades/tapsMap (into-array Pipe pipes) (into-array Tap taps)))
 
+(defn flow-def
+  [flow-name sourcemap sinkmap trapmap tails]
+  (doto (FlowDef.)
+    (.setName flow-name)
+    (.addSources sourcemap)
+    (.addSinks sinkmap)
+    (.addTraps trapmap)
+    (.addTails (into-array Pipe tails))))
+
 (defn mk-flow [sources sinks assembly]
   (let [sources (collectify sources)
         sinks   (collectify sinks)
@@ -421,7 +431,7 @@
         tail-pipes (clojure.core/map #(Pipe. (str "tpipe" %2) %1)
                                      (collectify (apply assembly source-pipes))
                                      (iterate inc 0))]
-    (.connect (FlowConnector.)
+    (.connect (HadoopFlowConnector.)
               (taps-map source-pipes sources)
               (taps-map tail-pipes sinks)
               (into-array Pipe tail-pipes))))
@@ -449,13 +459,13 @@
   [x]
   (if (string? x) x (.getAbsolutePath ^File x)))
 
-(def valid-sinkmode? #{:keep :append :replace})
+(def valid-sinkmode? #{:keep :update :replace})
 
 (defn- sink-mode [kwd]
   {:pre [(or (nil? kwd) (valid-sinkmode? kwd))]}
   (case kwd
-    :keep SinkMode/KEEP
-    :append SinkMode/APPEND
+    :keep    SinkMode/KEEP
+    :update  SinkMode/UPDATE
     :replace SinkMode/REPLACE
     SinkMode/KEEP))
 
@@ -502,8 +512,9 @@ identity.  identity."
 (defn exec [^Flow flow]
   (.complete flow))
 
-(defn fill-tap! [^Tap tap xs] 
-  (with-open [^TupleEntryCollector collector (.openForWrite tap (JobConf.))]
+(defn fill-tap! [^Tap tap xs]
+  (with-open [^TupleEntryCollector collector (-> (HadoopFlowProcess. (JobConf.))
+                                                 (.openTapForWrite tap))]
     (doseq [item xs]
       (.add collector (Util/coerceToTuple item)))))
 

@@ -1,18 +1,3 @@
-;;    Copyright 2010 Nathan Marz
-;; 
-;;    This program is free software: you can redistribute it and/or modify
-;;    it under the terms of the GNU General Public License as published by
-;;    the Free Software Foundation, either version 3 of the License, or
-;;    (at your option) any later version.
-;; 
-;;    This program is distributed in the hope that it will be useful,
-;;    but WITHOUT ANY WARRANTY; without even the implied warranty of
-;;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-;;    GNU General Public License for more details.
-;; 
-;;    You should have received a copy of the GNU General Public License
-;;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 (ns cascalog.predicate
   (:use [cascalog vars util])
   (:require [cascalog.workflow :as w])
@@ -20,8 +5,9 @@
            [cascading.tap Tap]
            [cascading.operation Filter]
            [cascading.tuple Fields]
-           [cascalog ClojureParallelAggregator ClojureBuffer ClojureBufferCombiner
-            CombinerSpec CascalogFunction CascalogFunctionExecutor CascadingFilterToFunction
+           [cascalog ClojureParallelAggregator ClojureBuffer
+            ClojureBufferCombiner CombinerSpec CascalogFunction
+            CascalogFunctionExecutor CascadingFilterToFunction
             CascalogBuffer CascalogBufferExecutor]))
 
 ;; doing it this way b/c pain to put metadata directly on a function
@@ -30,16 +16,19 @@
 (defstruct parallel-aggregator :type :init-var :combine-var)
 
 ;; :num-intermediate-vars-fn takes as input infields, outfields
-(defstruct parallel-buffer :type :hof? :init-hof-var :combine-hof-var :extract-hof-var :num-intermediate-vars-fn :buffer-hof-var)
-
+(defstruct parallel-buffer
+  :type :hof? :init-hof-var :combine-hof-var :extract-hof-var
+  :num-intermediate-vars-fn :buffer-hof-var)
 
 (defmacro defparallelagg [name & body]
   `(def ~name
-     (struct-map cascalog.predicate/parallel-aggregator :type ::parallel-aggregator ~@body)))
+     (struct-map cascalog.predicate/parallel-aggregator
+       :type ::parallel-aggregator ~@body)))
 
 (defmacro defparallelbuf [name & body]
   `(def ~name
-     (struct-map cascalog.predicate/parallel-buffer :type ::parallel-buffer ~@body)))
+     (struct-map cascalog.predicate/parallel-buffer
+       :type ::parallel-buffer ~@body)))
 
 ;; ids are so they can be used in sets safely
 (defmacro defpredicate [name & attrs]
@@ -55,7 +44,8 @@
 (defpredicate aggregator :buffer? :parallel-agg :pregroup-assembly :serial-agg-assembly :post-assembly :infields :outfields)
 
 ;; automatically generates source pipes and attaches to sources
-(defpredicate generator :join-set-var :ground? :sourcemap :pipe :outfields :trapmap)
+(defpredicate generator
+  :join-set-var :ground? :sourcemap :pipe :outfields :trapmap)
 (defpredicate generator-filter :generator :outvar)
 (defpredicate outconstant-equal)
 
@@ -192,23 +182,27 @@
     (:name trap)
     (uuid)))
 
-(defmethod build-predicate-specific ::tap [tap _ _ infields outfields options]
+(defmethod build-predicate-specific ::tap
+  [tap _ _ infields outfields options]
   (let [sourcename (uuid)
         pname (init-pipe-name options)
-        pipe (w/assemble (w/pipe sourcename) (w/pipe-rename pname) (w/identity Fields/ALL :fn> outfields :> Fields/RESULTS))]
+        pipe (w/assemble (w/pipe sourcename) (w/pipe-rename pname)
+                         (w/identity Fields/ALL :fn> outfields :> Fields/RESULTS))]
     (when-not (empty? infields)
       (throw-illegal "Cannot use :> in a taps vars declaration"))
     (predicate generator nil (ground-fields? outfields) {sourcename tap} pipe outfields (init-trap-map options))))
 
-(defmethod build-predicate-specific ::data-structure [tuples _ _ infields outfields options]
+(defmethod build-predicate-specific ::data-structure
+  [tuples _ _ infields outfields options]
   (build-predicate-specific (w/memory-source-tap tuples) nil nil infields outfields options))
 
-
-(defmethod build-predicate-specific :generator [gen _ _ infields outfields options]
+(defmethod build-predicate-specific :generator
+  [gen _ _ infields outfields options]
   (let [pname (init-pipe-name options)
         trapmap (merge (:trapmap gen) (init-trap-map options))
-        gen-pipe (w/assemble (:pipe gen) (w/pipe-rename pname) (w/identity Fields/ALL :fn> outfields :> Fields/RESULTS))]
-    (predicate generator nil (ground-fields? outfields) (:sourcemap gen) gen-pipe outfields trapmap )))
+        gen-pipe (w/assemble (:pipe gen) (w/pipe-rename pname)
+                             (w/identity Fields/ALL :fn> outfields :> Fields/RESULTS))]
+    (predicate generator nil (ground-fields? outfields) (:sourcemap gen) gen-pipe outfields trapmap)))
 
 (defmethod build-predicate-specific :generator-filter [op _ _ infields outfields options]
   (let [gen (build-predicate-specific (:generator op) nil nil infields outfields options)]
@@ -306,12 +300,16 @@
 (defmethod build-predicate-specific :buffer [& args]
   (apply simpleagg-build-predicate true args))
 
-(defmethod build-predicate-specific ::cascalog-buffer [op _ _ infields outfields options]
+;; TODO: Fix test at this spot.
+(defmethod build-predicate-specific ::cascalog-buffer
+  [op _ _ infields outfields options]
   (predicate aggregator
              true
              nil
              identity
-             (w/raw-every (w/fields infields) (CascalogBufferExecutor. (w/fields outfields) op) Fields/ALL)
+             (w/raw-every (w/fields infields)
+                          (CascalogBufferExecutor. (w/fields outfields) op)
+                          Fields/ALL)
              identity
              infields
              outfields))
@@ -392,14 +390,14 @@
   [options op opvar hof-args orig-infields outvars]
   (let [outvars                  (replace-ignored-vars outvars)
         [infields infield-subs]  (variable-substitution orig-infields)
-        [infields dupvars
-         duplicate-assem]        (fix-duplicate-infields infields)
-        predicate                (build-predicate-specific op opvar hof-args infields outvars options)
-        new-outvars              (concat outvars (keys infield-subs) dupvars)
-        in-insertion-assembly          (when-not (empty? infields)
-                                         (w/compose-straight-assemblies
-                                          (mk-insertion-assembly infield-subs)
-                                          duplicate-assem))
+        [infields dupvars duplicate-assem] (fix-duplicate-infields infields)
+        predicate             (build-predicate-specific op opvar hof-args
+                                                        infields outvars options)
+        new-outvars           (concat outvars (keys infield-subs) dupvars)
+        in-insertion-assembly (when-not (empty? infields)
+                                (w/compose-straight-assemblies
+                                 (mk-insertion-assembly infield-subs)
+                                 duplicate-assem))
         null-check-out                 (mk-null-check outvars)]
     (enhance-predicate predicate
                        (filter cascalog-var? orig-infields)

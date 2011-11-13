@@ -42,7 +42,6 @@ To include Cascalog in your leiningen or cake project, add the following to your
 1. Replicated and bloom joins
 2. Cross query optimization: push constants and filters down into subqueries when possible
 
-
 # Acknowledgements
 
 YourKit is kindly supporting open source projects with its full-featured Java Profiler.
