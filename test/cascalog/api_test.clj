@@ -341,16 +341,34 @@
 ;; join between two data structures    FAILS
 ;; join between 2 hfs-textlines        WORKS
 
+(defn mk-good []
+  (let [src (hfs-textline "/Users/sritchie/Desktop/runningforma.txt")
+        src2 (hfs-textline "/Users/sritchie/Desktop/runningformacopy.txt")]
+    (?- (stdout)
+        (<- [!a]
+            (src !a)
+            (src2 !a)
+            (:distinct false)
+            (:trap (stdout))))
+    (cascalog.workflow/write-dot
+       (compile-flow (stdout)
+                     (<- [!a]
+                         (src !a)
+                         (src2 !a)
+                         (:distinct false)
+                         (:trap (stdout))))
+       "/Users/sritchie/Desktop/textoldbad.dot")))
+
 (defn breaking-test []
-  (let [src  [["a"]]
-        src2 [["a"]]]
-    (with-job-conf {"mapred.job.tracker" "local"}
-      (?<- (stdout)
-           [!s]
-           (src :> !s)
-           (src2 :> !s)
-           (:distinct false)
-           (:trap (stdout))))))
+  (let [src  [["a"]]]
+    (.complete (compile-flow (stdout)
+                             (<- [!s]
+                                 (src !s)
+                                 ;; (src :> !s)
+                                 (:distinct false)
+                                 ;; (:trap (stdout))
+                                 )))
+    ))
 
 (deftest test-trap-joins
   (let [age    [["A" 20] ["B" 21]]
