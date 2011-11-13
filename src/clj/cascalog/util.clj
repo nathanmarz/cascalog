@@ -91,6 +91,18 @@
 (defn throw-runtime [str]
   (throw (RuntimeException. str)))
 
+(defn >=s
+  ">= for strings."
+  [s1 s2]
+  (= s1 (first (sort [s1 s2]))))
+
+(defn safe-assert
+  ([x] (safe-assert x ""))
+  ([x msg]
+     (if (>=s "1.3.0" (clojure-version))
+       (assert x msg)
+       (assert x))))
+
 (defn try-update-in
   [m key-vec f & args]
   (reduce #(%2 %1) m
