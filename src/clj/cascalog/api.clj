@@ -166,7 +166,7 @@
         trapmap   (apply merge (map :trapmap gens))
         tails     (map rules/connect-to-sink gens sinks)
         sinkmap   (w/taps-map tails sinks)]
-    (.connect (FlowConnector.
+    (.connect (HadoopFlowConnector.
                (stringify-keys
                 (conf-merge (cascalog.rules/project-settings)
                             cascalog.rules/*JOB-CONF*
