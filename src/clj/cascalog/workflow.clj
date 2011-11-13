@@ -354,7 +354,7 @@
                            `[~func-args & ~args-sym]
                            `[ & ~args-sym])]
     `(do (defn ~runner-name ~(meta fname) ~@runner-body)
-         (def ~fname          
+         (def ~fname
            (with-meta
              (fn [& ~args-sym-all]
                (let [~assembly-args ~args-sym-all]
