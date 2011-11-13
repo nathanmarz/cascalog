@@ -300,11 +300,11 @@
     [sym forms]))
 
 (defn assert-nonvariadic [args]
-  (assert (not (some #{'&} args))
-          ))
-;; TODO: Split on clojure version. 
-#_(str "Defops currently don't support variadic arguments.\n"
-               "The following argument vector is invalid: " args)
+  (safe-assert (not (some #{'&} args))
+               (str "Defops currently don't support variadic arguments.\n"
+                    "The following argument vector is invalid: " args)))
+
+
 
 (defn- parse-defop-args
   "Accepts a def* type and the body of a def* operation binding,
