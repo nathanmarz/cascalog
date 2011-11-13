@@ -619,6 +619,10 @@
 
 (def ^:dynamic *JOB-CONF* {})
 
+(defn project-settings []
+  (if-let [conf-map (ClassLoader/getSystemResource "job-conf.clj")]
+    (-> conf-map slurp read-string)))
+
 (defn- pluck-tuple [tap]
   (with-open [it (-> (HadoopFlowProcess. (hadoop/job-conf *JOB-CONF*))
                      (.openTapForRead tap))]

@@ -166,14 +166,16 @@
         trapmap   (apply merge (map :trapmap gens))
         tails     (map rules/connect-to-sink gens sinks)
         sinkmap   (w/taps-map tails sinks)]
-    (.connect (->> rules/*JOB-CONF*
-                   (conf-merge {"cascading.flow.job.pollinginterval" 100})
-                   (HadoopFlowConnector.))
-              (w/flow-def flow-name
-                          sourcemap
-                          sinkmap
-                          trapmap
-                          tails))))
+    (.connect (FlowConnector.
+               (stringify-keys
+                (conf-merge (cascalog.rules/project-settings)
+                            cascalog.rules/*JOB-CONF*
+                            {"cascading.flow.job.pollinginterval" 100})))
+              flow-name
+              sourcemap
+              sinkmap
+              trapmap
+              (into-array Pipe tails))))
 
 (defn ?-
   "Executes 1 or more queries and emits the results of each query to
