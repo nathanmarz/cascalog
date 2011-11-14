@@ -1,4 +1,4 @@
-(ns cascalog.api
+ (ns cascalog.api
   (:use [cascalog vars util graph debug])
   (:require [clojure.set :as set]
             [cascalog.tap :as tap]
@@ -166,7 +166,7 @@
         trapmap   (apply merge (map :trapmap gens))
         tails     (map rules/connect-to-sink gens sinks)
         sinkmap   (w/taps-map tails sinks)]
-    (.connect (FlowConnector.
+    (.connect (HadoopFlowConnector.
                (conf-merge (cascalog.rules/project-settings)
                            cascalog.rules/*JOB-CONF*
                            {"cascading.flow.job.pollinginterval" 100}))

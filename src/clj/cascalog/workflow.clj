@@ -1,7 +1,8 @@
 (ns cascalog.workflow
   (:refer-clojure :exclude [group-by count first filter mapcat
                             map identity min max])
-  (:use [cascalog util debug])
+  (:use [cascalog util debug]
+        [clojure.tools.macro :only (name-with-attributes)])
   (:import [cascalog Util]
            [org.apache.hadoop.mapred JobConf]
            [java.io File]

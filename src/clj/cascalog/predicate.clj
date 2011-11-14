@@ -1,5 +1,6 @@
 (ns cascalog.predicate
-  (:use [cascalog vars util])
+  (:use [cascalog vars util]
+        [clojure.tools.macro :only (name-with-attributes)])
   (:require [cascalog.workflow :as w])
   (:import [java.util ArrayList]
            [cascading.tap Tap]
