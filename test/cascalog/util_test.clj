@@ -63,5 +63,21 @@
   (is (= true (not-count= [1] [])))
   (is (= true (not-count= [1 2] [3 4] [])))
   (is (= false (not-count= [1] [1])))
-  (is (= false (not-count= [1 2] [4 3])))
-  )
+  (is (= false (not-count= [1 2] [4 3]))))
+
+(deftest conf-merge-test
+  (let [m1 {"key" "foo"
+            "key2" ["bar" "baz"]}
+        m2 {"key" ["cake" "salad"]}]
+    (is (= {"key" "foo", "key2" "bar,baz"}) (conf-merge m1))
+    (is (= {"key" "cake,salad", "key2" "bar,baz"}) (conf-merge m1 m2))))
+
+(deftest stringify-test
+  ;; TODO: Test for duplicate keys btw str and kwd
+  (is (= {"key" "val" "key2" "val2"}
+         (stringify-keys {:key "val" "key2" "val2"}))))
+
+(deftest update-vals-test
+  (let [square (fn [k v] (* v v))]
+    (is (= {1 1, 2 4, 3 9}
+           (update-vals {1 1, 2 2, 3 3} square)))))
