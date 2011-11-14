@@ -111,7 +111,9 @@
   ;; unable to use with-log-level here for some reason
   (let [spec (mapify-spec spec)
         source (mk-test-tap (:fields spec) path)]
-    (with-open [collector (.openForWrite source (cascalog.rules/project-conf))]
+    (with-open [collector (.openForWrite source
+                                         (hadoop/job-conf
+                                          (cascalog.rules/project-conf)))]
       (doall (map #(.add collector (Util/coerceToTuple %))
                   (-> spec mapify-spec :tuples)))
       source)))
