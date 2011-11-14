@@ -166,7 +166,7 @@
         trapmap   (apply merge (map :trapmap gens))
         tails     (map rules/connect-to-sink gens sinks)
         sinkmap   (w/taps-map tails sinks)]
-    (.connect (FlowConnector.
+    (.connect (HadoopFlowConnector.
                (conf-merge (cascalog.rules/project-conf)
                            {"cascading.flow.job.pollinginterval" 100}))
               flow-name
