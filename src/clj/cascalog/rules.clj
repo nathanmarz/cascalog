@@ -617,14 +617,19 @@
 (defn mk-raw-predicate [[op-sym & vars]]
   [op-sym (try-resolve op-sym) (vars2str vars)])
 
-(def ^:dynamic *JOB-CONF* {})
+(defn read-map [x]
+  (try (read-string x)
+       (catch RuntimeException _ {})))
 
 (defn project-settings []
-  (when-let [conf-path (ClassLoader/getSystemResource "job-conf.clj")]
-    (let [conf (-> conf-path slurp read-string)]
+  (if-let [conf-path (ClassLoader/getSystemResource "job-conf.clj")]
+    (let [conf (-> conf-path slurp read-map)]
       (safe-assert (map? conf)
                    "job-conf.clj must contain a map of config parameters!")
-      conf)))
+      conf)
+    {}))
+
+(def ^:dynamic *JOB-CONF* {})
 
 (defn- pluck-tuple [tap]
   (with-open [it (-> (HadoopFlowProcess. (hadoop/job-conf *JOB-CONF*))
