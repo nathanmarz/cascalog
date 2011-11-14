@@ -74,8 +74,8 @@
 
 (defn reduce [op & [init]]
   (predmacro [invars outvars]
-             (assert (= 1 (clojure.core/count outvars))
-                     "Reduce only allows a single outvar.")
+             (safe-assert (= 1 (clojure.core/count outvars))
+                          "Reduce only allows a single outvar.")
              (let [[x1 x2 & more] (if init (cons init invars) invars)
                    more (-> (repeatedly v/gen-nullable-var)
                             (interleave more)

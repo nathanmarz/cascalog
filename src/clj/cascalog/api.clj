@@ -181,10 +181,9 @@
         tails     (map cascalog.rules/connect-to-sink gens sinks)
         sinkmap   (w/taps-map tails sinks)]
     (.connect (FlowConnector.
-               (stringify-keys
-                (conf-merge (cascalog.rules/project-settings)
-                            cascalog.rules/*JOB-CONF*
-                            {"cascading.flow.job.pollinginterval" 100})))
+               (conf-merge (cascalog.rules/project-settings)
+                           cascalog.rules/*JOB-CONF*
+                           {"cascading.flow.job.pollinginterval" 100}))
               flow-name
               sourcemap
               sinkmap

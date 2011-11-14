@@ -635,8 +635,11 @@
 (def ^:dynamic *JOB-CONF* {})
 
 (defn project-settings []
-  (if-let [conf-map (ClassLoader/getSystemResource "job-conf.clj")]
-    (-> conf-map slurp read-string)))
+  (when-let [conf-path (ClassLoader/getSystemResource "job-conf.clj")]
+    (let [conf (-> conf-path slurp read-string)]
+      (safe-assert (map? conf)
+                   "job-conf.clj must contain a map of config parameters!")
+      conf)))
 
 (defn- pluck-tuple [tap]
   (with-open [it (.openForRead tap (hadoop/job-conf *JOB-CONF*))]

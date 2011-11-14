@@ -506,6 +506,11 @@
   (with-job-conf {"key" "val"}
     (is (= {"key" "val"} cascalog.rules/*JOB-CONF*)))
 
+  (with-job-conf {"key" ["val1" "val2"]}
+    (is (= {"key" "val1,val2"} cascalog.rules/*JOB-CONF*))
+    (with-job-conf {"key" ["val3"]}
+      (is (= {"key" "val3"} cascalog.rules/*JOB-CONF*))))
+  
   (with-job-conf {"io.serializations" "java.lang.String"}
     (is (= cascalog.rules/*JOB-CONF*
            {"io.serializations" (s/join "," (conj u/default-serializations "java.lang.String"))})))
