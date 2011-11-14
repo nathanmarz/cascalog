@@ -1,4 +1,4 @@
- (ns cascalog.api
+(ns cascalog.api
   (:use [cascalog vars util graph debug])
   (:require [clojure.set :as set]
             [cascalog.tap :as tap]
