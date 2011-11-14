@@ -631,8 +631,12 @@
 
 (def ^:dynamic *JOB-CONF* {})
 
+(defn project-conf []
+  (conf-merge (project-settings)
+              *JOB-CONF*))
+
 (defn- pluck-tuple [tap]
-  (with-open [it (-> (HadoopFlowProcess. (hadoop/job-conf *JOB-CONF*))
+  (with-open [it (-> (HadoopFlowProcess. (hadoop/job-conf (project-conf)))
                      (.openTapForRead tap))]
     (if-let [iter (iterator-seq it)]
       (-> iter first .getTuple Tuple. Util/coerceFromTuple vec)
@@ -704,8 +708,8 @@ cascading tap, returns a new generator with field-names."
 (defn get-sink-tuples [^Tap sink]
   (if (map? sink)
     (get-sink-tuples (:sink sink))
-    (with-open [it (-> (HadoopFlowProcess. (hadoop/job-conf *JOB-CONF*))
-                       (.openTapForRead sink))]
+    (with-open [it  (-> (HadoopFlowProcess. (hadoop/job-conf (project-conf)))
+                        (.openTapForRead sink))]
       (doall
        (for [^TupleEntry t (iterator-seq it)]
          (vec (Util/coerceFromTuple (Tuple. (.getTuple t)))))))))
