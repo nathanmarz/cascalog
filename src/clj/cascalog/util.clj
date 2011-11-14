@@ -79,14 +79,14 @@
 (defn >=s
   ">= for strings."
   [s1 s2]
-  (= s1 (first (sort [s1 s2]))))
+  (= s2 (first (sort [s1 s2]))))
 
-(defn safe-assert
-  ([x] (safe-assert x ""))
+(defmacro safe-assert
+  ([x] `(safe-assert ~x ""))
   ([x msg]
-     (if (>=s "1.3.0" (clojure-version))
-       (assert x msg)
-       (assert x))))
+     (if (>=s (clojure-version) "1.3.0")
+       `(assert ~x ~msg)
+       `(assert ~x))))
 
 (defn try-update-in
   [m key-vec f & args]
@@ -273,17 +273,23 @@
        (mapcat #(s/split % #","))
        (serialization-entry)))
 
+(defn update-vals [m f]
+  (into {} (for [[k v] m] [k (f k v)])))
+
+(defn adjust-map [m]
+  (-> m
+      (update-vals (fn [_ v] (s/join "," (collectify v))))
+      (try-update-in ["io.serializations"] merge-serialization-strings)))
+
 (defn conf-merge
   "TODO: Come up with a more general version of this, similar to
   merge-with, that takes a map of key-func pairs, and merges with
   those functions."
-  [& maps]
+  [m & more]
   (reduce (fn [m1 m2]
-            (let [m2 (try-update-in m2 ["io.serializations"]
-                                    merge-serialization-strings
-                                    (get m1 "io.serializations"))]
-              (conj (or m1 {}) m2)))
-          maps))
+            (conj (or m1 {}) (adjust-map m2)))
+          (adjust-map m)
+          more))
 
 (defn stringify-keys [m]
   (into {} (for [[k v] m]
