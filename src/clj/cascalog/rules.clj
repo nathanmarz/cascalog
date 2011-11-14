@@ -632,17 +632,26 @@
 (defn mk-raw-predicate [[op-sym & vars]]
   [op-sym (try-resolve op-sym) (vars2str vars)])
 
-(def ^:dynamic *JOB-CONF* {})
+(defn read-map [x]
+  (try (read-string x)
+       (catch RuntimeException _ {})))
 
 (defn project-settings []
-  (when-let [conf-path (ClassLoader/getSystemResource "job-conf.clj")]
-    (let [conf (-> conf-path slurp read-string)]
+  (if-let [conf-path (ClassLoader/getSystemResource "job-conf.clj")]
+    (let [conf (-> conf-path slurp read-map)]
       (safe-assert (map? conf)
                    "job-conf.clj must contain a map of config parameters!")
-      conf)))
+      conf)
+    {}))
+
+(def ^:dynamic *JOB-CONF* {})
+
+(defn project-conf []
+  (conf-merge (project-settings)
+              *JOB-CONF*))
 
 (defn- pluck-tuple [tap]
-  (with-open [it (.openForRead tap (hadoop/job-conf *JOB-CONF*))]
+  (with-open [it (.openForRead tap (hadoop/job-conf (project-conf)))]
     (if-let [iter (iterator-seq it)]
       (-> iter first .getTuple Tuple. Util/coerceFromTuple vec)
       (throw-illegal "Cascading tap is empty -- tap must contain tuples."))))
@@ -711,7 +720,7 @@ cascading tap, returns a new generator with field-names."
 (defn get-sink-tuples [^Tap sink]
   (if (map? sink)
     (get-sink-tuples (:sink sink))
-    (with-open [it (.openForRead sink (hadoop/job-conf *JOB-CONF*))]
+    (with-open [it (.openForRead sink (hadoop/job-conf (project-conf)))]
       (doall
        (for [^TupleEntry t (iterator-seq it)]
          (vec (Util/coerceFromTuple (Tuple. (.getTuple t)))))))))
