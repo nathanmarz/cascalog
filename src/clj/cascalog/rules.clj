@@ -632,15 +632,17 @@
 (defn mk-raw-predicate [[op-sym & vars]]
   [op-sym (try-resolve op-sym) (vars2str vars)])
 
-(defn read-map [x]
-  (try (read-string x)
+(defn read-settings [x]
+  (try (binding [*ns* (create-ns (gensym "settings"))]
+         (refer 'clojure.core)
+         (eval (read-string (str "(do " x ")"))))
        (catch RuntimeException _ {})))
 
 (defn project-settings []
   (if-let [conf-path (ClassLoader/getSystemResource "job-conf.clj")]
-    (let [conf (-> conf-path slurp read-map)]
+    (let [conf (-> conf-path slurp read-settings)]
       (safe-assert (map? conf)
-                   "job-conf.clj must contain a map of config parameters!")
+                   "job-conf.clj must produce a map of config parameters!")
       conf)
     {}))
 
