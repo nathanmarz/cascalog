@@ -18,9 +18,10 @@
   {:great-meta "yes!"}
   [x] x)
 
-(defmapop [ident-stateful [y]]
+(defmapop ident-stateful
   "Identity operation."
-  {:stateful true
+  {:params [y]
+   :stateful true
    :great-meta "yes!"}
   ([] 3)
   ([state x] (+ x y state))

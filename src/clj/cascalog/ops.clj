@@ -86,7 +86,8 @@
 
 ;; Operations to use within queries
 
-(defmapop [re-parse [pattern]] [str]
+(defmapop re-parse
+  {:params [pattern]} [str]
   (re-seq pattern str))
 
 (defparallelagg count

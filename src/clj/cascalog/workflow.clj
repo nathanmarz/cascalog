@@ -321,17 +321,17 @@
   * `fname`: the function var.
   * `f-args`: static variable declaration vector.
   * `args`: dynamic variable declaration vector."
-  [type [spec & args]]  
-  (let [[fname f-args] (if (sequential? spec)
-                         [(clojure.core/first spec) (second spec)]
-                         [spec nil])
+  [type [fname & args]]
+  (let [[fname args] (name-with-attributes fname args)
         [fname args] (->> [fname args]
-                          (apply name-with-attributes)
                           (apply update-fields))
-        fname (update-arglists fname args)
-        fname (meta-conj fname {:pred-type (keyword (name type))
-                                :hof? (boolean f-args)})]
-    (assert-nonvariadic f-args)
+        f-args (:params (meta fname))
+        fname (-> fname
+                  (update-arglists args)
+                  (meta-conj {:pred-type (keyword (name type))
+                              :hof? (boolean args)})
+                  (meta-dissoc :params))]
+    (assert-nonvariadic args)
     [fname f-args args]))
 
 (defn- defop-helper

@@ -235,6 +235,10 @@
                    (conj (meta sym) attr)
                    attr)))
 
+(defn meta-dissoc
+  [sym & ks]
+  (with-meta sym (apply dissoc (meta sym) ks)))
+
 (defn set-namespace-value
   "Merges the supplied kv-pair into the metadata of the namespace in
   which the function is called."
