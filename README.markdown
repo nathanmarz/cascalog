@@ -35,7 +35,7 @@ Cascalog is hosted at [Clojars](http://clojars.org/cascalog). Clojars is a maven
 
 To include Cascalog in your leiningen or cake project, add the following to your `project.clj`:
 
-    [cascalog "0.8.3"]
+    [cascalog "1.8.3"]
 
 # Priorities for Cascalog development
 
