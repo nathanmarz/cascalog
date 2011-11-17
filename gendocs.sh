@@ -4,6 +4,7 @@
 #
 # http://tomfaulhaber.github.com/autodoc/
 
+lein deps
 lein autodoc
 cd autodoc
 git add -A

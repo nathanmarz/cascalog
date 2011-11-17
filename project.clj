@@ -23,11 +23,14 @@
   :dev-dependencies [[swank-clojure "1.4.0-SNAPSHOT"]
                      [org.apache.hadoop/hadoop-core "0.20.2-dev"]
                      [lein-multi "1.1.0-SNAPSHOT"]
-                     [backtype/autodoc "0.9.0-SNAPSHOT"]]
+                     ;; uncomment for doc builds.
+                     ;; [backtype/autodoc "0.9.0-SNAPSHOT"]
+                     ]
   :autodoc {:name "Cascalog"
             :page-title "Cascalog API Documentation"
             :namespaces-to-document ["cascalog.api" "cascalog.ops"]
-            :web-home "http://nathanmarz.github.com/cascalog/"}
+            :web-home "http://nathanmarz.github.com/cascalog/"
+            :web-src-dir "https://github.com/nathanmarz/cascalog/blob/"}
   :multi-deps {"1.2" [[org.clojure/clojure "1.2.1"]
                       [org.clojure/tools.macro "0.1.1"]
                       [cascading/cascading-hadoop "2.0.0-wip-160"
