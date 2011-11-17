@@ -27,3 +27,5 @@ syntax: glob
 *.dot
 .cake/
 .lein-failures
+.lein-deps-sum
+autodoc/**
