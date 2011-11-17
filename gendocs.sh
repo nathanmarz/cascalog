@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# More info on autodoc customizations:
+#
+# http://tomfaulhaber.github.com/autodoc/
+
 lein autodoc
 cd autodoc
 git add -A
