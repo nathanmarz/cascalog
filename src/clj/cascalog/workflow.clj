@@ -345,7 +345,9 @@
          assembly-args   (if func-args
                            `[~func-args & ~args-sym]
                            `[ & ~args-sym])]
-    `(do (defn ~runner-name ~(meta fname) ~@runner-body)
+    `(do (defn ~runner-name
+           ~(assoc (meta fname) :skip-wiki true)
+           ~@runner-body)
          (def ~fname
            (with-meta
              (fn [& ~args-sym-all]
