@@ -709,7 +709,7 @@ cascading tap, returns a new generator with field-names."
 
 (defn get-sink-tuples [^Tap sink]
   (if (map? sink)
-    (get-sink-tuples (:sink sink)
+    (get-sink-tuples (:sink sink))
     (with-open [it  (-> (HadoopFlowProcess. (hadoop/job-conf (project-conf)))
                         (.openTapForRead sink))]
       (doall
