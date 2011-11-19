@@ -29,3 +29,4 @@ syntax: glob
 .lein-failures
 .lein-deps-sum
 autodoc/**
+autodoc/
