@@ -35,8 +35,11 @@ Cascalog is hosted at [Clojars](http://clojars.org/cascalog). Clojars is a maven
 
 To include Cascalog in your leiningen or cake project, add the following to your `project.clj`:
 
-    [cascalog "1.8.3"] ;; under :dependencies
-    [org.apache.hadoop/hadoop-core "0.20.2-dev"] ;; under :dev-dependencies
+    ;; under :dependencies
+    [cascalog "1.8.3"] 
+    
+    ;; under :dev-dependencies
+    [org.apache.hadoop/hadoop-core "0.20.2-dev"] 
     
 # Priorities for Cascalog development
 
