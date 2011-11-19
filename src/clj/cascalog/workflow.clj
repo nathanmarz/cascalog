@@ -329,7 +329,7 @@
         fname (-> fname
                   (update-arglists args)
                   (meta-conj {:pred-type (keyword (name type))
-                              :hof? (boolean args)})
+                              :hof? (boolean f-args)})
                   (meta-dissoc :params))]
     (assert-nonvariadic args)
     [fname f-args args]))
