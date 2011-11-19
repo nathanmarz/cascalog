@@ -8,35 +8,33 @@
            [cascalog.test KeepEven OneBuffer]
            [cascalog.ops IdentityBuffer]))
 
-(defmapop mk-one "Returns 1 for any input." [& tuple] 1)
+(defmapop mk-one
+  "Returns 1 for any input."
+  [& tuple] 1)
 
 (deftest test-no-input
   (let [nums [[1] [2] [3]]]
     (test?<- [[1 1] [2 1] [3 1]] [?n ?n2] (nums ?n) (mk-one ?n2))
-    (test?<- [[1 1] [1 2] [1 3] [2 1] [2 2] [2 3] [3 1] [3 2] [3 3]] [?n ?n3] (nums ?n) (mk-one ?n2) (nums ?n3))
-    ))
+    (test?<- [[1 1] [1 2] [1 3] [2 1] [2 2] [2 3] [3 1] [3 2] [3 3]] [?n ?n3] (nums ?n) (mk-one ?n2) (nums ?n3))))
 
 (deftest test-simple-query
   (let [age [["n" 24] ["n" 23] ["i" 31] ["c" 30] ["j" 21] ["q" nil]]]
     (test?<- [["j"] ["n"]] [?p] (age ?p ?a) (< ?a 25))
-    (test?<- [["j"] ["n"] ["n"]] [?p] (age ?p ?a) (< ?a 25) (:distinct false))
-    ))
+    (test?<- [["j"] ["n"] ["n"]] [?p] (age ?p ?a) (< ?a 25) (:distinct false))))
 
 (deftest test-larger-tuples
   (let [stats [["n" 6 190 nil] ["n" 6 195 nil] ["i" 5 180 31] ["g" 5 150 60]]
         friends [["n" "i" 6] ["n" "g" 20] ["g" "i" nil]]]
     (test?<- [["g" 60]] [?p ?a] (stats ?p _ _ ?a) (friends ?p _ _))
     (test?<- [] [?p ?a] (stats ?p 1000 _ ?a))
-    (test?<- [["n"] ["n"]] [?p] (stats ?p _ _ nil) (:distinct false))
-    ))
+    (test?<- [["n"] ["n"]] [?p] (stats ?p _ _ nil) (:distinct false))))
 
 (deftest test-multi-join
   (let [age [["n" 24] ["a" 15] ["j" 24] ["d" 24] ["b" 15] ["z" 62] ["q" 24]]
         friends [["n" "a" 16] ["n" "j" 12] ["j" "n" 10] ["j" "d" nil]
                  ["d" "q" nil] ["b" "a" nil] ["j" "a" 1] ["a" "z" 1]]]
     (test?<- [["n" "j"] ["j" "n"] ["j" "d"] ["d" "q"] ["b" "a"]]
-             [?p ?p2] (age ?p ?a) (age ?p2 ?a) (friends ?p ?p2 _))
-    ))
+             [?p ?p2] (age ?p ?a) (age ?p2 ?a) (friends ?p ?p2 _))))
 
 (deftest test-many-joins
   (let [age-prizes [[10 "toy"] [20 "animal"] [30 "car"] [40 "house"]]
@@ -44,8 +42,7 @@
         age         [["z" 20] ["a" 10] ["n" 15]]]
     (test?<- [["n" "animal-!!"] ["n" "house-!!"] ["j" "house-!!"]]
              [?p ?prize] (friends ?p ?p2) (friends ?p2 ?p3) (age ?p3 ?a)
-             (* 2 ?a :> ?a2) (age-prizes ?a2 ?prize2) (str ?prize2 "-!!" :> ?prize))
-    ))
+             (* 2 ?a :> ?a2) (age-prizes ?a2 ?prize2) (str ?prize2 "-!!" :> ?prize))))
 
 (deftest test-bloated-join
   (let [gender     [["n" "male"] ["j" "male"] ["a" nil] ["z" "female"]]
@@ -55,10 +52,9 @@
     (test?<- [["n" "bball" 15 "male"] ["n" "dl" 15 "male"]
               ["a" "shoes" 10 nil] ["z" "stuff" 20 "female"]]
              [!p !interest !age !gender]
-             (friends !p _) (age !p !age) (interest !p !interest) (gender !p !gender))
-    ))
+             (friends !p _) (age !p !age) (interest !p !interest) (gender !p !gender))))
 
-(defmapcatop split [#^String words]
+(defmapcatop split [^String words]
   (seq (.split words "\\s+")))
 
 (deftest test-countall
@@ -67,28 +63,24 @@
     (test?<- [["hello" 3] ["this" 2] ["is" 2]
               ["a" 1] ["say" 1] ["to" 1] ["the" 2]
               ["man" 2] ["cool" 1] ["beans" 1]]
-             [?w ?c] (sentence ?s) (split ?s :> ?w) (c/count ?c))
-    ))
+             [?w ?c] (sentence ?s) (split ?s :> ?w) (c/count ?c))))
 
 (deftest test-multi-sink)
 
 (deftest test-multi-agg
   (let [value [["a" 1] ["a" 2] ["b" 10] ["c" 3] ["b" 2] ["a" 6]] ]
     (test?<- [["a" 12] ["b" 14] ["c" 4]]
-             [?v ?a] (value ?v ?n) (c/count ?c) (c/sum ?n :> ?s) (+ ?s ?c :> ?a))
-    ))
+             [?v ?a] (value ?v ?n) (c/count ?c) (c/sum ?n :> ?s) (+ ?s ?c :> ?a))))
 
 (deftest test-joins-aggs
   (let [friend [["n" "a"] ["n" "j"] ["n" "q"] ["j" "n"] ["j" "a"] ["j" "z"] ["z" "t"]]
         age    [["n" 25] ["z" 26] ["j" 20]] ]
-    (test?<- [["n"] ["j"]] [?p] (age ?p _) (friend ?p _) (c/count ?c) (> ?c 2))
-    ))
+    (test?<- [["n"] ["j"]] [?p] (age ?p _) (friend ?p _) (c/count ?c) (> ?c 2))))
 
 (deftest test-global-agg
   (let [num [[1] [2] [5] [6] [10] [12]] ]
     (test?<- [[6]] [?c] (num _) (c/count ?c))
-    (test?<- [[6 72]] [?c ?s2] (num ?n) (c/count ?c) (c/sum ?n :> ?s) (* 2 ?s :> ?s2))
-    ))
+    (test?<- [[6 72]] [?c ?s2] (num ?n) (c/count ?c) (c/sum ?n :> ?s) (* 2 ?s :> ?s2))))
 
 (defaggregateop evens-vs-odds
   "Decrements state for odd inputs, increases for even. Returns final
@@ -100,8 +92,7 @@
 (deftest test-complex-noncomplex-agg-mix
   (let [num [["a" 1] ["a" 2] ["a" 5] ["c" 6] ["d" 9] ["a" 12] ["c" 16] ["e" 16]] ]
     (test?<- [["a" 4 0 20] ["c" 2 2 22] ["d" 1 -1 9] ["e" 1 1 16]]
-             [?a ?c ?e ?s] (num ?a ?n) (c/count ?c) (c/sum ?n :> ?s) (evens-vs-odds ?n :> ?e))
-    ))
+             [?a ?c ?e ?s] (num ?a ?n) (c/count ?c) (c/sum ?n :> ?s) (evens-vs-odds ?n :> ?e))))
 
 (defn mk-agg-test-tuples []
   (conj (vec (take 12000 (iterate (fn [[a b]] [(inc a) b]) [0 1]))) [0 10]))
@@ -126,8 +117,7 @@
         weird-follows (<- [?p ?p2] (active-follows ?p ?p2) (unknown-interest ?p2))]
     (test?- [["n" "j"] ["j" "n"]] active-follows
             [["j" "n"]] weird-follows
-            [["n"]] unknown-interest)
-    ))
+            [["n"]] unknown-interest)))
 
 (deftest test-filter-same-field
   (let [nums [[1 1] [0 0] [1 2] [3 7] [8 64] [7 1] [2 4] [6 6]]]
@@ -136,8 +126,7 @@
     (test?<- [[0]] [?n] (nums ?n ?n) (* ?n ?n :> ?n) (+ ?n ?n :> ?n))
     (test?<- [[1 1] [1 2] [0 0] [6 6]] [?n ?n2] (nums ?n ?n) (nums ?n ?n2))
     (test?<- [[14]] [?s] (nums ?n ?n) (* 2 ?n :> ?n2) (c/sum ?n2 :> ?s))
-    (test?<- [[6] [0]] [?n2] (nums ?n ?n) (nums ?n2 ?n2) (* 6 ?n :> ?n2))
-    ))
+    (test?<- [[6] [0]] [?n2] (nums ?n ?n) (nums ?n2 ?n2) (* 6 ?n :> ?n2))))
 
 (defbufferop select-first [tuples]
   [(first tuples)])
@@ -148,8 +137,7 @@
              [?f1 ?f2] (pairs ?f1 ?v) (:sort ?v) (select-first ?v :> ?f2))
     
     (test?<- [["a" 3] ["b" 20]]
-             [?f1 ?f2] (pairs ?f1 ?v) (:sort ?v) (:reverse true) (select-first ?v :> ?f2))
-    ))
+             [?f1 ?f2] (pairs ?f1 ?v) (:sort ?v) (:reverse true) (select-first ?v :> ?f2))))
 
 (defn existence2str [obj]
   (if obj "some" "none"))
@@ -175,8 +163,7 @@
     (test?<- [["a" 1 1] ["c" 2 2] ["b" 0 1] ["d" 0 1]]
              [?p ?c ?t] (person ?p) (follows ?p !!p2) (c/!count !!p2 :> ?c) (c/count ?t))
     (test?<- [["a" "some"] ["b" "none"] ["c" "some"] ["d" "none"]]
-             [?p ?s] (person ?p) (follows ?p !!p2) (existence2str !!p2 :> ?s))
-    ))
+             [?p ?s] (person ?p) (follows ?p !!p2) (existence2str !!p2 :> ?s))))
 
 (deftest test-outer-join-complex
   (let [age [["a" 20] ["b" 30] ["c" 27] ["d" 40]]
@@ -221,8 +208,7 @@
              [?p !!t] (follows ?p ?p2) (age ?p2 ?a2) (age-tokens ?p ?a2 !!t))
 
     (test?<- [["E"]]
-             [?p] (follows ?p ?p2) (age ?p2 ?a2) (age-tokens ?p ?a2 !!t) (nil? !!t))
-    ))
+             [?p] (follows ?p ?p2) (age ?p2 ?a2) (age-tokens ?p ?a2 !!t) (nil? !!t))))
 
 (defmapop [hof-add [a]]
   "Adds the static variable `a` to dynamic input `n`."
@@ -243,8 +229,7 @@
     (test?<- [[4] [5] [9]]   [?n] (integer ?v) (hof-add 3 ?v :> ?n))
     (test?<- [[-5] [-4] [0]] [?n] (integer ?v) (hof-add [-6] ?v :> ?n))
     (test?<- [[3] [5] [13]]  [?n] (integer ?v) (hof-arithmetic [2 1] ?v :> ?n))
-    (test?<- [[72]]          [?n] (integer ?v) (sum-plus [21] ?v :> ?n))
-    ))
+    (test?<- [[72]]          [?n] (integer ?v) (sum-plus [21] ?v :> ?n))))
 
 (defn lala-appended [source]
   (let [outvars ["?a"]]
@@ -253,11 +238,9 @@
 (deftest test-dynamic-vars
   (let [sentence [["nathan david"] ["chicken"]]]
     (test?<- [["nathan davidlalala"] ["chickenlalala"]] [?out] ((lala-appended sentence) ?out))
-    (test?<- [["nathan davida"] ["chickena"]] [?out] (sentence :>> [?line]) (str :<< ["?line" "a"] :>> ["?out"]))
-    ))
+    (test?<- [["nathan davida"] ["chickena"]] [?out] (sentence :>> [?line]) (str :<< ["?line" "a"] :>> ["?out"]))))
 
-(defbufferop nothing-buf [tuples]
-  tuples )
+(defbufferop nothing-buf [tuples] tuples)
 
 (deftest test-limit
   (let [pair [["a" 1] ["a" 3] ["a" 2] ["a" 4] ["b" 1] ["b" 6] ["b" 7] ["c" 0]]]
@@ -269,33 +252,31 @@
     (test?<- [[0 1] [1 2] [1 3]] [?n2 ?r] (pair _ ?n) (:sort ?n) (c/limit-rank [3] ?n :> ?n2 ?r))
     (test?<- [[6] [7]] [?n2] (pair _ ?n) (:sort ?n) (:reverse true) (c/limit [2] ?n :> ?n2))
     (test?<- [[6 2] [7 1]] [?n2 ?r] (pair _ ?n) (:sort ?n) (:reverse true) (c/limit-rank [2] ?n :> ?n2 ?r))
-    (test?<- [["a" 1] ["a" 2] ["b" 1] ["b" 6] ["c" 0]] [?l ?n2] (pair ?l ?n) (:sort ?n) (c/limit [2] ?n :> ?n2))
-    ))
+    (test?<- [["a" 1] ["a" 2] ["b" 1] ["b" 6] ["c" 0]] [?l ?n2] (pair ?l ?n) (:sort ?n) (c/limit [2] ?n :> ?n2))))
 
 (deftest test-outer-join-anon
   (let [person [["a"] ["b"] ["c"]]
         follows [["a" "b" 1] ["c" "e" 2] ["c" "d" 3]]]
     (test?<- [["a" "b"] ["c" "e"] ["c" "d"] ["b" nil]]
-             [?p !!p2] (person ?p) (follows ?p !!p2 _))
-    ))
+             [?p !!p2] (person ?p) (follows ?p !!p2 _))))
 
 (defbufferiterop itersum [tuples-iter]
   [(reduce + (map first (iterator-seq tuples-iter)))])
 
 (deftest test-bufferiter
   (let [nums [[1] [2] [4]]]
-    (test?<- [[7]] [?s] (nums ?n) (itersum ?n :> ?s))
-    ))
+    (test?<- [[7]] [?s] (nums ?n) (itersum ?n :> ?s))))
 
 (defn inc-tuple [& tuple]
   (map inc tuple))
 
 (deftest test-pos-out-selectors
   (let [wide [["a" 1 nil 2 3] ["b" 1 "c" 5 1] ["a" 5 "q" 3 2]]]
-    (test?<- [[3 nil] [1 "c"] [2 "q"]] [?l !m] (wide :#> 5 {4 ?l 2 !m}) (:distinct false))
-    (test?<- [[4] [2] [3]] [?n3] (wide _ ?n1 _ _ ?n2) (inc-tuple ?n1 ?n2 :#> 2 {1 ?n3}))
-    (test?<- [["b"]] [?a] (wide :#> 5 {0 ?a 1 ?b 4 ?b}))
-    ))
+    (test?<- [[3 nil] [1 "c"] [2 "q"]]
+             [?l !m] (wide :#> 5 {4 ?l 2 !m}) (:distinct false))
+    (test?<- [[4] [2] [3]]
+             [?n3] (wide _ ?n1 _ _ ?n2) (inc-tuple ?n1 ?n2 :#> 2 {1 ?n3}))
+    (test?<- [["b"]] [?a] (wide :#> 5 {0 ?a 1 ?b 4 ?b}))))
 
 (deftest test-avg
   (let [num1 [[1] [2] [3] [4] [10]]
@@ -308,13 +289,11 @@
   (let [num1 [[1] [2] [2] [4] [1] [6] [19] [1]]
         pair [["a" 1] ["a" 2] ["b" 3] ["a" 1]]]
     (test?<- [[5]] [?c] (num1 ?n) (c/distinct-count ?n :> ?c))
-    (test?<- [["a" 2] ["b" 1]] [?l ?c] (pair ?l ?n) (c/distinct-count ?n :> ?c))
-    ))
+    (test?<- [["a" 2] ["b" 1]] [?l ?c] (pair ?l ?n) (c/distinct-count ?n :> ?c))))
 
 (deftest test-nullable-agg
   (let [follows [["a" "b"] ["b" "c"] ["a" "c"]]]
-    (test?<- [["a" 2] ["b" 1]] [?p !c] (follows ?p _) (c/count !c))
-    ))
+    (test?<- [["a" 2] ["b" 1]] [?p !c] (follows ?p _) (c/count !c))))
 
 (deffilterop odd-fail [n & all]
   (if (odd? n) (throw (RuntimeException.)) true))
@@ -332,31 +311,19 @@
   (if (= "a" n)
     (throw (RuntimeException.)) true))
 
-;; Remaining Problems:
-;; 
-;; Self join from data structure       FAILS
-;; self join from memory-source-tap    WORKS
-;; self join from hfs-textline         WORKS
-;; join between two memory source taps FAILS
-;; join between two data structures    FAILS
-;; join between 2 hfs-textlines        WORKS
-
 (deftest memory-self-join-test
   (let [src [["a"]]
         src2 (memory-source-tap [["a"]])]
-    (with-expected-sink-sets [empty1 [[]]
-                              empty2 [[]]]
-      ;; Self join from data structure FAILS
+    (with-expected-sink-sets [empty1 []
+                              empty2 []]
       (test?<- src [!a] (src !a) (src !a) (:distinct false) (:trap empty1))
-
-      ;; self join from memory-source-tap WORKS
       (test?<- src [!a] (src2 !a) (src2 !a) (:distinct false) (:trap empty2)))))
 
 (deftest test-trap-joins
   (let [age    [["A" 20] ["B" 21]]
         gender [["A" "m"] ["B" "f"]]]
-    (with-expected-sink-sets [trap1 [["B" 21]]
-                              trap2 [["B" 21 "f"]]]
+    (with-expected-sink-sets [trap1 [[21]]
+                              trap2 [[21 "f"]]]
       (test?<- [["A" 20 "m"]]
                [?p ?a ?g]
                (age ?p ?a)
@@ -371,11 +338,10 @@
                (odd-fail ?a ?g)
                (:trap trap2)))))
 
-;; TODO: Fix this. See above for ideas.
 (deftest test-multi-trap
   (let [age [["A" 20] ["B" 21]]
         weight [["A" 191] ["B" 192]]]
-    (with-expected-sink-sets [trap1 [["B" 21]]
+    (with-expected-sink-sets [trap1 [[21]]
                               trap2 [["A" 20 191]] ]
       (let [sq (<- [?p ?a]
                    (age ?p ?a)
@@ -419,8 +385,7 @@
              [?d ?e ?count] (vals ?a ?b ?c) (multipagg ?a ?b ?c :> ?d ?e) (c/count ?count))
     
     (test?<- [[12 935 3]]
-             [?d ?e ?count] (vals ?a ?b ?c) (multipagg ?a ?b ?c :> ?d ?e) (slow-count ?c :> ?count))
-    ))
+             [?d ?e ?count] (vals ?a ?b ?c) (multipagg ?a ?b ?c :> ?d ?e) (slow-count ?c :> ?count))))
 
 (deftest test-cascading-filter
   (let [vals [[0] [1] [2] [3]] ]

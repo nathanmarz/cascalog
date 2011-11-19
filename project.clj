@@ -10,7 +10,7 @@
                  ;; jgrapht exclusion works around cascading pom bug
                  ;; that causes projects dependent on cascalog to not
                  ;; be able to find jgrapht.
-                 [cascading/cascading-hadoop "2.0.0-wip-160"
+                 [cascading/cascading-hadoop "2.0.0-wip-164"
                   :exclusions [org.codehaus.janino/janino
                                org.apache.hadoop/hadoop-core
                                thirdparty/jgrapht-jdk1.6
@@ -33,14 +33,14 @@
             :web-src-dir "https://github.com/nathanmarz/cascalog/blob/"}
   :multi-deps {"1.2" [[org.clojure/clojure "1.2.1"]
                       [org.clojure/tools.macro "0.1.1"]
-                      [cascading/cascading-hadoop "2.0.0-wip-160"
+                      [cascading/cascading-hadoop "2.0.0-wip-164"
                        :exclusions [org.codehaus.janino/janino
                                     org.apache.hadoop/hadoop-core]]
                       [log4j/log4j "1.2.16"]
                       [hadoop-util "0.2.4"]]
                "1.4" [[org.clojure/clojure "1.4.0-alpha2"]
                       [org.clojure/tools.macro "0.1.1"]
-                      [cascading/cascading-hadoop "2.0.0-wip-160"
+                      [cascading/cascading-hadoop "2.0.0-wip-164"
                        :exclusions [org.codehaus.janino/janino
                                     org.apache.hadoop/hadoop-core]]
                       [log4j/log4j "1.2.16"]
