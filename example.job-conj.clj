@@ -22,7 +22,7 @@
 ;;
 ;; As a dependency.
 
-;; (import 'backtype.hadoop.ThriftSerialization)
+(import 'backtype.hadoop.ThriftSerialization)
 
 ;; Now, the job-conf map:
 {"io.serializations" JavaSerialization}
