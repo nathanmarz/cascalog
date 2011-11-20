@@ -157,15 +157,20 @@
          ~@body))))
 
 (defn- doublify [tuples]
-  (for [t tuples]
-    (map (fn [v] (if (number? v) (double v) v)) t)))
+  (vec (sort
+        (for [t tuples]
+          (into [] (map (fn [v] (if (number? v) (double v) v)) t))))))
 
 (defn is-specs= [set1 set2]
-  (is (= (map multi-set (map doublify set1))
-         (map multi-set (map doublify set2)))))
+  (doall
+   (map (fn [input output]
+          (let [input  (doublify input)
+                output (doublify output)]
+            (is (= input output))))
+        set1 set2)))
 
 (defn is-tuplesets= [set1 set2]
-  (is-specs= [set1] [set2] ))
+  (is-specs= [set1] [set2]))
 
 (defn process?-
   "Returns a 2-tuple containing a sequence of the original result
