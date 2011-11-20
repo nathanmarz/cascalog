@@ -112,7 +112,8 @@
    with-job-conf calls will merge configuration maps together, with
    innermost calls taking precedence on conflicting keys."
   [conf & body]
-  `(binding [rules/*JOB-CONF* (conf-merge rules/*JOB-CONF* ~conf)]
+  `(binding [cascalog.rules/*JOB-CONF*
+             (conf-merge cascalog.rules/*JOB-CONF* ~conf)]
      ~@body))
 
 (defmacro with-serializations
