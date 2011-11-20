@@ -13,7 +13,6 @@
 ;;    You should have received a copy of the GNU General Public License
 ;;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
 (ns cascalog.api
   (:use [cascalog vars util graph debug])
   (:require cascalog.rules
@@ -127,7 +126,8 @@
    with-job-conf calls will merge configuration maps together, with
    innermost calls taking precedence on conflicting keys."
   [conf & body]
-  `(binding [cascalog.rules/*JOB-CONF* (conf-merge cascalog.rules/*JOB-CONF* ~conf)]
+  `(binding [cascalog.rules/*JOB-CONF*
+             (conf-merge cascalog.rules/*JOB-CONF* ~conf)]
      ~@body))
 
 (defmacro with-serializations
@@ -181,9 +181,9 @@
         trapmap   (apply merge (map :trapmap gens))
         tails     (map cascalog.rules/connect-to-sink gens sinks)
         sinkmap   (w/taps-map tails sinks)]
-    (.connect (->> cascalog.rules/*JOB-CONF*
-                   (conf-merge {"cascading.flow.job.pollinginterval" 100})
-                   (FlowConnector.))
+    (.connect (FlowConnector.
+               (conf-merge (cascalog.rules/project-conf)
+                           {"cascading.flow.job.pollinginterval" 100}))
               flow-name
               sourcemap
               sinkmap

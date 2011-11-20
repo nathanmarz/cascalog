@@ -32,14 +32,45 @@
 ;; :num-intermediate-vars-fn takes as input infields, outfields
 (defstruct parallel-buffer :type :hof? :init-hof-var :combine-hof-var :extract-hof-var :num-intermediate-vars-fn :buffer-hof-var)
 
+(defmacro defparallelagg
+  "Binds an efficient aggregator to the supplied symbol. A parallel
+  aggregator processes each tuple through an initializer function,
+  then combines the results each tuple's initialization until one
+  result is achieved. `defparallelagg` accepts two keyword arguments:
 
-(defmacro defparallelagg [name & body]
-  `(def ~name
-     (struct-map cascalog.predicate/parallel-aggregator :type ::parallel-aggregator ~@body)))
+  :init-var -- A var bound to a fn that accepts raw tuples and returns
+  an intermediate result; #'one, for example.
 
-(defmacro defparallelbuf [name & body]
-  `(def ~name
-     (struct-map cascalog.predicate/parallel-buffer :type ::parallel-buffer ~@body)))
+  :combine-var -- a var bound to a fn that both accepts and returns
+  intermediate results.
+
+  For example,
+
+  (defparallelagg sum
+  :init-var #'identity
+  :combine-var #'+)
+
+  Used as
+
+  (sum ?x :> ?y)"
+  {:arglists '([name doc-string? attr-map? & {:keys [init-var combine-var]}])}
+  [name & body]
+  (let [[name body] (name-with-attributes name body)]
+    `(def ~name
+       (struct-map cascalog.predicate/parallel-aggregator
+         :type ::parallel-aggregator ~@body))))
+
+(defmacro defparallelbuf
+  {:arglists '([name doc-string? attr-map? & {:keys [init-hof-var
+                                                     combine-hof-var
+                                                     extract-hof-var
+                                                     num-intermediate-vars-fn
+                                                     buffer-hof-var]}])}
+  [name & body]
+  (let [[name body] (name-with-attributes name body)]
+    `(def ~name
+       (struct-map cascalog.predicate/parallel-buffer
+         :type ::parallel-buffer ~@body))))
 
 ;; ids are so they can be used in sets safely
 (defmacro defpredicate [name & attrs]
@@ -392,14 +423,14 @@
   [options op opvar hof-args orig-infields outvars]
   (let [outvars                  (replace-ignored-vars outvars)
         [infields infield-subs]  (variable-substitution orig-infields)
-        [infields dupvars
-         duplicate-assem]        (fix-duplicate-infields infields)
-        predicate                (build-predicate-specific op opvar hof-args infields outvars options)
-        new-outvars              (concat outvars (keys infield-subs) dupvars)
-        in-insertion-assembly          (when-not (empty? infields)
-                                         (w/compose-straight-assemblies
-                                          (mk-insertion-assembly infield-subs)
-                                          duplicate-assem))
+        [infields dupvars duplicate-assem] (fix-duplicate-infields infields)
+        predicate             (build-predicate-specific op opvar hof-args
+                                                        infields outvars options)
+        new-outvars           (concat outvars (keys infield-subs) dupvars)
+        in-insertion-assembly (when-not (empty? infields)
+                                (w/compose-straight-assemblies
+                                 (mk-insertion-assembly infield-subs)
+                                 duplicate-assem))
         null-check-out                 (mk-null-check outvars)]
     (enhance-predicate predicate
                        (filter cascalog-var? orig-infields)

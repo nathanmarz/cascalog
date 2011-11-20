@@ -20,6 +20,7 @@ package cascalog;
 import cascading.operation.Aggregator;
 import cascading.operation.AggregatorCall;
 import cascading.flow.FlowProcess;
+import cascading.tuple.TupleEntryCollector;
 import cascading.tuple.Fields;
 import clojure.lang.RT;
 import clojure.lang.ISeq;
@@ -44,8 +45,13 @@ public class ClojureAggregator extends ClojureCascadingBase
 
   public void complete(FlowProcess flow_process, AggregatorCall ag_call) {
     Collection coll = (Collection) invokeFunction(ag_call.getContext());
-    for(Object o: coll) {
-        ag_call.getOutputCollector().add(Util.coerceToTuple(o));
+    
+    TupleEntryCollector collector = ag_call.getOutputCollector();
+
+    if (coll != null) {
+        for(Object o: coll) {
+            collector.add(Util.coerceToTuple(o));
+        }
     }
   }
 }

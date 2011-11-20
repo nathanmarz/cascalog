@@ -16,7 +16,8 @@
 (ns cascalog.rules
   (:use [cascalog vars util graph debug]
         [clojure.set :only (intersection union difference subset?)]
-        [clojure.walk :only (postwalk)])
+        [clojure.walk :only (postwalk)]
+        [clojure.java.io :only (resource)])
   (:require [cascalog.workflow :as w]
             [cascalog.predicate :as p]
             [hadoop-util.core :as hadoop])
@@ -256,8 +257,8 @@
   (when (and (empty? aggs) (:sort options))
     (throw-illegal "Cannot specify a sort when there are no aggregators"))
   (if (and (not (:distinct options)) (empty? aggs))
-    prev-tail
-    (let [aggs              (if-not (empty? aggs) aggs [p/distinct-aggregator])
+    prev-tail  
+    (let [aggs (if-not (empty? aggs) aggs [p/distinct-aggregator])      
           [grouping-fields inserter] (normalize-grouping grouping-fields)
           [prep-aggs postgroup-aggs] (build-agg-assemblies grouping-fields aggs)
           assem        (apply w/compose-straight-assemblies
@@ -271,9 +272,11 @@
           all-agg-infields  (agg-infields (:sort options) aggs)
           prev-node    (:node prev-tail)
           node         (create-node (get-graph prev-node)
-                                    (p/predicate group assem all-agg-infields total-fields))]
+                                    (p/predicate group assem
+                                                 all-agg-infields total-fields))]
       (create-edge prev-node node)
-      (struct tailstruct (:ground? prev-tail) (:operations prev-tail) (:drift-map prev-tail) total-fields node))))
+      (struct tailstruct (:ground? prev-tail) (:operations prev-tail)
+              (:drift-map prev-tail) total-fields node))))
 
 (defn projection-fields [needed-vars allfields]
   (let [needed-set (set needed-vars)
@@ -387,7 +390,8 @@
 (defn build-generator [forceproject needed-vars node]
   (let [pred           (get-value node)
         my-needed      (vec (set (concat (:infields pred) needed-vars)))
-        prev-gens      (doall (map (partial build-generator false my-needed) (get-inbound-nodes node)))
+        prev-gens      (doall (map (partial build-generator false my-needed)
+                                   (get-inbound-nodes node)))
         newgen         (node->generator pred prev-gens)
         project-fields (projection-fields needed-vars (:outfields newgen)) ]
     (debug-print "build gen:" my-needed project-fields pred)
@@ -629,10 +633,29 @@
 (defn mk-raw-predicate [[op-sym & vars]]
   [op-sym (try-resolve op-sym) (vars2str vars)])
 
+(defn read-settings [x]
+  (try (binding [*ns* (create-ns (gensym "settings"))]
+         (refer 'clojure.core)
+         (eval (read-string (str "(do " x ")"))))
+       (catch RuntimeException e
+         (throw-runtime "Error reading job-conf.clj!\n\n" e))))
+
+(defn project-settings []
+  (if-let [conf-path (resource "job-conf.clj")]
+    (let [conf (-> conf-path slurp read-settings conf-merge)]
+      (safe-assert (map? conf)
+                   "job-conf.clj must produce a map of config parameters!")
+      conf)
+    {}))
+
 (def ^:dynamic *JOB-CONF* {})
 
+(defn project-conf []
+  (conf-merge (project-settings)
+              *JOB-CONF*))
+
 (defn- pluck-tuple [tap]
-  (with-open [it (.openForRead tap (hadoop/job-conf *JOB-CONF*))]
+  (with-open [it (.openForRead tap (hadoop/job-conf (project-conf)))]
     (if-let [iter (iterator-seq it)]
       (-> iter first .getTuple Tuple. Util/coerceFromTuple vec)
       (throw-illegal "Cascading tap is empty -- tap must contain tuples."))))
@@ -701,7 +724,7 @@ cascading tap, returns a new generator with field-names."
 (defn get-sink-tuples [^Tap sink]
   (if (map? sink)
     (get-sink-tuples (:sink sink))
-    (with-open [it (.openForRead sink (hadoop/job-conf *JOB-CONF*))]
+    (with-open [it (.openForRead sink (hadoop/job-conf (project-conf)))]
       (doall
        (for [^TupleEntry t (iterator-seq it)]
          (vec (Util/coerceFromTuple (Tuple. (.getTuple t)))))))))
