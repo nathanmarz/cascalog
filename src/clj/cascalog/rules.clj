@@ -636,11 +636,12 @@
   (try (binding [*ns* (create-ns (gensym "settings"))]
          (refer 'clojure.core)
          (eval (read-string (str "(do " x ")"))))
-       (catch RuntimeException _ {})))
+       (catch RuntimeException e
+         (throw-runtime "Error reading job-conf.clj!\n\n" e))))
 
 (defn project-settings []
   (if-let [conf-path (ClassLoader/getSystemResource "job-conf.clj")]
-    (let [conf (-> conf-path slurp read-settings)]
+    (let [conf (-> conf-path slurp read-settings conf-merge)]
       (safe-assert (map? conf)
                    "job-conf.clj must produce a map of config parameters!")
       conf)

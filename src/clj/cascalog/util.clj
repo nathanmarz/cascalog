@@ -85,11 +85,11 @@
 (defn multifn? [x]
   (instance? clojure.lang.MultiFn x))
 
-(defn throw-illegal [str]
-  (throw (IllegalArgumentException. str)))
+(defn throw-illegal [& xs]
+  (throw (IllegalArgumentException. (apply str xs))))
 
-(defn throw-runtime [str]
-  (throw (RuntimeException. str)))
+(defn throw-runtime [& xs]
+  (throw (RuntimeException. (apply str xs))))
 
 (defn >=s
   ">= for strings."
@@ -291,9 +291,17 @@
 (defn update-vals [m f]
   (into {} (for [[k v] m] [k (f k v)])))
 
+(defn stringify [x]
+  (if (class? x)
+    (.getName x)
+    (str x)))
+
+(defn resolve-collections [v]
+  (s/join "," (map stringify (collectify v))))
+
 (defn adjust-map [m]
   (-> m
-      (update-vals (fn [_ v] (s/join "," (collectify v))))
+      (update-vals (fn [_ v] (resolve-collections v)))
       (try-update-in ["io.serializations"] merge-serialization-strings)))
 
 (defn conf-merge
