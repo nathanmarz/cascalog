@@ -1,9 +1,9 @@
-### 1.9.0
+### 1.9.0-wip
 
-* Cascalog now uses the Eclipse Public License, vs the old GNU Public License!
+* Cascalog now uses the Apache 2.0 license (formerly used GNU)
 * Support for Cascading 2.0 (Hadoop planner only, for now)
-  * Trap now trap the problem argument vs the entire tuple.
-* Sinkmode options are now :keep, :update and :replace
+* Cascalog traps no longer trap the entire failing tuple; just the specific fields that caused the failure.
+* Sinkmode options are now :keep, :update and :replace, vs the old :keep, :append and :replace.
 * Extensive documentation of functions in cascalog.ops
 * Builds are now tested against clojure 1.4 in addition to 1.2 and 1.3.
 
