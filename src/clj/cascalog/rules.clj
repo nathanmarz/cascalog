@@ -16,7 +16,8 @@
 (ns cascalog.rules
   (:use [cascalog vars util graph debug]
         [clojure.set :only (intersection union difference subset?)]
-        [clojure.walk :only (postwalk)])
+        [clojure.walk :only (postwalk)]
+        [clojure.java.io :only (resource)])
   (:require [cascalog.workflow :as w]
             [cascalog.predicate :as p]
             [hadoop-util.core :as hadoop])
@@ -640,7 +641,7 @@
          (throw-runtime "Error reading job-conf.clj!\n\n" e))))
 
 (defn project-settings []
-  (if-let [conf-path (ClassLoader/getSystemResource "job-conf.clj")]
+  (if-let [conf-path (resource "job-conf.clj")]
     (let [conf (-> conf-path slurp read-settings conf-merge)]
       (safe-assert (map? conf)
                    "job-conf.clj must produce a map of config parameters!")
