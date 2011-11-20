@@ -16,4 +16,3 @@
 * fixed :sinkmode op
 * defaggregateop no longer fails when returning nil
 * Better error reporting on parametrized ops (variadic args aren't supported; this now throws an error.)
-
