@@ -1,4 +1,4 @@
-(defproject cascalog/cascalog "1.8.4-SNAPSHOT"
+(defproject cascalog/cascalog "1.8.4"
   :source-path "src/clj"
   :java-source-path "src/jvm"
   :jvm-opts ["-Xmx768m" "-server"]
