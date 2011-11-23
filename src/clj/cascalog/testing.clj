@@ -141,8 +141,7 @@
                out-tuples     (doall (map rules/get-sink-tuples sinks))
                expected-data  (map :tuples sink-specs)]
            (is (= (map multi-set expected-data)
-                  (map multi-set out-tuples)))
-           )))))
+                  (map multi-set out-tuples))))))))
 
 (defn- mk-tmpfiles+forms [amt]
   (let [tmpfiles  (take amt (repeatedly (fn [] (gensym "tap"))))
@@ -169,16 +168,15 @@
          ~@body))))
 
 (defn- doublify [tuples]
-  (vec (sort
-        (for [t tuples]
-          (into [] (map (fn [v] (if (number? v) (double v) v))
-                        (collectify t)))))))
+  (vec (for [t tuples]
+         (into [] (map (fn [v] (if (number? v) (double v) v))
+                       (collectify t))))))
 
 (defn is-specs= [set1 set2]
   (every? true? (doall
                  (map (fn [input output]
-                        (let [input  (doublify input)
-                              output (doublify output)]
+                        (let [input  (multi-set (doublify input))
+                              output (multi-set (doublify output))]
                           (is (= input output))))
                       set1 set2))))
 
