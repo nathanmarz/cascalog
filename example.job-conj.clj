@@ -13,10 +13,10 @@
 ;; functions, import namespaces and evaluate code above the final
 ;; return form.
 ;;
-;; Here we import Hadoop's java serialization interface:
+;; Here's an import of Hadoop's java serialization interface:
 (import 'org.apache.hadoop.io.serializer.JavaSerialization)
 
-;; And here we import a Thrift serialization. Get this by including
+;; And here's Backtype's Thrift serialization. Get this by including
 ;;
 ;;    [backtype/cascading-thrift "0.1.0"]
 ;;
@@ -29,12 +29,13 @@
 
 ;; To provide multiple arguments, skip the usual comma separation and
 ;; wrap multiple arguments in a vector:
-{"io.serializations" [ThriftSerialization JavaSerialization]}
+;; {"io.serializations" [ThriftSerialization JavaSerialization]}
 
 ;; The above examples use class symbols directly. You can also use
-;; string versions of the full qualified class names. (That's it!
-;; We're ending with the job-conf map below. Nothing may come after,
-;; not even comments.)
+;; string versions of the full qualified class names.
 
 {"io.serializations" ["backtype.hadoop.ThriftSerialization"
                       "org.apache.hadoop.io.serializer.JavaSerialization"]}
+
+;; That's it! The above map will get returned, as it's the last form
+;; in the file.

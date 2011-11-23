@@ -13,7 +13,7 @@
 * optional docstring and metadata support on defparallelagg and defparallelbuf.
 * def*ops now present proper argument list metadata.
 * Added cascalog.ops/partial
-* fixed :sinkmode op
+* fixed :sinkmode docstring.
 * defaggregateop no longer fails when returning nil
 * Better error reporting on parametrized ops (variadic args aren't supported; this now throws an error.)
 * MUCH better error messaging on failed tests. Here's the old way:

@@ -58,6 +58,7 @@
   (= s2 (first (sort [s1 s2]))))
 
 (defmacro safe-assert
+  "TODO: throw a descriptive runtime exception in 1.2 w/ the message."
   ([x] `(safe-assert ~x ""))
   ([x msg]
      (if (>=s (clojure-version) "1.3.0")
