@@ -224,16 +224,15 @@
              [?p] (follows ?p ?p2) (age ?p2 ?a2) (age-tokens ?p ?a2 !!t) (nil? !!t))
     ))
 
-(defmapop [hof-add [a]]
-  "Adds the static variable `a` to dynamic input `n`."
+(defmapop hof-add {:params [a]}
   [n]
   (+ a n))
 
-(defmapop [hof-arithmetic [a b]] [n]
+(defmapop hof-arithmetic {:params [a b]} [n]
   (+ b (* a n)))
 
 ;; TODO: stateful operations should return a map containing :init, :op, :finish
-(defbufferop [sum-plus [a]] {:stateful true}
+(defbufferop sum-plus {:params [a] :stateful true}
   ([] (* 3 a))
   ([state tuples] [(apply + state (map first tuples))])
   ([state] nil))
