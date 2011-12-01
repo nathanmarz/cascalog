@@ -334,6 +334,49 @@
     (assert-nonvariadic args)
     [fname f-args args]))
 
+(defmacro executor-fn-generator
+  "One of the main pieces. The generator can go in either three ways.
+   * normal op without parameters
+   * parametric op called like this (<- [?a] (src ?b) ((op param) ?b :> ?a))
+   * parametric op to be used with a closure (def my-op (op [param1 param2]))
+     (?- [?a] (src ?b) (my-op ?b :> ?a))"
+  [{:keys [type fname func-args] :or {func-args false}}]
+  (let [ args-sym        (gensym "args")
+         args-sym-all    (gensym "argsall")
+         runner-name     (symbol (str fname "__"))
+         assembly-args   (if func-args
+                           `[~func-args & ~args-sym]
+                           `[ & ~args-sym])]
+    (if func-args
+      `(with-meta
+         (fn ([params#]
+               (executor-fn-generator* {:type ~type :fname ~fname
+                                :args-sym-all ~args-sym-all :args-sym ~args-sym
+                                :assembly-args ~assembly-args :closure-args params#}))
+           ([f-args# & ~args-sym-all]
+              (let [~assembly-args ~args-sym-all
+                    func-form# (flatten [(var ~runner-name) f-args#])]
+                (apply ~type func-form# ~args-sym-all))))
+         ~(meta fname))
+      `(with-meta
+         (fn [& ~args-sym-all]
+           (let [~assembly-args ~args-sym-all
+                 func-form# (var ~runner-name)]
+             (apply ~type func-form# ~args-sym)))
+         ~(meta fname)))))
+
+(defmacro executor-fn-generator*
+  "This macro generates a fn to be called by a closure genreated like:
+   (def my-op (op [param1 param2])"
+  [{:keys [type fname args-sym-all args-sym assembly-args closure-args]}]
+  (let [runner-name (symbol (str fname "__"))]
+    `(with-meta
+       (fn [& ~args-sym-all]
+         (let [~assembly-args ~args-sym-all
+               func-form# (flatten [(var ~runner-name) ~closure-args])]
+           (apply ~type func-form# ~args-sym)))
+       ~(meta fname))))
+
 (defn- defop-helper
   "Binding helper for cascalog def* ops. Function value is tagged with
    appropriate cascalog metadata; metadata can be accessed with `(meta
@@ -341,25 +384,14 @@
    you can pass operations around and dynamically create flows."
   [type args]
   (let  [[fname func-args funcdef] (parse-defop-args type args)
-         args-sym        (gensym "args")
-         args-sym-all    (gensym "argsall")
          runner-name     (symbol (str fname "__"))
-         func-form       (if func-args
-                           `[(var ~runner-name) ~@func-args]
-                           `(var ~runner-name))
          runner-body     (if func-args
                            `(~func-args (fn ~@funcdef))
                            funcdef)
-         assembly-args   (if func-args
-                           `[~func-args & ~args-sym]
-                           `[ & ~args-sym])]
+         executor         `(def ~fname
+                            (executor-fn-generator {:type ~type :fname ~fname :func-args ~func-args}))]
     `(do (defn ~runner-name ~(meta fname) ~@runner-body)
-         (def ~fname          
-           (with-meta
-             (fn [& ~args-sym-all]
-               (let [~assembly-args ~args-sym-all]
-                 (apply ~type ~func-form ~args-sym)))
-             ~(meta fname))))))
+         ~executor)))
 
 (defmacro defmapop [& args]
   (defop-helper 'cascalog.workflow/map args))
