@@ -14,7 +14,7 @@
 ;;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (ns cascalog.ops
-  (:refer-clojure :exclude [count min max comp juxt partial reduce])
+  (:refer-clojure :exclude [count min max comp juxt partial])
   (:use [cascalog ops-impl api util]
         [cascalog.workflow :only (fill-tap!)]
         [cascalog.io :only (with-fs-tmp)])
@@ -71,18 +71,6 @@
   (predmacro
    [invars outvars]
    [[op :<< (concat args invars) :>> outvars]]))
-
-(defn reduce [op & [init]]
-  (predmacro [invars outvars]
-             (safe-assert (= 1 (clojure.core/count outvars))
-                          "Reduce only allows a single outvar.")
-             (let [[x1 x2 & more] (if init (cons init invars) invars)
-                   more (-> (repeatedly v/gen-nullable-var)
-                            (interleave more)
-                            (concat outvars))]
-               (for [[v1 v2 out] (->> (concat [x1 x2] more)
-                                      (partition 3 2))]
-                 [op v1 v2 :> out]))))
 
 ;; Operations to use within queries
 
