@@ -21,5 +21,5 @@
 
 (defn project-conf []
   (u/conf-merge (project-settings)
-                {"io.serializations" "cascalog.hadoop.ClojureKryoSerialization"}
-                *JOB-CONF*))
+                *JOB-CONF*
+                {"io.serializations" "cascalog.hadoop.ClojureKryoSerialization"}))
