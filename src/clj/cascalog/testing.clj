@@ -18,6 +18,7 @@
         [cascalog io util api])
   (:require [cascalog.workflow :as w]
             [cascalog.rules :as rules]
+            [cascalog.conf :as conf]
             [hadoop-util.core :as hadoop])
   (:import [cascading.tuple Fields Tuple TupleEntry TupleEntryCollector]
            [cascading.pipe Pipe]
@@ -112,8 +113,7 @@
   (let [spec (mapify-spec spec)
         source (mk-test-tap (:fields spec) path)]
     (with-open [collector (.openForWrite source
-                                         (hadoop/job-conf
-                                          (cascalog.rules/project-conf)))]
+                                         (hadoop/job-conf (conf/project-conf)))]
       (doall (map #(.add collector (Util/coerceToTuple %))
                   (-> spec mapify-spec :tuples)))
       source)))

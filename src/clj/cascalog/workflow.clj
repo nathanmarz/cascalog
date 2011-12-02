@@ -16,6 +16,8 @@
 (ns cascalog.workflow
   (:refer-clojure :exclude [group-by count first filter mapcat map identity min max])
   (:use [cascalog util debug])
+  (:require [cascalog.conf :as conf]
+            [hadoop-util.core :as hadoop])
   (:import [cascalog Util]
            [org.apache.hadoop.mapred JobConf]
            [java.io File]
@@ -525,7 +527,8 @@ identity.  identity."
   (.complete flow))
 
 (defn fill-tap! [^Tap tap xs] 
-  (with-open [^TupleEntryCollector collector (.openForWrite tap (JobConf.))]
+  (with-open [^TupleEntryCollector collector (.openForWrite tap (hadoop/job-conf
+                                                                 (conf/project-conf)))]
     (doseq [item xs]
       (.add collector (Util/coerceToTuple item)))))
 

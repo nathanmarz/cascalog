@@ -30,5 +30,6 @@ syntax: glob
 .lein-deps-sum
 autodoc/**
 autodoc/
-cascalog
+*.ipr
+*.iws
 *.iml
