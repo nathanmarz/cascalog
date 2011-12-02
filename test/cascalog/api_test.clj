@@ -2,6 +2,7 @@
   (:use clojure.test
         [cascalog testing api])
   (:require [cascalog.ops :as c]
+            [cascalog.conf :as conf]
             [cascalog.util :as u]
             [clojure.string :as s])
   (:import [cascading.tuple Fields]
@@ -504,24 +505,24 @@
 
 (deftest test-jobconf-bindings
   (with-job-conf {"key" "val"}
-    (is (= {"key" "val"} cascalog.rules/*JOB-CONF*)))
+    (is (= {"key" "val"} conf/*JOB-CONF*)))
 
   (with-job-conf {"key" ["val1" "val2"]}
-    (is (= {"key" "val1,val2"} cascalog.rules/*JOB-CONF*))
+    (is (= {"key" "val1,val2"} conf/*JOB-CONF*))
     (with-job-conf {"key" ["val3"]}
-      (is (= {"key" "val3"} cascalog.rules/*JOB-CONF*))))
+      (is (= {"key" "val3"} conf/*JOB-CONF*))))
   
   (with-job-conf {"io.serializations" "java.lang.String"}
-    (is (= cascalog.rules/*JOB-CONF*
+    (is (= conf/*JOB-CONF*
            {"io.serializations" (s/join "," (conj u/default-serializations "java.lang.String"))})))
 
   (with-serializations [String]
-    (is (= cascalog.rules/*JOB-CONF*
+    (is (= conf/*JOB-CONF*
            {"io.serializations" (s/join "," (conj u/default-serializations "java.lang.String"))})))
 
   (with-serializations [String]
     (with-job-conf {"io.serializations" "java.lang.String,SomeSerialization"}
-      (is (= cascalog.rules/*JOB-CONF*
+      (is (= conf/*JOB-CONF*
              {"io.serializations" (s/join "," (concat u/default-serializations
                                                       ["java.lang.String"
                                                        "SomeSerialization"]))})))))
