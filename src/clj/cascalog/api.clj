@@ -385,3 +385,15 @@ as well."
                     :main true
                     :prefix ~(str name "-"))
          (defn ~sym ~@forms))))
+
+(defn imports []
+  (import 'org.apache.hadoop.mapred.JobConf
+          'cascalog.hadoop.ClojureKryoSerialization
+          'cascading.kryo.KryoSerialization
+          'cascading.kryo.KryoFactory
+          'java.util.HashMap
+          'com.esotericsoftware.kryo.Kryo))
+
+(def src [[[[[[[[(map (partial * 10.12) (range 100))]]]]]]]])
+(??<- [?x] (src ?x))
+(type (for [x (range 5)] (map (partial * 10) (range x))))

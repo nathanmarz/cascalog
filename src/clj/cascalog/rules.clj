@@ -652,6 +652,9 @@
 
 (defn project-conf []
   (conf-merge (project-settings)
+              {"io.serializations"
+               "cascalog.hadoop.ClojureKryoSerialization"
+               "cascading.kryo.acceptall" true}
               *JOB-CONF*))
 
 (defn- pluck-tuple [tap]
