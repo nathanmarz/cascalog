@@ -633,7 +633,7 @@
 
 (defn mk-raw-predicate [[op-sym & vars]]
   (if (= (type op-sym) clojure.lang.PersistentList)
-    [(first op-sym) (try-resolve (first op-sym)) (vars2str vars)]
+    [(first op-sym) (try-resolve (first op-sym)) (vars2str (cons (rest op-sym) vars))]
     [op-sym (try-resolve op-sym) (vars2str vars)]))
 
 (def ^:dynamic *JOB-CONF* {})
