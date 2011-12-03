@@ -382,16 +382,19 @@
     ))
 
 (deftest test-cascading-filter
-  (let [vals [[0] [1] [2] [3]] ]
-    (test?<- [[0] [2]] [?v] (vals ?v) ((KeepEven.) ?v) (:distinct false))
-    (test?<- [[0 true] [1 false] [2 true] [3 false]] [?v ?b] (vals ?v) ((KeepEven.) ?v :> ?b) (:distinct false))
+  (let [vals [[0] [1] [2] [3]]
+        keep-even (KeepEven.)]
+    (test?<- [[0] [2]] [?v] (vals ?v) (keep-even ?v) (:distinct false))
+    (test?<- [[0 true] [1 false] [2 true] [3 false]] [?v ?b] (vals ?v) (keep-even :> ?b) (:distinct false))
     ))
 
 (deftest test-java-buffer
-  (let [vals [["a" 1 10] ["a" 2 20] ["b" 3 31]]]
-    (test?<- [["a" 1] ["b" 1]] [?f1 ?o] (vals ?f1 _ _) ((OneBuffer.) :> ?o))
+  (let [vals [["a" 1 10] ["a" 2 20] ["b" 3 31]]
+        one-buffer (OneBuffer.)
+        identity-buffer (IdentityBuffer.)]
+    (test?<- [["a" 1] ["b" 1]] [?f1 ?o] (vals ?f1 _ _) (one-buffer :> ?o))
     (test?<- [["a" 1 10] ["a" 2 20] ["b" 3 31]] [?f1 ?f2out ?f3out]
-             (vals ?f1 ?f2 ?f3) ((IdentityBuffer.) ?f2 ?f3 :> ?f2out ?f3out))
+             (vals ?f1 ?f2 ?f3) (identity-buffer ?f2 ?f3 :> ?f2out ?f3out))
     ))
 
 (defn run-union-combine-tests
