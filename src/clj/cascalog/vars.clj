@@ -82,9 +82,12 @@
   (reduce (fn [ret k] (assoc ret k (sanitize-elem (m k) anon-gen)))
           {} (keys m)))
 
+(defn- sanitize-seq [s anon-gen] (vec (map sanitize-elem s (repeat anon-gen))))
+
 (defn sanitize-unknown [e anon-gen]
   (cond (map? e) (sanitize-map e anon-gen)
         (vector? e) (sanitize-vec e anon-gen)
+        (seq? e) (sanitize-seq e anon-gen)
         :else (sanitize-elem e anon-gen)))
 
 (defn vars2str [vars]
