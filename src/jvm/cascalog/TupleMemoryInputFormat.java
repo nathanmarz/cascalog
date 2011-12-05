@@ -39,7 +39,7 @@ public class TupleMemoryInputFormat implements InputFormat<TupleWrapper, NullWri
     static {
         ClojureKryoSerialization serialization = new ClojureKryoSerialization();
         Kryo k = serialization.makeKryo();
-        k.register(Tuple.class);
+        k.setRegistrationOptional(true);
 
         kryoBuf = KryoFactory.newBuffer(k);
     }
