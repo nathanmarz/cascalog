@@ -17,23 +17,35 @@
 
 package cascalog;
 
+import cascading.kryo.KryoFactory;
 import cascading.tuple.Tuple;
+import cascalog.hadoop.ClojureKryoSerialization;
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.ObjectBuffer;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapred.*;
 import org.apache.hadoop.util.StringUtils;
+import org.apache.log4j.Logger;
 
 import java.io.*;
 import java.util.List;
 
-
 public class TupleMemoryInputFormat implements InputFormat<TupleWrapper, NullWritable> {
 
+    public static final Logger LOG = Logger.getLogger(TupleMemoryInputFormat.class);
     public static final String TUPLES_PROPERTY = "memory.format.tuples";
+    static ObjectBuffer kryoBuf;
 
+    static {
+        ClojureKryoSerialization serialization = new ClojureKryoSerialization();
+        Kryo k = serialization.makeKryo();
+        k.register(Tuple.class);
+
+        kryoBuf = KryoFactory.newBuffer(k);
+    }
 
     public static class TupleInputSplit implements InputSplit {
         public int numTuples;
-
 
         public TupleInputSplit() {
 
@@ -41,6 +53,8 @@ public class TupleMemoryInputFormat implements InputFormat<TupleWrapper, NullWri
 
         public TupleInputSplit(int numTuples) {
             this.numTuples = numTuples;
+
+
         }
 
         public long getLength() throws IOException {
@@ -121,28 +135,13 @@ public class TupleMemoryInputFormat implements InputFormat<TupleWrapper, NullWri
     }
 
     public static byte[] serialize(Object obj) {
-        try {
-            ByteArrayOutputStream bos = new ByteArrayOutputStream();
-            ObjectOutputStream oos = new ObjectOutputStream(bos);
-            oos.writeObject(obj);
-            oos.close();
-            return bos.toByteArray();
-        } catch (IOException ioe) {
-            throw new RuntimeException(ioe);
-        }
+        LOG.debug("Serializing " + obj);
+        return kryoBuf.writeClassAndObject(obj);
     }
 
     public static Object deserialize(byte[] serialized) {
-        try {
-            ByteArrayInputStream bis = new ByteArrayInputStream(serialized);
-            ObjectInputStream ois = new ObjectInputStream(bis);
-            Object ret = ois.readObject();
-            ois.close();
-            return ret;
-        } catch (IOException ioe) {
-            throw new RuntimeException(ioe);
-        } catch (ClassNotFoundException e) {
-            throw new RuntimeException(e);
-        }
+        Object o = kryoBuf.readClassAndObject(serialized);
+        LOG.debug("Deserialized " + o);
+        return o;
     }
 }
