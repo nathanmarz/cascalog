@@ -17,12 +17,13 @@
 
 package cascalog;
 
+import cascading.flow.FlowProcess;
+import cascading.operation.BaseOperation;
 import cascading.operation.Buffer;
 import cascading.operation.BufferCall;
-import cascading.flow.FlowProcess;
 import cascading.tuple.Fields;
 import cascading.tuple.TupleEntry;
-import cascading.operation.BaseOperation;
+
 import java.util.Iterator;
 
 public class FastFirst extends BaseOperation implements Buffer {  

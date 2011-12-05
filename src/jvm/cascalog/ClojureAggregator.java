@@ -17,13 +17,14 @@
 
 package cascalog;
 
+import cascading.flow.FlowProcess;
 import cascading.operation.Aggregator;
 import cascading.operation.AggregatorCall;
-import cascading.flow.FlowProcess;
-import cascading.tuple.TupleEntryCollector;
 import cascading.tuple.Fields;
-import clojure.lang.RT;
+import cascading.tuple.TupleEntryCollector;
 import clojure.lang.ISeq;
+import clojure.lang.RT;
+
 import java.util.Collection;
 
 public class ClojureAggregator extends ClojureCascadingBase

@@ -25,16 +25,13 @@ import cascading.operation.FunctionCall;
 import cascading.operation.OperationCall;
 import cascading.tuple.Fields;
 import cascading.tuple.Tuple;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map.Entry;
 import clojure.lang.IFn;
 import clojure.lang.ISeq;
 import clojure.lang.RT;
-import java.util.HashMap;
-import java.util.Map;
 import org.apache.hadoop.mapred.JobConf;
+
+import java.util.*;
+import java.util.Map.Entry;
 
 public abstract class ClojureCombinerBase extends BaseOperation implements Function {
     private List<CombinerSpec> specs;

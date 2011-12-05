@@ -17,13 +17,12 @@
 
 package cascalog;
 
-import cascading.operation.BaseOperation;
-import cascading.operation.Aggregator;
-import cascading.operation.OperationCall;
-import cascading.operation.AggregatorCall;
 import cascading.flow.FlowProcess;
+import cascading.operation.Aggregator;
+import cascading.operation.AggregatorCall;
+import cascading.operation.BaseOperation;
+import cascading.operation.OperationCall;
 import cascading.tuple.Fields;
-import cascading.tuple.TupleEntry;
 import clojure.lang.IFn;
 import clojure.lang.ISeq;
 

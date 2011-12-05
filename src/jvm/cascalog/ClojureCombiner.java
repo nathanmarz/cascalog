@@ -22,6 +22,7 @@ import cascading.operation.OperationCall;
 import cascading.tuple.Fields;
 import cascading.tuple.Tuple;
 import cascading.tuple.TupleEntryCollector;
+
 import java.util.List;
 
 public class ClojureCombiner extends ClojureCombinerBase {

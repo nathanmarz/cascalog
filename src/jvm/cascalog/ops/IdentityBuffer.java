@@ -17,12 +17,12 @@
 
 package cascalog.ops;
 
-import cascalog.CascalogBuffer;
-import cascading.operation.BufferCall;
 import cascading.flow.FlowProcess;
-import java.io.Serializable;
-import java.util.Iterator;
+import cascading.operation.BufferCall;
 import cascading.tuple.TupleEntry;
+import cascalog.CascalogBuffer;
+
+import java.util.Iterator;
 
 public class IdentityBuffer extends CascalogBuffer {
   public void operate(FlowProcess flowProcess, BufferCall bufCall) {

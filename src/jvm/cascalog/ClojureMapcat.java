@@ -17,13 +17,13 @@
 
 package cascalog;
 
+import cascading.flow.FlowProcess;
 import cascading.operation.Function;
 import cascading.operation.FunctionCall;
-import cascading.flow.FlowProcess;
-import cascading.tuple.TupleEntryCollector;
 import cascading.tuple.Fields;
-import clojure.lang.RT;
+import cascading.tuple.TupleEntryCollector;
 import clojure.lang.ISeq;
+import clojure.lang.RT;
 
 public class ClojureMapcat extends ClojureCascadingBase implements Function {
   

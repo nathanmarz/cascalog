@@ -17,14 +17,11 @@
 
 package cascalog;
 
-import clojure.lang.Compiler;
-import clojure.lang.RT;
-import clojure.lang.IFn;
-import clojure.lang.ISeq;
-import clojure.lang.IteratorSeq;
-import clojure.lang.ArraySeq;
 import cascading.tuple.Tuple;
 import cascading.tuple.TupleEntry;
+import clojure.lang.*;
+import clojure.lang.Compiler;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;

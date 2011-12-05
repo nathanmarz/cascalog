@@ -17,9 +17,9 @@
 
 package cascalog;
 
+import cascading.flow.FlowProcess;
 import cascading.operation.Filter;
 import cascading.operation.FilterCall;
-import cascading.flow.FlowProcess;
 import clojure.lang.ISeq;
 
 public class ClojureFilter extends ClojureCascadingBase implements Filter {  

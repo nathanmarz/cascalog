@@ -17,10 +17,10 @@
 
 package cascalog.test;
 
-import cascalog.CascalogBuffer;
-import cascading.operation.BufferCall;
 import cascading.flow.FlowProcess;
+import cascading.operation.BufferCall;
 import cascading.tuple.Tuple;
+import cascalog.CascalogBuffer;
 
 public class OneBuffer extends CascalogBuffer {
   public void operate(FlowProcess flowProcess, BufferCall bufCall) {

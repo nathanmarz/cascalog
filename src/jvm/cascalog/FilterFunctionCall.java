@@ -17,9 +17,8 @@
 
 package cascalog;
 
-import cascading.operation.FunctionCall;
 import cascading.operation.FilterCall;
-import cascading.operation.OperationCall;
+import cascading.operation.FunctionCall;
 import cascading.tuple.Fields;
 import cascading.tuple.TupleEntry;
 

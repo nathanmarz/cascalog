@@ -17,10 +17,10 @@
 
 package cascalog.test;
 
-import cascading.operation.FilterCall;
-import cascading.operation.Filter;
-import cascading.operation.BaseOperation;
 import cascading.flow.FlowProcess;
+import cascading.operation.BaseOperation;
+import cascading.operation.Filter;
+import cascading.operation.FilterCall;
 
 public class KeepEven extends BaseOperation implements Filter {
   public boolean isRemove(FlowProcess process, FilterCall call) {

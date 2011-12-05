@@ -17,9 +17,9 @@
 
 package cascalog;
 
+import cascading.flow.FlowProcess;
 import cascading.operation.Function;
 import cascading.operation.FunctionCall;
-import cascading.flow.FlowProcess;
 import cascading.tuple.Fields;
 import clojure.lang.ISeq;
 

@@ -18,21 +18,12 @@
 package cascalog;
 
 import cascading.tuple.Tuple;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.util.List;
 import org.apache.hadoop.io.NullWritable;
-import org.apache.hadoop.mapred.InputFormat;
-import org.apache.hadoop.mapred.InputSplit;
-import org.apache.hadoop.mapred.JobConf;
-import org.apache.hadoop.mapred.RecordReader;
-import org.apache.hadoop.mapred.Reporter;
+import org.apache.hadoop.mapred.*;
 import org.apache.hadoop.util.StringUtils;
+
+import java.io.*;
+import java.util.List;
 
 
 public class TupleMemoryInputFormat implements InputFormat<TupleWrapper, NullWritable>{

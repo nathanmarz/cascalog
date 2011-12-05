@@ -17,9 +17,6 @@
 
 package cascalog;
 
-import java.io.Serializable;
-import java.util.Arrays;
-import java.util.Iterator;
 import cascading.operation.BaseOperation;
 import cascading.operation.Identity;
 import cascading.pipe.CoGroup;
@@ -31,6 +28,10 @@ import cascading.pipe.cogroup.Joiner;
 import cascading.tuple.Fields;
 import cascading.tuple.SpillableTupleList;
 import cascading.tuple.Tuple;
+
+import java.io.Serializable;
+import java.util.Arrays;
+import java.util.Iterator;
 import java.util.UUID;
 
 public class MultiGroupBy extends SubAssembly {

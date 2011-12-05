@@ -17,14 +17,10 @@
 
 package cascalog;
 
-import cascading.operation.Function;
-import cascading.operation.Filter;
-import cascading.operation.FunctionCall;
-import cascading.operation.OperationCall;
 import cascading.flow.FlowProcess;
+import cascading.operation.*;
 import cascading.tuple.Fields;
 import cascading.tuple.Tuple;
-import cascading.operation.BaseOperation;
 
 
 

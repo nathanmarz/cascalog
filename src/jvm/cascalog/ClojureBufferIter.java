@@ -16,16 +16,13 @@
 */
 
 package cascalog;
- 
+
+import cascading.flow.FlowProcess;
 import cascading.operation.Buffer;
 import cascading.operation.BufferCall;
-import cascading.flow.FlowProcess;
-import cascading.tuple.TupleEntryCollector;
 import cascading.tuple.Fields;
-import cascading.tuple.TupleEntry;
+import cascading.tuple.TupleEntryCollector;
 import clojure.lang.ISeq;
-import clojure.lang.IteratorSeq;
-import java.util.Iterator;
 import clojure.lang.RT;
 
  

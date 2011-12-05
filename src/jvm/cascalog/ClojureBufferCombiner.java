@@ -23,11 +23,12 @@ import cascading.operation.OperationCall;
 import cascading.tuple.Fields;
 import cascading.tuple.Tuple;
 import cascading.tuple.TupleEntryCollector;
-import java.util.List;
-import java.util.Arrays;
 import clojure.lang.IFn;
 import clojure.lang.ISeq;
 import clojure.lang.RT;
+
+import java.util.Arrays;
+import java.util.List;
 
 public class ClojureBufferCombiner extends ClojureCombinerBase {
     
