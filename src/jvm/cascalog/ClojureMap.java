@@ -23,15 +23,14 @@ import cascading.operation.FunctionCall;
 import cascading.tuple.Fields;
 import clojure.lang.ISeq;
 
-public class ClojureMap extends ClojureCascadingBase implements Function {  
-  public ClojureMap(Fields out_fields, Object[] fn_spec, boolean stateful) {
-    super(out_fields, fn_spec, stateful);
-  }
-  
+public class ClojureMap extends ClojureCascadingBase implements Function {
+    public ClojureMap(Fields out_fields, Object[] fn_spec, boolean stateful) {
+        super(out_fields, fn_spec, stateful);
+    }
 
-  public void operate(FlowProcess flow_process, FunctionCall fn_call) {
-    ISeq fn_args_seq = Util.coerceFromTuple(fn_call.getArguments().getTuple());
-    Object res = applyFunction(fn_args_seq);
-    fn_call.getOutputCollector().add(Util.coerceToTuple(res));
-  }
+    public void operate(FlowProcess flow_process, FunctionCall fn_call) {
+        ISeq fn_args_seq = Util.coerceFromTuple(fn_call.getArguments().getTuple());
+        Object res = applyFunction(fn_args_seq);
+        fn_call.getOutputCollector().add(Util.coerceToTuple(res));
+    }
 }

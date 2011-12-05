@@ -26,16 +26,17 @@ import cascading.tuple.TupleEntryCollector;
 import java.util.List;
 
 public class ClojureCombiner extends ClojureCombinerBase {
-    
-    public ClojureCombiner(Fields groupFields, List<Fields> argFields, Fields outFields, List<CombinerSpec> agg_specs) {
+
+    public ClojureCombiner(Fields groupFields, List<Fields> argFields, Fields outFields,
+        List<CombinerSpec> agg_specs) {
         super(groupFields, false, null, argFields, outFields, agg_specs, "cascalog.combiner.aggregator.size", 10000);
     }
 
     @Override
     protected void write(Tuple group, List<Object> val, OperationCall opCall) {
-        TupleEntryCollector output = ((FunctionCall)opCall).getOutputCollector();
+        TupleEntryCollector output = ((FunctionCall) opCall).getOutputCollector();
         Tuple t = new Tuple(group);
-        for(Object o: val) {
+        for (Object o : val) {
             t.add(o);
         }
         output.add(t);

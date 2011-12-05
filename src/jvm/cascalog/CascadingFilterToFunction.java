@@ -22,27 +22,25 @@ import cascading.operation.*;
 import cascading.tuple.Fields;
 import cascading.tuple.Tuple;
 
+public class CascadingFilterToFunction extends BaseOperation implements Function {
+    Filter filter;
 
+    public CascadingFilterToFunction(String outfield, Filter filter) {
+        super(new Fields(outfield));
+        this.filter = filter;
+    }
 
-public class CascadingFilterToFunction extends BaseOperation implements Function {  
-  Filter filter;
+    public void prepare(FlowProcess flowProcess, OperationCall operationCall) {
+        filter.prepare(flowProcess, operationCall);
+    }
 
-  public CascadingFilterToFunction(String outfield, Filter filter) {
-      super(new Fields(outfield));
-      this.filter = filter;
-  }
-  
-  public void prepare(FlowProcess flowProcess, OperationCall operationCall) {
-    filter.prepare(flowProcess, operationCall);
-  }
+    public void operate(FlowProcess process, FunctionCall call) {
+        boolean ret = !filter.isRemove(process, new FilterFunctionCall(call));
+        call.getOutputCollector().add(new Tuple(ret));
+    }
 
-  public void operate(FlowProcess process, FunctionCall call) {
-    boolean ret = !filter.isRemove(process, new FilterFunctionCall(call));
-    call.getOutputCollector().add(new Tuple(ret));
-  }
-  
-  public void cleanup(FlowProcess flowProcess, OperationCall operationCall) {
-    filter.cleanup(flowProcess, operationCall);
-  }
+    public void cleanup(FlowProcess flowProcess, OperationCall operationCall) {
+        filter.cleanup(flowProcess, operationCall);
+    }
 
 }

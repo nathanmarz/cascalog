@@ -22,5 +22,5 @@ public class TupleSeqConverter implements Iterator<ISeq> {
 
     public void remove() {
         _tuples.remove();
-    }      
+    }
 }
