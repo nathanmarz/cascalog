@@ -34,8 +34,13 @@
 
 (deftest kryo-serialization-test
   (with-job-conf
-   {"cascading.kryo.serializations" "java.util.DoesntExist"
-    "cascading.kryo.skip.missing" true
-    "cascading.kryo.accept.all" true}
-   (let [cal-tuple [[(java.util.GregorianCalendar.)]]]
-     (test?<- cal-tuple [?a] (cal-tuple ?a)))))
+    {"cascading.kryo.serializations" "java.util.DoesntExist"
+     "cascading.kryo.skip.missing" true
+     "cascading.kryo.accept.all" true}
+    (let [cal-tuple [[(java.util.GregorianCalendar.)]]]
+      (test?<- cal-tuple [?a] (cal-tuple ?a))))
+  (with-job-conf
+    {"cascading.kryo.accept.all" false}
+    (let [cal-tuple [[(java.util.GregorianCalendar.)]]]
+      (is (thrown? RuntimeException
+                   (??<- [?a] (cal-tuple ?a)))))))
