@@ -1,3 +1,40 @@
+## 1.8.5
+
+* Moved project configurations over to cascalog.
+* Memory-Source-Tap now uses project settings from job-conf.clj (bugfix!)
+* Kryo Serialization for clojure primitives, clojure collections and select java primitives.
+
+In addition to previous support for the various number types + strings, the following classes are now serialized by default:
+
+- **Java primitives**
+  - java.math.BigDecimal
+  - java.math.BigInteger
+  - java.util.Date
+  - java.util.UUID
+  - java.sql.Date
+  - java.sql.Time
+  - java.sql.Timestamp
+  - java.net.URI
+
+- **Clojure primitives**
+  - clojure.lang.BigInt
+  - clojure.lang.Keyword
+  - clojure.lang.Symbol
+
+- **Collections and sequences:**
+  - clojure.lang.Cons
+  - clojure.lang.IteratorSeq
+  - clojure.lang.LazySeq
+  - clojure.lang.MapEntry
+  - clojure.lang.PersistentArrayMap
+  - clojure.lang.PersistentHashMap
+  - clojure.lang.PersistentHashSet
+  - clojure.lang.PersistentList
+  - clojure.lang.PersistentList$EmptyList
+  - clojure.lang.PersistentStructMap
+  - clojure.lang.PersistentVector
+  - clojure.lang.StringSeq
+
 ## 1.8.4
 
 * Add project-wide jobconf settings in job-conf.clj.
