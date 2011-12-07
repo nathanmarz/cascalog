@@ -20,10 +20,11 @@ public class ClojureKryoSerialization extends KryoSerialization {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-
+        
         k.register(ArrayList.class);
         k.register(HashMap.class);
         k.register(HashSet.class);
+        k.register(byte[].class);
         return k;
     }
 }
