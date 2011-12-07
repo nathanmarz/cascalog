@@ -6,7 +6,7 @@
 
 In addition to previous support for the various number types + strings, the following classes are now serialized by default:
 
-- **Java primitives**
+- **Java primitives & Collections**
   - java.math.BigDecimal
   - java.math.BigInteger
   - java.util.Date
@@ -15,13 +15,16 @@ In addition to previous support for the various number types + strings, the foll
   - java.sql.Time
   - java.sql.Timestamp
   - java.net.URI
+  - java.util.ArrayList
+  - java.util.HashMap
+  - java.util.HashSet
 
-- **Clojure primitives**
+- **Clojure Primitives**
   - clojure.lang.BigInt
   - clojure.lang.Keyword
   - clojure.lang.Symbol
 
-- **Collections and sequences:**
+- **Clojure ollections and sequences:**
   - clojure.lang.Cons
   - clojure.lang.IteratorSeq
   - clojure.lang.LazySeq
