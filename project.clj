@@ -17,11 +17,12 @@
                                riffle/riffle]]
                  [org.clojure/tools.macro "0.1.1"]
                  [thirdparty/jgrapht-jdk1.6 "0.8.1"]
+                 [cascading.kryo "0.1.2"]
+                 [cascalog/carbonite "1.0.3"]
                  [riffle/riffle "0.1-dev"]
                  [log4j/log4j "1.2.16"]
                  [hadoop-util "0.2.4"]]
-  :dev-dependencies [[swank-clojure "1.4.0-SNAPSHOT"]
-                     [org.apache.hadoop/hadoop-core "0.20.2-dev"]
+  :dev-dependencies [[org.apache.hadoop/hadoop-core "0.20.2-dev"]
                      [lein-multi "1.1.0-SNAPSHOT"]
                      ;; uncomment for doc builds.
                      ;; [backtype/autodoc "0.9.0-SNAPSHOT"]
@@ -36,6 +37,8 @@
                       [cascading/cascading-hadoop "2.0.0-wip-164"
                        :exclusions [org.codehaus.janino/janino
                                     org.apache.hadoop/hadoop-core]]
+                      [cascading.kryo "0.1.2"]
+                      [cascalog/carbonite "1.0.3"]
                       [log4j/log4j "1.2.16"]
                       [hadoop-util "0.2.4"]]
                "1.4" [[org.clojure/clojure "1.4.0-alpha2"]
@@ -43,5 +46,7 @@
                       [cascading/cascading-hadoop "2.0.0-wip-164"
                        :exclusions [org.codehaus.janino/janino
                                     org.apache.hadoop/hadoop-core]]
+                      [cascading.kryo "0.1.2"]
+                      [cascalog/carbonite "1.0.3"]
                       [log4j/log4j "1.2.16"]
                       [hadoop-util "0.2.4"]]})

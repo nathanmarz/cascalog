@@ -18,32 +18,31 @@
 
 package cascalog;
 
+import cascading.flow.FlowProcess;
+import cascading.operation.BaseOperation;
 import cascading.operation.Function;
 import cascading.operation.FunctionCall;
 import cascading.operation.OperationCall;
-import cascading.flow.FlowProcess;
 import cascading.tuple.Fields;
-import cascading.operation.BaseOperation;
 
+public class CascalogFunctionExecutor extends BaseOperation implements Function {
+    CascalogFunction fn;
 
-public class CascalogFunctionExecutor extends BaseOperation implements Function {  
-  CascalogFunction fn;
+    public CascalogFunctionExecutor(Fields out_fields, CascalogFunction fn) {
+        super(out_fields);
+        this.fn = fn;
+    }
 
-  public CascalogFunctionExecutor(Fields out_fields, CascalogFunction fn) {
-    super(out_fields);
-    this.fn = fn;
-  }
-  
-  public void prepare(FlowProcess flowProcess, OperationCall operationCall) {
-    fn.prepare(flowProcess, operationCall);
-  }
+    public void prepare(FlowProcess flowProcess, OperationCall operationCall) {
+        fn.prepare(flowProcess, operationCall);
+    }
 
-  public void operate(FlowProcess flow_process, FunctionCall fn_call) {
-    fn.operate(flow_process, fn_call);
-  }
-  
-  public void cleanup(FlowProcess flowProcess, OperationCall operationCall) {
-    fn.cleanup(flowProcess, operationCall);
-  }
+    public void operate(FlowProcess flow_process, FunctionCall fn_call) {
+        fn.operate(flow_process, fn_call);
+    }
+
+    public void cleanup(FlowProcess flowProcess, OperationCall operationCall) {
+        fn.cleanup(flowProcess, operationCall);
+    }
 
 }

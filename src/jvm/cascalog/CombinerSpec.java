@@ -20,7 +20,6 @@ package cascalog;
 
 import java.io.Serializable;
 
-
 public class CombinerSpec implements Serializable {
     public Object[] init_spec;
     public Object[] combiner_spec;
@@ -29,7 +28,7 @@ public class CombinerSpec implements Serializable {
     public CombinerSpec(Object[] init_spec, Object[] combiner_spec) {
         this(init_spec, combiner_spec, null);
     }
-    
+
     public CombinerSpec(Object[] init_spec, Object[] combiner_spec, Object[] extractor_spec) {
         this.init_spec = init_spec;
         this.combiner_spec = combiner_spec;

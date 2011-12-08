@@ -29,6 +29,7 @@ import cascading.tap.Tap;
 import cascading.tap.hadoop.MultiRecordReaderIterator;
 import cascading.tuple.Fields;
 import cascading.tuple.Tuple;
+<<<<<<< HEAD
 import cascading.tuple.TupleEntryIterator;
 import cascading.tuple.TupleEntrySchemeIterator;
 import java.io.IOException;
@@ -45,6 +46,20 @@ import org.apache.hadoop.io.NullWritable;
 
 public class MemorySourceTap extends SourceTap<HadoopFlowProcess, JobConf, RecordReader, OutputCollector> {
     public static class MemorySourceScheme extends Scheme<HadoopFlowProcess, JobConf, RecordReader, OutputCollector, Object[], Void> {
+=======
+import cascading.tuple.TupleEntry;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.mapred.FileInputFormat;
+import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapred.OutputCollector;
+
+import java.io.IOException;
+import java.util.List;
+import java.util.UUID;
+
+public class MemorySourceTap extends SourceTap {
+    public static class MemorySourceScheme extends Scheme {
+>>>>>>> develop
 
         private List<Tuple> tuples;
         private String id;
@@ -60,10 +75,18 @@ public class MemorySourceTap extends SourceTap<HadoopFlowProcess, JobConf, Recor
         }
         
         @Override
+<<<<<<< HEAD
         public void sourceConfInit(HadoopFlowProcess flowProcess, Tap tap, JobConf conf) {
             FileInputFormat.setInputPaths( conf, "/" + UUID.randomUUID().toString());
             conf.setInputFormat(TupleMemoryInputFormat.class);
             TupleMemoryInputFormat.setObject(conf, TupleMemoryInputFormat.TUPLES_PROPERTY, this.tuples);
+=======
+        public void sourceInit(Tap tap, JobConf jc) throws IOException {
+            FileInputFormat.setInputPaths(jc, "/" + UUID.randomUUID().toString());
+            jc.setInputFormat(TupleMemoryInputFormat.class);
+            TupleMemoryInputFormat
+                .setObject(jc, TupleMemoryInputFormat.TUPLES_PROPERTY, this.tuples);
+>>>>>>> develop
         }
 
         @Override
@@ -102,7 +125,7 @@ public class MemorySourceTap extends SourceTap<HadoopFlowProcess, JobConf, Recor
         public void sink(HadoopFlowProcess flowProcess, SinkCall<Void, OutputCollector> sinkCall ) throws IOException {
             throw new UnsupportedOperationException("Not supported.");
         }
-        
+
     }
 
     private String id = UUID.randomUUID().toString();
@@ -129,12 +152,13 @@ public class MemorySourceTap extends SourceTap<HadoopFlowProcess, JobConf, Recor
 
     @Override
     public boolean equals(Object object) {
-        if(!getClass().equals(object.getClass())) {
+        if (!getClass().equals(object.getClass())) {
             return false;
         }
         MemorySourceTap other = (MemorySourceTap) object;
         return id.equals(other.id);
     }
+<<<<<<< HEAD
     
     @Override
     public TupleEntryIterator openForRead( HadoopFlowProcess flowProcess, RecordReader input ) throws IOException {
@@ -145,4 +169,8 @@ public class MemorySourceTap extends SourceTap<HadoopFlowProcess, JobConf, Recor
     public long getModifiedTime( JobConf conf ) throws IOException {
         return System.currentTimeMillis();
     }
+=======
+
+
+>>>>>>> develop
 }

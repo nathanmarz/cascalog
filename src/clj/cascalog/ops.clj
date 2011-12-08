@@ -1,5 +1,5 @@
 (ns cascalog.ops
-  (:refer-clojure :exclude [count min max comp juxt partial reduce])
+  (:refer-clojure :exclude [count min max comp juxt partial])
   (:use [cascalog ops-impl api util]
         [cascalog.workflow :only (fill-tap!)]
         [cascalog.io :only (with-fs-tmp)])

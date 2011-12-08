@@ -7,7 +7,47 @@
 * Extensive documentation of functions in cascalog.ops
 * Builds are now tested against clojure 1.4 in addition to 1.2 and 1.3.
 
-### 1.8.4
+## 1.8.5
+
+* Moved project configurations over to cascalog.
+* Memory-Source-Tap now uses project settings from job-conf.clj (bugfix!)
+* Kryo Serialization for clojure primitives, clojure collections and select java primitives.
+
+In addition to previous support for the various number types + strings, the following classes are now serialized by default:
+
+- **Java primitives & Collections**
+  - java.math.BigDecimal
+  - java.math.BigInteger
+  - java.util.Date
+  - java.util.UUID
+  - java.sql.Date
+  - java.sql.Time
+  - java.sql.Timestamp
+  - java.net.URI
+  - java.util.ArrayList
+  - java.util.HashMap
+  - java.util.HashSet
+
+- **Clojure Primitives**
+  - clojure.lang.BigInt
+  - clojure.lang.Keyword
+  - clojure.lang.Symbol
+
+- **Clojure ollections and sequences:**
+  - clojure.lang.Cons
+  - clojure.lang.IteratorSeq
+  - clojure.lang.LazySeq
+  - clojure.lang.MapEntry
+  - clojure.lang.PersistentArrayMap
+  - clojure.lang.PersistentHashMap
+  - clojure.lang.PersistentHashSet
+  - clojure.lang.PersistentList
+  - clojure.lang.PersistentList$EmptyList
+  - clojure.lang.PersistentStructMap
+  - clojure.lang.PersistentVector
+  - clojure.lang.StringSeq
+
+## 1.8.4
 
 * Add project-wide jobconf settings in job-conf.clj.
 * optional docstring and metadata support on defparallelagg and defparallelbuf.

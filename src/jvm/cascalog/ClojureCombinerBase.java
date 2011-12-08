@@ -26,16 +26,13 @@ import cascading.operation.FunctionCall;
 import cascading.operation.OperationCall;
 import cascading.tuple.Fields;
 import cascading.tuple.Tuple;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map.Entry;
 import clojure.lang.IFn;
 import clojure.lang.ISeq;
 import clojure.lang.RT;
-import java.util.HashMap;
-import java.util.Map;
 import org.apache.hadoop.mapred.JobConf;
+
+import java.util.*;
+import java.util.Map.Entry;
 
 public abstract class ClojureCombinerBase extends BaseOperation implements Function {
     private List<CombinerSpec> specs;
@@ -50,18 +47,21 @@ public abstract class ClojureCombinerBase extends BaseOperation implements Funct
     private int cacheSize;
 
     private static Fields appendFields(Fields start, Fields... rest) {
-        for(Fields f: rest) {
-            if(f!=null) {
+        for (Fields f : rest) {
+            if (f != null) {
                 start = start.append(f);
             }
-         }
-         return start;
+        }
+        return start;
     }
 
-    public ClojureCombinerBase(Fields groupFields, boolean includeSort, Fields sortFields, List<Fields> argFields, Fields outFields, List<CombinerSpec> agg_specs, String cacheConfArg, int defaultCacheSize) {
+    public ClojureCombinerBase(Fields groupFields, boolean includeSort, Fields sortFields,
+        List<Fields> argFields, Fields outFields, List<CombinerSpec> agg_specs, String cacheConfArg,
+        int defaultCacheSize) {
         super(appendFields(groupFields, sortFields, outFields));
-        if(argFields.size()!=agg_specs.size())
+        if (argFields.size() != agg_specs.size()) {
             throw new IllegalArgumentException("All lists to ClojureCombiner must be same length");
+        }
         this.specs = new ArrayList<CombinerSpec>(agg_specs);
         this.groupFields = groupFields;
         this.sortFields = sortFields;
@@ -81,7 +81,7 @@ public abstract class ClojureCombinerBase extends BaseOperation implements Funct
         combined = new LinkedHashMap<Tuple, Map<Integer, ISeq>>(1000, (float) 0.75, true);
         init_fns = new ArrayList<IFn>();
         combiner_fns = new ArrayList<IFn>();
-        for(CombinerSpec cs: this.specs) {
+        for (CombinerSpec cs : this.specs) {
             init_fns.add(Util.bootFn(cs.init_spec));
             combiner_fns.add(Util.bootFn(cs.combiner_spec));
         }
@@ -90,45 +90,44 @@ public abstract class ClojureCombinerBase extends BaseOperation implements Funct
     public void operate(FlowProcess fp, FunctionCall fc) {
         Tuple group = fc.getArguments().selectTuple(groupFields);
         Tuple sortArgs = null;
-        if(includeSort) {
-            if(sortFields!=null)
-                sortArgs = fc.getArguments().selectTuple(sortFields);
-            else
+        if (includeSort) {
+            if (sortFields != null) { sortArgs = fc.getArguments().selectTuple(sortFields); } else {
                 sortArgs = new Tuple();
+            }
         }
         Map<Integer, ISeq> vals = combined.get(group);
-        if(vals==null) {
+        if (vals == null) {
             vals = new HashMap<Integer, ISeq>(specs.size());
             combined.put(group, vals);
         }
-        for(int i=0; i<specs.size(); i++) {
+        for (int i = 0; i < specs.size(); i++) {
             try {
                 Fields specArgFields = argFields.get(i);
                 ISeq val;
                 IFn init_fn = init_fns.get(i);
-                if(specArgFields==null) {
+                if (specArgFields == null) {
                     val = Util.coerceToSeq(init_fn.invoke());
                 } else {
                     Tuple args = fc.getArguments().selectTuple(specArgFields);
                     ISeq toApply = Util.coerceFromTuple(args);
-                    if(sortArgs!=null) {
+                    if (sortArgs != null) {
                         toApply = RT.cons(Util.coerceFromTuple(sortArgs), toApply);
                     }
                     val = Util.coerceToSeq(init_fn.applyTo(toApply));
                 }
-                if(vals.get(i)!=null) {
+                if (vals.get(i) != null) {
                     ISeq existing = vals.get(i);
                     val = Util.coerceToSeq(combiner_fns.get(i).applyTo(Util.cat(existing, val)));
                 }
                 vals.put(i, val);
-            } catch(Exception e) {
+            } catch (Exception e) {
                 throw new RuntimeException(e);
             }
         }
 
         combined.put(group, vals);
 
-        if(combined.size()>=this.cacheSize) {
+        if (combined.size() >= this.cacheSize) {
             Tuple evict = combined.keySet().iterator().next();
             Map<Integer, ISeq> removing = combined.remove(evict);
             writeMap(evict, removing, fc);
@@ -137,7 +136,7 @@ public abstract class ClojureCombinerBase extends BaseOperation implements Funct
 
     private void writeMap(Tuple group, Map<Integer, ISeq> val, OperationCall opCall) {
         List<Object> toWrite = Util.seqToList(val.get(0));
-        for(int i=1; i<specs.size(); i++) {
+        for (int i = 1; i < specs.size(); i++) {
             toWrite.addAll(Util.seqToList(val.get(i)));
         }
         write(group, toWrite, opCall);
@@ -147,7 +146,7 @@ public abstract class ClojureCombinerBase extends BaseOperation implements Funct
 
     @Override
     public void cleanup(FlowProcess flowProcess, OperationCall operationCall) {
-        for(Entry<Tuple, Map<Integer, ISeq>> e: combined.entrySet()) {
+        for (Entry<Tuple, Map<Integer, ISeq>> e : combined.entrySet()) {
             writeMap(e.getKey(), e.getValue(), operationCall);
         }
     }

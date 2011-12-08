@@ -28,4 +28,7 @@ syntax: glob
 .cake/
 .lein-failures
 .lein-deps-sum
-autodoc/**
+autodoc/
+*.ipr
+*.iws
+*.iml

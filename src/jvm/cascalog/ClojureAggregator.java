@@ -18,41 +18,40 @@
 
 package cascalog;
 
+import cascading.flow.FlowProcess;
 import cascading.operation.Aggregator;
 import cascading.operation.AggregatorCall;
-import cascading.flow.FlowProcess;
-import cascading.tuple.TupleEntryCollector;
 import cascading.tuple.Fields;
-import clojure.lang.RT;
+import cascading.tuple.TupleEntryCollector;
 import clojure.lang.ISeq;
+import clojure.lang.RT;
+
 import java.util.Collection;
 
-public class ClojureAggregator extends ClojureCascadingBase
-                               implements Aggregator {
-    
-  public ClojureAggregator(Fields out_fields, Object[] fn_spec, boolean stateful) {
-    super(out_fields, fn_spec, stateful);
-  }
-  
-  public void start(FlowProcess flow_process, AggregatorCall ag_call) {
-    ag_call.setContext(invokeFunction());
-  }
+public class ClojureAggregator extends ClojureCascadingBase implements Aggregator {
 
-  public void aggregate(FlowProcess flow_process, AggregatorCall ag_call) {
-    ISeq fn_args_seq = Util.coerceFromTuple(ag_call.getArguments().getTuple());
-    ag_call.setContext(
-      applyFunction(RT.cons(ag_call.getContext(), fn_args_seq)));
-  }
+    public ClojureAggregator(Fields out_fields, Object[] fn_spec, boolean stateful) {
+        super(out_fields, fn_spec, stateful);
+    }
 
-  public void complete(FlowProcess flow_process, AggregatorCall ag_call) {
-    Collection coll = (Collection) invokeFunction(ag_call.getContext());
-    
-    TupleEntryCollector collector = ag_call.getOutputCollector();
+    public void start(FlowProcess flow_process, AggregatorCall ag_call) {
+        ag_call.setContext(invokeFunction());
+    }
 
-    if (coll != null) {
-        for(Object o: coll) {
-            collector.add(Util.coerceToTuple(o));
+    public void aggregate(FlowProcess flow_process, AggregatorCall ag_call) {
+        ISeq fn_args_seq = Util.coerceFromTuple(ag_call.getArguments().getTuple());
+        ag_call.setContext(applyFunction(RT.cons(ag_call.getContext(), fn_args_seq)));
+    }
+
+    public void complete(FlowProcess flow_process, AggregatorCall ag_call) {
+        Collection coll = (Collection) invokeFunction(ag_call.getContext());
+
+        TupleEntryCollector collector = ag_call.getOutputCollector();
+
+        if (coll != null) {
+            for (Object o : coll) {
+                collector.add(Util.coerceToTuple(o));
+            }
         }
     }
-  }
 }

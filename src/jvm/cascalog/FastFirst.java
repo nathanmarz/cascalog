@@ -18,22 +18,23 @@
 
 package cascalog;
 
+import cascading.flow.FlowProcess;
+import cascading.operation.BaseOperation;
 import cascading.operation.Buffer;
 import cascading.operation.BufferCall;
-import cascading.flow.FlowProcess;
 import cascading.tuple.Fields;
 import cascading.tuple.TupleEntry;
-import cascading.operation.BaseOperation;
+
 import java.util.Iterator;
 
-public class FastFirst extends BaseOperation implements Buffer {  
+public class FastFirst extends BaseOperation implements Buffer {
 
-  public FastFirst() {
-    super(Fields.ARGS);
-  }
-  
+    public FastFirst() {
+        super(Fields.ARGS);
+    }
 
-  public void operate(FlowProcess flowProcess, BufferCall bufCall) {
-      bufCall.getOutputCollector().add(((Iterator<TupleEntry>)bufCall.getArgumentsIterator()).next());
-  }
+    public void operate(FlowProcess flowProcess, BufferCall bufCall) {
+        bufCall.getOutputCollector()
+            .add(((Iterator<TupleEntry>) bufCall.getArgumentsIterator()).next());
+    }
 }

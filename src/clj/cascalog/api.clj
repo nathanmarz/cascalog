@@ -2,6 +2,7 @@
   (:use [cascalog vars util graph debug])
   (:require [clojure.set :as set]
             [cascalog.tap :as tap]
+            [cascalog.conf :as conf]
             [cascalog.workflow :as w]
             [cascalog.predicate :as p]
             [cascalog.rules :as rules]
@@ -112,8 +113,8 @@
    with-job-conf calls will merge configuration maps together, with
    innermost calls taking precedence on conflicting keys."
   [conf & body]
-  `(binding [cascalog.rules/*JOB-CONF*
-             (conf-merge cascalog.rules/*JOB-CONF* ~conf)]
+  `(binding [conf/*JOB-CONF*
+             (conf-merge conf/*JOB-CONF* ~conf)]
      ~@body))
 
 (defmacro with-serializations
@@ -168,7 +169,7 @@
         tails     (map rules/connect-to-sink gens sinks)
         sinkmap   (w/taps-map tails sinks)]
     (.connect (HadoopFlowConnector.
-               (conf-merge (cascalog.rules/project-conf)
+               (conf-merge (conf/project-conf)
                            {"cascading.flow.job.pollinginterval" 100}))
               flow-name
               sourcemap
@@ -370,5 +371,4 @@ as well."
     `(do (gen-class :name ~classname
                     :main true
                     :prefix ~(str name "-"))
-
          (defn ~sym ~@forms))))

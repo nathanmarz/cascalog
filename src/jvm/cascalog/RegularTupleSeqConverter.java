@@ -20,6 +20,7 @@ package cascalog;
 
 import cascading.tuple.Tuple;
 import clojure.lang.ISeq;
+
 import java.util.Iterator;
 
 public class RegularTupleSeqConverter implements Iterator<ISeq> {

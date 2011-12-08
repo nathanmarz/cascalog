@@ -3,6 +3,8 @@
                             map identity min max])
   (:use [cascalog util debug]
         [clojure.tools.macro :only (name-with-attributes)])
+  (:require [cascalog.conf :as conf]
+            [hadoop-util.core :as hadoop])
   (:import [cascalog Util]
            [org.apache.hadoop.mapred JobConf]
            [java.io File]
@@ -528,8 +530,10 @@ identity.  identity."
   (.complete flow))
 
 (defn fill-tap! [^Tap tap xs]
-  (with-open [^TupleEntryCollector collector (-> (HadoopFlowProcess. (JobConf.))
-                                                 (.openTapForWrite tap))]
+  (with-open [^TupleEntryCollector collector
+              (-> (hadoop/job-conf (conf/project-conf))
+                  (HadoopFlowProcess.)
+                  (.openTapForWrite tap))]
     (doseq [item xs]
       (.add collector (Util/coerceToTuple item)))))
 
