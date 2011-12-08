@@ -18,131 +18,145 @@
 
 package cascalog;
 
-import cascalog.RecordReaderIterator;
-import cascading.flow.hadoop.HadoopFlowProcess;
-import cascading.flow.hadoop.HadoopUtil;
-import cascading.scheme.Scheme;
-import cascading.scheme.SinkCall;
-import cascading.scheme.SourceCall;
-import cascading.tap.SourceTap;
-import cascading.tap.Tap;
-import cascading.tap.hadoop.MultiRecordReaderIterator;
+import java.io.Serializable;
+import java.util.Arrays;
+import java.util.Iterator;
+import cascading.operation.BaseOperation;
+import cascading.operation.Identity;
+import cascading.pipe.CoGroup;
+import cascading.pipe.Each;
+import cascading.pipe.Pipe;
+import cascading.pipe.SubAssembly;
+import cascading.pipe.cogroup.GroupClosure;
+import cascading.pipe.cogroup.Joiner;
 import cascading.tuple.Fields;
+import cascading.flow.hadoop.HadoopSpillableTupleList;
 import cascading.tuple.Tuple;
-import cascading.tuple.TupleEntryIterator;
-import cascading.tuple.TupleEntrySchemeIterator;
-import java.io.IOException;
-import java.util.List;
 import java.util.UUID;
-import java.util.Map;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.mapred.JobConf;
-import org.apache.hadoop.mapred.OutputCollector;
-import org.apache.hadoop.mapred.RecordReader;
-import org.apache.hadoop.mapred.FileInputFormat;
-import org.apache.hadoop.io.NullWritable;
 
-public class MemorySourceTap extends SourceTap<HadoopFlowProcess, JobConf, RecordReader, OutputCollector> {
-    public static class MemorySourceScheme extends Scheme<HadoopFlowProcess, JobConf, RecordReader, OutputCollector, Object[], Void> {
+public class MultiGroupBy extends SubAssembly {
+  public static interface MultiBuffer extends Serializable {
+      void operate(MultiBufferContext context);
+  }
 
-        private List<Tuple> tuples;
-        private String id;
+  public static class MultiBufferContext {
+      GroupClosure _closure;
+      HadoopSpillableTupleList _results = new HadoopSpillableTupleList((long) 10000, null, null);
+      int _pipeFieldsSum;
 
-        public MemorySourceScheme(List<Tuple> tuples, Fields fields) {
-            super(fields);
-            this.tuples = tuples;
-        }
+      public MultiBufferContext(GroupClosure closure, int pipeFieldsSum) {
+          _closure = closure;
+          _pipeFieldsSum = pipeFieldsSum;
+      }
 
-        public List<Tuple> getTuples()
-        {
-            return this.tuples;
-        }
+      public int size() {
+          return _closure.size();
+      }
+
+      public void emit(Tuple result) {
+          Tuple ret = new Tuple(_closure.getGrouping());
+          ret.addAll(result);
+          while(ret.size() < _pipeFieldsSum) {
+            ret.add(0);
+          }
+          _results.add(ret);
+      }
+
+      public Iterator<Tuple> getArgumentsIterator(int pos) {
+          return _closure.getIterator(pos);
+      }
+
+      public HadoopSpillableTupleList getResults() {
+          return _results;
+      }
+  }
+  
+  public static class MultiBufferExecutor implements Serializable {
+    private MultiBuffer _buffer;
+    private MultiBufferContext _context;
+    private int _pipeFieldsSum;
+    private GroupClosure _closure;
+    
+    public MultiBufferExecutor(MultiBuffer buffer, int pipeFieldsSum) {
+        _buffer = buffer;
+        _pipeFieldsSum = pipeFieldsSum;
+    }
         
-        @Override
-        public void sourceConfInit(HadoopFlowProcess flowProcess, Tap tap, JobConf conf) {
-            FileInputFormat.setInputPaths( conf, "/" + UUID.randomUUID().toString());
-            conf.setInputFormat(TupleMemoryInputFormat.class);
-            TupleMemoryInputFormat.setObject(conf, TupleMemoryInputFormat.TUPLES_PROPERTY, this.tuples);
-        }
-
-        @Override
-        public void sinkConfInit(HadoopFlowProcess flowProcess, Tap tap, JobConf jc) {
-            throw new UnsupportedOperationException("Not supported yet.");
-        }
-
-        @Override
-        public void sourcePrepare( HadoopFlowProcess flowProcess, SourceCall<Object[], RecordReader> sourceCall ) {            
-            sourceCall.setContext( new Object[ 2 ] );
-            
-            sourceCall.getContext()[ 0 ] = sourceCall.getInput().createKey();
-            sourceCall.getContext()[ 1 ] = sourceCall.getInput().createValue();
-        }
-        
-        @Override
-        public boolean source(HadoopFlowProcess flowProcess, SourceCall<Object[], RecordReader> sourceCall) throws IOException {
-            TupleWrapper key = (TupleWrapper) sourceCall.getContext()[ 0 ];
-            NullWritable value = (NullWritable) sourceCall.getContext()[ 1 ];
-            
-            boolean result = sourceCall.getInput().next( key, value );
-
-            if( !result )
-                return false;
-           
-            sourceCall.getIncomingEntry().setTuple(key.tuple);
-            return true;            
-        }
-
-        @Override
-            public void sourceCleanup( HadoopFlowProcess flowProcess, SourceCall<Object[], RecordReader> sourceCall ) {
-            sourceCall.setContext( null );
-        }
-
-        @Override
-        public void sink(HadoopFlowProcess flowProcess, SinkCall<Void, OutputCollector> sinkCall ) throws IOException {
-            throw new UnsupportedOperationException("Not supported.");
-        }
-        
-    }
-
-    private String id = UUID.randomUUID().toString();
-    private transient FileStatus[] statuses;
-
-    public MemorySourceTap(List<Tuple> tuples, Fields fields) {
-        super(new MemorySourceScheme(tuples, fields));
-    }
-
-    @Override
-        public String getIdentifier()
-        {
-            return getPath().toString();
-        }
-
-    public Path getPath() {
-        return new Path("/" + id);
-    }
-
-    @Override
-    public boolean resourceExists( JobConf conf ) throws IOException {
-        return true;
-    }
-
-    @Override
-    public boolean equals(Object object) {
-        if(!getClass().equals(object.getClass())) {
-            return false;
-        }
-        MemorySourceTap other = (MemorySourceTap) object;
-        return id.equals(other.id);
+    public void setContext(GroupClosure closure) {
+       _closure = closure;
+       _context = new MultiBufferContext(closure, _pipeFieldsSum);
     }
     
-    @Override
-    public TupleEntryIterator openForRead( HadoopFlowProcess flowProcess, RecordReader input ) throws IOException {
-        return new TupleEntrySchemeIterator( flowProcess, getScheme(), new RecordReaderIterator( input ) );
+    public HadoopSpillableTupleList getResults() {
+      return _context.getResults();
     }
- 
-    @Override
-    public long getModifiedTime( JobConf conf ) throws IOException {
-        return System.currentTimeMillis();
+
+    public void operate() {
+        ((BaseOperation) _buffer).prepare(_closure.getFlowProcess(), null);
+        _buffer.operate(_context);
+        ((BaseOperation) _buffer).cleanup(_closure.getFlowProcess(), null);
+    }            
+  }
+  
+  
+  protected static class MultiGroupJoiner implements Joiner {
+
+    protected MultiBufferExecutor _buffer;
+    
+    public MultiGroupJoiner(int pipeFieldsSum, MultiBuffer buffer) {
+      _buffer = new MultiBufferExecutor(buffer, pipeFieldsSum);
     }
+    
+    public Iterator<Tuple> getIterator(GroupClosure closure) {
+      _buffer.setContext(closure);
+      _buffer.operate();
+      return _buffer.getResults().iterator();
+    }
+
+    public int numJoins() {
+      return -1;      
+    }
+  }
+  
+  public MultiGroupBy(Pipe p0, Pipe p1, Fields groupFields, int pipeFieldsSum, MultiBuffer operation) {
+    Pipe[] pipes = new Pipe[] { p0, p1};
+    Fields[] fields = new Fields[] {groupFields, groupFields};
+    init(pipes, fields, pipeFieldsSum, groupFields, operation);
+  }
+  
+  public MultiGroupBy(Pipe p0, Fields group0, Pipe p1, Fields group1, int pipeFieldsSum, Fields groupRename, MultiBuffer operation) {
+    Pipe[] pipes = new Pipe[] { p0, p1};
+    Fields[] fields = new Fields[] {group0, group1};
+    init(pipes, fields, pipeFieldsSum, groupRename, operation);
+  }
+  
+  public MultiGroupBy(Pipe[] pipes, Fields groupFields, int pipeFieldsSum, MultiBuffer operation) {
+    Fields[] allGroups = new Fields[pipes.length];
+    Arrays.fill(allGroups, groupFields);
+    init(pipes, allGroups, pipeFieldsSum, groupFields, operation);
+  }
+  
+  public MultiGroupBy(Pipe[] pipes, Fields[] groupFields, int pipeFieldsSum, Fields groupingRename, MultiBuffer operation) {
+    init(pipes, groupFields, pipeFieldsSum, groupingRename, operation);
+  }
+  
+  protected void init(Pipe[] pipes, Fields[] groupFields, int pipeFieldsSum, Fields groupingRename, MultiBuffer operation) {
+    for(int i=0; i<pipes.length; i++) {
+        pipes[i] = new Pipe(UUID.randomUUID().toString(), pipes[i]);
+        pipes[i] = new Each(pipes[i], Fields.ALL, new Identity(), Fields.RESULTS);
+    }
+    Fields resultFields =  Fields.join(groupingRename, ((BaseOperation)operation).getFieldDeclaration());
+    if(resultFields.size()>pipeFieldsSum) throw new IllegalArgumentException("Can't have output more than sum of input pipes since this is a hack!");    
+    // unfortunately, need to hack around CoGroup validation stuff since cascading assumes it will return #fields=sum of input pipes
+    Fields fake = new Fields();
+    fake = fake.append(resultFields);
+    int i=0;
+    while(fake.size() < pipeFieldsSum) {
+      fake = fake.append(new Fields("__" + i));
+      i++;
+    }
+    Pipe result = new CoGroup(pipes, groupFields, fake, new MultiGroupJoiner(pipeFieldsSum, operation));
+    result = new Each(result, resultFields, new Identity());
+    setTails(result);
+  }
 }
