@@ -34,7 +34,7 @@ To include Cascalog in your leiningen or cake project, add the following to your
 # Documentation and Issue Tracker
 
 - The [Cascalog Wiki](https://github.com/nathanmarz/cascalog/wiki) contains more information and links to Various articles and tutorials.
-- API documentation can be found at [[http://nathanmarz.github.com/cascalog/]].
+- API documentation can be found at http://nathanmarz.github.com/cascalog/.
 - [Issue Tracker on Github](https://github.com/nathanmarz/cascalog/issues).
 
 Come chat with us in the Google group: [cascalog-user](http://groups.google.com/group/cascalog-user)
