@@ -291,7 +291,9 @@
     (throw (RuntimeException. "Planner exception: Generator has inbound nodes")))
   pred)
 
-(w/defmapop [join-fields-selector [num-fields]] [& args]
+(w/defmapop join-fields-selector
+  {:params  [num-fields]}
+  [& args]
   (let [joins (partition num-fields args)]
     (if-ret (find-first (partial some? (complement nil?)) joins)
             (repeat num-fields nil))))
@@ -616,7 +618,10 @@
                              raw-predicates))))
 
 (defn mk-raw-predicate [[op-sym & vars]]
-  [op-sym (try-resolve op-sym) (vars2str vars)])
+  (let [resolved-op (try-resolve op-sym)]
+    (if (and (list? op-sym) (:pred-type (meta resolved-op)))
+      [(first op-sym) resolved-op (vars2str (cons (rest op-sym) vars))]
+      [op-sym resolved-op (vars2str vars)])))
 
 (defn- pluck-tuple [tap]
   (with-open [it (-> (HadoopFlowProcess. (hadoop/job-conf (conf/project-conf)))

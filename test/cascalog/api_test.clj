@@ -209,16 +209,15 @@
     (test?<- [["E"]]
              [?p] (follows ?p ?p2) (age ?p2 ?a2) (age-tokens ?p ?a2 !!t) (nil? !!t))))
 
-(defmapop [hof-add [a]]
-  "Adds the static variable `a` to dynamic input `n`."
+(defmapop hof-add {:params [a]}
   [n]
   (+ a n))
 
-(defmapop [hof-arithmetic [a b]] [n]
+(defmapop hof-arithmetic {:params [a b]} [n]
   (+ b (* a n)))
 
 ;; TODO: stateful operations should return a map containing :init, :op, :finish
-(defbufferop [sum-plus [a]] {:stateful true}
+(defbufferop sum-plus {:params [a] :stateful true}
   ([] (* 3 a))
   ([state tuples] [(apply + state (map first tuples))])
   ([state] nil))
@@ -387,17 +386,20 @@
              [?d ?e ?count] (vals ?a ?b ?c) (multipagg ?a ?b ?c :> ?d ?e) (slow-count ?c :> ?count))))
 
 (deftest test-cascading-filter
-  (let [vals [[0] [1] [2] [3]] ]
-    (test?<- [[0] [2]] [?v] (vals ?v) ((KeepEven.) ?v) (:distinct false))
-    (test?<- [[0 true] [1 false] [2 true] [3 false]] [?v ?b] (vals ?v) ((KeepEven.) ?v :> ?b) (:distinct false))))
+  (let [vals [[0] [1] [2] [3]]
+        keep-even (KeepEven.)]
+    (test?<- [[0] [2]] [?v] (vals ?v) (keep-even ?v) (:distinct false))
+    (test?<- [[0 true] [1 false] [2 true] [3 false]] [?v ?b] (vals ?v) (keep-even :> ?b) (:distinct false))
+    ))
 
 (deftest test-java-buffer
-  (let [vals [["a" 1 10] ["a" 2 20] ["b" 3 31]]]
-    (test?<- [["a" 1] ["b" 1]] [?f1 ?o] (vals ?f1 _ _) ((OneBuffer.) :> ?o))
-    (test?<- [["a" 1 10] ["a" 2 20] ["b" 3 31]]
-             [?f1 ?f2out ?f3out]
-             (vals ?f1 ?f2 ?f3)
-             ((IdentityBuffer.) ?f2 ?f3 :> ?f2out ?f3out))))
+  (let [vals [["a" 1 10] ["a" 2 20] ["b" 3 31]]
+        one-buffer (OneBuffer.)
+        identity-buffer (IdentityBuffer.)]
+    (test?<- [["a" 1] ["b" 1]] [?f1 ?o] (vals ?f1 _ _) (one-buffer :> ?o))
+    (test?<- [["a" 1 10] ["a" 2 20] ["b" 3 31]] [?f1 ?f2out ?f3out]
+             (vals ?f1 ?f2 ?f3) (identity-buffer ?f2 ?f3 :> ?f2out ?f3out))
+    ))
 
 (defn run-union-combine-tests
   "Runs a series of tests on the union and combine operations. v1,

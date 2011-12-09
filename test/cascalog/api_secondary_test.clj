@@ -143,7 +143,7 @@
 (defmultibufferop count-sum [seq1 seq2]
   [[(count seq1) (reduce + (map second seq2))]])
 
-(defmultibufferop [count-arg [arg]] [seq1 seq2 seq3]
+(defmultibufferop count-arg {:params [arg]} [seq1 seq2 seq3]
   [[(count seq1) (count seq2) (count seq3)] [arg arg arg]])
 
 (deftest test-multigroup
