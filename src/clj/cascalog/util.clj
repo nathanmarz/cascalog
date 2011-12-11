@@ -286,3 +286,8 @@
              [(if (keyword? k)
                 (name k)
                 (str k)) v])))
+
+(defn filter-empty-gens [gens]
+  (cond (not-any? empty? gens) gens
+        (> (count gens) 1) (filter #(not-empty %) gens)
+        :else (list [[nil]])))

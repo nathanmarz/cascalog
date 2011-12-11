@@ -409,11 +409,14 @@
     [[3] [4] [5]]
     [[2] [4] [6]]"
   [v1 v2 v3]
-  (test?- [[1] [2] [3] [4] [5]] (union v1 v2)
-          [[1] [2] [3] [4] [5] [6]] (union v1 v2 v3)
-          [[3] [4] [5]] (union v2)
-          [[1] [2] [3] [2] [4] [6]] (combine v1 v3)
-          [[1] [2] [3] [3] [4] [5] [2] [4] [6]] (combine v1 v2 v3)))
+  (let [e []]
+    (test?- [[1] [2] [3] [4] [5]] (union v1 v2)
+            [[1] [2] [3] [4] [5] [6]] (union v1 v2 v3)
+            [[3] [4] [5]] (union v2)
+            [[1] [2] [3] [2] [4] [6]] (combine v1 v3)
+            [[1] [2] [3] [3] [4] [5] [2] [4] [6]] (combine v1 v2 v3)
+            [[2] [4] [6]] (union v3 e)
+            [[2] [3] [4] [4] [5] [6]] (combine v2 v3 e))))
 
 (deftest test-vector-union-combine
   (run-union-combine-tests [[1] [2] [3]]
@@ -426,15 +429,11 @@
                            (<- [?v] ([[2] [4] [6]] ?v) (:distinct false))))
 
 (deftest test-cascading-union-combine
-  (with-tmp-sources [v1 [[1] [2] [3]]
-                     v2 [[3] [4] [5]]
-                     v3 [[2] [4] [6]]
-                     e1 []]
-    (run-union-combine-tests v1 v2 v3)
-
-    "Can't use empty taps inside of a union or combine."
-    (is (thrown? RuntimeException (union e1)))
-    (is (thrown? RuntimeException (combine e1)))))
+  (let [v1 [[1] [2] [3]]
+        v2 [[3] [4] [5]]
+        v3 [[2] [4] [6]]
+        e1 []]
+    (run-union-combine-tests v1 v2 v3)))
 
 (deftest test-select-fields-tap
   (let [data (memory-source-tap ["f1" "f2" "f3" "f4"]

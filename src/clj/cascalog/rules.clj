@@ -4,6 +4,7 @@
         [clojure.walk :only (postwalk)])
   (:require [cascalog.workflow :as w]
             [cascalog.predicate :as p]
+            [cascalog.util :as u]
             [hadoop-util.core :as hadoop]
             [cascalog.conf :as conf])
   (:import [cascading.tap Tap]
@@ -643,7 +644,6 @@ cascading tap, returns a new generator with field-names."
             (list? g))
         (let [pluck (if (instance? Tap g) pluck-tuple first)
               vars  (gen-nullable-vars (count (pluck g)))]
-          
           (->> [[g :>> vars] [:distinct false]]
                (map mk-raw-predicate)
                (build-rule vars)))
@@ -655,7 +655,8 @@ cascading tap, returns a new generator with field-names."
 
 (defn combine* [gens distinct?]
   ;; it would be nice if cascalog supported Fields/UNKNOWN as output of generator
-  (let [gens (map enforce-gen-schema gens)
+  (let [gens (->> gens u/filter-empty-gens
+                  (map enforce-gen-schema))
         outfields (:outfields (first gens))
         pipes (map :pipe gens)
         pipes (for [p pipes]
