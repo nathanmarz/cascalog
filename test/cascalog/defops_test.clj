@@ -18,17 +18,24 @@
   {:great-meta "yes!"}
   [x] x)
 
-(defmapop [ident-stateful [y]]
+(defmapop ident-stateful
   "Identity operation."
-  {:stateful true
+  {:params [y]
+   :stateful true
    :great-meta "yes!"}
   ([] 3)
   ([state x] (+ x y state))
   ([state] nil))
 
+(def ident-stateful-single-arg (ident-stateful 1))
+(def ident-stateful-vec-args (ident-stateful [1]))
+
 (deftest parse-defop-args-test
   (let [src [[1] [2]]]
-    (test?<- [[5] [6]] [?y] (src ?x) (ident-stateful [1] ?x :> ?y))
+    (test?<- [[5] [6]] [?y] (src ?x) ((ident-stateful [1]) ?x :> ?y))
+    (test?<- [[5] [6]] [?y] (src ?x) ((ident-stateful 1) ?x :> ?y))
+    (test?<- [[5] [6]] [?y] (src ?x) (ident-stateful-single-arg ?x :> ?y))
+    (test?<- [[5] [6]] [?y] (src ?x) (ident-stateful-vec-args ?x :> ?y))
     (doseq [func [ident ident-doc ident-meta ident-both]]
       (test?<- [[1] [2]] [?y] (src ?x) (func ?x :> ?y)))))
 
