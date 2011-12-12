@@ -48,13 +48,10 @@ public class TupleMemoryInputFormat implements InputFormat<TupleWrapper, NullWri
         public int numTuples;
 
         public TupleInputSplit() {
-
         }
 
         public TupleInputSplit(int numTuples) {
             this.numTuples = numTuples;
-
-
         }
 
         public long getLength() throws IOException {
@@ -117,8 +114,8 @@ public class TupleMemoryInputFormat implements InputFormat<TupleWrapper, NullWri
         return new InputSplit[]{new TupleInputSplit(tuples.size())};
     }
 
-    public RecordReader<TupleWrapper, NullWritable> getRecordReader(InputSplit is, JobConf jc,
-        Reporter rprtr) throws IOException {
+    public RecordReader<TupleWrapper, NullWritable>
+    getRecordReader(InputSplit is, JobConf jc, Reporter rprtr) throws IOException {
         return new TupleRecordReader((List<Tuple>) getObject(jc, TUPLES_PROPERTY));
     }
 

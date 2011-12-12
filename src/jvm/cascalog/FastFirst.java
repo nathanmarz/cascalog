@@ -32,7 +32,6 @@ public class FastFirst extends BaseOperation implements Buffer {
         super(Fields.ARGS);
     }
 
-
     public void operate(FlowProcess flowProcess, BufferCall bufCall) {
         bufCall.getOutputCollector()
             .add(((Iterator<TupleEntry>) bufCall.getArgumentsIterator()).next());
