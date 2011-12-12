@@ -5,32 +5,37 @@
             [cascalog.conf :as conf]
             [cascalog.util :as u]))
 
+(def comma
+  (partial s/join ","))
+
+(def defaults
+  (comma u/default-serializations))
+
 (deftest test-jobconf-bindings
   (with-job-conf {"key" "val"}
-    (is (= {"key" "val"} conf/*JOB-CONF*)))
+    (is (= conf/*JOB-CONF*
+           {"io.serializations" defaults, "key" "val"})))
 
   (with-job-conf {"key" ["val1" "val2"]}
-    (is (= {"key" "val1,val2"} conf/*JOB-CONF*))
+    (is (= conf/*JOB-CONF*
+           {"io.serializations" defaults, "key" "val1,val2"}))
     (with-job-conf {"key" ["val3"]}
-      (is (= {"key" "val3"} conf/*JOB-CONF*))))
+      (is (= conf/*JOB-CONF*
+             {"io.serializations" defaults, "key" "val3"}))))
   
   (with-job-conf {"io.serializations" "java.lang.String"}
     (is (= conf/*JOB-CONF*
-           {"io.serializations"
-            (s/join "," (conj u/default-serializations "java.lang.String"))})))
+           {"io.serializations" (comma [defaults "java.lang.String"])})))
 
   (with-serializations [String]
     (is (= conf/*JOB-CONF*
-           {"io.serializations"
-            (s/join "," (conj u/default-serializations "java.lang.String"))})))
+           {"io.serializations" (comma [defaults "java.lang.String"])})))
 
   (with-serializations [String]
     (with-job-conf {"io.serializations" "java.lang.String,SomeSerialization"}
       (is (= conf/*JOB-CONF*
              {"io.serializations"
-              (s/join "," (concat u/default-serializations
-                                  ["java.lang.String"
-                                   "SomeSerialization"]))})))))
+              (comma [defaults "java.lang.String" "SomeSerialization"])})))))
 
 (deftest kryo-serialization-test
   (with-job-conf
