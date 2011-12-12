@@ -83,7 +83,7 @@
   [& xs]
   (->> xs
        (map #(if (coll? %) (set %) #{%}))
-       (reduce #(concat % (difference %2 %)))
+       (reduce #(concat % (difference %2 (set %))))
        (vec)))
 
 (defn transpose [m]
@@ -240,15 +240,20 @@
        (map (fn [x]
               (cond (string? x) x
                     (class? x) (.getName x))))
-       (merge-to-vec default-serializations)
        (s/join ",")))
 
+(defn no-empties [s]
+  (when s (not= "" s)))
+
 (defn merge-serialization-strings
-  [& ser-strings]
-  (->> ser-strings
-       (filter identity)
-       (mapcat #(s/split % #","))
-       (serialization-entry)))
+  [& all]
+  (serialization-entry
+   (->> (filter no-empties all)
+        (map #(s/split % #","))
+        (apply merge-to-vec default-serializations))))
+
+;; When some shit comes in, it can be a vector or a string; we want to
+;; take EITHER ONE, cut it up 
 
 (defn update-vals [m f]
   (into {} (for [[k v] m] [k (f k v)])))
@@ -259,22 +264,24 @@
     (str x)))
 
 (defn resolve-collections [v]
-  (s/join "," (map stringify (collectify v))))
+  (->> (collectify v)
+       (map stringify)
+       (s/join ",")))
 
-(defn adjust-map [m]
-  (-> m
-      (update-vals (fn [_ v] (resolve-collections v)))
-      (try-update-in ["io.serializations"] merge-serialization-strings)))
+(defn adjust-vals [& vals]
+  (->> (map resolve-collections vals)
+       (apply merge-serialization-strings)))
 
-(defn conf-merge
-  "TODO: Come up with a more general version of this, similar to
-  merge-with, that takes a map of key-func pairs, and merges with
-  those functions."
-  [m & more]
-  (reduce (fn [m1 m2]
-            (conj (or m1 {}) (adjust-map m2)))
-          (adjust-map m)
-          more))
+(defn conf-merge [& ms]
+  (->> ms
+       (map #(update-vals % (fn [_ v] (resolve-collections v))))
+       (reduce merge)))
+
+(defn project-merge [& ms]
+  (let [vals (->> (map #(get % "io.serializations") ms)
+                  (apply adjust-vals))
+        ms (apply conf-merge ms)]
+    (assoc ms "io.serializations" vals)))
 
 (defn stringify-keys [m]
   (into {} (for [[k v] m]
