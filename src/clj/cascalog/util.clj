@@ -312,10 +312,14 @@
        (apply merge-serialization-strings)))
 
 (defn conf-merge [& ms]
-  (let [vals (apply adjust-vals (map #(get % "io.serializations") ms))
-        ms (->> ms
-                (map #(update-vals % (fn [_ v] (resolve-collections v))))
-                (reduce merge))]
+  (->> ms
+       (map #(update-vals % (fn [_ v] (resolve-collections v))))
+       (reduce merge)))
+
+(defn project-merge [& ms]
+  (let [vals (->> (map #(get % "io.serializations") ms)
+                  (apply adjust-vals))
+        ms (apply conf-merge ms)]
     (assoc ms "io.serializations" vals)))
 
 (defn stringify-keys [m]

@@ -14,26 +14,30 @@
 (deftest test-jobconf-bindings
   (with-job-conf {"key" "val"}
     (is (= conf/*JOB-CONF*
-           {"io.serializations" defaults, "key" "val"})))
+           {"key" "val"})))
 
   (with-job-conf {"key" ["val1" "val2"]}
     (is (= conf/*JOB-CONF*
-           {"io.serializations" defaults, "key" "val1,val2"}))
+           {"key" "val1,val2"}))
     (with-job-conf {"key" ["val3"]}
       (is (= conf/*JOB-CONF*
-             {"io.serializations" defaults, "key" "val3"}))))
+             {"key" "val3"}))))
   
   (with-job-conf {"io.serializations" "java.lang.String"}
     (is (= conf/*JOB-CONF*
+           {"io.serializations" "java.lang.String"}))
+    (is (= (u/project-merge conf/*JOB-CONF*)
            {"io.serializations" (comma [defaults "java.lang.String"])})))
 
   (with-serializations [String]
     (is (= conf/*JOB-CONF*
+           {"io.serializations" "java.lang.String"}))
+    (is (= (u/project-merge conf/*JOB-CONF*)
            {"io.serializations" (comma [defaults "java.lang.String"])})))
 
   (with-serializations [String]
     (with-job-conf {"io.serializations" "java.lang.String,SomeSerialization"}
-      (is (= conf/*JOB-CONF*
+      (is (= (u/project-merge conf/*JOB-CONF*)
              {"io.serializations"
               (comma [defaults "java.lang.String" "SomeSerialization"])})))))
 

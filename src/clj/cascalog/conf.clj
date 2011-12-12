@@ -11,7 +11,7 @@
 
 (defn project-settings []
   (if-let [conf-path (resource "job-conf.clj")]
-    (let [conf (-> conf-path slurp read-settings u/conf-merge)]
+    (let [conf (-> conf-path slurp read-settings u/project-merge)]
       (u/safe-assert (map? conf)
                      "job-conf.clj must produce a map of config parameters!")
       conf)
@@ -20,6 +20,6 @@
 (def ^:dynamic *JOB-CONF* {})
 
 (defn project-conf []
-  (u/conf-merge (project-settings)
-                *JOB-CONF*
-                {"io.serializations" "cascalog.hadoop.ClojureKryoSerialization"}))
+  (u/project-merge (project-settings)
+                   *JOB-CONF*
+                   {"io.serializations" "cascalog.hadoop.ClojureKryoSerialization"}))
