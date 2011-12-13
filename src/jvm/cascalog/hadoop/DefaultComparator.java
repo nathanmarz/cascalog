@@ -27,7 +27,11 @@ public class DefaultComparator extends Configured implements Comparator, Seriali
     }
 
     private Comparator getComparator(Class klass) {
-        return (serialization == null) ? null : serialization.getComparator(klass);
+        if (serialization == null)
+            return null;
+
+        Comparator comp = serialization.getComparator(klass);
+        return (comp instanceof DefaultComparator) ? null : comp;
     }
 
     public int compare(Object o1, Object o2) {
