@@ -18,10 +18,10 @@
 
 package cascalog;
 
-import java.io.IOException;
-
 import cascading.util.SingleValueIterator;
 import org.apache.hadoop.mapred.RecordReader;
+
+import java.io.IOException;
 
 /**
  *

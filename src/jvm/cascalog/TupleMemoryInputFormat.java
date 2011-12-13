@@ -28,7 +28,9 @@ import org.apache.hadoop.mapred.*;
 import org.apache.hadoop.util.StringUtils;
 import org.apache.log4j.Logger;
 
-import java.io.*;
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
 import java.util.List;
 
 public class TupleMemoryInputFormat implements InputFormat<TupleWrapper, NullWritable> {

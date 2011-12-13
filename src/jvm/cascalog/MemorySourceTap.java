@@ -18,30 +18,27 @@
 
 package cascalog;
 
-import cascalog.RecordReaderIterator;
 import cascading.flow.hadoop.HadoopFlowProcess;
-import cascading.flow.hadoop.HadoopUtil;
 import cascading.scheme.Scheme;
 import cascading.scheme.SinkCall;
 import cascading.scheme.SourceCall;
 import cascading.tap.SourceTap;
 import cascading.tap.Tap;
-import cascading.tap.hadoop.MultiRecordReaderIterator;
 import cascading.tuple.Fields;
 import cascading.tuple.Tuple;
 import cascading.tuple.TupleEntryIterator;
 import cascading.tuple.TupleEntrySchemeIterator;
-import java.io.IOException;
-import java.util.List;
-import java.util.UUID;
-import java.util.Map;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.NullWritable;
+import org.apache.hadoop.mapred.FileInputFormat;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.OutputCollector;
 import org.apache.hadoop.mapred.RecordReader;
-import org.apache.hadoop.mapred.FileInputFormat;
-import org.apache.hadoop.io.NullWritable;
+
+import java.io.IOException;
+import java.util.List;
+import java.util.UUID;
 
 public class MemorySourceTap extends SourceTap<HadoopFlowProcess, JobConf, RecordReader, OutputCollector> {
     public static class MemorySourceScheme extends Scheme<HadoopFlowProcess, JobConf, RecordReader, OutputCollector, Object[], Void> {
