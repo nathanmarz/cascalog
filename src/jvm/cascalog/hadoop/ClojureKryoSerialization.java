@@ -1,6 +1,7 @@
 package cascalog.hadoop;
 
 import cascading.kryo.KryoSerialization;
+import clojure.lang.Util;
 import com.esotericsoftware.kryo.Kryo;
 
 import java.util.ArrayList;
@@ -21,7 +22,7 @@ public class ClojureKryoSerialization extends KryoSerialization {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-        
+
         k.register(ArrayList.class);
         k.register(HashMap.class);
         k.register(HashSet.class);
@@ -30,6 +31,10 @@ public class ClojureKryoSerialization extends KryoSerialization {
     }
 
     @Override public Comparator getComparator( Class type ) {
-        return new DefaultComparator(getConf());
+        return new Comparator() {
+            @Override public int compare(Object o1, Object o2) {
+                return Util.compare(o1, o2);
+            }
+        };
     }
 }
