@@ -1,9 +1,11 @@
 package cascalog.hadoop;
 
 import cascading.kryo.KryoSerialization;
+import clojure.lang.Util;
 import com.esotericsoftware.kryo.Kryo;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 
@@ -20,11 +22,15 @@ public class ClojureKryoSerialization extends KryoSerialization {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-        
+
         k.register(ArrayList.class);
         k.register(HashMap.class);
         k.register(HashSet.class);
         k.register(byte[].class);
         return k;
+    }
+
+    @Override public Comparator getComparator( Class type ) {
+        return new DefaultComparator();
     }
 }

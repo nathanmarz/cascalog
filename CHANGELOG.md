@@ -33,7 +33,7 @@ In addition to previous support for the various number types + strings, the foll
   - clojure.lang.Keyword
   - clojure.lang.Symbol
 
-- **Clojure ollections and sequences:**
+- **Clojure Collections and sequences:**
   - clojure.lang.Cons
   - clojure.lang.IteratorSeq
   - clojure.lang.LazySeq
