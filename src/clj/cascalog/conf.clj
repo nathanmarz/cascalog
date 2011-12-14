@@ -20,8 +20,7 @@
 (def ^:dynamic *JOB-CONF* {})
 
 (defn project-conf []
-  (u/project-merge {"cascading.comparator.default"
-                    "cascalog.hadoop.DefaultComparator"}
+  (u/project-merge {"cascading.comparator.default" "cascalog.hadoop.DefaultComparator"}
                    (project-settings)
                    *JOB-CONF*
                    {"io.serializations" "cascalog.hadoop.ClojureKryoSerialization"}))

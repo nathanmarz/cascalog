@@ -31,10 +31,6 @@ public class ClojureKryoSerialization extends KryoSerialization {
     }
 
     @Override public Comparator getComparator( Class type ) {
-        return new Comparator() {
-            @Override public int compare(Object o1, Object o2) {
-                return Util.compare(o1, o2);
-            }
-        };
+        return new DefaultComparator();
     }
 }
