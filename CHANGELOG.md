@@ -29,9 +29,11 @@ In addition to previous support for the various number types + strings, the foll
   - java.util.HashSet
 
 - **Clojure Primitives**
-  - clojure.lang.BigInt
   - clojure.lang.Keyword
   - clojure.lang.Symbol
+  - clojure.lang.Ratio
+  - clojure.lang.Var
+  - clojure.lang.BigInt (only in Clojure 1.3)
 
 - **Clojure Collections and sequences:**
   - clojure.lang.Cons
