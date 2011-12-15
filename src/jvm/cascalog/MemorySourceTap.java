@@ -55,7 +55,7 @@ public class MemorySourceTap extends SourceTap<HadoopFlowProcess, JobConf, Recor
         {
             return this.tuples;
         }
-        
+
         @Override
         public void sourceConfInit(HadoopFlowProcess flowProcess, Tap tap, JobConf conf) {
             FileInputFormat.setInputPaths( conf, "/" + UUID.randomUUID().toString());
@@ -69,29 +69,29 @@ public class MemorySourceTap extends SourceTap<HadoopFlowProcess, JobConf, Recor
         }
 
         @Override
-        public void sourcePrepare( HadoopFlowProcess flowProcess, SourceCall<Object[], RecordReader> sourceCall ) {            
+        public void sourcePrepare( HadoopFlowProcess flowProcess, SourceCall<Object[], RecordReader> sourceCall ) {
             sourceCall.setContext( new Object[ 2 ] );
-            
+
             sourceCall.getContext()[ 0 ] = sourceCall.getInput().createKey();
             sourceCall.getContext()[ 1 ] = sourceCall.getInput().createValue();
         }
-        
+
         @Override
         public boolean source(HadoopFlowProcess flowProcess, SourceCall<Object[], RecordReader> sourceCall) throws IOException {
             TupleWrapper key = (TupleWrapper) sourceCall.getContext()[ 0 ];
             NullWritable value = (NullWritable) sourceCall.getContext()[ 1 ];
-            
+
             boolean result = sourceCall.getInput().next( key, value );
 
             if( !result )
                 return false;
-           
+
             sourceCall.getIncomingEntry().setTuple(key.tuple);
-            return true;            
+            return true;
         }
 
         @Override
-            public void sourceCleanup( HadoopFlowProcess flowProcess, SourceCall<Object[], RecordReader> sourceCall ) {
+        public void sourceCleanup( HadoopFlowProcess flowProcess, SourceCall<Object[], RecordReader> sourceCall ) {
             sourceCall.setContext( null );
         }
 
@@ -99,7 +99,7 @@ public class MemorySourceTap extends SourceTap<HadoopFlowProcess, JobConf, Recor
         public void sink(HadoopFlowProcess flowProcess, SinkCall<Void, OutputCollector> sinkCall ) throws IOException {
             throw new UnsupportedOperationException("Not supported.");
         }
-        
+
     }
 
     private String id = UUID.randomUUID().toString();
@@ -110,10 +110,9 @@ public class MemorySourceTap extends SourceTap<HadoopFlowProcess, JobConf, Recor
     }
 
     @Override
-        public String getIdentifier()
-        {
-            return getPath().toString();
-        }
+    public String getIdentifier() {
+        return getPath().toString();
+    }
 
     public Path getPath() {
         return new Path("/" + id);
@@ -132,12 +131,12 @@ public class MemorySourceTap extends SourceTap<HadoopFlowProcess, JobConf, Recor
         MemorySourceTap other = (MemorySourceTap) object;
         return id.equals(other.id);
     }
-    
+
     @Override
     public TupleEntryIterator openForRead( HadoopFlowProcess flowProcess, RecordReader input ) throws IOException {
         return new TupleEntrySchemeIterator( flowProcess, getScheme(), new RecordReaderIterator( input ) );
     }
- 
+
     @Override
     public long getModifiedTime( JobConf conf ) throws IOException {
         return System.currentTimeMillis();

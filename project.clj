@@ -5,21 +5,15 @@
              "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n"]
   :javac-options {:debug "true" :fork "true"}
   :repositories {"conjars" "http://conjars.org/repo/"
-                 "sonatype" "https://oss.sonatype.org/content/repositories/releases"}
+                 "sonatype"
+                 "https://oss.sonatype.org/content/repositories/releases"}
   :dependencies [[org.clojure/clojure "1.3.0"]
-                 ;; jgrapht exclusion works around cascading pom bug
-                 ;; that causes projects dependent on cascalog to not
-                 ;; be able to find jgrapht.
                  [cascading/cascading-hadoop "2.0.0-wip-166"
                   :exclusions [org.codehaus.janino/janino
-                               org.apache.hadoop/hadoop-core
-                               thirdparty/jgrapht-jdk1.6
-                               riffle/riffle]]
+                               org.apache.hadoop/hadoop-core]]
                  [org.clojure/tools.macro "0.1.1"]
-                 [thirdparty/jgrapht-jdk1.6 "0.8.1"]
                  [cascading.kryo "0.1.4"]
                  [cascalog/carbonite "1.0.4"]
-                 [riffle/riffle "0.1-dev"]
                  [log4j/log4j "1.2.16"]
                  [hadoop-util "0.2.4"]]
   :dev-dependencies [[org.apache.hadoop/hadoop-core "0.20.2-dev"]

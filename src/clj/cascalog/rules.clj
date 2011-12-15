@@ -73,7 +73,8 @@
 (defn- fixed-point-operations
   "Adds operations to tail until can't anymore. Returns new tail"
   [tail]
-  (if-let [op (find-first (partial op-allowed? tail) (:operations tail))]
+  (if-let [op (find-first (partial op-allowed? tail)
+                          (:operations tail))]
     (recur (add-op tail op))
     tail))
 
