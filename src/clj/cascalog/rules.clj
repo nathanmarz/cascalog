@@ -689,6 +689,7 @@ cascading tap, returns a new generator with field-names."
     [f rest]
     ["" args]))
 
+;; TODO: try (into [] (.getTuple t))
 (defn get-sink-tuples [^Tap sink]
   (if (map? sink)
     (get-sink-tuples (:sink sink))

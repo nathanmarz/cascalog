@@ -1,6 +1,7 @@
 package cascalog.hadoop;
 
 import cascading.kryo.KryoSerialization;
+import cascading.tuple.Hasher;
 import clojure.lang.Util;
 import com.esotericsoftware.kryo.Kryo;
 
@@ -28,9 +29,5 @@ public class ClojureKryoSerialization extends KryoSerialization {
         k.register(HashSet.class);
         k.register(byte[].class);
         return k;
-    }
-
-    @Override public Comparator getComparator( Class type ) {
-        return new DefaultComparator();
     }
 }

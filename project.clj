@@ -28,7 +28,7 @@
             :web-src-dir "https://github.com/nathanmarz/cascalog/blob/"}
   :multi-deps {"1.2" [[org.clojure/clojure "1.2.1"]
                       [org.clojure/tools.macro "0.1.1"]
-                      [cascading/cascading-hadoop "2.0.0-wip-166"
+                      [cascading/cascading-hadoop "2.0.0-wip-172"
                        :exclusions [org.codehaus.janino/janino
                                     org.apache.hadoop/hadoop-core]]
                       [cascading.kryo "0.1.4"]
@@ -37,7 +37,7 @@
                       [hadoop-util "0.2.4"]]
                "1.4" [[org.clojure/clojure "1.4.0-alpha2"]
                       [org.clojure/tools.macro "0.1.1"]
-                      [cascading/cascading-hadoop "2.0.0-wip-166"
+                      [cascading/cascading-hadoop "2.0.0-wip-172"
                        :exclusions [org.codehaus.janino/janino
                                     org.apache.hadoop/hadoop-core]]
                       [cascading.kryo "0.1.4"]
