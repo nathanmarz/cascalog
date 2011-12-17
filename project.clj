@@ -8,7 +8,7 @@
                  "sonatype"
                  "https://oss.sonatype.org/content/repositories/releases"}
   :dependencies [[org.clojure/clojure "1.3.0"]
-                 [cascading/cascading-hadoop "2.0.0-wip-166"
+                 [cascading/cascading-hadoop "2.0.0-wip-172"
                   :exclusions [org.codehaus.janino/janino
                                org.apache.hadoop/hadoop-core]]
                  [org.clojure/tools.macro "0.1.1"]
