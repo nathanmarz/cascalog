@@ -12,7 +12,7 @@
                   :exclusions [org.codehaus.janino/janino
                                org.apache.hadoop/hadoop-core]]
                  [org.clojure/tools.macro "0.1.1"]
-                 [cascading.kryo "0.1.4"]
+                 [cascading.kryo "0.1.5"]
                  [cascalog/carbonite "1.0.4"]
                  [log4j/log4j "1.2.16"]
                  [hadoop-util "0.2.4"]]
@@ -31,7 +31,7 @@
                       [cascading/cascading-hadoop "2.0.0-wip-172"
                        :exclusions [org.codehaus.janino/janino
                                     org.apache.hadoop/hadoop-core]]
-                      [cascading.kryo "0.1.4"]
+                      [cascading.kryo "0.1.5"]
                       [cascalog/carbonite "1.0.3"]
                       [log4j/log4j "1.2.16"]
                       [hadoop-util "0.2.4"]]
@@ -40,7 +40,7 @@
                       [cascading/cascading-hadoop "2.0.0-wip-172"
                        :exclusions [org.codehaus.janino/janino
                                     org.apache.hadoop/hadoop-core]]
-                      [cascading.kryo "0.1.4"]
+                      [cascading.kryo "0.1.5"]
                       [cascalog/carbonite "1.0.4"]
                       [log4j/log4j "1.2.16"]
                       [hadoop-util "0.2.4"]]})

@@ -1,12 +1,9 @@
 package cascalog.hadoop;
 
 import cascading.kryo.KryoSerialization;
-import cascading.tuple.Hasher;
-import clojure.lang.Util;
 import com.esotericsoftware.kryo.Kryo;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 
