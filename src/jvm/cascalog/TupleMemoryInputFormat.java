@@ -17,32 +17,17 @@
 
 package cascalog;
 
-import cascading.kryo.KryoFactory;
 import cascading.tuple.Tuple;
-import cascalog.hadoop.ClojureKryoSerialization;
-import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.ObjectBuffer;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapred.*;
 import org.apache.hadoop.util.StringUtils;
-import org.apache.log4j.Logger;
 
 import java.io.*;
 import java.util.List;
 
 public class TupleMemoryInputFormat implements InputFormat<TupleWrapper, NullWritable> {
 
-    public static final Logger LOG = Logger.getLogger(TupleMemoryInputFormat.class);
     public static final String TUPLES_PROPERTY = "memory.format.tuples";
-    static ObjectBuffer kryoBuf;
-
-    static {
-        ClojureKryoSerialization serialization = new ClojureKryoSerialization();
-        Kryo k = serialization.makeKryo();
-        k.setRegistrationOptional(true);
-
-        kryoBuf = KryoFactory.newBuffer(k);
-    }
 
     public static class TupleInputSplit implements InputSplit {
         public int numTuples;
@@ -121,24 +106,13 @@ public class TupleMemoryInputFormat implements InputFormat<TupleWrapper, NullWri
 
 
     public static void setObject(JobConf conf, String key, Object o) {
-        conf.set(key, StringUtils.byteToHexString(serialize(o)));
+        conf.set(key, StringUtils.byteToHexString(KryoService.serialize(o)));
     }
 
     public static Object getObject(JobConf conf, String key) {
         String s = conf.get(key);
         if (s == null) { return null; }
         byte[] val = StringUtils.hexStringToByte(s);
-        return deserialize(val);
-    }
-
-    public static byte[] serialize(Object obj) {
-        LOG.debug("Serializing " + obj);
-        return kryoBuf.writeClassAndObject(obj);
-    }
-
-    public static Object deserialize(byte[] serialized) {
-        Object o = kryoBuf.readClassAndObject(serialized);
-        LOG.debug("Deserialized " + o);
-        return o;
+        return KryoService.deserialize(val);
     }
 }
