@@ -66,5 +66,5 @@
          2M 1
          (Long. 4) (Integer. 3))
     (are [x y] (= -1 (.compare comp x y))
-         2M 1
+         1 2M
          (Long. 3) (Integer. 4))))
