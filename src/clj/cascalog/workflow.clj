@@ -14,13 +14,17 @@
 ;;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (ns cascalog.workflow
-  (:refer-clojure :exclude [group-by count first filter mapcat map identity min max])
-  (:use [cascalog util debug])
+  (:refer-clojure
+   :exclude [group-by count first filter mapcat map identity min max])
+  (:use [cascalog util debug]
+        [clojure.tools.macro :only (name-with-attributes)]
+        [jackknife.core :only (safe-assert)]
+        [jackknife.seq :only (collectify)])
   (:require [cascalog.conf :as conf]
             [hadoop-util.core :as hadoop])
   (:import [cascalog Util]
-           [org.apache.hadoop.mapred JobConf]
            [java.io File]
+           [java.util ArrayList]
            [cascading.tuple Tuple TupleEntry Fields]
            [cascading.scheme Scheme TextLine SequenceFile]
            [cascading.tap Hfs Lfs GlobHfs Tap TemplateTap SinkMode]
@@ -31,7 +35,6 @@
            [cascading.operation.aggregator First Count Sum Min Max]
            [cascading.pipe Pipe Each Every GroupBy CoGroup]
            [cascading.pipe.cogroup InnerJoin OuterJoin LeftJoin RightJoin MixedJoin]
-           [java.util ArrayList]
            [cascalog ClojureFilter ClojureMapcat ClojureMap
             ClojureAggregator Util ClojureBuffer ClojureBufferIter
             FastFirst MemorySourceTap MultiGroupBy ClojureMultibuffer]))

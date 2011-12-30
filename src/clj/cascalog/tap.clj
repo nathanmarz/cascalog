@@ -1,7 +1,8 @@
 (ns cascalog.tap
+  (:use cascalog.util
+        [jackknife.def :only (defnk)])
   (:require [cascalog.workflow :as w])
-  (:import [cascading.tuple Fields])
-  (:use [cascalog util]))
+  (:import [cascading.tuple Fields]))
 
 ;; source can be a cascalog-tap, subquery, or cascading tap sink can
 ;; be a cascading tap, a sink function, or a cascalog-tap

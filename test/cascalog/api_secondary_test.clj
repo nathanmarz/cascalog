@@ -10,14 +10,13 @@
     (is (= ["?age"] (get-out-fields (<- [?age] (age _ ?age)))))
     (is (= ["!!age2" "!!age"] (get-out-fields (<- [!!age2 !!age] (age ?person !!age) (age ?person !!age2)))))
     (is (= ["?person" "!a"] (get-out-fields (<- [?person !a] (age ?person !a)))))
-    (is (= ["!a" "!count"] (get-out-fields (<- [!a !count] (age _ !a) (c/count !count)))))
-    ))
+    (is (= ["!a" "!count"] (get-out-fields (<- [!a !count] (age _ !a) (c/count !count)))))))
 
 (deftest test-outfields-tap
-  (is (thrown? IllegalArgumentException (get-out-fields (memory-source-tap Fields/ALL []))))
+  (is (thrown? AssertionError
+               (get-out-fields (memory-source-tap Fields/ALL []))))
   (is (= ["!age"] (get-out-fields (memory-source-tap ["!age"] []))))
-  (is (= ["?age" "field2"] (get-out-fields (memory-source-tap ["?age" "field2"] []))))
-  )
+  (is (= ["?age" "field2"] (get-out-fields (memory-source-tap ["?age" "field2"] [])))))
 
 (defbufferop sum+1 [tuples]
   [(inc (reduce + (map first tuples)))])
@@ -30,8 +29,7 @@
     (test?<- [[2] [4] [4]] [?sum] (nums ?a ?b) (#'+ ?a ?b :> ?sum) (:distinct false))
     (test?- [[0] [0] [-2]] (op-to-pairs nums #'-))
     (test?- [[5]] (op-to-pairs nums #'sum+1))
-    (test?- [[5]] (op-to-pairs nums sum+1))
-    ))
+    (test?- [[5]] (op-to-pairs nums sum+1))))
 
 (deftest test-construct
   (let [age [["alice" 25] ["bob" 30]]
@@ -39,8 +37,7 @@
     (test?- [["alice" 26 "f"] ["bob" 31 nil]]
             (apply construct
                    ["?p" "?a2" "!!g"]
-                   [(conj [[age "?p" "?a"] [#'inc "?a" :> "?a2"]] [gender "?p" "!!g"])]))
-    ))
+                   [(conj [[age "?p" "?a"] [#'inc "?a" :> "?a2"]] [gender "?p" "!!g"])]))))
 
 (deftest test-cascalog-tap-source
   (io/with-log-level :fatal
@@ -49,8 +46,7 @@
           tap1 (cascalog-tap num nil)]
       (test?<- [[1]] [?n] (tap1 ?n) (:distinct false))
       (test?<- [[2]] [?n] ((cascalog-tap gen nil) ?n) (:distinct false))
-      (test?<- [[1]] [?n] ((cascalog-tap (cascalog-tap tap1 nil) nil) ?n) (:distinct false))
-      )))
+      (test?<- [[1]] [?n] ((cascalog-tap (cascalog-tap tap1 nil) nil) ?n) (:distinct false)))))
 
 (deftest test-cascalog-tap-sink
   (io/with-log-level :fatal
@@ -61,15 +57,13 @@
         (?<- (cascalog-tap nil sink1) [?n] (num ?n) (:distinct false))
         (?<- (cascalog-tap nil (fn [sq] [sink2 (<- [?n2] (sq ?n) (inc ?n :> ?n2) (:distinct false))]))
              [?n] (num ?n) (:distinct false))
-        (?<- (cascalog-tap nil (cascalog-tap nil sink3)) [?n] (num ?n) (:distinct false))
-        ))))
+        (?<- (cascalog-tap nil (cascalog-tap nil sink3)) [?n] (num ?n) (:distinct false))))))
 
 (deftest test-cascalog-tap-source-and-sink
   (io/with-log-level :fatal
     (with-expected-sinks [sink1 [[4]]]
       (let [tap (cascalog-tap [[3]] sink1)]
-        (?<- tap [?n] (tap ?raw) (inc ?raw :> ?n) (:distinct false))
-        ))))
+        (?<- tap [?n] (tap ?raw) (inc ?raw :> ?n) (:distinct false))))))
 
 (deftest test-symmetric-ops
   (let [nums [[1 2 3] [10 20 30] [100 200 300]]]
@@ -107,8 +101,7 @@
     (let [res (??- (<- [?val] (nums ?num) (inc ?num :> ?val) (:distinct false))
                    (<- [?res] (people ?person) (str ?person "a" :> ?res) (:distinct false)))]
       (is (= (set [[2] [3] [4]]) (set (first res))))
-      (is (= (set [["alicea"] ["boba"]]) (set (second res))))
-      )))
+      (is (= (set [["alicea"] ["boba"]]) (set (second res)))))))
 
 (deftest test-negation
   (let [age [["nathan" 25] ["nathan" 24] ["alice" 23] ["george" 31]]
@@ -127,18 +120,16 @@
              [?p ?isfollows ?ismale] (age ?p _) (follows ?p _ :> ?isfollows)
              (gender ?p "m" :> ?ismale) (= ?ismale ?isfollows) (:distinct false))
     (let [old (<- [?p ?a] (age ?p ?a) (> ?a 30) (:distinct false))]
-      (test?<- [["nathan"] ["bob"]] [?p] (gender ?p "m") (old ?p _ :> false) (:distinct false))
-      )
+      (test?<- [["nathan"] ["bob"]] [?p] (gender ?p "m") (old ?p _ :> false) (:distinct false)))
     (test?<- [[24] [31]] [?n] (age _ ?n) ([[25] [23]] ?n :> false) (:distinct false))
-    (test?<- [["alice"]] [?p] (age ?p _) ((c/negate gender) ?p _) (:distinct false))
-    ;; TODO: test within massive joins (more than one join field, after other joins complete, etc.)
-    ))
+    (test?<- [["alice"]] [?p] (age ?p _) ((c/negate gender) ?p _) (:distinct false))))
+
+;; TODO: test within massive joins (more than one join field, after other joins complete, etc.)
 
 (deftest test-negation-errors
   (let [nums [[1] [2] [3]]
         pairs [[3 4] [4 5]]]
-    (thrown?<- Exception [?n] (nums ?n) (pairs ?n ?n2 :> false) (odd? ?n2))
-    ))
+    (thrown?<- Exception [?n] (nums ?n) (pairs ?n ?n2 :> false) (odd? ?n2))))
 
 (defmultibufferop count-sum [seq1 seq2]
   [[(count seq1) (reduce + (map second seq2))]])
@@ -156,5 +147,4 @@
             (multigroup [?key] [?count ?sum] count-sum gen1 gen2))
 
     (test?- [["a" 2 2 0] ["a" 9 9 9] ["b" 1 1 2] ["b" 9 9 9] ["c" 0 0 2] ["c" 9 9 9]]
-            (multigroup [?key] [?v1 ?v2 ?v3] [count-arg [9]] gen1 gen1 gen2))
-    ))
+            (multigroup [?key] [?v1 ?v2 ?v3] [count-arg [9]] gen1 gen1 gen2))))
