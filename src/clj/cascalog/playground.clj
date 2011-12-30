@@ -13,7 +13,10 @@
 ;;    You should have received a copy of the GNU General Public License
 ;;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-(ns cascalog.playground)
+(ns cascalog.playground
+  (:import [java.io PrintStream]
+           [cascalog WriterOutputStream]
+           [org.apache.log4j Logger WriterAppender SimpleLayout]))
 
 (defn bootstrap []
   (use 'cascalog.api)
@@ -23,9 +26,6 @@
 
 (defn bootstrap-emacs []
   (bootstrap)
-  (import '[java.io PrintStream]
-          '[cascalog WriterOutputStream]
-          '[org.apache.log4j Logger WriterAppender SimpleLayout])
   (-> (Logger/getRootLogger)
       (.addAppender (WriterAppender. (SimpleLayout.) *out*)))
   (System/setOut (PrintStream. (WriterOutputStream. *out*))))
