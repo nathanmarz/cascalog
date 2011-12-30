@@ -17,6 +17,7 @@
 
 (def person
   [
+   ;; [person]
    ["alice"]
    ["bob"]
    ["chris"]
@@ -31,6 +32,7 @@
 
 (def age
   [
+   ;; [person age]
    ["alice" 28]
    ["bob" 33]
    ["chris" 40]
@@ -44,6 +46,7 @@
 
 (def gender
   [
+   ;; [person gender]
    ["alice" "f"]
    ["bob" "m"]
    ["chris" "m"]
@@ -55,10 +58,9 @@
    ["luanne" "f"]
    ])
 
-
 (def gender-fuzzy
   [
-   ;; person gender timestamp
+   ;; [person gender timestamp]
    ["alice" "f" 100]
    ["alice" "m" 102]
    ["alice" "f" 110]
@@ -76,6 +78,7 @@
 
 (def full-names
   [
+   ;; [person full-name]
    ["alice" "Alice Smith"]
    ["bob" "Bobby John Johnson"]
    ["chris" "CHRIS"]
@@ -86,6 +89,7 @@
 
 (def location
   [
+   ;; [person country state city]
    ["alice" "usa" "california" nil]
    ["bob" "canada" nil nil]
    ["chris" "usa" "pennsylvania" "philadelphia"]
@@ -97,6 +101,7 @@
 
 (def follows
   [
+   ;; [person-follower person-followed]
    ["alice" "david"]
    ["alice" "bob"]
    ["alice" "emily"]
@@ -178,7 +183,7 @@
 
 (def dirty-ages
   [
-                                        ; [timestamp name age]
+   ;; [timestamp name age]
    [1200 "alice" 20]
    [1000 "bob" 25]
    [1500 "harry" 46]
@@ -188,7 +193,7 @@
 
 (def dirty-follower-counts
   [
-                                        ; [timestamp name follower-count]
+   ;; [timestamp name follower-count]
    [2000 "gary" 56]
    [1100 "george" 124]
    [1900 "gary" 49]
