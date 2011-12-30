@@ -15,20 +15,20 @@
 
 (ns cascalog.playground)
 
-(defmacro bootstrap []
-  '(do
-     (use (quote cascalog.api))
-     (require (quote [cascalog [workflow :as w] [ops :as c] [vars :as v]]))))
+(defn bootstrap []
+  (use 'cascalog.api)
+  (require '(cascalog [workflow :as w]
+                      [ops :as c]
+                      [vars :as v])))
 
-(defmacro bootstrap-emacs []
-  '(do
-     (use (quote cascalog.api))
-     (require (quote [cascalog [workflow :as w] [ops :as c] [vars :as v]]))
-     (import (quote [java.io PrintStream]))
-     (import (quote [cascalog WriterOutputStream]))
-     (import (quote [org.apache.log4j Logger WriterAppender SimpleLayout]))
-     (.addAppender (Logger/getRootLogger) (WriterAppender. (SimpleLayout.) *out*))
-     (System/setOut (PrintStream. (WriterOutputStream. *out*)))))
+(defn bootstrap-emacs []
+  (bootstrap)
+  (import '[java.io PrintStream]
+          '[cascalog WriterOutputStream]
+          '[org.apache.log4j Logger WriterAppender SimpleLayout])
+  (-> (Logger/getRootLogger)
+      (.addAppender (WriterAppender. (SimpleLayout.) *out*)))
+  (System/setOut (PrintStream. (WriterOutputStream. *out*))))
 
 (def person
   [
