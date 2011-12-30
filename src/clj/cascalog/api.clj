@@ -1,5 +1,8 @@
 (ns cascalog.api
-  (:use [cascalog vars util graph debug])
+  (:use [cascalog vars util graph debug]
+        [jackknife.core :only (safe-assert throw-runtime)]
+        [jackknife.def :only (defalias)]
+        [jackknife.seq :only (unweave collectify)])
   (:require [clojure.set :as set]
             [cascalog.tap :as tap]
             [cascalog.conf :as conf]
@@ -7,6 +10,7 @@
             [cascalog.predicate :as p]
             [cascalog.rules :as rules]
             [cascalog.io :as io]
+            [jackknife.core :as u]
             [hadoop-util.core :as hadoop])  
   (:import [cascading.flow Flow]
            [cascading.flow.hadoop HadoopFlowConnector]
@@ -90,9 +94,10 @@
 
 (defmethod get-out-fields :tap [tap]
   (let [cfields (.getSourceFields tap)]
-    (if (cascalog.rules/generic-cascading-fields? cfields)
-      (throw-illegal (str "Cannot get specific out-fields from tap. Tap source fields: " cfields))
-      (vec (seq cfields)))))
+    (safe-assert (not (rules/generic-cascading-fields? cfields))
+                 (str "Cannot get specific out-fields from tap. Tap source fields: "
+                      cfields))
+    (vec (seq cfields))))
 
 (defmethod get-out-fields :generator [query]
   (:outfields query))
@@ -277,10 +282,10 @@ as well."
         pipes (into-array Pipe (map :pipe sqs))
         args [declared-group-vars :fn> buffer-out-vars]
         args (if hof-args (cons hof-args args) args)]
-    (when (empty? declared-group-vars)
-      (throw-illegal "Cannot do global grouping with multigroup"))
-    (when-not (= (set group-vars) (set declared-group-vars))
-      (throw-illegal "Declared group vars must be same as intersection of vars of all subqueries"))
+    (safe-assert (seq declared-group-vars)
+                 "Cannot do global grouping with multigroup")
+    (safe-assert (= (set group-vars) (set declared-group-vars))
+                 "Declared group vars must be same as intersection of vars of all subqueries")
     (p/predicate p/generator nil
                  true
                  (apply merge (map :sourcemap sqs))
@@ -307,8 +312,8 @@ as well."
 (defmethod select-fields :generator [query select-fields]
   (let [select-fields (collectify select-fields)
         outfields (:outfields query)]
-    (when-not (set/subset? (set select-fields) (set outfields))
-      (throw-illegal (str "Cannot select " select-fields " from " outfields)))
+    (safe-assert (set/subset? (set select-fields) (set outfields))
+                 (str "Cannot select " select-fields " from " outfields))
     (merge query
            {:pipe (w/assemble (:pipe query) (w/select select-fields))
             :outfields select-fields})))

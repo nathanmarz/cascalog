@@ -1,7 +1,9 @@
 (ns cascalog.predicate
   (:use [cascalog vars util]
+        [jackknife.seq :only (transpose)]
         [clojure.tools.macro :only (name-with-attributes)])
-  (:require [cascalog.workflow :as w])
+  (:require [jackknife.core :as u]
+            [cascalog.workflow :as w])
   (:import [java.util ArrayList]
            [cascading.tap Tap]
            [cascading.operation Filter]
@@ -147,7 +149,7 @@
              (or (vector? op) (list? op))    ::data-structure
              (:pred-type (meta op))          (:pred-type (meta op))
              (or (fn? op) (multifn? op))     ::vanilla-function
-             :else (throw-illegal (str op " is an invalid predicate.")))]
+             :else (u/throw-illegal (str op " is an invalid predicate.")))]
     (if (= ret :bufferiter) :buffer ret)))
 
 (defn generator? [p]
@@ -213,8 +215,7 @@
         pipe (w/assemble (w/pipe sourcename)
                          (w/pipe-rename pname)
                          (w/identity Fields/ALL :fn> outfields :> Fields/RESULTS))]
-    (when-not (empty? infields)
-      (throw-illegal "Cannot use :> in a taps vars declaration"))
+    (u/safe-assert (empty? infields) "Cannot use :> in a taps vars declaration")
     (predicate generator
                nil
                (ground-fields? outfields)
@@ -306,8 +307,7 @@
 (defmethod hof-predicate? ::vanilla-function [& args] false)
 (defmethod build-predicate-specific ::vanilla-function
   [_ opvar _ infields outfields options]
-  (when (nil? opvar)
-    (throw-runtime "Functions must have vars associated with them"))
+  (u/safe-assert opvar "Functions must have vars associated with them.")
   (let [[func-fields out-selector] (if (not-empty outfields)
                                      [outfields Fields/ALL]
                                      [nil nil])
@@ -365,8 +365,8 @@
 (defmethod hof-predicate? ::cascading-filter [op & args] false)
 (defmethod build-predicate-specific ::cascading-filter
   [op _ _ infields outfields options]
-  (when (> (count outfields) 1)
-    (throw-runtime "Must emit 0 or 1 fields from filter"))
+  (u/safe-assert (#{0 1} (count outfields))
+                 "Must emit 0 or 1 fields from filter")
   (let [c-infields (w/fields infields)
         assem (if (empty? outfields)
                 (w/raw-each c-infields op)
@@ -487,7 +487,8 @@
 (defmethod enhance-predicate :generator
   [pred infields inassem outfields outassem]
   (when inassem
-    (throw-runtime "Something went wrong in planner - generator received an input modifier"))
+    (u/throw-runtime
+     "Something went wrong in planner - generator received an input modifier"))
   (merge pred {:pipe (outassem (:pipe pred))
                :outfields outfields}))
 

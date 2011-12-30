@@ -29,6 +29,7 @@ syntax: glob
 .lein-failures
 .lein-deps-sum
 autodoc/
+doc/
 *.ipr
 *.iws
 *.iml

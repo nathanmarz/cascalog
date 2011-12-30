@@ -1,8 +1,10 @@
 (ns cascalog.rules
   (:use [cascalog vars util graph debug]
         [clojure.set :only (intersection union difference subset?)]
-        [clojure.walk :only (postwalk)])
+        [clojure.walk :only (postwalk)]
+        [jackknife.core :only (throw-illegal throw-runtime)])
   (:require [cascalog.workflow :as w]
+            [jackknife.seq :as s]
             [cascalog.predicate :as p]
             [cascalog.util :as u]
             [hadoop-util.core :as hadoop]
@@ -58,7 +60,7 @@
 (defn- add-op [tail op]
   (debug-print "Adding op to tail " op tail)
   (let [tail (connect-op tail op)
-        new-ops (remove-first (partial = op) (:operations tail))]
+        new-ops (s/remove-first (partial = op) (:operations tail))]
     (merge tail {:operations new-ops})))
 
 
@@ -74,8 +76,8 @@
 (defn- fixed-point-operations
   "Adds operations to tail until can't anymore. Returns new tail"
   [tail]
-  (if-let [op (find-first (partial op-allowed? tail)
-                          (:operations tail))]
+  (if-let [op (s/find-first (partial op-allowed? tail)
+                            (:operations tail))]
     (recur (add-op tail op))
     tail))
 
@@ -150,7 +152,7 @@
     (if (empty? max-join)
       (throw-illegal "Unable to join predicates together")
       (cons (vec max-join)
-            (separate (partial joinable? max-join) tails)))))
+            (s/separate (partial joinable? max-join) tails)))))
 
 (defn- intersect-drift-maps [drift-maps]
   (let [tokeep (->> drift-maps
@@ -180,8 +182,13 @@
         (debug-print "Join-set-vars" join-set-vars)
         (debug-print "Available fields" available-fields)
         (dorun (map #(create-edge (:node %) join-node) join-set))
-        (recur graph (cons (struct tailstruct (some? :ground? join-set) new-ops new-drift-map
-                                   available-fields join-node) rest-tails))))))
+        (recur graph (cons (struct tailstruct
+                                   (s/some? :ground? join-set)
+                                   new-ops
+                                   new-drift-map
+                                   available-fields
+                                   join-node)
+                           rest-tails))))))
 
 (defn- agg-available-fields [grouping-fields aggs]
   (vec (union (set grouping-fields) (apply union (map #(set (:outfields %)) aggs)))))
@@ -297,7 +304,7 @@
   {:params  [num-fields]}
   [& args]
   (let [joins (partition num-fields args)]
-    (or (find-first (partial some? (complement nil?)) joins)
+    (or (s/find-first (partial s/some? (complement nil?)) joins)
         (repeat num-fields nil))))
 
 (w/defmapop truthy? [arg]
@@ -458,7 +465,7 @@
 
 (defn- parse-predicate [[op opvar vars]]
   (let [[vars hof-args] (if (p/hof-predicate? op)
-                          [(rest vars) (collectify (first vars))]
+                          [(rest vars) (s/collectify (first vars))]
                           [vars nil])
         {invars :<< outvars :>>} (p/parse-variables vars (p/predicate-default-var op))]
     [op opvar hof-args invars outvars]))
@@ -468,7 +475,7 @@
   supplied sequence of parsed-predicates identified as generators, and
   the rest."
   [parsed-preds]
-  (separate (comp p/generator? first) parsed-preds))
+  (s/separate (comp p/generator? first) parsed-preds))
 
 (defn gen-as-set?
   "Returns true if the supplied parsed predicate is a generator meant
@@ -506,7 +513,7 @@
         [gen-outvars pred-outvars] (parse-ungrounding-outvars parsed-preds)
         extra-vars  (vec (difference (set pred-outvars)
                                      (set gen-outvars)))
-        dups (duplicates gen-outvars)]
+        dups (s/duplicates gen-outvars)]
     (cond
      (not-empty gen-as-set-vars)
      (throw-illegal (str "Can't have unground vars in generators-as-sets."
@@ -534,7 +541,7 @@
                                                  (map rewrite-predicate)
                                                  (mapcat split-outvar-constants)
                                                  (uniquify-query-vars out-vars))
-        [raw-opts raw-predicates] (separate #(keyword? (first %)) raw-predicates)
+        [raw-opts raw-predicates] (s/separate #(keyword? (first %)) raw-predicates)
         options                   (mk-options (map p/mk-option-predicate raw-opts))
         [gens ops aggs]           (->> raw-predicates
                                        (map (partial apply p/build-predicate options))

@@ -15,10 +15,12 @@ public class DefaultComparator implements Comparator, Hasher<Object>, Serializab
 
     private int numericHash(Number x) {
         Class xc = x.getClass();
+
         if(xc == Long.class
            || xc == Integer.class
            || xc == Short.class
-           || xc == Byte.class) {
+           || xc == Byte.class)
+        {
             long lpart = x.longValue();
             return (int) (lpart ^ (lpart >>> 32));
         }

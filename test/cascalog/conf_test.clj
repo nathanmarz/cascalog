@@ -58,22 +58,24 @@
 (deftest default-comparator-test
   "Tests of the default comparator and hasher we use for all cascading
    operations."
-  (let [comp (DefaultComparator.)]
+  (let [comparator (DefaultComparator.)
+        compare    (fn [x y]
+                     (.compare comparator x y))]
     (testing "Overridden comparisons."
-      (are [x y] (= 0 (.compare comp x y))
+      (are [x y] (= 0 (compare x y))
            0 0
            1 1
            1 1M
            1M 1)
-      (are [x y] (= 1 (.compare comp x y))
+      (are [x y] (= 1 (compare x y))
            2M 1
            (Long. 4) (Integer. 3))
-      (are [x y] (= -1 (.compare comp x y))
+      (are [x y] (= -1 (compare x y))
            1 2M
            (Long. 3) (Integer. 4)))
     (testing "Hashcode equality."
-      (are [x y] (= (.hashCode comp x)
-                    (.hashCode comp y))
+      (are [x y] (= (.hashCode comparator x)
+                    (.hashCode comparator y))
            0 0
            1 1
            {1M "hi!"} {(Long. 1) "hi!"}
