@@ -3,7 +3,8 @@
         [cascalog api testing])
   (:require [clojure.string :as s]
             [cascalog.conf :as conf]
-            [cascalog.util :as u]))
+            [cascalog.util :as u])
+  (:import [cascalog.hadoop DefaultComparator]))
 
 (def comma
   (partial s/join ","))
@@ -53,3 +54,29 @@
     (let [cal-tuple [[(java.util.GregorianCalendar.)]]]
       (is (thrown? RuntimeException
                    (??<- [?a] (cal-tuple ?a)))))))
+
+(deftest default-comparator-test
+  "Tests of the default comparator and hasher we use for all cascading
+   operations."
+  (let [comp (DefaultComparator.)]
+    (testing "Overridden comparisons."
+      (are [x y] (= 0 (.compare comp x y))
+           0 0
+           1 1
+           1 1M
+           1M 1)
+      (are [x y] (= 1 (.compare comp x y))
+           2M 1
+           (Long. 4) (Integer. 3))
+      (are [x y] (= -1 (.compare comp x y))
+           1 2M
+           (Long. 3) (Integer. 4)))
+    (testing "Hashcode equality."
+      (are [x y] (= (.hashCode comp x)
+                    (.hashCode comp y))
+           0 0
+           1 1
+           {1M "hi!"} {(Long. 1) "hi!"}
+           {1 2, 3 4} {3 4, 1 2}
+           (Long. 1) (Integer. 1)
+           (Long. 1) (BigDecimal. 1)))))

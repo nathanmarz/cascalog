@@ -156,7 +156,7 @@
   (let [tokeep (->> drift-maps
                     (map #(set (seq %)))
                     (apply intersection))]
-    (pairs2map (seq tokeep))))
+    (pairs->map (seq tokeep))))
 
 (defn- select-selector [seq1 selector]
   (mapcat (fn [o b] (if b [o])) seq1 selector))
@@ -297,8 +297,8 @@
   {:params  [num-fields]}
   [& args]
   (let [joins (partition num-fields args)]
-    (if-ret (find-first (partial some? (complement nil?)) joins)
-            (repeat num-fields nil))))
+    (or (find-first (partial some? (complement nil?)) joins)
+        (repeat num-fields nil))))
 
 (w/defmapop truthy? [arg]
   (if arg true false))
