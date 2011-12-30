@@ -1,6 +1,7 @@
 (ns cascalog.testing
   (:use clojure.test
-        [cascalog io util api])
+        [cascalog io util api]
+        [jackknife.seq :only (unweave collectify)])
   (:require [cascalog.workflow :as w]
             [cascalog.rules :as rules]
             [cascalog.conf :as conf]

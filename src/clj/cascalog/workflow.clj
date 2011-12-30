@@ -1,13 +1,15 @@
 (ns cascalog.workflow
-  (:refer-clojure :exclude [group-by count first filter mapcat
-                            map identity min max])
+  (:refer-clojure
+   :exclude [group-by count first filter mapcat map identity min max])
   (:use [cascalog util debug]
-        [clojure.tools.macro :only (name-with-attributes)])
+        [clojure.tools.macro :only (name-with-attributes)]
+        [jackknife.core :only (safe-assert)]
+        [jackknife.seq :only (collectify)])
   (:require [cascalog.conf :as conf]
             [hadoop-util.core :as hadoop])
   (:import [cascalog Util]
-           [org.apache.hadoop.mapred JobConf]
            [java.io File]
+           [java.util ArrayList]
            [cascading.tuple Tuple TupleEntry Fields]
            [cascading.scheme.hadoop TextLine SequenceFile]
            [cascading.scheme Scheme]
@@ -21,9 +23,7 @@
            [cascading.operation Identity Insert Debug]
            [cascading.operation.aggregator First Count Sum Min Max]
            [cascading.pipe Pipe Each Every GroupBy CoGroup]
-           [cascading.pipe.cogroup InnerJoin OuterJoin
-            LeftJoin RightJoin MixedJoin]
-           [java.util ArrayList]
+           [cascading.pipe.cogroup InnerJoin OuterJoin LeftJoin RightJoin MixedJoin]
            [cascalog ClojureFilter ClojureMapcat ClojureMap
             ClojureAggregator Util ClojureBuffer ClojureBufferIter
             FastFirst MemorySourceTap MultiGroupBy ClojureMultibuffer]))
