@@ -193,7 +193,7 @@
                                [:fatal bindings])]
     (with-log-level log-level
       (with-tmp-files [sink-path (temp-dir "sink")]
-        (with-job-conf {"io.sort.mb" 1}
+        (with-job-conf {"io.sort.mb" 10}
           (let [bindings (mapcat (partial apply rules/normalize-sink-connection)
                                  (partition 2 bindings))
                 [specs rules]  (unweave bindings)
@@ -224,7 +224,8 @@
          ~@body
          (dorun (map ~checker ~names ~specs))))))
 
-;; bindings are name spec, where spec is either {:fields :tuples} or vector of tuplesou
+;; bindings are name spec, where spec is either {:fields :tuples} or
+;; vector of tuples
 (defmacro with-expected-sinks [bindings & body]
   (with-expected-sinks-helper check-tap-spec bindings body))
 

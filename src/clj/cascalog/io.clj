@@ -19,7 +19,21 @@
   (:require [hadoop-util.core :as hadoop])
   (:import [java.io File PrintWriter]
            [java.util UUID]
-           [org.apache.log4j Logger Level]))
+           [org.apache.log4j Logger Level]
+           [org.apache.hadoop.io BytesWritable]))
+
+;; While a BytesWritable object wraps a byte array, not all of the
+;; bytes returned by the getBytes method are valid. As mentioned in
+;; the [documentation](http://goo.gl/3qzyc), "The data is only valid
+;; between 0 and getLength() - 1."
+
+(defn get-bytes
+  "Extracts a byte array from a Hadoop BytesWritable object. As
+  mentioned in the [BytesWritable javadoc](http://goo.gl/cjjlD), only
+  the first N bytes are valid, where N = `(.getLength byteswritable)`."
+  [^BytesWritable bytes]
+  (byte-array (.getLength bytes)
+              (.getBytes bytes)))
 
 (defn write-lines
   "Writes lines (a seq) to f, separated by newlines.  f is opened with

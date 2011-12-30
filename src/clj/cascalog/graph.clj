@@ -61,12 +61,12 @@
   (::value node))
 
 (defn get-outbound-edges [node]
-  (if-ret (seq (.outgoingEdgesOf (::graph node) node))
-          []))
+  (or (seq (.outgoingEdgesOf (::graph node) node))
+      []))
 
 (defn get-inbound-edges [node]
-  (if-ret (seq (.incomingEdgesOf (::graph node) node))
-          []))
+  (or (seq (.incomingEdgesOf (::graph node) node))
+      []))
 
 (defn get-outbound-nodes [node]
   (map :target (get-outbound-edges node)))
