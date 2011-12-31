@@ -365,7 +365,7 @@
   [(+ v1 v3) (* v2 v4)])
 
 (defparallelagg multipagg :init-var #'multipagg-init
-                          :combine-var #'multipagg-combiner)
+  :combine-var #'multipagg-combiner)
 
 (defaggregateop slow-count
   ([] 0)
@@ -470,7 +470,7 @@
 
 (deftest test-outer-join-with-funcs
   ;; TODO: needed
-)
+  )
 
 (deftest test-mongo
   ;; function required for join
@@ -478,7 +478,7 @@
   ;; functions -> joins -> functions -> joins
   ;; functions that run after outer join
   ;; no aggregator
-)
+  )
 
 (defmulti multi-test class)
 (defmethod multi-test String [x] "string!")

@@ -14,9 +14,7 @@
 ;;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (ns cascalog.graph
-  (:use cascalog.util)
-  (:import [org.jgrapht.graph DefaultDirectedGraph]
-           [cascalog SimplePrintDirectedGraph]
+  (:import [cascalog SimplePrintDirectedGraph]
            [org.jgrapht EdgeFactory]))
 
 (defstruct edge :source :target ::extra-data)

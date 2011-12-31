@@ -1,8 +1,6 @@
 (ns cascalog.util-test
   (:use clojure.test
-        cascalog.util
-        [jackknife.core :only (update-vals)]
-        [jackknife.seq :only (unweave)]))
+        cascalog.util))
 
 (def p 5)
 

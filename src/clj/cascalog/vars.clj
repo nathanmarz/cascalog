@@ -87,7 +87,7 @@
         (vector? e) (sanitize-vec e anon-gen)
         :else (sanitize-elem e anon-gen)))
 
-(defn vars2str [vars]
+(defn vars->str [vars]
   (let [anon-gen (if (some #(and (cascalog-var? %)
                                  (unground-var? %))
                            (flatten-vars vars))

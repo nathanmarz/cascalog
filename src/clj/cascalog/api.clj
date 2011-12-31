@@ -14,24 +14,24 @@
 ;;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (ns cascalog.api
-  (:use [cascalog vars util graph debug]
+  (:use [cascalog.debug :only (debug-print)]
         [jackknife.core :only (safe-assert throw-runtime)]
         [jackknife.def :only (defalias)]
         [jackknife.seq :only (unweave collectify)])
   (:require [clojure.set :as set]
             [cascalog.rules :as rules]
+            [cascalog.vars :as v]
             [cascalog.tap :as tap]
             [cascalog.conf :as conf]
             [cascalog.workflow :as w]
             [cascalog.predicate :as p]
             [cascalog.io :as io]
-            [jackknife.core :as u]
+            [cascalog.util :as u]
             [hadoop-util.core :as hadoop])  
   (:import [cascading.flow Flow FlowConnector]
            [cascading.tuple Fields]
            [cascalog StdoutTap Util MemorySourceTap]
-           [cascading.pipe Pipe]
-           [java.util ArrayList]))
+           [cascading.pipe Pipe]))
 
 ;; Functions for creating taps and tap helpers
 
@@ -133,7 +133,7 @@
    innermost calls taking precedence on conflicting keys."
   [conf & body]
   `(binding [conf/*JOB-CONF*
-             (conf-merge conf/*JOB-CONF* ~conf)]
+             (u/conf-merge conf/*JOB-CONF* ~conf)]
      ~@body))
 
 (defmacro with-serializations
@@ -150,7 +150,7 @@
   `with-serializations` or `with-job-conf`."
   [serial-vec & forms]
   `(with-job-conf 
-     {"io.serializations" (serialization-entry ~serial-vec)}
+     {"io.serializations" (u/serialization-entry ~serial-vec)}
      ~@forms))
 
 ;; Query creation and execution
@@ -161,7 +161,7 @@
   output variables."
   [outvars & predicates]
   (let [predicate-builders (vec (map rules/mk-raw-predicate predicates))
-        outvars-str (if (vector? outvars) (vars2str outvars) outvars)]
+        outvars-str (if (vector? outvars) (v/vars->str outvars) outvars)]
     `(rules/build-rule ~outvars-str ~predicate-builders)))
 
 (def cross-join
@@ -188,8 +188,8 @@
         tails     (map rules/connect-to-sink gens sinks)
         sinkmap   (w/taps-map tails sinks)]
     (.connect (FlowConnector.
-               (project-merge (conf/project-conf)
-                              {"cascading.flow.job.pollinginterval" 100}))
+               (u/project-merge (conf/project-conf)
+                                {"cascading.flow.job.pollinginterval" 100}))
               flow-name
               sourcemap
               sinkmap
@@ -220,7 +220,7 @@
   ;; TODO: should be checking for flow name here
   (io/with-fs-tmp [fs tmp]
     (hadoop/mkdirs fs tmp)
-    (let [outtaps (for [q subqueries] (hfs-seqfile (str tmp "/" (uuid))))
+    (let [outtaps (for [q subqueries] (hfs-seqfile (str tmp "/" (u/uuid))))
           bindings (mapcat vector outtaps subqueries)]
       (apply ?- bindings)
       (doall (map rules/get-sink-tuples outtaps)))))
@@ -271,8 +271,8 @@ must be stringified when passed to construct. If you're using
 destructuring in a predicate macro, the & symbol must be stringified
 as well."
   [outvars preds]
-  (let [outvars (vars2str outvars)
-        preds (for [[p & vars] preds] [p nil (vars2str vars)])]
+  (let [outvars (v/vars->str outvars)
+        preds (for [[p & vars] preds] [p nil (v/vars->str vars)])]
     (rules/build-rule outvars preds)))
 
 (defn union
@@ -309,8 +309,8 @@ as well."
 
 (defmacro multigroup
   [group-vars out-vars buffer-spec & sqs]
-  `(multigroup* ~(vars2str group-vars)
-                ~(vars2str out-vars)
+  `(multigroup* ~(v/vars->str group-vars)
+                ~(v/vars->str out-vars)
                 ~buffer-spec
                 ~@sqs))
 
@@ -318,8 +318,8 @@ as well."
 
 (defmethod select-fields :tap [tap fields]
   (let [fields (collectify fields)
-        pname (uuid)
-        outfields (gen-nullable-vars (count fields))
+        pname (u/uuid)
+        outfields (v/gen-nullable-vars (count fields))
         pipe (w/assemble (w/pipe pname) (w/identity fields :fn> outfields :> outfields))]
     (p/predicate p/generator nil true {pname tap} pipe outfields {})))
 
@@ -390,7 +390,7 @@ as well."
     `(do (gen-class :name ~classname
                     :main true
                     :prefix ~(str name "-"))
-         (defn ~(meta-conj sym {:no-doc true
-                                :skip-wiki true})
+         (defn ~(u/meta-conj sym {:no-doc true
+                                  :skip-wiki true})
            ~@forms)
          (defn ~name ~@forms))))

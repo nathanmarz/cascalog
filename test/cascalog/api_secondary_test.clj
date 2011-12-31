@@ -1,9 +1,10 @@
 (ns cascalog.api-secondary-test
   (:use clojure.test
-        cascalog.testing
-        cascalog.api)
+        cascalog.api
+        cascalog.testing)
   (:import [cascading.tuple Fields])
-  (:require [cascalog [ops :as c] [io :as io]]))
+  (:require [cascalog.ops :as c]
+            [cascalog.io :as io]))
 
 (deftest test-outfields-query
   (let [age [["nathan" 25]]]
