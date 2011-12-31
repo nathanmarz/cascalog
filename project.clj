@@ -4,8 +4,8 @@
   :jvm-opts ["-Xmx768m" "-server"
              "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n"]
   :javac-options {:debug "true" :fork "true"}
-  :repositories {"conjars" "http://conjars.org/repo/"
-                 "sonatype" "https://oss.sonatype.org/content/repositories/releases"}
+  :repositories {"conjars" "http://conjars.org/repo/"}
+  :codox {:include [cascalog.vars cascalog.ops cascalog.io cascalog.api]}
   :dependencies [[org.clojure/clojure "1.3.0"]
                  [org.clojure/tools.macro "0.1.1"]
                  [cascading/cascading-hadoop "2.0.0-wip-184"
