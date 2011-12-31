@@ -3,6 +3,7 @@
 * Moved project configurations over to cascalog.
 * Memory-Source-Tap now uses project settings from job-conf.clj (bugfix!)
 * Kryo Serialization for clojure primitives, clojure collections and select java primitives.
+* Functions defined with defmain are now callable by their supplied names. (Previously they weren't usable except to generate aot-compiled classes.)
 
 In addition to previous support for the various number types + strings, the following classes are now serialized by default:
 
