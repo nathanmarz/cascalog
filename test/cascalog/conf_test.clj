@@ -78,7 +78,6 @@
                     (.hashCode comparator y))
            0 0
            1 1
-           {1M "hi!"} {(Long. 1) "hi!"}
+           {(Integer. 1) "hi!"} {(Long. 1) "hi!"}
            {1 2, 3 4} {3 4, 1 2}
-           (Long. 1) (Integer. 1)
-           (Long. 1) (BigDecimal. 1)))))
+           (Long. 1) (Integer. 1)))))
