@@ -376,7 +376,7 @@ as well."
     `(do (gen-class :name ~classname
                     :main true
                     :prefix ~(str name "-"))
-         (defn ~sym
-           ~(assoc (meta sym) :skip-wiki true)
+         (defn ~(meta-conj sym {:no-doc true
+                                :skip-wiki true})
            ~@forms)
-         (defalias ~name ~sym))))
+         (defn ~name ~@forms))))

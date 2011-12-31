@@ -348,7 +348,9 @@
                            `[~func-args & ~args-sym]
                            `[ & ~args-sym])]
     `(do (defn ~runner-name
-           ~(assoc (meta fname) :skip-wiki true)
+           ~(assoc (meta fname)
+              :no-doc true
+              :skip-wiki true)
            ~@runner-body)
          (def ~fname
            (with-meta

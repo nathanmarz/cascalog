@@ -14,6 +14,7 @@
 * Kryo Serialization for clojure primitives, clojure collections and select java primitives.
 * Functions defined with defmain are now callable by their supplied names. (Previously they weren't usable except to generate aot-compiled classes.)
 * `bootstrap` and `bootstrap-emacs` are now functions, not macros.
+* defops and defmain include :skip-wiki true in metadata, allowing them to be used with codox or autodoc and not generate clutter.
 
 In addition to previous support for the various number types + strings, the following classes are now serialized by default:
 
