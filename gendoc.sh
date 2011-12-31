@@ -6,6 +6,7 @@
 
 lein doc
 cd doc
+git checkout gh-pages
 git commit -am "new documentation push."
 echo "Pushing to gh-pages branch on github..."
 git push
