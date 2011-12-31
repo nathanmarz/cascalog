@@ -1,10 +1,13 @@
 (ns cascalog.rules
-  (:use [cascalog vars util graph debug]
+  (:use [cascalog.debug :only (debug-print)]
         [clojure.set :only (intersection union difference subset?)]
         [clojure.walk :only (postwalk)]
         [jackknife.core :only (throw-illegal throw-runtime)])
   (:require [cascalog.workflow :as w]
             [jackknife.seq :as s]
+            [cascalog.vars :as v]
+            [cascalog.util :as u]
+            [cascalog.graph :as g]
             [cascalog.predicate :as p]
             [hadoop-util.core :as hadoop]
             [cascalog.conf :as conf])
@@ -23,8 +26,8 @@
 (p/defpredicate group :assembly :infields :totaloutfields)
 
 (defn- find-generator-join-set-vars [node]
-  (let [pred (get-value node)
-        inbound-nodes (get-inbound-nodes node)]
+  (let [pred (g/get-value node)
+        inbound-nodes (g/get-inbound-nodes node)]
     (cond (#{:join :group} (:type pred)) nil
           (= :generator (:type pred)) (if-let [v (:join-set-var pred)] [v])
           :else (do
@@ -48,7 +51,7 @@
 (defstruct tailstruct :ground? :operations :drift-map :available-fields :node)
 
 (defn- connect-op [tail op]
-  (let [new-node (connect-value (:node tail) op)
+  (let [new-node (g/connect-value (:node tail) op)
         new-outfields (concat (:available-fields tail) (:outfields op))]
     (struct tailstruct
             (:ground? tail)
@@ -70,7 +73,7 @@
         infields-set (set (:infields op))]
     (and (or (:allow-on-genfilter? op) (empty? join-set-vars))
          (subset? infields-set (set available-fields))
-         (or ground? (every? ground-var? infields-set)))))
+         (or ground? (every? v/ground-var? infields-set)))))
 
 (defn- fixed-point-operations
   "Adds operations to tail until can't anymore. Returns new tail"
@@ -103,7 +106,7 @@
                                  (assoc m drift f)
                                  m)))
                            {} available-fields)
-        eqmap (select-keys (reverse-map (select-keys drift-map available-fields))
+        eqmap (select-keys (u/reverse-map (select-keys drift-map available-fields))
                            available-fields)
         equality-sets (map (fn [[k v]] (conj v k)) eqmap)
         new-drift-map (->> equality-sets
@@ -131,7 +134,7 @@
         tailfields (set (:available-fields tail))]
     (and (subset? join-set tailfields)
          (or (:ground? tail)
-             (every? unground-var? (difference tailfields join-set))))))
+             (every? v/unground-var? (difference tailfields join-set))))))
 
 (defn- find-join-fields [tail1 tail2]
   (let [join-set (tail-fields-intersection tail1 tail2)]
@@ -143,7 +146,7 @@
    unoptimal. It's better to rewrite this as a search problem to find
    optimal joins"
   [tails]
-  (let [max-join (->> (all-pairs tails)
+  (let [max-join (->> (u/all-pairs tails)
                       (map (fn [[t1 t2]]
                              (or (find-join-fields t1 t2) [])))
                       (sort-by count)
@@ -157,7 +160,7 @@
   (let [tokeep (->> drift-maps
                     (map #(set (seq %)))
                     (apply intersection))]
-    (pairs->map (seq tokeep))))
+    (u/pairs->map (seq tokeep))))
 
 (defn- select-selector [seq1 selector]
   (mapcat (fn [o b] (if b [o])) seq1 selector))
@@ -167,7 +170,7 @@
     (if (= 1 (count tails))
       (add-ops-fixed-point (merge (first tails) {:ground? true})) ; if still unground, allow operations to be applied
       (let [[join-fields join-set rest-tails] (select-join tails)
-            join-node             (create-node graph (p/predicate join join-fields))
+            join-node             (g/create-node graph (p/predicate join join-fields))
             join-set-vars    (map find-generator-join-set-vars (map :node join-set))
             available-fields (vec (set (apply concat
                                               (cons (apply concat join-set-vars)
@@ -180,7 +183,7 @@
         (debug-print "Selected join" join-fields join-set)
         (debug-print "Join-set-vars" join-set-vars)
         (debug-print "Available fields" available-fields)
-        (dorun (map #(create-edge (:node %) join-node) join-set))
+        (dorun (map #(g/create-edge (:node %) join-node) join-set))
         (recur graph (cons (struct tailstruct
                                    (s/some? :ground? join-set)
                                    new-ops
@@ -200,7 +203,7 @@
   [grouping-fields]
   (if-not (empty? grouping-fields)
     [grouping-fields identity]
-    (let [newvar (gen-nullable-var)]
+    (let [newvar (v/gen-nullable-var)]
       [[newvar] (w/insert newvar 1)])))
 
 (defn- specify-parallel-agg [{pagg :parallel-agg}]
@@ -218,7 +221,7 @@
 
 (defn- mk-parallel-aggregator [grouping-fields aggs]
   (let [argfields  (map #(mk-agg-arg-fields (:infields %)) aggs)
-        tempfields (map #(gen-nullable-vars (count (:outfields %))) aggs)
+        tempfields (map #(v/gen-nullable-vars (count (:outfields %))) aggs)
         specs      (map specify-parallel-agg aggs)
         combiner (ClojureCombiner. (w/fields grouping-fields)
                                    argfields
@@ -265,10 +268,10 @@
           total-fields (agg-available-fields grouping-fields aggs)
           all-agg-infields  (agg-infields (:sort options) aggs)
           prev-node    (:node prev-tail)
-          node         (create-node (get-graph prev-node)
-                                    (p/predicate group assem
-                                                 all-agg-infields total-fields))]
-      (create-edge prev-node node)
+          node         (g/create-node (g/get-graph prev-node)
+                                      (p/predicate group assem
+                                                   all-agg-infields total-fields))]
+      (g/create-edge prev-node node)
       (struct tailstruct (:ground? prev-tail) (:operations prev-tail)
               (:drift-map prev-tail) total-fields node))))
 
@@ -316,7 +319,7 @@
             [] fields)))
 
 (defn- generate-join-fields [numfields numpipes]
-  (take numpipes (repeatedly (partial gen-nullable-vars numfields))))
+  (take numpipes (repeatedly (partial v/gen-nullable-vars numfields))))
 
 (defn- new-pipe-name [prevgens]
   (.getName (:pipe (first prevgens))))
@@ -340,7 +343,9 @@
         join-set-fields (map :join-set-var outerone-gens)
         prevgens    (concat inner-gens outer-gens outerone-gens) ; put them in order
         infields    (map :outfields prevgens)
-        inpipes     (map (fn [p f] (w/assemble p (w/select f) (w/pipe-rename (uuid)))) (map :pipe prevgens) infields) ; is this necessary?
+        inpipes     (map (fn [p f] (w/assemble p (w/select f) (w/pipe-rename (u/uuid))))
+                         (map :pipe prevgens)
+                         infields) ; is this necessary?
         join-renames (generate-join-fields num-join-fields (count prevgens))
         rename-fields (flatten (map (partial replace-join-fields join-fields) join-renames infields))
         keep-fields (vec (set (apply concat
@@ -382,10 +387,10 @@
 
 ;; forceproject necessary b/c *must* reorder last set of fields coming out to match declared ordering
 (defn build-generator [forceproject needed-vars node]
-  (let [pred           (get-value node)
+  (let [pred           (g/get-value node)
         my-needed      (vec (set (concat (:infields pred) needed-vars)))
         prev-gens      (doall (map (partial build-generator false my-needed)
-                                   (get-inbound-nodes node)))
+                                   (g/get-inbound-nodes node)))
         newgen         (node->generator pred prev-gens)
         project-fields (projection-fields needed-vars (:outfields newgen)) ]
     (debug-print "build gen:" my-needed project-fields pred)
@@ -414,7 +419,7 @@
   (->> opt-predicates
        (map (fn [{k :key, v :val}]
               (let [v (if (= :sort k) v (first v))
-                    v (if (= :trap k) {:tap v :name (uuid)} v)]
+                    v (if (= :trap k) {:tap v :name (u/uuid)} v)]
                 (if (contains? DEFAULT-OPTIONS k)
                   {k v}
                   (throw-illegal (str k " is not a valid option predicate"))))))
@@ -423,9 +428,11 @@
 
 (defn- mk-var-uniquer-reducer [out?]
   (fn [[preds vmap] [op opvar hof-args invars outvars]]
-    (let [[updatevars vmap] (uniquify-vars (if out? outvars invars) out? vmap)
+    (let [[updatevars vmap] (v/uniquify-vars (if out? outvars invars) out? vmap)
           [invars outvars] (if out? [invars updatevars] [updatevars outvars])]
       [(conj preds [op opvar hof-args invars outvars]) vmap])))
+
+;; TODO: Move mk-drift-map to graph?
 
 (defn- uniquify-query-vars
   "TODO: this won't handle drift for generator filter outvars should
@@ -434,17 +441,17 @@
   [out-vars raw-predicates]
   (let [[raw-predicates vmap] (reduce (mk-var-uniquer-reducer true) [[] {}] raw-predicates)
         [raw-predicates vmap] (reduce (mk-var-uniquer-reducer false) [[] vmap] raw-predicates)
-        [out-vars vmap]       (uniquify-vars out-vars false vmap)
-        drift-map             (mk-drift-map vmap)]
+        [out-vars vmap]       (v/uniquify-vars out-vars false vmap)
+        drift-map             (v/mk-drift-map vmap)]
     [out-vars raw-predicates drift-map]))
 
 (defn split-outvar-constants
   [[op opvar hof-args invars outvars]]
   (let [[new-outvars newpreds] (reduce
                                 (fn [[outvars preds] v]
-                                  (if (cascalog-var? v)
+                                  (if (v/cascalog-var? v)
                                     [(conj outvars v) preds]
-                                    (let [newvar (gen-nullable-var)]
+                                    (let [newvar (v/gen-nullable-var)]
                                       [(conj outvars newvar)
                                        (conj preds [(p/predicate p/outconstant-equal)
                                                     nil nil [v newvar] []])])))
@@ -486,7 +493,7 @@
   generators-as-sets contained within the supplied sequence of parsed
   predicates (of the form `[op opvar hof-args invars outvars]`)."
   [parsed-preds]
-  (mapcat (comp (partial filter unground-var?)
+  (mapcat (comp (partial filter v/unground-var?)
                 #(->> % (take-last 2) (apply concat)))
           (filter gen-as-set? parsed-preds)))
 
@@ -497,7 +504,7 @@
   within generator predicates, and a sequence of all ungrounding vars
   that appear within non-generator predicates."
   [parsed-preds]
-  (map (comp (partial mapcat #(filter unground-var? %))
+  (map (comp (partial mapcat #(filter v/unground-var? %))
              (partial map last))
        (unzip-generators parsed-preds)))
 
@@ -543,12 +550,12 @@
         [gens ops aggs]           (->> raw-predicates
                                        (map (partial apply p/build-predicate options))
                                        (split-predicates))
-        rule-graph                (mk-graph)
+        rule-graph                (g/mk-graph)
         joined                    (->> gens
                                        (map (fn [{:keys [ground? outfields] :as g}]
                                               (struct tailstruct ground?
                                                       ops drift-map outfields
-                                                      (create-node rule-graph g))))
+                                                      (g/create-node rule-graph g))))
                                        (merge-tails rule-graph))
         grouping-fields           (seq (intersection (set (:available-fields joined))
                                                      (set out-vars)))
@@ -561,12 +568,12 @@
 (defn- new-var-name! [replacements v]
   (let [new-name  (if (contains? @replacements v)
                     (@replacements v)
-                    (uniquify-var v))]
+                    (v/uniquify-var v))]
     (swap! replacements assoc v new-name)
     new-name))
 
 (defn- pred-macro-updater [[replacements ret] [op opvar vars]]
-  (let [newvars (postwalk #(if (cascalog-var? %)
+  (let [newvars (postwalk #(if (v/cascalog-var? %)
                              (new-var-name! replacements %)
                              %)
                           vars)]
@@ -582,10 +589,10 @@
                              (= 1 (count outvars-decl)))
                       [true]
                       outvars) ; kind of a hack, simulate using pred macros like filters
-            replacements (atom (mk-destructured-seq-map invars-decl
-                                                        invars
-                                                        outvars-decl
-                                                        outvars))]
+            replacements (atom (u/mk-destructured-seq-map invars-decl
+                                                          invars
+                                                          outvars-decl
+                                                          outvars))]
         (second (reduce pred-macro-updater [replacements []] raw-predicates))))))
 
 (defn- build-predicate-macro [invars outvars raw-predicates]
@@ -624,7 +631,7 @@
                              raw-predicates))))
 
 (defn mk-raw-predicate [[op-sym & vars]]
-  [op-sym (try-resolve op-sym) (vars2str vars)])
+  [op-sym (u/try-resolve op-sym) (v/vars->str vars)])
 
 (defn- pluck-tuple [tap]
   (with-open [it (-> (HadoopFlowProcess. (hadoop/job-conf (conf/project-conf)))
@@ -645,8 +652,7 @@ cascading tap, returns a new generator with field-names."
             (vector? g)
             (list? g))
         (let [pluck (if (instance? Tap g) pluck-tuple first)
-              vars  (gen-nullable-vars (count (pluck g)))]
-          
+              vars  (v/gen-nullable-vars (count (pluck g)))]
           (->> [[g :>> vars] [:distinct false]]
                (map mk-raw-predicate)
                (build-rule vars)))
@@ -654,7 +660,7 @@ cascading tap, returns a new generator with field-names."
 
 ;; TODO: Why does this not use gen?
 (defn connect-to-sink [gen sink]
-  ((w/pipe-rename (uuid)) (:pipe gen)))
+  ((w/pipe-rename (u/uuid)) (:pipe gen)))
 
 (defn combine* [gens distinct?]
   ;; it would be nice if cascalog supported Fields/UNKNOWN as output of generator
