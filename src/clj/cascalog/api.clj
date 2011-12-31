@@ -390,5 +390,7 @@ as well."
     `(do (gen-class :name ~classname
                     :main true
                     :prefix ~(str name "-"))
-         (defn ~sym ~@forms)
-         (defalias ~name ~sym))))
+         (defn ~(meta-conj sym {:no-doc true
+                                :skip-wiki true})
+           ~@forms)
+         (defn ~name ~@forms))))
