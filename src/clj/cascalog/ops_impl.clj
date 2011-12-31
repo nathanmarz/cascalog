@@ -1,8 +1,7 @@
 (ns cascalog.ops-impl
-  (:use [cascalog api vars util graph])
-  (:require [cascalog.workflow :as w]
-            [cascalog.predicate :as p])
-  (:import [cascading.tuple Fields]))
+  (:use cascalog.api)
+  (:require [cascalog.vars :as v]
+            [cascalog.workflow :as w]))
 
 (defn one [] 1)
 
@@ -34,7 +33,7 @@
     [[[(vec sort-tuple) (vec tuple)]]]))
 
 (defn- mk-limit-comparator [options]
-  (fn [[#^Comparable o1 _] [#^Comparable o2 _]]
+  (fn [[^Comparable o1 _] [^Comparable o2 _]]
     (if (:sort options)
       (* (.compareTo o1 o2) (if (boolean (:reverse options)) -1 1))
       0)))
@@ -68,7 +67,7 @@
   ([] [nil 0])
   ([[prev cnt] & tuple]
      [tuple (if (= tuple prev) cnt (inc cnt))])
-  ([state] [(second state)] ))
+  ([state] [(second state)]))
 
 (defn bool-or [& vars]
   (boolean (some identity vars)))
@@ -77,7 +76,7 @@
   (every? identity vars))
 
 (defn logical-comp [ops logic-fn-var]
-  (let [outvars (gen-nullable-vars (clojure.core/count ops))]
+  (let [outvars (v/gen-nullable-vars (clojure.core/count ops))]
     (construct
      [:<< "!invars" :> "!true?"]
      (conj
