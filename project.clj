@@ -4,6 +4,7 @@
   :jvm-opts ["-Xmx768m" "-server"]
   :javac-options {:debug "true" :fork "true"}
   :repositories {"conjars" "http://conjars.org/repo/"}
+  :codox {:include [cascalog.vars cascalog.ops cascalog.io cascalog.api]}
   :dependencies [[org.clojure/clojure "1.3.0"]
                  [org.clojure/tools.macro "0.1.1"]
                  ;; jgrapht exclusion works around cascading pom bug
