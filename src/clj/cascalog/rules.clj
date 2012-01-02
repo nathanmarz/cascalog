@@ -471,11 +471,11 @@
                           outvars)))))
 
 (defn- parse-predicate [[op opvar vars]]
-  (let [hof-closure? (p/hof-closure? op)
-        [vars hof-args] (cond (and hof-closure? (p/hof-predicate? op))
-                              [(rest vars) (collectify hof-closure?)]
+  (let [closure-args (p/closure-args op)
+        [vars hof-args] (cond (and closure-args (p/hof-predicate? op))
+                              [(rest vars) (s/collectify closure-args)]
                               (p/hof-predicate? op)
-                              [(rest vars) (collectify (first vars))]
+                              [(rest vars) (s/collectify (first vars))]
                               :else
                               [vars nil])
         {invars :<< outvars :>>} (p/parse-variables vars (p/predicate-default-var op))]
