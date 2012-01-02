@@ -1,13 +1,16 @@
 (ns cascalog.workflow
-  (:refer-clojure :exclude [group-by count first filter mapcat
-                            map identity min max])
-  (:use [cascalog util debug]
-        [clojure.tools.macro :only (name-with-attributes)])
+  (:refer-clojure
+   :exclude [group-by count first filter mapcat map identity min max])
+  (:use [cascalog.debug :only (debug-print)]
+        [clojure.tools.macro :only (name-with-attributes)]
+        [jackknife.core :only (safe-assert)]
+        [jackknife.seq :only (collectify)])
   (:require [cascalog.conf :as conf]
+            [cascalog.util :as u]
             [hadoop-util.core :as hadoop])
   (:import [cascalog Util]
-           [org.apache.hadoop.mapred JobConf]
            [java.io File]
+           [java.util ArrayList]
            [cascading.tuple Tuple TupleEntry Fields]
            [cascading.scheme.hadoop TextLine SequenceFile]
            [cascading.scheme Scheme]
@@ -21,9 +24,7 @@
            [cascading.operation Identity Insert Debug]
            [cascading.operation.aggregator First Count Sum Min Max]
            [cascading.pipe Pipe Each Every GroupBy CoGroup]
-           [cascading.pipe.cogroup InnerJoin OuterJoin
-            LeftJoin RightJoin MixedJoin]
-           [java.util ArrayList]
+           [cascading.pipe.cogroup InnerJoin OuterJoin LeftJoin RightJoin MixedJoin]
            [cascalog ClojureFilter ClojureMapcat ClojureMap
             ClojureAggregator Util ClojureBuffer ClojureBufferIter
             FastFirst MemorySourceTap MultiGroupBy ClojureMultibuffer]))
@@ -99,7 +100,7 @@
 (defn pipe
   "Returns a Pipe of the given name, or if one is not supplied with a
    unique random name."
-  ([] (pipe (uuid)))
+  ([] (pipe (u/uuid)))
   ([^String name]
      (Pipe. name)))
 
@@ -286,7 +287,7 @@
   (let [arglists (if (vector? form)
                    (list form)
                    (clojure.core/map clojure.core/first args))]
-    (meta-conj sym {:arglists (list 'quote arglists)})))
+    (u/meta-conj sym {:arglists (list 'quote arglists)})))
 
 (defn- update-fields
   "Examines the first item in a def* operation's forms. If the first
@@ -299,7 +300,7 @@
   vector."
   [sym [form :as forms]]
   (if (string? (clojure.core/first form))
-    [(meta-conj sym {:fields form}) (rest forms)]
+    [(u/meta-conj sym {:fields form}) (rest forms)]
     [sym forms]))
 
 (defn assert-nonvariadic [args]
@@ -319,12 +320,13 @@
   (let [[fname args] (name-with-attributes fname args)
         [fname args] (->> [fname args]
                           (apply update-fields))
+
         f-args (:params (meta fname))
-        fname (-> fname
-                  (update-arglists args)
-                  (meta-conj {:pred-type (keyword (name type))
-                              :hof? (boolean f-args)})
-                  (meta-dissoc :params))]
+        fname  (-> fname
+                   (update-arglists args)
+                   (u/meta-conj {:pred-type (keyword (name type))
+                                 :hof? (boolean f-args)})
+                   (u/meta-dissoc :params))]
     (assert-nonvariadic args)
     [fname f-args args]))
 
@@ -381,11 +383,17 @@
          runner-name     (symbol (str fname "__"))
          runner-body     (if func-args
                            `(~func-args (fn ~@funcdef))
-                           funcdef)
-         executor         `(def ~fname
-                            (executor-fn-generator {:type ~type :fname ~fname :func-args ~func-args}))]
-    `(do (defn ~runner-name ~(meta fname) ~@runner-body)
-         ~executor)))
+                           funcdef)]
+    `(do (defn ~runner-name
+           ~(assoc (meta fname)
+              :no-doc true
+              :skip-wiki true)
+           ~@runner-body)
+         (def ~fname
+           (executor-fn-generator
+            {:type ~type
+             :fname ~fname
+             :func-args ~func-args})))))
 
 (defmacro defmapop  
   {:arglists '([name doc-string? attr-map? [fn-args*] body])}

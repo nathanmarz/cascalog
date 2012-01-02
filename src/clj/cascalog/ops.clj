@@ -1,9 +1,13 @@
 (ns cascalog.ops
   (:refer-clojure :exclude [count min max comp juxt partial])
-  (:use [cascalog ops-impl api util]
+  (:use cascalog.api
+        [jackknife.def :only (defnk)]
+        [jackknife.seq :only (collectify)]
         [cascalog.workflow :only (fill-tap!)]
         [cascalog.io :only (with-fs-tmp)])
-  (:require [cascalog.vars :as v]))
+  (:require [cascalog.util :as u]
+            [cascalog.ops-impl :as impl]
+            [cascalog.vars :as v]))
 
 ;; Operation composition functions
 
@@ -38,7 +42,7 @@
   (small? ?x) :> ?temp3)
   (and ?temp1 ?temp2 ?temp3)"
   [& ops]
-  (logical-comp ops #'bool-and))
+  (impl/logical-comp ops #'impl/bool-and))
 
 (defn any
   "Accepts any number of filtering ops and returns a new op that
@@ -55,7 +59,7 @@
   (small? ?x :> ?temp3)
   (or ?temp1 ?temp2 ?temp3)"
   [& ops]
-  (logical-comp ops #'bool-or))
+  (impl/logical-comp ops #'impl/bool-or))
 
 (defn comp
   "Accepts any number of predicate ops and returns an op that is the
@@ -159,27 +163,28 @@
   (re-seq pattern str))
 
 (defparallelagg count
-  :init-var #'one
+  :init-var #'impl/one
   :combine-var #'+)
 
-(def sum (each sum-parallel))
+(def sum (each impl/sum-parallel))
 
-(def min (each min-parallel))
+(def min (each impl/min-parallel))
 
-(def max (each max-parallel))
+(def max (each impl/max-parallel))
 
-(def !count (each !count-parallel))
+(def !count (each impl/!count-parallel))
 
 (defparallelbuf limit
   :hof? true
-  :init-hof-var #'limit-init
-  :combine-hof-var #'limit-combine
-  :extract-hof-var #'limit-extract
-  :num-intermediate-vars-fn (fn [infields outfields] (clojure.core/count infields))
-  :buffer-hof-var #'limit-buffer)
+  :init-hof-var #'impl/limit-init
+  :combine-hof-var #'impl/limit-combine
+  :extract-hof-var #'impl/limit-extract
+  :num-intermediate-vars-fn (fn [infields outfields]
+                              (clojure.core/count infields))
+  :buffer-hof-var #'impl/limit-buffer)
 
 (def limit-rank
-  (merge limit {:buffer-hof-var #'limit-rank-buffer}))
+  (merge limit {:buffer-hof-var #'impl/limit-rank-buffer}))
 
 (def ^{:doc "Predicate operation that produces the average value of the
   supplied input variable. For example:
@@ -206,7 +211,7 @@
   distinct-count
   (<- [:<< !invars :> !c]
       (:sort :<< !invars)
-      (distinct-count-agg :<< !invars :> !c)))
+      (impl/distinct-count-agg :<< !invars :> !c)))
 
 ;; Common patterns
 
