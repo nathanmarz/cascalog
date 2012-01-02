@@ -369,7 +369,7 @@ as well."
   `name`. Containing namespace must be marked for AOT compilation to
   have any effect."
   [name & forms]
-  (let [classname (str *ns* "." name)
+  (let [classname (namespace-munge (str *ns* "." name))
         sym (with-meta
               (symbol (str name "-main"))
               (meta name))]
