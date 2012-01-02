@@ -200,6 +200,7 @@
              infields
              outfields))
 
+(defn closure-args [op] (:hof-closure (meta op)))
 (defmulti predicate-default-var predicate-dispatcher)
 (defmulti hof-predicate? predicate-dispatcher)
 (defmulti build-predicate-specific predicate-dispatcher)
