@@ -226,7 +226,7 @@
 
 (deftest test-hof-ops
   (let [integer [[1] [2] [6]]
-        closure-op (is-n? 9)]
+        closure-op (is-n? 6)]
     (test?<- [[4] [5] [9]]   [?n] (integer ?v) (hof-add 3 ?v :> ?n))
     (test?<- [6]   [?v] (integer ?v) ((is-n? 6) ?v))
     (test?<- [6]   [?v] (integer ?v) (closure-op ?v))
