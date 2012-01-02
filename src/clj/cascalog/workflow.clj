@@ -369,7 +369,7 @@
          (let [~assembly-args ~args-sym-all
                func-form# (flatten [(var ~runner-name) ~closure-args])]
            (apply ~type func-form# ~args-sym)))
-       ~(meta fname))))
+       ~(merge {:hof-closure closure-args} (meta fname)))))
 
 (defn- defop-helper
   "Binding helper for cascalog def* ops. Function value is tagged with

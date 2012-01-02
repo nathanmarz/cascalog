@@ -213,6 +213,8 @@
   [n]
   (+ a n))
 
+(deffilterop is-n? {:params [y]} [x] (= x y))
+
 (defmapop hof-arithmetic {:params [a b]} [n]
   (+ b (* a n)))
 
@@ -223,8 +225,11 @@
   ([state] nil))
 
 (deftest test-hof-ops
-  (let [integer [[1] [2] [6]]]
+  (let [integer [[1] [2] [6]]
+        closure-op (is-n? 9)]
     (test?<- [[4] [5] [9]]   [?n] (integer ?v) (hof-add 3 ?v :> ?n))
+    (test?<- [6]   [?v] (integer ?v) ((is-n? 6) ?v))
+    (test?<- [6]   [?v] (integer ?v) (closure-op ?v))
     (test?<- [[-5] [-4] [0]] [?n] (integer ?v) (hof-add [-6] ?v :> ?n))
     (test?<- [[3] [5] [13]]  [?n] (integer ?v) (hof-arithmetic [2 1] ?v :> ?n))
     (test?<- [[72]]          [?n] (integer ?v) (sum-plus [21] ?v :> ?n))))
