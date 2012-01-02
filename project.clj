@@ -16,7 +16,7 @@
                  [cascalog/carbonite "1.0.4"]
                  [log4j/log4j "1.2.16"]
                  [hadoop-util "0.2.6"]
-                 [jackknife "0.1.1"]]
+                 [jackknife "0.1.2"]]
   :dev-dependencies [[org.apache.hadoop/hadoop-core "0.20.2-dev"]
                      [lein-multi "1.1.0-SNAPSHOT"]]
   :multi-deps {"1.2" [[org.clojure/clojure "1.2.1"]
