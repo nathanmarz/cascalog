@@ -24,7 +24,6 @@ import clojure.lang.*;
 import clojure.lang.Compiler;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 
 public class Util {
@@ -60,7 +59,7 @@ public class Util {
     }
 
     public static ISeq coerceToSeq(Object o) {
-        if (o instanceof Collection) {
+        if (o instanceof List) {
             return RT.seq(o);
         } else {
             return RT.list(o);
@@ -76,8 +75,8 @@ public class Util {
     }
 
     public static Tuple coerceToTuple(Object obj) {
-        if (obj instanceof Collection) {
-            Object[] arr = ((Collection) obj).toArray();
+        if (obj instanceof List) {
+            Object[] arr = ((List) obj).toArray();
             return new Tuple(arr);
         } else {
             return new Tuple(obj);

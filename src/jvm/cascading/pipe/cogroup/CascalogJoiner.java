@@ -19,6 +19,7 @@
 package cascading.pipe.cogroup;
 
 import cascading.tuple.Tuple;
+
 import java.util.Iterator;
 import java.util.List;
 
