@@ -21,7 +21,7 @@
 
 ;; :num-intermediate-vars-fn takes as input infields, outfields
 (defstruct parallel-buffer
-  :type :hof? :init-hof-var :combine-hof-var
+  :type :hof-args :init-hof-var :combine-hof-var
   :extract-hof-var :num-intermediate-vars-fn :buffer-hof-var)
 
 (defmacro defparallelagg
@@ -201,16 +201,16 @@
              infields
              outfields))
 
-(defn closure-args [op] (:hof-closure (meta op)))
+(defn closure-args [op] (:closure-args (meta op)))
+(defmulti hof-args predicate-dispatcher) ; hof-predicate?
 (defmulti predicate-default-var predicate-dispatcher)
-(defmulti hof-predicate? predicate-dispatcher)
 (defmulti build-predicate-specific predicate-dispatcher)
 
 (defmethod predicate-default-var ::option [& args] :<)
-(defmethod hof-predicate? ::option [& args] false)
+(defmethod hof-args ::option [& args] false)
 
 (defmethod predicate-default-var ::tap [& args] :>)
-(defmethod hof-predicate? ::tap [& args] false)
+(defmethod hof-args ::tap [& args] false)
 (defmethod build-predicate-specific ::tap
   [tap _ _ infields outfields options]
   (let [sourcename (uuid)
@@ -228,7 +228,7 @@
                (init-trap-map options))))
 
 (defmethod predicate-default-var :generator [& args] :>)
-(defmethod hof-predicate? :generator [& args] false)
+(defmethod hof-args :generator [& args] false)
 (defmethod build-predicate-specific :generator
   [gen _ _ infields outfields options]
   (let [pname (init-pipe-name options)
@@ -246,7 +246,7 @@
                trapmap)))
 
 (defmethod predicate-default-var ::parallel-aggregator [& args] :>)
-(defmethod hof-predicate? ::parallel-aggregator [& args] false)
+(defmethod hof-args ::parallel-aggregator [& args] false)
 (defmethod build-predicate-specific ::parallel-aggregator
   [pagg _ _ infields outfields options]
   (let [init-spec (w/fn-spec (:init-var pagg))
@@ -270,7 +270,7 @@
                outfields)))
 
 (defmethod predicate-default-var ::parallel-buffer [& args] :>)
-(defmethod hof-predicate? ::parallel-buffer [op & args] (:hof? op))
+(defmethod hof-args ::parallel-buffer [op & args] (:hof-args op))
 (defmethod build-predicate-specific ::parallel-buffer
   [pbuf _ hof-args infields outfields options]
   (let [temp-vars (v/gen-nullable-vars ((:num-intermediate-vars-fn pbuf)
@@ -307,7 +307,7 @@
                outfields)))
 
 (defmethod predicate-default-var ::vanilla-function [& args] :<)
-(defmethod hof-predicate? ::vanilla-function [& args] false)
+(defmethod hof-args ::vanilla-function [& args] false)
 (defmethod build-predicate-specific ::vanilla-function
   [_ opvar _ infields outfields options]
   (u/safe-assert opvar "Functions must have vars associated with them.")
@@ -318,27 +318,27 @@
     (predicate operation assembly infields outfields false)))
 
 (defmethod predicate-default-var :map [& args] :>)
-(defmethod hof-predicate? :map [op & args]       (:hof? (meta op)))
+(defmethod hof-args :map [op & args]       (:hof-args (meta op)))
 (defmethod build-predicate-specific :map [& args]
   (apply simpleop-build-predicate args))
 
 (defmethod predicate-default-var :mapcat [& args] :>)
-(defmethod hof-predicate? :mapcat [op & args]    (:hof? (meta op)))
+(defmethod hof-args :mapcat [op & args]    (:hof-args (meta op)))
 (defmethod build-predicate-specific :mapcat [& args]
   (apply simpleop-build-predicate args))
 
 (defmethod predicate-default-var :aggregate [& args] :>)
-(defmethod hof-predicate? :aggregate [op & args] (:hof? (meta op)))
+(defmethod hof-args :aggregate [op & args] (:hof-args (meta op)))
 (defmethod build-predicate-specific :aggregate [& args]
   (apply simpleagg-build-predicate false args))
 
 (defmethod predicate-default-var :buffer [& args] :>)
-(defmethod hof-predicate? :buffer [op & args]    (:hof? (meta op)))
+(defmethod hof-args :buffer [op & args]    (:hof-args (meta op)))
 (defmethod build-predicate-specific :buffer [& args]
   (apply simpleagg-build-predicate true args))
 
 (defmethod predicate-default-var :filter [& args] :<)
-(defmethod hof-predicate? :filter [op & args]    (:hof? (meta op)))
+(defmethod hof-args :filter [op & args]    (:hof-args (meta op)))
 (defmethod build-predicate-specific :filter
   [op _ hof-args infields outfields options]
   (let [[func-fields out-selector] (if (not-empty outfields)
@@ -353,7 +353,7 @@
                false)))
 
 (defmethod predicate-default-var ::cascalog-function [& args] :>)
-(defmethod hof-predicate? ::cascalog-function [op & args] false)
+(defmethod hof-args ::cascalog-function [op & args] false)
 (defmethod build-predicate-specific ::cascalog-function
   [op _ _ infields outfields options]
   (predicate operation
@@ -365,7 +365,7 @@
              false))
 
 (defmethod predicate-default-var ::cascading-filter [& args] :<)
-(defmethod hof-predicate? ::cascading-filter [op & args] false)
+(defmethod hof-args ::cascading-filter [op & args] false)
 (defmethod build-predicate-specific ::cascading-filter
   [op _ _ infields outfields options]
   (u/safe-assert (#{0 1} (count outfields))
@@ -379,10 +379,10 @@
     (predicate operation assem infields outfields false)))
 
 (defmethod predicate-default-var ::cascalog-buffer [& args] :>)
-(defmethod hof-predicate? ::cascalog-buffer [op & args] false)
+(defmethod hof-args ::cascalog-buffer [op & args] false)
 
 (defmethod predicate-default-var :cascalog-tap [& args] :>)
-(defmethod hof-predicate? :cascalog-tap [op & args] false)
+(defmethod hof-args :cascalog-tap [op & args] false)
 (defmethod build-predicate-specific :cascalog-tap
   [gen _ _ infields outfields options]
   (build-predicate-specific (:source gen)
@@ -393,7 +393,7 @@
                             options))
 
 (defmethod predicate-default-var ::data-structure [& args] :>)
-(defmethod hof-predicate? ::data-structure [op & args] false)
+(defmethod hof-args ::data-structure [op & args] false)
 (defmethod build-predicate-specific ::data-structure
   [tuples _ _ infields outfields options]
   (build-predicate-specific (w/memory-source-tap tuples)

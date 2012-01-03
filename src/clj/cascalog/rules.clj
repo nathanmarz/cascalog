@@ -473,13 +473,17 @@
 
 (defn- parse-predicate [[op opvar vars]]
   (let [closure-args (p/closure-args op)
-        [vars hof-args] (cond (and closure-args (p/hof-predicate? op))
+        hof-args-count (p/hof-args op)
+        [vars hof-args] (cond (and closure-args hof-args-count)
                               [(rest vars) (s/collectify closure-args)]
-                              (p/hof-predicate? op)
+                              hof-args-count
                               [(rest vars) (s/collectify (first vars))]
                               :else
                               [vars nil])
         {invars :<< outvars :>>} (p/parse-variables vars (p/predicate-default-var op))]
+    (when (and hof-args-count (not= hof-args-count (count (flatten hof-args))))
+      (throw-illegal (str "Need the same number of operation arguments : needed: "
+                          hof-args-count " got: " (count hof-args))))
     [op opvar hof-args invars outvars]))
 
 (defn- unzip-generators

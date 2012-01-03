@@ -322,10 +322,12 @@
                           (apply update-fields))
 
         f-args (:params (meta fname))
+        hof-args (clojure.core/count f-args)
         fname  (-> fname
                    (update-arglists args)
                    (u/meta-conj {:pred-type (keyword (name type))
-                                 :hof? (boolean f-args)})
+                                 :hof-args (if-not (zero? hof-args) hof-args false)
+                                 :varargs (some #(.equals (symbol "&") %) f-args)})
                    (u/meta-dissoc :params))]
     (assert-nonvariadic args)
     [fname f-args args]))
