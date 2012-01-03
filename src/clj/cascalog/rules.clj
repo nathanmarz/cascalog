@@ -101,7 +101,7 @@
   (let [eq-assemblies (map w/equal equality-sets)
         outfields (vec (keys rename-map))
         rename-in (vec (vals rename-map))
-        rename-assembly (if-not (empty? rename-in)
+        rename-assembly (if (seq rename-in)
                           (w/identity rename-in :fn> outfields :> Fields/SWAP)
                           identity)
         assembly   (apply w/compose-straight-assemblies
@@ -214,7 +214,7 @@
 (defn- normalize-grouping
   "Returns [new-grouping-fields inserter-assembly]"
   [grouping-fields]
-  (if-not (empty? grouping-fields)
+  (if (seq grouping-fields)
     [grouping-fields identity]
     (let [newvar (v/gen-nullable-var)]
       [[newvar] (w/insert newvar 1)])))
@@ -230,7 +230,8 @@
                Fields/ALL))
 
 (defn mk-agg-arg-fields [fields]
-  (when-not (empty? fields) (w/fields fields)))
+  (when (seq fields)
+    (w/fields fields)))
 
 (defn- mk-parallel-aggregator [grouping-fields aggs]
   (let [argfields  (map #(mk-agg-arg-fields (:infields %)) aggs)
@@ -258,7 +259,7 @@
 
 (defn- mk-group-by [grouping-fields options]
   (let [{s :sort rev :reverse} options]
-    (if-not (empty? s)
+    (if (seq s)
       (w/group-by grouping-fields s rev)
       (w/group-by grouping-fields))))
 
@@ -266,9 +267,10 @@
   (debug-print "Adding aggregators to tail" options prev-tail grouping-fields aggs)
   (when (and (empty? aggs) (:sort options))
     (throw-illegal "Cannot specify a sort when there are no aggregators"))
-  (if (and (not (:distinct options)) (empty? aggs))
+  (if (and (not (:distinct options))
+           (empty? aggs))
     prev-tail  
-    (let [aggs (if-not (empty? aggs) aggs [p/distinct-aggregator])      
+    (let [aggs (or (not-empty aggs) [p/distinct-aggregator])      
           [grouping-fields inserter] (normalize-grouping grouping-fields)
           [prep-aggs postgroup-aggs] (build-agg-assemblies grouping-fields aggs)
           assem        (apply w/compose-straight-assemblies
@@ -473,7 +475,7 @@
     (cons [op opvar hof-args invars new-outvars] newpreds)))
 
 (defn- rewrite-predicate [[op opvar hof-args invars outvars :as predicate]]
-  (if-not (and (p/generator? op), (not (empty? invars)))
+  (if-not (and (p/generator? op) (seq invars))
     predicate
     (if (= 1 (count outvars))
       [(p/predicate p/generator-filter op (first outvars)) nil hof-args [] invars]
@@ -594,9 +596,10 @@
     [replacements (conj ret [op opvar newvars])]))
 
 (defn- build-predicate-macro-fn [invars-decl outvars-decl raw-predicates]
-  (if-not (empty? (intersection (set invars-decl) (set outvars-decl)))
+  (if (seq (intersection (set invars-decl) (set outvars-decl)))
     (throw
-     (RuntimeException. "Cannot declare the same var as an input and output to predicate macro"))
+     (RuntimeException.
+      "Cannot declare the same var as an input and output to predicate macro"))
     (fn [invars outvars]
       (let [outvars (if (and (empty? outvars)
                              (sequential? outvars-decl)
@@ -638,7 +641,7 @@
                            expand-predicate-macros
                            normalize-raw-predicates)
         parsed (p/parse-variables out-vars :?)]
-    (if-not (empty? (parsed :?))
+    (if (seq (parsed :?))
       (build-query out-vars raw-predicates)
       (build-predicate-macro (parsed :<<)
                              (parsed :>>)

@@ -70,11 +70,11 @@
                     (take limit (sort compare-fn alist)))]
         (map (partial apply concat) alist)))))
 
-(defn limit-buffer [options limit]
+(defn limit-buffer [_ limit]
   (fn [tuples]
     (take limit tuples)))
 
-(defn limit-rank-buffer [options limit]
+(defn limit-rank-buffer [_ limit]
   (fn [tuples]
     (take limit (map #(conj (vec %1) %2) tuples (iterate inc 1)))))
 

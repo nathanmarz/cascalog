@@ -185,13 +185,14 @@
         {(:name trap) tap}))
     {}))
 
-(defn- init-pipe-name [options]
-  (if-let [trap (:trap options)]
-    (:name trap)
-    (uuid)))
+(defn- init-pipe-name [{:keys [trap]}]
+  (or (:name trap)
+      (uuid)))
 
 (defn- hof-prepend [hof-args & args]
-  (if hof-args (cons hof-args args) args))
+  (if hof-args
+    (cons hof-args args)
+    args))
 
 (defn- simpleop-build-predicate
   [op _ hof-args infields outfields options]
@@ -469,14 +470,12 @@
       (non-null? non-null-fields)
       identity)))
 
-(defn- identity-if-nil [a]
-  (or a identity))
-
 (defmulti enhance-predicate (fn [pred & rest] (:type pred)))
+
 (defmethod enhance-predicate :operation
   [pred infields inassem outfields outassem]
-  (let [inassem  (identity-if-nil inassem)
-        outassem (identity-if-nil outassem)]
+  (let [inassem  (or inassem  identity)
+        outassem (or outassem identity)]
     (merge pred {:assembly (w/compose-straight-assemblies inassem
                                                           (:assembly pred)
                                                           outassem)
@@ -485,8 +484,8 @@
 
 (defmethod enhance-predicate :aggregator
   [pred infields inassem outfields outassem]
-  (let [inassem  (identity-if-nil inassem)
-        outassem (identity-if-nil outassem)]
+  (let [inassem  (or inassem identity)
+        outassem (or outassem identity)]
     (merge pred {:pregroup-assembly (w/compose-straight-assemblies
                                      inassem
                                      (:pregroup-assembly pred))
@@ -531,10 +530,10 @@
   (let [outvars                  (replace-ignored-vars outvars)
         [infields infield-subs]  (variable-substitution orig-infields)
         [infields dupvars duplicate-assem] (fix-duplicate-infields infields)
-        predicate             (build-predicate-specific op opvar hof-args
-                                                        infields outvars options)
-        new-outvars           (concat outvars (keys infield-subs) dupvars)
-        in-insertion-assembly (when-not (empty? infields)
+        predicate   (build-predicate-specific op opvar hof-args
+                                              infields outvars options)
+        new-outvars (concat outvars (keys infield-subs) dupvars)
+        in-insertion-assembly (when (seq infields)
                                 (w/compose-straight-assemblies
                                  (mk-insertion-assembly infield-subs)
                                  duplicate-assem))
