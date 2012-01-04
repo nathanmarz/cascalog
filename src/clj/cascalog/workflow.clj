@@ -506,9 +506,14 @@ identity.  identity."
            (path path-or-file)
            (sink-mode sinkmode))))
 
-(defn glob-hfs [^Scheme scheme path-or-file source-pattern]
-  (GlobHfs. scheme (str (path path-or-file)
-                        source-pattern)))
+(defn glob-hfs
+  ([^Scheme scheme path-or-file source-pattern]
+    (GlobHfs. scheme (str (path path-or-file)
+                          source-pattern)))
+  ([^Scheme scheme path-or-file source-pattern path-filter]
+    (GlobHfs. scheme (str (path path-or-file)
+                          source-pattern)
+                          path-filter)))
 
 (defn template-tap
   ([^Hfs parent sink-template]
