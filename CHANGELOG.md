@@ -34,6 +34,7 @@ In addition to previous support for the various number types + strings, the foll
   - clojure.lang.Cons
   - clojure.lang.IteratorSeq
   - clojure.lang.LazySeq
+  - clojure.lang.ArraySeq
   - clojure.lang.MapEntry
   - clojure.lang.PersistentArrayMap
   - clojure.lang.PersistentHashMap
