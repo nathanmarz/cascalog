@@ -21,11 +21,11 @@
   tap wrapped that responds as a `TemplateTap` when used as a sink,
   and a `GlobHfs` tap when used as a source. Otherwise, acts as
   identity."
-  [scheme type path-or-file sinkmode sink-template source-pattern templatefields]
+  [scheme type path-or-file sinkmode sink-template source-pattern templatefields path-filter]
   (let [tap-maker ({:hfs w/hfs :lfs w/lfs} type)
         parent (tap-maker scheme path-or-file sinkmode)
         source (if source-pattern
-                 (w/glob-hfs scheme path-or-file source-pattern)
+                 (w/glob-hfs scheme path-or-file source-pattern path-filter)
                  parent)
         sink (if sink-template
                (w/template-tap parent sink-template templatefields)
@@ -48,12 +48,15 @@
   used as a sink.
 
   `:templatefields` - When pattern is supplied via :sink-template, this option allows a
-  subset of output fields to be used in the naming scheme."
-  [scheme path-or-file :sinkmode nil :sinkparts nil :sink-template nil :source-pattern nil :templatefields Fields/ALL]
+  subset of output fields to be used in the naming scheme.
+  
+  `:path-filter` - an org.apache.hadoop.fs.PathFilter that filters source paths"
+
+  [scheme path-or-file :sinkmode nil :sinkparts nil :sink-template nil :source-pattern nil :templatefields Fields/ALL :path-filter nil]
   (-> scheme
       (w/set-sinkparts! sinkparts)
       (patternize :hfs path-or-file sinkmode
-                  sink-template source-pattern templatefields)))
+                  sink-template source-pattern templatefields path-filter)))
 
 (defnk lfs-tap
   "Returns a Cascading Lfs tap with support for the supplied scheme,
@@ -71,10 +74,12 @@
   used as a sink.
 
   `:templatefields` - When pattern is supplied via :sink-template, this option allows a
-  subset of output fields to be used in the naming scheme."
+  subset of output fields to be used in the naming scheme.
+
+  `:path-filter` - an org.apache.hadoop.fs.PathFilter that filters source paths"
   
-  [scheme path-or-file :sinkmode nil :sinkparts nil :sink-template nil :source-pattern nil :templatefields Fields/ALL]
+  [scheme path-or-file :sinkmode nil :sinkparts nil :sink-template nil :source-pattern nil :templatefields Fields/ALL :path-filter nil]
     (-> scheme
       (w/set-sinkparts! sinkparts)
       (patternize :lfs path-or-file sinkmode
-                  sink-template source-pattern templatefields)))
+                  sink-template source-pattern templatefields path-filter)))
