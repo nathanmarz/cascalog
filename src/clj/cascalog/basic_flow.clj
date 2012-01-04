@@ -1,5 +1,6 @@
 (ns cascalog.basic-flow
-  (:use [cascalog graph util])
+  (:require [cascalog.graph :as g]
+            [cascalog.util :as u])
   (:import [java.util.concurrent Semaphore]
            [org.apache.log4j Logger]))
 
@@ -9,15 +10,15 @@
 (defstruct component-state :status :thread :exception)
 
 (defn mk-basic-flow []
-  (struct basic-flow (mk-graph)))
+  (struct basic-flow (g/mk-graph)))
 
 (defn add-component!
   "Add a function to the flow with dependent components. Returns the new component."
   ([bflow func] (add-component! bflow func []))
   ([bflow func deps]
-     (let [node (create-node (::graph bflow) (struct basic-component (uuid) func))]
+     (let [node (g/create-node (::graph bflow) (struct basic-component (u/uuid) func))]
        (doseq [d deps]
-         (create-edge d node))
+         (g/create-edge d node))
        node)))
 
 (defn- mk-runner-fn [log sem state component]
@@ -34,7 +35,7 @@
                     (let [state (atom (struct component-state
                                               :unstarted nil nil))
                           thread (Thread. (mk-runner-fn log sem state
-                                                        (get-value node)))]
+                                                        (g/get-value node)))]
                       (swap! state assoc :thread thread)
                       (assoc m node state)))]
     (reduce update-fn {} (.vertexSet (::graph bflow)))))
@@ -57,7 +58,7 @@
       (doseq [[node state] (seq node-states)]
         (when (and (= :unstarted (:status @state))
                    (every? (fn [[_ s]] (= :successful (:status @s)))
-                           (select-keys node-states (get-inbound-nodes node))))
+                           (select-keys node-states (g/get-inbound-nodes node))))
           (swap! state assoc :status :running)
           (.start (:thread @state))))
       (.acquire sem)

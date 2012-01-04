@@ -1,7 +1,3 @@
-NOTES
-CHILD
-CHILDMAKER
-NANNY
 _deps
 build
 target
@@ -10,26 +6,20 @@ lib
 pom.xml
 # use glob syntax.
 syntax: glob
-*.ser
 *.class
 *.jar
 *~
-*.bak
-*.off
-*.old
 .DS_Store
 *.#*
 *#*
 *.classpath
 *.project
 *.settings
-*.pyc
 *.dot
 .cake/
 .lein-failures
 .lein-deps-sum
-autodoc/**
-autodoc/
+doc
 *.ipr
 *.iws
 *.iml

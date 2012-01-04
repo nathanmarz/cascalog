@@ -1,10 +1,11 @@
 (ns cascalog.bridge-test
   (:use clojure.test)
-  (:require (cascalog [workflow :as w] [testing :as t]))
+  (:require [cascalog.workflow :as w]
+            [cascalog.testing :as t])
   (:import (cascading.tuple Fields)
            (cascading.pipe Pipe)
            (cascalog ClojureFilter ClojureMap ClojureMapcat
-                              ClojureAggregator Util)))
+                     ClojureAggregator Util)))
 
 (deftest test-ns-fn-name-pair
   (let [[ns-name fn-name] (w/ns-fn-name-pair #'str)]
@@ -43,7 +44,7 @@
 (deftest test-boot-fn-hof
   (let [spec (into-array Object '("cascalog.bridge-test" "incn" 3))
         f    (Util/bootFn spec)]
-  (is (= [4] (f 1)))))
+    (is (= [4] (f 1)))))
 
 (deftest test-1-field
   (let [f1 (w/fields "foo")]
@@ -92,11 +93,11 @@
 
 (defn sum
   ([]
-   0)
+     0)
   ([mem v]
-   (+ mem v))
+     (+ mem v))
   ([mem]
-   [mem]))
+     [mem]))
 
 (deftest test-clojure-aggregator
   (let [a (ClojureAggregator. (w/fields "sum") (w/fn-spec #'sum) false)]

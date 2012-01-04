@@ -1,8 +1,8 @@
 (ns cascalog.predicate-test
-  (:use clojure.test
+  (:use cascalog.predicate
         cascalog.testing
-        cascalog.predicate)
-  (:require [cascalog [workflow :as w]]))
+        clojure.test)
+  (:require [cascalog.workflow :as w]))
 
 (w/defmapop timesplusone ["blahfield"] [a b]
   (inc (* a b)))
@@ -10,8 +10,8 @@
 (deftest test-map-pred
   (let [pred (build-predicate {} timesplusone (var timesplusone) nil ["?f1" "?f2"] ["?q"])
         source-data {:fields ["?a" "?b" "?f1" "?f2" "?c"] :tuples [[1 2 1 1 10]
-                                                                    [0 0 2 6 9]
-                                                                    [0 0 9 1 0]]}
+                                                                   [0 0 2 6 9]
+                                                                   [0 0 9 1 0]]}
         sink-data   {:fields ["?q"] :tuples [[2] [13] [10]]} ]
     (is (= :operation (:type pred)))
     (is (= ["?f1" "?f2"] (:infields pred)))
@@ -47,8 +47,8 @@
                                              [3]
                                              [1]]}
         sink-data   {:fields ["?o1" "!o2"] :tuples [[2 nil] [3 nil]]} ]
-     (test-assembly source-data sink-data (:assembly pred))
-     ))
+    (test-assembly source-data sink-data (:assembly pred))
+    ))
 
 (w/defmapcatop many-vals ["val"] [n]
   (cond (odd? n) [(* n 2) (* 3 n) (* n n)]
@@ -60,7 +60,7 @@
   (let [pred (build-predicate {} many-vals nil nil ["?a"] ["?b"])
         source-data {:fields ["?a"] :tuples [[1] [2] [3] [4]]}
         sink-data   {:fields ["?b"] :tuples [[2] [3] [1] [6] [9] [9] [5]]} ]
-        (test-assembly source-data sink-data (:assembly pred))
+    (test-assembly source-data sink-data (:assembly pred))
     ))
 
 (deftest test-filter-pred)
@@ -69,16 +69,16 @@
   (let [pred (build-predicate {} odd? (var odd?) nil ["?f"] [])
         source-data {:fields ["?f"] :tuples [[1] [2] [3] [4] [6] [9] [10]]}
         sink-data   {:fields ["?f"] :tuples [[1] [3] [9]]} ]
-        (test-assembly source-data sink-data (:assembly pred))
-        ))
+    (test-assembly source-data sink-data (:assembly pred))
+    ))
 
 (deftest test-filter-func
   (let [pred (build-predicate {} odd? (var odd?) nil ["?f"] ["?o"])
         source-data {:fields ["?f"] :tuples [[1] [2] [3] [4] [6] [9] [10]]}
         sink-data   {:fields ["?f" "?o"] :tuples [[1 true] [2 false] [3 true]
-                                                [4 false] [6 false] [9 true]
-                                                [10 false]]} ]
-        (test-assembly source-data sink-data (:assembly pred))
-        ))
+                                                  [4 false] [6 false] [9 true]
+                                                  [10 false]]} ]
+    (test-assembly source-data sink-data (:assembly pred))
+    ))
 
 (deftest test-generator)

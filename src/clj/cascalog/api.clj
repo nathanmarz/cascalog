@@ -14,19 +14,24 @@
 ;;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (ns cascalog.api
-  (:use [cascalog vars util graph debug])
-  (:require cascalog.rules
-            [clojure.set :as set]
+  (:use [cascalog.debug :only (debug-print)]
+        [jackknife.core :only (safe-assert throw-runtime)]
+        [jackknife.def :only (defalias)]
+        [jackknife.seq :only (unweave collectify)])
+  (:require [clojure.set :as set]
+            [cascalog.rules :as rules]
+            [cascalog.vars :as v]
             [cascalog.tap :as tap]
+            [cascalog.conf :as conf]
             [cascalog.workflow :as w]
             [cascalog.predicate :as p]
             [cascalog.io :as io]
+            [cascalog.util :as u]
             [hadoop-util.core :as hadoop])  
   (:import [cascading.flow Flow FlowConnector]
            [cascading.tuple Fields]
            [cascalog StdoutTap Util MemorySourceTap]
-           [cascading.pipe Pipe]
-           [java.util ArrayList]))
+           [cascading.pipe Pipe]))
 
 ;; Functions for creating taps and tap helpers
 
@@ -99,13 +104,14 @@
 
 ;; Query introspection
 
-(defmulti get-out-fields cascalog.rules/generator-selector)
+(defmulti get-out-fields rules/generator-selector)
 
 (defmethod get-out-fields :tap [tap]
   (let [cfields (.getSourceFields tap)]
-    (if (cascalog.rules/generic-cascading-fields? cfields)
-      (throw-illegal (str "Cannot get specific out-fields from tap. Tap source fields: " cfields))
-      (vec (seq cfields)))))
+    (safe-assert (not (rules/generic-cascading-fields? cfields))
+                 (str "Cannot get specific out-fields from tap. Tap source fields: "
+                      cfields))
+    (vec (seq cfields))))
 
 (defmethod get-out-fields :generator [query]
   (:outfields query))
@@ -126,8 +132,8 @@
    with-job-conf calls will merge configuration maps together, with
    innermost calls taking precedence on conflicting keys."
   [conf & body]
-  `(binding [cascalog.rules/*JOB-CONF*
-             (conf-merge cascalog.rules/*JOB-CONF* ~conf)]
+  `(binding [conf/*JOB-CONF*
+             (u/conf-merge conf/*JOB-CONF* ~conf)]
      ~@body))
 
 (defmacro with-serializations
@@ -144,7 +150,7 @@
   `with-serializations` or `with-job-conf`."
   [serial-vec & forms]
   `(with-job-conf 
-     {"io.serializations" (serialization-entry ~serial-vec)}
+     {"io.serializations" (u/serialization-entry ~serial-vec)}
      ~@forms))
 
 ;; Query creation and execution
@@ -154,9 +160,9 @@
   predicates. Predicate macros support destructuring of the input and
   output variables."
   [outvars & predicates]
-  (let [predicate-builders (vec (map cascalog.rules/mk-raw-predicate predicates))
-        outvars-str (if (vector? outvars) (vars2str outvars) outvars)]
-    `(cascalog.rules/build-rule ~outvars-str ~predicate-builders)))
+  (let [predicate-builders (vec (map rules/mk-raw-predicate predicates))
+        outvars-str (if (vector? outvars) (v/vars->str outvars) outvars)]
+    `(rules/build-rule ~outvars-str ~predicate-builders)))
 
 (def cross-join
   (<- [:>] (identity 1 :> _)))
@@ -172,18 +178,18 @@
    If the first argument is a string, that will be used as the name
   for the query and will show up in the JobTracker UI."
   [& args]
-  (let [[flow-name bindings] (cascalog.rules/parse-exec-args args)
+  (let [[flow-name bindings] (rules/parse-exec-args args)
         [sinks gens] (->> (partition 2 bindings)
-                          (mapcat (partial apply cascalog.rules/normalize-sink-connection))
+                          (mapcat (partial apply rules/normalize-sink-connection))
                           (unweave))
-        gens      (map cascalog.rules/enforce-gen-schema gens)
+        gens      (map rules/enforce-gen-schema gens)
         sourcemap (apply merge (map :sourcemap gens))
         trapmap   (apply merge (map :trapmap gens))
-        tails     (map cascalog.rules/connect-to-sink gens sinks)
+        tails     (map rules/connect-to-sink gens sinks)
         sinkmap   (w/taps-map tails sinks)]
     (.connect (FlowConnector.
-               (conf-merge (cascalog.rules/project-conf)
-                           {"cascading.flow.job.pollinginterval" 100}))
+               (u/project-merge (conf/project-conf)
+                                {"cascading.flow.job.pollinginterval" 100}))
               flow-name
               sourcemap
               sinkmap
@@ -214,10 +220,10 @@
   ;; TODO: should be checking for flow name here
   (io/with-fs-tmp [fs tmp]
     (hadoop/mkdirs fs tmp)
-    (let [outtaps (for [q subqueries] (hfs-seqfile (str tmp "/" (uuid))))
+    (let [outtaps (for [q subqueries] (hfs-seqfile (str tmp "/" (u/uuid))))
           bindings (mapcat vector outtaps subqueries)]
       (apply ?- bindings)
-      (doall (map cascalog.rules/get-sink-tuples outtaps)))))
+      (doall (map rules/get-sink-tuples outtaps)))))
 
 (defmacro ?<-
   "Helper that both defines and executes a query in a single call.
@@ -227,7 +233,7 @@
   within the ?<- form."
   [& args]
   ;; This is the best we can do... if want non-static name should just use ?-
-  (let [[name [output & body]] (cascalog.rules/parse-exec-args args)]
+  (let [[name [output & body]] (rules/parse-exec-args args)]
     `(?- ~name ~output (<- ~@body))))
 
 (defmacro ??<-
@@ -236,7 +242,7 @@
   `(io/with-fs-tmp [fs# tmp1#]
      (let [outtap# (hfs-seqfile tmp1#)]
        (?<- outtap# ~@args)
-       (cascalog.rules/get-sink-tuples outtap#))))
+       (rules/get-sink-tuples outtap#))))
 
 (defn predmacro*
   "Functional version of predmacro. See predmacro for details."
@@ -265,21 +271,21 @@ must be stringified when passed to construct. If you're using
 destructuring in a predicate macro, the & symbol must be stringified
 as well."
   [outvars preds]
-  (let [outvars (vars2str outvars)
-        preds (for [[p & vars] preds] [p nil (vars2str vars)])]
-    (cascalog.rules/build-rule outvars preds)))
+  (let [outvars (v/vars->str outvars)
+        preds (for [[p & vars] preds] [p nil (v/vars->str vars)])]
+    (rules/build-rule outvars preds)))
 
 (defn union
   "Merge the tuples from the subqueries together into a single
   subquery and ensure uniqueness of tuples."
   [& gens]
-  (cascalog.rules/combine* gens true))
+  (rules/combine* gens true))
 
 (defn combine
   "Merge the tuples from the subqueries together into a single
   subquery. Doesn't ensure uniqueness of tuples."
   [& gens]
-  (cascalog.rules/combine* gens false))
+  (rules/combine* gens false))
 
 (defn multigroup*
   [declared-group-vars buffer-out-vars buffer-spec & sqs]
@@ -290,10 +296,10 @@ as well."
         pipes (into-array Pipe (map :pipe sqs))
         args [declared-group-vars :fn> buffer-out-vars]
         args (if hof-args (cons hof-args args) args)]
-    (when (empty? declared-group-vars)
-      (throw-illegal "Cannot do global grouping with multigroup"))
-    (when-not (= (set group-vars) (set declared-group-vars))
-      (throw-illegal "Declared group vars must be same as intersection of vars of all subqueries"))
+    (safe-assert (seq declared-group-vars)
+                 "Cannot do global grouping with multigroup")
+    (safe-assert (= (set group-vars) (set declared-group-vars))
+                 "Declared group vars must be same as intersection of vars of all subqueries")
     (p/predicate p/generator nil
                  true
                  (apply merge (map :sourcemap sqs))
@@ -303,25 +309,25 @@ as well."
 
 (defmacro multigroup
   [group-vars out-vars buffer-spec & sqs]
-  `(multigroup* ~(vars2str group-vars)
-                ~(vars2str out-vars)
+  `(multigroup* ~(v/vars->str group-vars)
+                ~(v/vars->str out-vars)
                 ~buffer-spec
                 ~@sqs))
 
-(defmulti select-fields cascalog.rules/generator-selector)
+(defmulti select-fields rules/generator-selector)
 
 (defmethod select-fields :tap [tap fields]
   (let [fields (collectify fields)
-        pname (uuid)
-        outfields (gen-nullable-vars (count fields))
+        pname (u/uuid)
+        outfields (v/gen-nullable-vars (count fields))
         pipe (w/assemble (w/pipe pname) (w/identity fields :fn> outfields :> outfields))]
     (p/predicate p/generator nil true {pname tap} pipe outfields {})))
 
 (defmethod select-fields :generator [query select-fields]
   (let [select-fields (collectify select-fields)
         outfields (:outfields query)]
-    (when-not (set/subset? (set select-fields) (set outfields))
-      (throw-illegal (str "Cannot select " select-fields " from " outfields)))
+    (safe-assert (set/subset? (set select-fields) (set outfields))
+                 (str "Cannot select " select-fields " from " outfields))
     (merge query
            {:pipe (w/assemble (:pipe query) (w/select select-fields))
             :outfields select-fields})))
@@ -377,11 +383,14 @@ as well."
   `name`. Containing namespace must be marked for AOT compilation to
   have any effect."
   [name & forms]
-  (let [classname (str *ns* "." name)
+  (let [classname (namespace-munge (str *ns* "." name))
         sym (with-meta
               (symbol (str name "-main"))
               (meta name))]
     `(do (gen-class :name ~classname
                     :main true
                     :prefix ~(str name "-"))
-         (defn ~sym ~@forms))))
+         (defn ~(u/meta-conj sym {:no-doc true
+                                  :skip-wiki true})
+           ~@forms)
+         (defn ~name ~@forms))))

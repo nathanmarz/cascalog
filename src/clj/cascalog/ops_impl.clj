@@ -14,10 +14,9 @@
 ;;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (ns cascalog.ops-impl
-  (:use [cascalog api vars util graph])
-  (:require [cascalog.workflow :as w]
-            [cascalog.predicate :as p])
-  (:import [cascading.tuple Fields]))
+  (:use cascalog.api)
+  (:require [cascalog.vars :as v]
+            [cascalog.workflow :as w]))
 
 (defn one [] 1)
 
@@ -25,16 +24,20 @@
 
 (defn existence-int [v] (if v 1 0))
 
-(defparallelagg sum-parallel :init-var #'identity
+(defparallelagg sum-parallel
+  :init-var #'identity
   :combine-var #'+)
 
-(defparallelagg min-parallel :init-var #'identity
+(defparallelagg min-parallel
+  :init-var #'identity
   :combine-var #'min)
 
-(defparallelagg max-parallel :init-var #'identity
+(defparallelagg max-parallel
+  :init-var #'identity
   :combine-var #'max)
 
-(defparallelagg !count-parallel :init-var #'existence-int
+(defparallelagg !count-parallel
+  :init-var #'existence-int
   :combine-var #'+)
 
 (defn limit-init [options limit]
@@ -45,10 +48,10 @@
     [[[(vec sort-tuple) (vec tuple)]]]))
 
 (defn- mk-limit-comparator [options]
-  (fn [[#^Comparable o1 _] [#^Comparable o2 _]]
+  (fn [[^Comparable o1 _] [^Comparable o2 _]]
     (if (:sort options)
       (* (.compareTo o1 o2) (if (boolean (:reverse options)) -1 1))
-      0 )))
+      0)))
 
 (defn limit-combine [options limit]
   (let [compare-fn (mk-limit-comparator options)]
@@ -62,14 +65,16 @@
 (defn limit-extract [options limit]
   (let [compare-fn (mk-limit-comparator options)]
     (fn [alist]
-      (let [alist (if (<= (count alist) limit) alist (take limit (sort compare-fn alist)))]
+      (let [alist (if (<= (count alist) limit)
+                    alist
+                    (take limit (sort compare-fn alist)))]
         (map (partial apply concat) alist)))))
 
-(defn limit-buffer [options limit]
+(defn limit-buffer [_ limit]
   (fn [tuples]
     (take limit tuples)))
 
-(defn limit-rank-buffer [options limit]
+(defn limit-rank-buffer [_ limit]
   (fn [tuples]
     (take limit (map #(conj (vec %1) %2) tuples (iterate inc 1)))))
 
@@ -77,7 +82,7 @@
   ([] [nil 0])
   ([[prev cnt] & tuple]
      [tuple (if (= tuple prev) cnt (inc cnt))])
-  ([state] [(second state)] ))
+  ([state] [(second state)]))
 
 (defn bool-or [& vars]
   (boolean (some identity vars)))
@@ -86,7 +91,7 @@
   (every? identity vars))
 
 (defn logical-comp [ops logic-fn-var]
-  (let [outvars (gen-nullable-vars (clojure.core/count ops))]
+  (let [outvars (v/gen-nullable-vars (clojure.core/count ops))]
     (construct
      [:<< "!invars" :> "!true?"]
      (conj

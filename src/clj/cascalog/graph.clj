@@ -14,9 +14,7 @@
 ;;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (ns cascalog.graph
-  (:use cascalog.util)
-  (:import [org.jgrapht.graph DefaultDirectedGraph]
-           [cascalog SimplePrintDirectedGraph]
+  (:import [cascalog SimplePrintDirectedGraph]
            [org.jgrapht EdgeFactory]))
 
 (defstruct edge :source :target ::extra-data)
@@ -61,12 +59,12 @@
   (::value node))
 
 (defn get-outbound-edges [node]
-  (if-ret (seq (.outgoingEdgesOf (::graph node) node))
-          []))
+  (or (seq (.outgoingEdgesOf (::graph node) node))
+      []))
 
 (defn get-inbound-edges [node]
-  (if-ret (seq (.incomingEdgesOf (::graph node) node))
-          []))
+  (or (seq (.incomingEdgesOf (::graph node) node))
+      []))
 
 (defn get-outbound-nodes [node]
   (map :target (get-outbound-edges node)))

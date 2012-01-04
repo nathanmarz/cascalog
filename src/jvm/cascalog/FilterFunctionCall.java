@@ -17,36 +17,33 @@
 
 package cascalog;
 
-import cascading.operation.FunctionCall;
 import cascading.operation.FilterCall;
-import cascading.operation.OperationCall;
+import cascading.operation.FunctionCall;
 import cascading.tuple.Fields;
 import cascading.tuple.TupleEntry;
 
+public class FilterFunctionCall implements FilterCall {
+    FunctionCall func;
 
-public class FilterFunctionCall implements FilterCall {  
-  FunctionCall func;
+    public FilterFunctionCall(FunctionCall func) {
+        this.func = func;
+    }
 
-  public FilterFunctionCall(FunctionCall func) {
-      this.func = func;
-  }
+    public Object getContext() {
+        return func.getContext();
+    }
 
-  public Object getContext() {
-      return func.getContext();
-  }
-  
-  public void setContext(Object o) {
-      func.setContext(o);
-  }
-  
-  public Fields getArgumentFields() {
-      return func.getArgumentFields();
-  }
-  
-  public TupleEntry getArguments() {
-      return func.getArguments();
-  }
-  
-  
+    public void setContext(Object o) {
+        func.setContext(o);
+    }
+
+    public Fields getArgumentFields() {
+        return func.getArgumentFields();
+    }
+
+    public TupleEntry getArguments() {
+        return func.getArguments();
+    }
+
 
 }

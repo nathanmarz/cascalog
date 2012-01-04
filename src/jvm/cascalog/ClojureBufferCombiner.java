@@ -23,18 +23,21 @@ import cascading.operation.OperationCall;
 import cascading.tuple.Fields;
 import cascading.tuple.Tuple;
 import cascading.tuple.TupleEntryCollector;
-import java.util.List;
-import java.util.Arrays;
 import clojure.lang.IFn;
 import clojure.lang.ISeq;
 import clojure.lang.RT;
 
+import java.util.Arrays;
+import java.util.List;
+
 public class ClojureBufferCombiner extends ClojureCombinerBase {
-    
+
     private CombinerSpec spec;
-    
-    public ClojureBufferCombiner(Fields groupFields, Fields sortFields, Fields args, Fields outFields, CombinerSpec spec) {
-        super(groupFields, true, sortFields, Arrays.asList(args), outFields, Arrays.asList(spec), "cascalog.combiner.buffer.size", 200);
+
+    public ClojureBufferCombiner(Fields groupFields, Fields sortFields, Fields args,
+        Fields outFields, CombinerSpec spec) {
+        super(groupFields, true, sortFields, Arrays.asList(args), outFields, Arrays
+            .asList(spec), "cascalog.combiner.buffer.size", 200);
         this.spec = spec;
     }
 
@@ -48,10 +51,12 @@ public class ClojureBufferCombiner extends ClojureCombinerBase {
 
     @Override
     protected void write(Tuple group, List<Object> vals, OperationCall opCall) {
-        TupleEntryCollector output = ((FunctionCall)opCall).getOutputCollector();
+        TupleEntryCollector output = ((FunctionCall) opCall).getOutputCollector();
 
-        if(vals.size()!=1) {
-            throw new RuntimeException("Should only have one object in buffer combiner before extraction " + vals.size() + ":" + vals.toString());
+        if (vals.size() != 1) {
+            throw new RuntimeException(
+                "Should only have one object in buffer combiner before extraction " + vals.size()
+                + ":" + vals.toString());
         }
         Object val = vals.get(0);
         try {
@@ -63,7 +68,7 @@ public class ClojureBufferCombiner extends ClojureCombinerBase {
                 output.add(emit);
                 result_seq = result_seq.next();
             }
-        } catch(Exception e) {
+        } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }

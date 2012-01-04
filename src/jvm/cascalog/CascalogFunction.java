@@ -17,19 +17,20 @@
 
 package cascalog;
 
+import cascading.flow.FlowProcess;
 import cascading.operation.FunctionCall;
 import cascading.operation.OperationCall;
-import cascading.flow.FlowProcess;
+
 import java.io.Serializable;
 
 public abstract class CascalogFunction implements Serializable {
-  public void prepare(FlowProcess flowProcess, OperationCall operationCall) {
-      
-  }
-    
-  public abstract void operate(FlowProcess flow_process, FunctionCall fn_call);
-  
-  public void cleanup(FlowProcess flowProcess, OperationCall operationCall) {
-      
-  }
+    public void prepare(FlowProcess flowProcess, OperationCall operationCall) {
+
+    }
+
+    public abstract void operate(FlowProcess flow_process, FunctionCall fn_call);
+
+    public void cleanup(FlowProcess flowProcess, OperationCall operationCall) {
+
+    }
 }

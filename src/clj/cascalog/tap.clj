@@ -1,7 +1,7 @@
 (ns cascalog.tap
+  (:use [jackknife.def :only (defnk)])
   (:require [cascalog.workflow :as w])
-  (:import [cascading.tuple Fields])
-  (:use [cascalog util]))
+  (:import [cascading.tuple Fields]))
 
 ;; source can be a cascalog-tap, subquery, or cascading tap sink can
 ;; be a cascading tap, a sink function, or a cascalog-tap
@@ -74,7 +74,7 @@
   subset of output fields to be used in the naming scheme."
   
   [scheme path-or-file :sinkmode nil :sinkparts nil :sink-template nil :source-pattern nil :templatefields Fields/ALL]
-    (-> scheme
+  (-> scheme
       (w/set-sinkparts! sinkparts)
       (patternize :lfs path-or-file sinkmode
                   sink-template source-pattern templatefields)))

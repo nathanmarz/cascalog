@@ -1,7 +1,8 @@
 package cascalog;
- 
+
 import cascading.tuple.TupleEntry;
 import clojure.lang.ISeq;
+
 import java.util.Iterator;
 
 public class TupleSeqConverter implements Iterator<ISeq> {
@@ -21,5 +22,5 @@ public class TupleSeqConverter implements Iterator<ISeq> {
 
     public void remove() {
         _tuples.remove();
-    }      
+    }
 }

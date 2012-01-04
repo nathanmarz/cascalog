@@ -3,7 +3,8 @@
         cascalog.testing
         cascalog.api)
   (:import [cascading.tuple Fields])
-  (:require [cascalog [ops :as c] [io :as io]]))
+  (:require [cascalog.ops :as c]
+            [cascalog.io :as io]))
 
 (deftest test-predicate-macro
   (let [mac1 (<- [?a :> ?b ?c] (+ ?a 1 :> ?t) (* ?t 2 :> ?b) (+ ?a ?t :> ?c))

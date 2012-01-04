@@ -2,8 +2,7 @@
   (:use clojure.test
         [cascalog testing api])
   (:require [cascalog.ops :as c]
-            [cascalog.util :as u]
-            [clojure.string :as s])
+            [cascalog.util :as u])
   (:import [cascading.tuple Fields]
            [cascalog.test KeepEven OneBuffer]
            [cascalog.ops IdentityBuffer]))
@@ -366,7 +365,7 @@
   [(+ v1 v3) (* v2 v4)])
 
 (defparallelagg multipagg :init-var #'multipagg-init
-                          :combine-var #'multipagg-combiner)
+  :combine-var #'multipagg-combiner)
 
 (defaggregateop slow-count
   ([] 0)
@@ -471,7 +470,7 @@
 
 (deftest test-outer-join-with-funcs
   ;; TODO: needed
-)
+  )
 
 (deftest test-mongo
   ;; function required for join
@@ -479,7 +478,7 @@
   ;; functions -> joins -> functions -> joins
   ;; functions that run after outer join
   ;; no aggregator
-)
+  )
 
 (defmulti multi-test class)
 (defmethod multi-test String [x] "string!")
@@ -501,27 +500,3 @@
 (deftest test-only-one-buffer)
 
 (deftest test-error-on-lacking-output-fields)
-
-(deftest test-jobconf-bindings
-  (with-job-conf {"key" "val"}
-    (is (= {"key" "val"} cascalog.rules/*JOB-CONF*)))
-
-  (with-job-conf {"key" ["val1" "val2"]}
-    (is (= {"key" "val1,val2"} cascalog.rules/*JOB-CONF*))
-    (with-job-conf {"key" ["val3"]}
-      (is (= {"key" "val3"} cascalog.rules/*JOB-CONF*))))
-  
-  (with-job-conf {"io.serializations" "java.lang.String"}
-    (is (= cascalog.rules/*JOB-CONF*
-           {"io.serializations" (s/join "," (conj u/default-serializations "java.lang.String"))})))
-
-  (with-serializations [String]
-    (is (= cascalog.rules/*JOB-CONF*
-           {"io.serializations" (s/join "," (conj u/default-serializations "java.lang.String"))})))
-
-  (with-serializations [String]
-    (with-job-conf {"io.serializations" "java.lang.String,SomeSerialization"}
-      (is (= cascalog.rules/*JOB-CONF*
-             {"io.serializations" (s/join "," (concat u/default-serializations
-                                                      ["java.lang.String"
-                                                       "SomeSerialization"]))})))))

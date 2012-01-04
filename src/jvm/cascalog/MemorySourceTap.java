@@ -23,14 +23,14 @@ import cascading.tap.Tap;
 import cascading.tuple.Fields;
 import cascading.tuple.Tuple;
 import cascading.tuple.TupleEntry;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.mapred.FileInputFormat;
+import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapred.OutputCollector;
+
 import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.mapred.JobConf;
-import org.apache.hadoop.mapred.OutputCollector;
-import org.apache.hadoop.mapred.FileInputFormat;
-
 
 public class MemorySourceTap extends SourceTap {
     public static class MemorySourceScheme extends Scheme {
@@ -45,9 +45,10 @@ public class MemorySourceTap extends SourceTap {
 
         @Override
         public void sourceInit(Tap tap, JobConf jc) throws IOException {
-            FileInputFormat.setInputPaths( jc, "/" + UUID.randomUUID().toString());
+            FileInputFormat.setInputPaths(jc, "/" + UUID.randomUUID().toString());
             jc.setInputFormat(TupleMemoryInputFormat.class);
-            TupleMemoryInputFormat.setObject(jc, TupleMemoryInputFormat.TUPLES_PROPERTY, this.tuples);
+            TupleMemoryInputFormat
+                .setObject(jc, TupleMemoryInputFormat.TUPLES_PROPERTY, this.tuples);
         }
 
         @Override
@@ -64,7 +65,7 @@ public class MemorySourceTap extends SourceTap {
         public void sink(TupleEntry te, OutputCollector oc) throws IOException {
             throw new UnsupportedOperationException("Not supported.");
         }
-        
+
     }
 
     private String id = UUID.randomUUID().toString();
@@ -90,13 +91,12 @@ public class MemorySourceTap extends SourceTap {
 
     @Override
     public boolean equals(Object object) {
-        if(!getClass().equals(object.getClass())) {
+        if (!getClass().equals(object.getClass())) {
             return false;
         }
         MemorySourceTap other = (MemorySourceTap) object;
         return id.equals(other.id);
     }
 
-    
 
 }

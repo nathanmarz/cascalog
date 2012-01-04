@@ -14,11 +14,18 @@
 ;;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (ns cascalog.workflow
-  (:refer-clojure :exclude [group-by count first filter mapcat map identity min max])
-  (:use [cascalog util debug])
+  (:refer-clojure
+   :exclude [group-by count first filter mapcat map identity min max])
+  (:use [cascalog.debug :only (debug-print)]
+        [clojure.tools.macro :only (name-with-attributes)]
+        [jackknife.core :only (safe-assert)]
+        [jackknife.seq :only (collectify)])
+  (:require [cascalog.conf :as conf]
+            [cascalog.util :as u]
+            [hadoop-util.core :as hadoop])
   (:import [cascalog Util]
-           [org.apache.hadoop.mapred JobConf]
            [java.io File]
+           [java.util ArrayList]
            [cascading.tuple Tuple TupleEntry Fields]
            [cascading.scheme Scheme TextLine SequenceFile]
            [cascading.tap Hfs Lfs GlobHfs Tap TemplateTap SinkMode]
@@ -29,7 +36,6 @@
            [cascading.operation.aggregator First Count Sum Min Max]
            [cascading.pipe Pipe Each Every GroupBy CoGroup]
            [cascading.pipe.cogroup InnerJoin OuterJoin LeftJoin RightJoin MixedJoin]
-           [java.util ArrayList]
            [cascalog ClojureFilter ClojureMapcat ClojureMap
             ClojureAggregator Util ClojureBuffer ClojureBufferIter
             FastFirst MemorySourceTap MultiGroupBy ClojureMultibuffer]))
@@ -105,7 +111,7 @@
 (defn pipe
   "Returns a Pipe of the given name, or if one is not supplied with a
    unique random name."
-  ([] (pipe (uuid)))
+  ([] (pipe (u/uuid)))
   ([^String name]
      (Pipe. name)))
 
@@ -292,7 +298,7 @@
   (let [arglists (if (vector? form)
                    (list form)
                    (clojure.core/map clojure.core/first args))]
-    (meta-conj sym {:arglists (list 'quote arglists)})))
+    (u/meta-conj sym {:arglists (list 'quote arglists)})))
 
 (defn- update-fields
   "Examines the first item in a def* operation's forms. If the first
@@ -305,7 +311,7 @@
   vector."
   [sym [form :as forms]]
   (if (string? (clojure.core/first form))
-    [(meta-conj sym {:fields form}) (rest forms)]
+    [(u/meta-conj sym {:fields form}) (rest forms)]
     [sym forms]))
 
 (defn assert-nonvariadic [args]
@@ -329,8 +335,8 @@
                           (apply name-with-attributes)
                           (apply update-fields))
         fname (update-arglists fname args)
-        fname (meta-conj fname {:pred-type (keyword (name type))
-                                :hof? (boolean f-args)})]
+        fname (u/meta-conj fname {:pred-type (keyword (name type))
+                                  :hof? (boolean f-args)})]
     (assert-nonvariadic f-args)
     [fname f-args args]))
 
@@ -353,7 +359,11 @@
          assembly-args   (if func-args
                            `[~func-args & ~args-sym]
                            `[ & ~args-sym])]
-    `(do (defn ~runner-name ~(meta fname) ~@runner-body)
+    `(do (defn ~runner-name
+           ~(assoc (meta fname)
+              :no-doc true
+              :skip-wiki true)
+           ~@runner-body)
          (def ~fname
            (with-meta
              (fn [& ~args-sym-all]
@@ -406,9 +416,9 @@
      `(assembly ~args [] ~return))
   ([args bindings return]
      (let [pipify (fn [forms] (if (or (not (sequential? forms))
-                                     (vector? forms))
-                               forms
-                               (cons 'cascalog.workflow/assemble forms)))
+                                      (vector? forms))
+                                forms
+                                (cons 'cascalog.workflow/assemble forms)))
            return (pipify return)
            bindings (vec (clojure.core/map #(%1 %2) (cycle [clojure.core/identity pipify]) bindings))]
        `(fn ~args
@@ -525,7 +535,8 @@ identity.  identity."
   (.complete flow))
 
 (defn fill-tap! [^Tap tap xs] 
-  (with-open [^TupleEntryCollector collector (.openForWrite tap (JobConf.))]
+  (with-open [^TupleEntryCollector collector (.openForWrite tap (hadoop/job-conf
+                                                                 (conf/project-conf)))]
     (doseq [item xs]
       (.add collector (Util/coerceToTuple item)))))
 

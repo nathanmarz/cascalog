@@ -23,6 +23,7 @@ import cascading.scheme.SequenceFile;
 import cascading.tap.Lfs;
 import cascading.tuple.Fields;
 import cascading.tuple.TupleEntryIterator;
+
 import java.io.File;
 import java.io.IOException;
 
@@ -35,11 +36,11 @@ public class StdoutTap extends Lfs implements FlowListener {
         final File temp;
         try {
             temp = File.createTempFile("temp", Long.toString(System.nanoTime()));
-        } catch(IOException e) {
+        } catch (IOException e) {
             throw new RuntimeException(e);
         }
         temp.deleteOnExit();
-        if(!(temp.delete())) {
+        if (!(temp.delete())) {
             throw new RuntimeException("Could not delete temp file: " + temp.getAbsolutePath());
         }
 
@@ -47,7 +48,7 @@ public class StdoutTap extends Lfs implements FlowListener {
     }
 
     public void onStarting(Flow flow) {
-        
+
     }
 
     public void onStopping(Flow flow) {
@@ -61,11 +62,11 @@ public class StdoutTap extends Lfs implements FlowListener {
             System.out.println("");
             System.out.println("RESULTS");
             System.out.println("-----------------------");
-            while(it.hasNext()) {
+            while (it.hasNext()) {
                 System.out.println(it.next().getTuple());
             }
             System.out.println("-----------------------");
-        } catch(IOException ioe) {
+        } catch (IOException ioe) {
             throw new RuntimeException(ioe);
         }
     }

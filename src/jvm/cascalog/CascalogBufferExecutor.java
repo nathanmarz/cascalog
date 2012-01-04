@@ -17,32 +17,31 @@
 
 package cascalog;
 
+import cascading.flow.FlowProcess;
+import cascading.operation.BaseOperation;
 import cascading.operation.Buffer;
 import cascading.operation.BufferCall;
 import cascading.operation.OperationCall;
-import cascading.flow.FlowProcess;
 import cascading.tuple.Fields;
-import cascading.operation.BaseOperation;
 
+public class CascalogBufferExecutor extends BaseOperation implements Buffer {
+    CascalogBuffer buf;
 
-public class CascalogBufferExecutor extends BaseOperation implements Buffer {  
-  CascalogBuffer buf;
+    public CascalogBufferExecutor(Fields outFields, CascalogBuffer buf) {
+        super(outFields);
+        this.buf = buf;
+    }
 
-  public CascalogBufferExecutor(Fields outFields, CascalogBuffer buf) {
-    super(outFields);
-    this.buf = buf;
-  }
-  
-  public void prepare(FlowProcess flowProcess, OperationCall operationCall) {
-    buf.prepare(flowProcess, operationCall);
-  }
+    public void prepare(FlowProcess flowProcess, OperationCall operationCall) {
+        buf.prepare(flowProcess, operationCall);
+    }
 
-  public void operate(FlowProcess flowProcess, BufferCall bufCall) {
-    buf.operate(flowProcess, bufCall);
-  }
-  
-  public void cleanup(FlowProcess flowProcess, OperationCall operationCall) {
-    buf.cleanup(flowProcess, operationCall);
-  }
+    public void operate(FlowProcess flowProcess, BufferCall bufCall) {
+        buf.operate(flowProcess, bufCall);
+    }
+
+    public void cleanup(FlowProcess flowProcess, OperationCall operationCall) {
+        buf.cleanup(flowProcess, operationCall);
+    }
 
 }
