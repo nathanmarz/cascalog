@@ -1,4 +1,4 @@
-(defproject cascalog/cascalog "1.8.5-SNAPSHOT"
+(defproject cascalog/cascalog "1.8.5"
   :source-path "src/clj"
   :java-source-path "src/jvm"
   :jvm-opts ["-Xmx768m" "-server"]
@@ -34,4 +34,4 @@
                       [riffle/riffle "0.1-dev"]
                       [log4j/log4j "1.2.16"]
                       [hadoop-util "0.2.6"]
-                      [jackknife "0.1.1"]]})
+                      [jackknife "0.1.2"]]})
