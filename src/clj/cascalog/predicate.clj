@@ -202,6 +202,7 @@
              outfields))
 
 (defn closure-args [op] (:closure-args (meta op)))
+(defn varargs? [op] (boolean (:varargs (meta op))))
 (defmulti hof-args predicate-dispatcher) ; hof-predicate?
 (defmulti predicate-default-var predicate-dispatcher)
 (defmulti build-predicate-specific predicate-dispatcher)
