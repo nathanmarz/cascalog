@@ -320,14 +320,14 @@
   (let [[fname args] (name-with-attributes fname args)
         [fname args] (->> [fname args]
                           (apply update-fields))
-
         f-args (:params (meta fname))
+        varargs (some #(.equals (symbol "&") %) f-args)
         hof-args (clojure.core/count f-args)
         fname  (-> fname
                    (update-arglists args)
                    (u/meta-conj {:pred-type (keyword (name type))
                                  :hof-args (if-not (zero? hof-args) hof-args false)
-                                 :varargs (some #(.equals (symbol "&") %) f-args)})
+                                 :varargs varargs})
                    (u/meta-dissoc :params))]
     (assert-nonvariadic args)
     [fname f-args args]))
@@ -347,14 +347,14 @@
                            `[ & ~args-sym])]
     (if func-args
       `(with-meta
-         (fn ([params#]
-               (executor-fn-generator* {:type ~type :fname ~fname
-                                :args-sym-all ~args-sym-all :args-sym ~args-sym
-                                :assembly-args ~assembly-args :closure-args params#}))
-           ([f-args# & ~args-sym-all]
-              (let [~assembly-args ~args-sym-all
-                    func-form# (flatten [(var ~runner-name) f-args#])]
-                (apply ~type func-form# ~args-sym-all))))
+         (fn [params# & ~args-sym-all]
+           (if ~args-sym-all
+             (let [~assembly-args ~args-sym-all
+                   func-form# (flatten [(var ~runner-name) params#])]
+               (apply ~type func-form# ~args-sym-all))
+             (executor-fn-generator* {:type ~type :fname ~fname
+                                      :args-sym-all ~args-sym-all :args-sym ~args-sym
+                                      :assembly-args ~assembly-args :closure-args params#})))
          ~(meta fname))
       `(with-meta
          (fn [& ~args-sym-all]
