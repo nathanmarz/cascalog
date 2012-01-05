@@ -19,7 +19,7 @@
                  [cascalog/carbonite "1.0.5"]
                  [riffle/riffle "0.1-dev"]
                  [log4j/log4j "1.2.16"]
-                 [hadoop-util "0.2.6"]
+                 [hadoop-util "0.2.7"]
                  [jackknife "0.1.2"]]
   :dev-dependencies [[org.apache.hadoop/hadoop-core "0.20.2-dev"]
                      [lein-multi "1.1.0-SNAPSHOT"]]
@@ -33,5 +33,5 @@
                       [cascalog/carbonite "1.0.5"]
                       [riffle/riffle "0.1-dev"]
                       [log4j/log4j "1.2.16"]
-                      [hadoop-util "0.2.6"]
+                      [hadoop-util "0.2.7"]
                       [jackknife "0.1.2"]]})
