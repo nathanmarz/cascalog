@@ -303,11 +303,6 @@
     [(u/meta-conj sym {:fields form}) (rest forms)]
     [sym forms]))
 
-(defn assert-nonvariadic [args]
-  (safe-assert (not (some #{'&} args))
-               (str "Defops currently don't support variadic arguments.\n"
-                    "The following argument vector is invalid: " args)))
-
 (defn- parse-defop-args
   "Accepts a def* type and the body of a def* operation binding,
   outfits the function var with all appropriate metadata, and returns
@@ -329,7 +324,6 @@
                                  :hof-args (if-not (zero? hof-args) hof-args false)
                                  :varargs varargs})
                    (u/meta-dissoc :params))]
-    (assert-nonvariadic args)
     [fname f-args args]))
 
 (defmacro executor-fn-generator

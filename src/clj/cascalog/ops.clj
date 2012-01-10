@@ -170,7 +170,7 @@
 (def !count (each impl/!count-parallel))
 
 (defparallelbuf limit
-  :hof? true
+  :hof-args 1
   :init-hof-var #'impl/limit-init
   :combine-hof-var #'impl/limit-combine
   :extract-hof-var #'impl/limit-extract
