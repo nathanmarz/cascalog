@@ -510,12 +510,18 @@
 (defn mk-option-predicate [[op _ _ infields _]]
   (predicate option op infields))
 
+(defn fill-in-varargs [needed? outvars]
+  (if needed? (conj outvars (v/gen-nullable-var)) outvars))
+
 (defn build-predicate
   "Build a predicate. Calls down to build-predicate-specific for
   predicate-specific building and adds constant substitution and null
   checking of ? vars."
   [options op opvar hof-args orig-infields outvars]
-  (let [outvars                  (replace-ignored-vars outvars)
+  (let [fill-in-varargs?         (and (varargs? op) (> (compare (count outvars) (count hof-args)) 0))
+        outvars                  (->> outvars
+                                      (fill-in-varargs fill-in-varargs?)
+                                      (replace-ignored-vars))
         [infields infield-subs]  (variable-substitution orig-infields)
         [infields dupvars duplicate-assem] (fix-duplicate-infields infields)
         predicate   (build-predicate-specific op opvar hof-args
