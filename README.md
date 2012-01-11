@@ -18,7 +18,7 @@ The best way to get started with Cascalog is experiment with the toy datasets th
 
 To use Cascalog in your own project, add the following entry to `:dependencies` in `project.clj`:
 
-    [cascalog "1.8.4"]
+    [cascalog "1.8.5"]
 
 Note that Cascalog is compatible with Clojure 1.2.0, 1.2.1 and 1.3.0. 
 
@@ -28,7 +28,7 @@ Cascalog is hosted at [Clojars](http://clojars.org/cascalog). Clojars is a maven
 
 To include Cascalog in your leiningen or cake project, add the following to your `project.clj`:
 
-    [cascalog "1.8.4"] ;; under :dependencies
+    [cascalog "1.8.5"] ;; under :dependencies
     [org.apache.hadoop/hadoop-core "0.20.2-dev"] ;; under :dev-dependencies
     
 # Documentation and Issue Tracker
