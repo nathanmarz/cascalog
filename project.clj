@@ -9,7 +9,7 @@
                   riffle/riffle]]
     [thirdparty/jgrapht-jdk1.6 "0.8.1"]
     [cascading.kryo "0.1.5"]
-    [cascalog/carbonite "1.0.5"]
+    [cascalog/carbonite "1.1.0"]
     [riffle/riffle "0.1-dev"]
     [log4j/log4j "1.2.16"]
     [hadoop-util "0.2.7"]
@@ -23,6 +23,7 @@
   :repositories {"conjars" "http://conjars.org/repo/"}
   :codox {:include [cascalog.vars cascalog.ops cascalog.io cascalog.api]}
   :dev-dependencies [[org.apache.hadoop/hadoop-core "0.20.2-dev"]
-                     [lein-multi "1.1.0-SNAPSHOT"]]
+                     [lein-multi "1.1.0-SNAPSHOT"]
+                     [midje "1.3.1"]]
   :dependencies  ~(conj shared-deps '[org.clojure/clojure "1.3.0"])
   :multi-deps {"1.2" ~(conj shared-deps '[org.clojure/clojure "1.2.1"])})
