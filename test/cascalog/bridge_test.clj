@@ -1,24 +1,23 @@
 (ns cascalog.bridge-test
-  (:use clojure.test)
+  (:use midje.sweet)
   (:require [cascalog.workflow :as w]
-            [cascalog.testing :as t])
+            [cascalog.testing :as t]
+            [cascalog.util :as u])
   (:import [cascading.tuple Fields]
            [cascading.pipe Pipe]
            [cascalog ClojureFilter ClojureMap ClojureMapcat
             ClojureAggregator Util]))
 
-(deftest test-ns-fn-name-pair
-  (let [[ns-name fn-name] (w/ns-fn-name-pair #'str)]
-    (is (= "clojure.core" ns-name))
-    (is (= "str" fn-name))))
+(fact "ns-fn-name-pair should produce a pair of strings."
+  (w/ns-fn-name-pair #'str) => ["clojure.core" "str"])
 
 (def obj-array-class
-  (class (into-array Object [])))
+  (Class/forName "[Ljava.lang.Object;"))
 
-(defn inc1 [in]
+(defn plus-one [in]
   [(+ in 1)])
 
-(defn incn [n]
+(defn plus-n [n]
   (fn [in]
     [(+ in n)]))
 
@@ -28,92 +27,105 @@
 (defn inc-both [num1 num2]
   [(inc num1) (inc num2)])
 
-(deftest test-fn-spec-simple
-  (let [fs (w/fn-spec #'inc1)]
-    (is (instance? obj-array-class fs))
-    (is (= '("cascalog.bridge-test" "inc1") (seq fs)))))
+(defn is-type
+  "Accepts a class and returns a checker that tests whether or not its
+  input is an instance of the supplied class."
+  [^Class expected]
+  (chatty-checker
+   [actual]
+   (instance? expected actual)))
 
-(deftest test-fn-spec-hof
-  (let [fs (w/fn-spec [#'incn 3])]
-    (is (instance? obj-array-class fs))
-    (is (= `("cascalog.bridge-test" "incn" 3)
-           (seq fs)))))
+(tabular
+ (fact
+   "fn-spec should propery resolve a var (or vector of var and
+   arguments) into an object array of namespace, function name
+   and (optionally) arguments."
+   (let [spec (w/fn-spec ?input)]
+     spec       => (is-type obj-array-class)
+     (seq spec) => ?result-vec))
+ ?input       ?result-vec
+ #'plus-one   ["cascalog.bridge-test" "plus-one"]
+ [#'plus-n 3] ["cascalog.bridge-test" "plus-n" 3])
 
-(deftest test-boot-fn-simple
-  (let [spec (into-array Object `("cascalog.bridge-test" "inc1"))
-        f    (Util/bootFn spec)]
-    (is (= [2] (f 1)))))
 
-(deftest test-boot-fn-hof
-  (let [spec (into-array Object '("cascalog.bridge-test" "incn" 3))
-        f    (Util/bootFn spec)]
-    (is (= [4] (f 1)))))
+(tabular
+ (fact "bootFn tests, simple and higher order."
+   (let [spec (into-array Object ?spec)
+         f    (Util/bootFn spec)]
+     (f 1) => ?result))
+ ?spec                               ?result
+ ["cascalog.bridge-test" "plus-one"] [2]
+ ["cascalog.bridge-test" "plus-n" 3] [4])
 
-(deftest test-1-field
-  (let [f1 (w/fields "foo")]
-    (is (instance? Fields f1))
-    (is (= '("foo") (seq f1)))))
+(facts "Fields tests."
+  (let [f1 (w/fields "foo")
+        f2 (w/fields ["foo" "bar"])]
+    (facts "Single fields should resolve properly."
+      f1       => #(instance? Fields %)
+      (seq f1) => ["foo"])
 
-(deftest test-n-fields
-  (let [f2 (w/fields ["foo" "bar"])]
-    (is (instance? Fields f2))
-    (is (= `("foo" "bar") (seq f2)))))
+    (facts "Double fields should resolve properly."
+      f2       => #(instance? Fields %)
+      (seq f2) => ["foo" "bar"])))
 
-(deftest test-uuid-pipe
-  (let [up (w/pipe)]
-    (is (instance? Pipe up))
-    (is (= 36 (.length (.getName up))))))
+(tabular 
+ (fact "Pipe testing."
+   ?pipe => #(instance? Pipe %)
+   (.getName ?pipe) => ?check)
+ ?pipe           ?check
+ (w/pipe)        #(= 36 (.length %))
+ (w/pipe "name") "name")
 
-(deftest test-named-pipe
-  (let [np (w/pipe "foo")]
-    (is (instance? Pipe np))
-    (is (= "foo" (.getName np)))))
-
-(deftest test-clojure-filter
+(fact "Clojure Filter test."
   (let [fil (ClojureFilter. (w/fn-spec #'odd?) false)]
-    (is (= false (t/invoke-filter fil [1])))
-    (is (= true  (t/invoke-filter fil [2])))))
+    (t/invoke-filter fil [1]) => false
+    (t/invoke-filter fil [2]) => true))
 
-(deftest test-clojure-map-one-field
-  (let [m1 (ClojureMap. (w/fields "num")
-                        (w/fn-spec #'inc-wrapped)
-                        false)
-        m2 (ClojureMap. (w/fields "num")
-                        (w/fn-spec #'inc)
-                        false)]
-    (are [m] (= [[2]] (t/invoke-function m [1]))
-         m1
-         m2)))
+(tabular
+ (fact "ClojureMap test, single field."
+   (t/invoke-function ?clj-map [1]) => [[2]])
+ ?clj-map
+ (ClojureMap. (w/fields "num")
+              (w/fn-spec #'inc-wrapped)
+              false)
+ (ClojureMap. (w/fields "num")
+              (w/fn-spec #'inc)
+              false))
 
-(deftest test-clojure-map-multiple-fields
+(facts "ClojureMap test, multiple fields."
   (let [m (ClojureMap. (w/fields ["num1" "num2"])
                        (w/fn-spec #'inc-both)
                        false)]
-    (is (= [[2 3]] (t/invoke-function m [1 2])))))
+    (t/invoke-function m [1 2]) => [[2 3]]))
 
 (defn iterate-inc-wrapped [num]
-  (list [(+ num 1)] [(+ num 2)] [(+ num 3)]))
+  (list [(+ num 1)]
+        [(+ num 2)]
+        [(+ num 3)]))
 
 (defn iterate-inc [num]
-  (list (+ num 1) (+ num 2) (+ num 3)))
+  (list (+ num 1)
+        (+ num 2)
+        (+ num 3)))
 
-(deftest test-clojure-mapcat-one-field
-  (let [m1 (ClojureMapcat. (w/fields "num")
-                           (w/fn-spec #'iterate-inc-wrapped)
-                           false)
-        m2 (ClojureMapcat. (w/fields "num")
-                           (w/fn-spec #'iterate-inc)
-                           false)]
-    (are [m] (= [[2] [3] [4]] (t/invoke-function m [1]))
-         m1 m2)))
+(tabular
+ (fact "ClojureMapCat test, single field."
+   (t/invoke-function ?clj-mapcat [1]) => [[2] [3] [4]])
+ ?clj-mapcat
+ (ClojureMapcat. (w/fields "num")
+                 (w/fn-spec #'iterate-inc-wrapped)
+                 false)
+ (ClojureMapcat. (w/fields "num")
+                 (w/fn-spec #'iterate-inc)
+                 false))
 
 (defn sum
   ([] 0)
   ([mem v] (+ mem v))
   ([mem] [mem]))
 
-(deftest test-clojure-aggregator
+(fact "ClojureAggregator test."
   (let [a (ClojureAggregator. (w/fields "sum")
                               (w/fn-spec #'sum)
                               false)]
-    (is (= [[6]] (t/invoke-aggregator a [[1] [2] [3]])))))
+    (t/invoke-aggregator a [[1] [2] [3]]) => [[6]]))

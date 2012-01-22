@@ -21,14 +21,18 @@
   ([state] nil))
 
 (deftest test-statefulmapop
-  (let [source-data {:fields ["n"] :tuples [[1] [2] [3]]}
-        sink-data {:fields ["v"] :tuples [[11] [12] [13]]}]
+  (let [source-data {:fields ["n"]
+                     :tuples [[1] [2] [3]]}
+        sink-data {:fields ["v"]
+                   :tuples [[11] [12] [13]]}]
     (test-assembly source-data sink-data
                    (stateful-add "n" :fn> "v" :> "v"))))
 
 (deftest test-map-op
-  (let [source-data {:fields ["n1" "n2"] :tuples [[1 0] [2 -3] [5 7]]}
-        sink-data {:fields ["v"] :tuples [[2] [-2] [24]]}]
+  (let [source-data {:fields ["n1" "n2"]
+                     :tuples [[1 0] [2 -3] [5 7]]}
+        sink-data {:fields ["v"]
+                   :tuples [[2] [-2] [24]]}]
     (test-assembly source-data sink-data
                    (add-double ["n1" "n2"] :fn> "v" :> "v"))))
 
@@ -38,8 +42,10 @@
         :else    [v (inc v)]))
 
 (deftest test-mapcat-op
-  (let [source-data {:fields ["n"] :tuples [[1] [2] [3] [4] [9]]}
-        sink-data {:fields ["a"] :tuples [[1] [2] [3] [4] [5]]}]
+  (let [source-data {:fields ["n"]
+                     :tuples [[1] [2] [3] [4] [9]]}
+        sink-data {:fields ["a"]
+                   :tuples [[1] [2] [3] [4] [5]]}]
     (test-assembly source-data sink-data
                    (keeper-dropper "n" :> "a"))))
 
