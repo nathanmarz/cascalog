@@ -24,6 +24,6 @@
   :codox {:include [cascalog.vars cascalog.ops cascalog.io cascalog.api]}
   :dev-dependencies [[org.apache.hadoop/hadoop-core "0.20.2-dev"]
                      [lein-multi "1.1.0-SNAPSHOT"]
-                     [midje "1.3.1"]]
+                     [midje-cascalog "0.4.0"]]
   :dependencies  ~(conj shared-deps '[org.clojure/clojure "1.3.0"])
   :multi-deps {"1.2" ~(conj shared-deps '[org.clojure/clojure "1.2.1"])})
