@@ -20,25 +20,28 @@ package cascalog;
 import cascading.tuple.Tuple;
 import cascading.tuple.TupleEntry;
 import clojure.lang.*;
-import clojure.lang.Compiler;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class Util {
+    static Var require = RT.var("clojure.core", "require");
+    static Var symbol = RT.var("clojure.core", "symbol");
 
     public static ISeq cat(ISeq s1, ISeq s2) {
         if (s1 == null || RT.seq(s1) == null) { return s2; }
         return cat(s1.next(), s2).cons(s1.first());
     }
-
+    
     public static IFn bootSimpleFn(String ns_name, String fn_name) {
         try {
-            Compiler.eval(RT.readString("(require '" + ns_name + ")"));
+            require.invoke(symbol.invoke(ns_name));
         } catch (Exception e) {
-            //if playing from the repl and defining functions, file won't exist
+            throw new RuntimeException(e);
         }
-        return (IFn) RT.var(ns_name, fn_name).deref();
+
+        //if playing from the repl and defining functions, file won't exist
+        return RT.var(ns_name, fn_name);
     }
 
     public static IFn bootFn(Object[] fn_spec) {
@@ -92,6 +95,7 @@ public class Util {
         return ret;
     }
 
+    // TODO: convert to RT.booleanCast
     public static boolean truthy(Object obj) {
         return ((obj != null) && (!Boolean.FALSE.equals(obj)));
     }
