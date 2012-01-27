@@ -25,19 +25,21 @@ import clojure.lang.IFn;
 import clojure.lang.ISeq;
 
 public class ClojureCascadingBase extends BaseOperation {
+    private byte[] serialized_spec;
     private Object[] fn_spec;
+
     private boolean stateful;
     private Object state;
     private IFn fn;
 
     public ClojureCascadingBase(Object[] fn_spec, boolean stateful) {
-        this.fn_spec = fn_spec;
+        serialized_spec = KryoService.serialize(fn_spec);
         this.stateful = stateful;
     }
 
     public ClojureCascadingBase(Fields fields, Object[] fn_spec, boolean stateful) {
         super(fields);
-        this.fn_spec = fn_spec;
+        this.fn_spec = (Object[]) KryoService.deserialize(serialized_spec);
         this.stateful = stateful;
     }
 
