@@ -21,6 +21,7 @@ import cascading.tuple.Tuple;
 import cascading.tuple.TupleEntry;
 import clojure.lang.*;
 
+import java.io.FileNotFoundException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -32,15 +33,36 @@ public class Util {
         if (s1 == null || RT.seq(s1) == null) { return s2; }
         return cat(s1.next(), s2).cons(s1.first());
     }
-    
-    public static IFn bootSimpleFn(String ns_name, String fn_name) {
+
+    public static Throwable getRootCause(Throwable e) {
+        Throwable rootCause = e;
+        Throwable nextCause = rootCause.getCause();
+
+        while (nextCause != null) {
+            rootCause = nextCause;
+            nextCause = rootCause.getCause();
+        }
+        return rootCause;
+    }
+
+    @SuppressWarnings("ThrowableResultOfMethodCallIgnored")
+    public static void tryRequire(String ns_name) {
         try {
             require.invoke(symbol.invoke(ns_name));
         } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
 
-        //if playing from the repl and defining functions, file won't exist
+            //if playing from the repl and defining functions, file won't exist
+            Throwable rootCause = getRootCause(e);
+
+            boolean fileNotFound = (rootCause instanceof FileNotFoundException);
+            boolean nsFileMissing = e.getMessage().contains(ns_name + ".clj on classpath");
+
+            if (!(fileNotFound && nsFileMissing))
+                throw new RuntimeException(e);
+        }
+    }
+    public static IFn bootSimpleFn(String ns_name, String fn_name) {
+        tryRequire(ns_name);
         return RT.var(ns_name, fn_name);
     }
 
