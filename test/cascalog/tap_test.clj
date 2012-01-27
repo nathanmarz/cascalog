@@ -58,7 +58,7 @@
 (fact "SinkMode testing."
   (hfs-test-sink) => (memfn isKeep)
   (hfs-test-sink :sinkmode :keep) => (memfn isKeep)
-  (hfs-test-sink :sinkmode :append) => (memfn isAppend)
+  (hfs-test-sink :sinkmode :update) => (memfn isUpdate)
   (hfs-test-sink :sinkmode :replace) => (memfn isReplace))
 
 (tabular

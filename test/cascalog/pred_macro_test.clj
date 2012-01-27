@@ -2,7 +2,7 @@
   (:use clojure.test
         cascalog.testing
         cascalog.api
-        midje.sweet)
+        [midje sweet cascalog])
   (:import [cascading.tuple Fields])
   (:require [cascalog.ops :as c]
             [cascalog.io :as io]))

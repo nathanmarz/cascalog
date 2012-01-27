@@ -410,14 +410,6 @@
   ([state tuples] [(apply + state (map first tuples))])
   ([state] nil))
 
-defn landings-by-ngram [ga-tap ngram-gen pv-threshold]
-  (let [ga (select-fields ga-tap ["!kw" "?l" "?pv" "?b" "?nv" "?rv"])]
-    (<- [?ngram ?landings-total ?pageviews-total ?bounces-total ?nv-total ?rv-total ?b-rate ?nv-rate ?rv-rate ?avg-depth]
-        (ga ?kw ?l ?pv ?b ?nv ?rv)
-        (ngram-gen ?kw ?ngram)
-        (ybot-stats ?l ?pv ?b ?nv ?rv :> ?landings-total ?pageviews-total ?bounces-total ?nv-total ?rv-total ?b-rate ?nv-rate ?rv-rate ?avg-depth)
-        (> ?landings-total pv-threshold))))
-
 (deftest test-hof-ops
   (let [integer [[1] [2] [6]]]
     (test?<- [[4] [5] [9]]
