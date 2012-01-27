@@ -1,42 +1,49 @@
 (ns cascalog.util-test
-  (:use clojure.test
-        cascalog.util))
+  (:use cascalog.util
+        midje.sweet))
 
 (def p 5)
 
-(deftest test-try-resolve
+(facts "Test try-resolve."
   (binding [*ns* (find-ns 'cascalog.util-test)]
-    (is (= nil (try-resolve 'qqq)))
-    (is (= #'+ (try-resolve '+)))
+    (try-resolve 'qqq) => nil
+    (try-resolve '+) => #'+
     (let [a 1]
-      (is (= nil (try-resolve 'a))))
-    (is (= nil (try-resolve 10)))
-    (is (= nil (try-resolve [1 2 3])))
-    (is (= #'p (try-resolve 'p)))))
+      (try-resolve 'a) => nil)
+    (try-resolve 10) => nil
+    (try-resolve [1 2 3]) => nil
+    (try-resolve 'p) => #'p))
 
-(deftest test-all-pairs
-  (is (= [] (all-pairs [1])))
-  (is (= [[1 2] [1 3] [2 3]] (all-pairs [1 2 3])))
-  (is (= [[1 :a] [1 :a] [1 2] [:a :a] [:a 2] [:a 2]] (all-pairs [1 :a :a 2]))))
+(tabular
+ (fact "test-all-pairs"
+   (all-pairs ?input) => ?result)
+ ?input      ?result
+ [1]         []
+ [1 2 3]     [[1 2] [1 3] [2 3]]
+ [1 :a :a 2] [[1 :a] [1 :a] [1 2] [:a :a] [:a 2] [:a 2]])
 
-(deftest test-count=
-  (is (= false (count= [1] [])))
-  (is (= true (count= [1] [1] [3])))
-  (is (= true (count= [1 2] [4 3])))
+(facts "count= tests."
+  (count= [1] []) => false
+  
+  (count= [1] [1] [3]) => true 
+  (count= [1 2] [4 3]) => true 
 
-  (is (= true (not-count= [1] [])))
-  (is (= true (not-count= [1 2] [3 4] [])))
-  (is (= false (not-count= [1] [1])))
-  (is (= false (not-count= [1 2] [4 3]))))
+  (not-count= [1] []) => true 
+  (not-count= [1 2] [3 4] []) => true 
+  (not-count= [1] [1]) => false
+  (not-count= [1 2] [4 3]) => false)
 
-(deftest conf-merge-test
+(fact "Conf-merging test."
   (let [m1 {"key" "foo"
             "key2" ["bar" "baz"]}
         m2 {"key" ["cake" "salad"]}]
-    (is (= {"key" "foo", "key2" "bar,baz"}) (conf-merge m1))
-    (is (= {"key" "cake,salad", "key2" "bar,baz"}) (conf-merge m1 m2))))
+    (conf-merge m1)    => {"key" "foo", "key2" "bar,baz"}
+    (conf-merge m1 m2) => {"key" "cake,salad", "key2" "bar,baz"}))
 
-(deftest stringify-test
-  ;; TODO: Test for duplicate keys btw str and kwd
-  (is (= {"key" "val" "key2" "val2"}
-         (stringify-keys {:key "val" "key2" "val2"}))))
+(fact "Stringify test."
+  (stringify-keys
+   {:key "val" "key2" "val2"}) => {"key" "val" "key2" "val2"})
+
+(future-fact
+ "Test that stringify-keys can handle clashes between,
+  say, \"key\" and :key.")

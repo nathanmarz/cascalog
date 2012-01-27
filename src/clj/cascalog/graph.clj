@@ -18,8 +18,8 @@
 
 (defn mk-graph []
   (SimplePrintDirectedGraph.
-   (proxy [EdgeFactory] []
-     (createEdge [source target]
+   (reify EdgeFactory
+     (createEdge [this source target]
        (struct edge source target (atom {}))))))
 
 (defn create-node [graph value]
