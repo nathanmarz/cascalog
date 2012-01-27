@@ -1,6 +1,6 @@
 (ns cascalog.tap-test
   (:use cascalog.tap
-        clojure.test
+        [midje sweet cascalog]
         cascalog.testing)
   (:require [cascalog.io :as io]
             [cascalog.api :as api]
@@ -25,47 +25,66 @@
 (defn test-tap-builder [tap-func extracter]
   (fn [& opts]
     (extracter
-     (apply tap-func (w/text-line ["line"] Fields/ALL) "/path/" opts))))
+     (apply tap-func
+            (w/text-line ["line"] Fields/ALL)
+            "/path/"
+            opts))))
 
 (def hfs-test-source (test-tap-builder hfs-tap tap-source))
 (def hfs-test-sink (test-tap-builder hfs-tap tap-sink))
 (def lfs-test-source (test-tap-builder lfs-tap tap-source))
 (def lfs-test-sink (test-tap-builder lfs-tap tap-sink))
 
-(deftest api-outfields-test
-  (are [fields opts]
-       (= fields (.getSinkFields (tap-sink (apply api/hfs-textline "path" opts))))
-       Fields/ALL []
-       (w/fields ["?a"]) [:outfields ["?a"]]
-       (w/fields ["?a" "!b"]) [:outfields ["?a" "!b"]]))
+(tabular
+ (fact "api outfields testing."
+   (-> (apply api/hfs-textline "path" ?opts)
+       (tap-sink)
+       (.getSinkFields)) => ?fields)
+ ?fields                ?opts
+ Fields/ALL             []
+ (w/fields ["?a"])      [:outfields ["?a"]]
+ (w/fields ["?a" "!b"]) [:outfields ["?a" "!b"]])
 
-(deftest tap-type-test
-  (is (instance? TemplateTap (hfs-test-sink :sink-template "%s/")))
-  (is (instance? GlobHfs (hfs-test-source :source-pattern "%s/")))
-  (is (instance? Hfs (hfs-test-sink :source-pattern "%s/")))
-  (is (instance? Hfs (hfs-test-source)))
-  (is (instance? Lfs (lfs-test-source))))
+(tabular
+ (fact "Type testing on the various taps."
+   ?tap => (fn [x] (instance? ?type x)))
+ ?type        ?tap
+ TemplateTap (hfs-test-sink :sink-template "%s/")
+ GlobHfs     (hfs-test-source :source-pattern "%s/")
+ Hfs         (hfs-test-sink :source-pattern "%s/")
+ Hfs         (hfs-test-source)
+ Lfs         (lfs-test-source))
 
-(deftest sinkmode-test
-  (is (.isKeep (hfs-test-sink)))
-  (is (.isKeep (hfs-test-sink :sinkmode :keep)))
-  (is (.isUpdate (hfs-test-sink :sinkmode :update)))
-  (is (.isReplace (hfs-test-sink :sinkmode :replace))))
+(fact "SinkMode testing."
+  (hfs-test-sink) => (memfn isKeep)
+  (hfs-test-sink :sinkmode :keep) => (memfn isKeep)
+  (hfs-test-sink :sinkmode :append) => (memfn isAppend)
+  (hfs-test-sink :sinkmode :replace) => (memfn isReplace))
 
-(deftest sink-parts-test
-  (are [result func opts]
-       (= result (.getNumSinkParts (get-scheme (apply func opts))))
-       3 hfs-test-sink [:sinkparts 3]
-       3 lfs-test-sink [:sinkparts 3]
-       0 hfs-test-sink []
-       0 lfs-test-sink []))
+(tabular
+ (fact ":sinkparts keyword should tune sink settings."
+   (-> (apply ?func ?opts)
+       (get-scheme)
+       (.getNumSinkParts)) => ?result)
+ ?result ?func         ?opts
+ 3       hfs-test-sink [:sinkparts 3]
+ 3       lfs-test-sink [:sinkparts 3]
+ 0       hfs-test-sink []
+ 0       lfs-test-sink [])
 
-(deftest tap-pattern-test
-  (is (= "%s/" (.getPathTemplate (hfs-test-sink :sink-template "%s/"))))
-  (io/with-fs-tmp [_ tmp]
-    (let [tuples [[1 2] [2 3] [4 5]]
-          temp-tap (api/hfs-seqfile (str tmp "/")
-                                    :sink-template "%s/"
-                                    :source-pattern "{1,2}/*")]
-      (api/?<- temp-tap [?a ?b] (tuples ?a ?b))
-      (test?- [[1 2] [2 3]] temp-tap))))
+(fact
+  ":sink-template option should set path template on cascading tap."
+  (.getPathTemplate (hfs-test-sink :sink-template "%s/"))) => "%s/"
+
+(fact
+  "Test executing tuples into a template tap and sourcing them back
+  out with a source pattern."
+  (io/with-log-level :fatal
+    (io/with-fs-tmp [_ tmp]
+      (let [tuples [[1 2] [2 3] [4 5]]
+            temp-tap (api/hfs-seqfile (str tmp "/")
+                                      :sink-template "%s/"
+                                      :source-pattern "{1,2}/*")]
+        temp-tap
+        (api/?<- temp-tap [?a ?b] (tuples ?a ?b))
+        temp-tap => (produces [[1 2] [2 3]])))))

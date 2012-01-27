@@ -1,10 +1,11 @@
 (ns cascalog.conf-test
-  (:use clojure.test
-        [cascalog api testing])
+  (:use cascalog.api
+        [midje sweet cascalog])
   (:require [clojure.string :as s]
             [cascalog.conf :as conf]
             [cascalog.util :as u])
-  (:import [cascalog.hadoop DefaultComparator]))
+  (:import [cascalog.hadoop DefaultComparator]
+           [cascading.flow FlowException]))
 
 (def comma
   (partial s/join ","))
@@ -12,72 +13,80 @@
 (def defaults
   (comma u/default-serializations))
 
-(deftest test-jobconf-bindings
+(fact "test JobConf bindings."
   (with-job-conf {"key" "val"}
-    (is (= conf/*JOB-CONF*
-           {"key" "val"})))
-
-  (with-job-conf {"key" ["val1" "val2"]}
-    (is (= conf/*JOB-CONF*
-           {"key" "val1,val2"}))
+    (fact "The first binding level should set the JobConf equal to the
+      supplied conf map."
+      conf/*JOB-CONF* => {"key" "val"}))
+  
+  (with-job-conf {"key" ["val1" "val2"]
+                  "other-key" "other-val"}
+    (fact "Vectors of strings will be joined w/ commas. (This binding
+      level knocks out the previous, as the keys are identical."
+      conf/*JOB-CONF* => {"key" "val1,val2"
+                          "other-key" "other-val"})
+    
     (with-job-conf {"key" ["val3"]}
-      (is (= conf/*JOB-CONF*
-             {"key" "val3"}))))
+      (fact "other-key from above should be preserved."
+        conf/*JOB-CONF* => {"key" "val3"
+                            "other-key" "other-val"})))
   
   (with-job-conf {"io.serializations" "java.lang.String"}
-    (is (= conf/*JOB-CONF*
-           {"io.serializations" "java.lang.String"}))
-    (is (= (u/project-merge conf/*JOB-CONF*)
-           {"io.serializations" (comma [defaults "java.lang.String"])})))
+    conf/*JOB-CONF* => {"io.serializations" "java.lang.String"}
+    (fact
+      "Calling project-merge on the JobConf will prepend default
+       serializations onto the supplied list of serializations."
+      (u/project-merge conf/*JOB-CONF*) => {"io.serializations"
+                                            (comma [defaults "java.lang.String"])})
 
-  (with-serializations [String]
-    (is (= conf/*JOB-CONF*
-           {"io.serializations" "java.lang.String"}))
-    (is (= (u/project-merge conf/*JOB-CONF*)
-           {"io.serializations" (comma [defaults "java.lang.String"])})))
+    (with-serializations [String]
+      (fact
+        "You can specify serialiations using the `with-serializations`
+      form. This works w/ class objects or strings. Without
+      project-merge, the *JOB-CONF* variable is unaffected. (Note that
+      classes are resolved properly.)"
+        conf/*JOB-CONF* => {"io.serializations" "java.lang.String"})
 
+      (fact "Again, project-merging with w/ Class objects, vs Strings."
+        (u/project-merge conf/*JOB-CONF*) => {"io.serializations"
+                                              (comma [defaults "java.lang.String"])})))
+  
   (with-serializations [String]
     (with-job-conf {"io.serializations" "java.lang.String,SomeSerialization"}
-      (is (= (u/project-merge conf/*JOB-CONF*)
-             {"io.serializations"
-              (comma [defaults "java.lang.String" "SomeSerialization"])})))))
+      (fact "with-serializations nests properly with with-job-conf."
+        (u/project-merge conf/*JOB-CONF*) => {"io.serializations"
+                                              (comma [defaults
+                                                      "java.lang.String"
+                                                      "SomeSerialization"])}))))
 
-(deftest kryo-serialization-test
+(facts "Tests of various aspects of Kryo serialization."
   (with-job-conf
     {"cascading.kryo.serializations" "java.util.DoesntExist"
      "cascading.kryo.skip.missing" true
      "cascading.kryo.accept.all" true}
     (let [cal-tuple [[(java.util.GregorianCalendar.)]]]
-      (test?<- cal-tuple [?a] (cal-tuple ?a))))
+      (fact?<- cal-tuple
+               [?a]
+               (cal-tuple ?a)) ))
+
   (with-job-conf
     {"cascading.kryo.accept.all" false}
     (let [cal-tuple [[(java.util.GregorianCalendar.)]]]
-      (is (thrown? RuntimeException
-                   (??<- [?a] (cal-tuple ?a)))))))
+      (fact
+        "Attempting to serialize an unregistered object when
+      accept.all is set to false should throw a flow exception."
+        (??<- [?a] (cal-tuple ?a))) => (throws FlowException))))
 
-(deftest default-comparator-test
-  "Tests of the default comparator and hasher we use for all cascading
-   operations."
-  (let [comparator (DefaultComparator.)
-        compare    (fn [x y]
-                     (.compare comparator x y))]
-    (testing "Overridden comparisons."
-      (are [x y] (= 0 (compare x y))
-           0 0
-           1 1
-           1 1M
-           1M 1)
-      (are [x y] (= 1 (compare x y))
-           2M 1
-           (Long. 4) (Integer. 3))
-      (are [x y] (= -1 (compare x y))
-           1 2M
-           (Long. 3) (Integer. 4)))
-    (testing "Hashcode equality."
-      (are [x y] (= (.hashCode comparator x)
-                    (.hashCode comparator y))
-           0 0
-           1 1
-           {(Integer. 1) "hi!"} {(Long. 1) "hi!"}
-           {1 2, 3 4} {3 4, 1 2}
-           (Long. 1) (Integer. 1)))))
+(tabular
+ (fact "Test of various comparators."
+   (let [comp (DefaultComparator.)]
+     (.compare comp ?left ?right) => ?expected))
+  ?left     ?right       ?expected
+  0         0            0
+  1         1            0
+  1         1M           0
+  1M        1            0
+  2M        1            1
+  (Long. 4) (Integer. 3) 1
+  (Long. 3) (Integer. 4) -1
+  1         2M           -1)

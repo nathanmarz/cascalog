@@ -16,20 +16,16 @@ The best way to get started with Cascalog is experiment with the toy datasets th
 4. `lein deps && lein compile && lein repl`
 5. Work through the examples in the [introductory](http://nathanmarz.com/blog/introducing-cascalog-a-clojure-based-query-language-for-hado.html) [tutorials](http://nathanmarz.com/blog/new-cascalog-features-outer-joins-combiners-sorting-and-more.html)
 
-To use Cascalog in your own project, add the following entry to `:dependencies` in `project.clj`:
-
-    [cascalog "1.8.5"]
-
-Note that Cascalog is compatible with Clojure 1.2.0, 1.2.1 and 1.3.0. 
-
 # Using Cascalog within a project
 
-Cascalog is hosted at [Clojars](http://clojars.org/cascalog). Clojars is a maven repo that is trivially easy to use with maven or leiningen.
+Cascalog is hosted at [Clojars](http://clojars.org/cascalog). Clojars is a maven repo that's easy to use with maven or leiningen.
 
 To include Cascalog in your leiningen or cake project, add the following to your `project.clj`:
 
     [cascalog "1.8.5"] ;; under :dependencies
     [org.apache.hadoop/hadoop-core "0.20.2-dev"] ;; under :dev-dependencies
+
+Note that Cascalog is compatible with Clojure 1.2.0, 1.2.1 and 1.3.0. 
     
 # Documentation and Issue Tracker
 

@@ -1,14 +1,21 @@
 (ns cascalog.pred-macro-test
   (:use clojure.test
-        [cascalog api testing])
+        cascalog.testing
+        cascalog.api
+        midje.sweet)
   (:import [cascading.tuple Fields])
   (:require [cascalog.ops :as c]
             [cascalog.io :as io]))
 
 (deftest test-predicate-macro
-  (let [mac1 (<- [?a :> ?b ?c] (+ ?a 1 :> ?t) (* ?t 2 :> ?b) (+ ?a ?t :> ?c))
-        mac2 (<- [:< ?a] (* ?a ?a :> ?a))
-        mac3 (<- [?a :> ?b] (+ ?a ?a :> ?b))
+  (let [mac1 (<- [?a :> ?b ?c]
+                 (+ ?a 1 :> ?t)
+                 (* ?t 2 :> ?b)
+                 (+ ?a ?t :> ?c))
+        mac2 (<- [:< ?a]
+                 (* ?a ?a :> ?a))
+        mac3 (<- [?a :> ?b]
+                 (+ ?a ?a :> ?b))
         num1 [[0] [1] [2] [3]]]
     (test?<- [[-1 1] [0 3] [1 5] [2 7]]
              [?t ?o]
@@ -16,25 +23,35 @@
              (mac1 ?n :> _ ?o)
              (dec ?n :> ?t))
 
-    (test?<- [[0] [1]] [?n] (num1 ?n) (mac2 ?n))
+    (test?<- [[0] [1]]
+             [?n]
+             (num1 ?n)
+             (mac2 ?n))
 
     ;; test that it allows same var used as input and output
-    (test?<- [[0]] [?n] (num1 ?n) (mac3 ?n :> ?n))))
+    (test?<- [[0]]
+             [?n]
+             (num1 ?n)
+             (mac3 ?n :> ?n))))
 
-(defn splitter [str]
+(defn splitter [^String str]
   (seq (.split str " ")))
 
 (deftest test-destructuring
   (let [triplets [[1 2 3] [2 3 4] [3 3 5]]
-        pairs [["a b"] ["c d"]]
-        singles [["a"] ["b"]]
-        str-mac (<- [:<< !all :> !val] (str :<< !all :> !i) (str !i "a" :> !val))
+        pairs    [["a b"] ["c d"]]
+        singles  [["a"] ["b"]]
+        str-mac (<- [:<< !all :> !val]
+                    (str :<< !all :> !i)
+                    (str !i "a" :> !val))
         complex-mac (<- [:<< [!a !b & !rest :as !all] :>> [!v1 !v2 !v3]]
                         (str :<< !all :> !v1)
                         (str !a !b :> !v2)
                         (str :<< !rest :> !v3))
         var-out (<- [!a :>> !allout]
-                    (str !a "a" :> !b) (splitter !b :>> !allout))]
+                    (str !a "a" :> !b)
+                    (splitter !b :>> !allout))]
+
     (test?<- [["123a"] ["234a"] ["335a"]]
              [!out]
              (triplets !a !b !c)
@@ -50,14 +67,17 @@
              (triplets !a !b !c)
              (complex-mac !a !b !c :> !o1 !o2 !o3))
 
-    ;; this test doesn't work because cascading doesn't allow
-    ;; functions with no input
-    ;; (test?<- [["12" ""] ["23" ""] ["33" ""]]
-    ;;         [!o2 !o3]
-    ;;         (triplets !a !b _) (complex-mac !a !b :> !o1 !o2 !o3))
+
+    (future-fact?<-
+     "this test doesn't work because cascading doesn't allow
+      functions with no input"
+     [["12" ""] ["23" ""] ["33" ""]]
+            [!o2 !o3]
+            (triplets !a !b _) (complex-mac !a !b :> !o1 !o2 !o3))
 
     (test?<- [["12" "12"] ["23" "23"] ["33" "33"]]
              [!o1 !o2]
+
              (triplets !a !b _)
              (complex-mac !a !b :> !o1 !o2 !o3))
 
@@ -69,19 +89,20 @@
     (test?<- [["aa"] ["ba"]]
              [!a]
              (singles !i)
-             (var-out !i :> !a))
-    ))
+             (var-out !i :> !a))))
 
-;; TODO: test construct with destructuring, esp. string &
+(future-fact " TODO: test construct with destructuring, esp. string &")
+
 (defn odd-sum? [& params]
   (odd? (reduce + params)))
 
 (defn mult-3-sum? [& params]
   (let [s (reduce + params)]
-    (= 0 (mod s 3))))
+    (zero? (mod s 3))))
 
 (defn large-total? [& params]
-  (>  (reduce + params) 10))
+  (-> (reduce + params)
+      (> 10)))
 
 (defn double-num [val]
   (* 2 val))
@@ -91,6 +112,7 @@
     (test?<- [[1 2] [3 3]] [!a !b]
              (nums !a !b)
              ((c/any #'odd-sum? #'mult-3-sum? #'large-total?) !a !b))
+
     (test?<- [[3 3] [4 6]] [!a !b]
              (nums !a !b)
              ((c/any #'odd-sum? #'large-total?) !a !b !a))
@@ -122,14 +144,15 @@
              (nums !a !b)
              ((c/comp #'odd? #'+) !a !b :> !c)
              (:distinct false))
-    
+
     (test?<- [[true] [true] [false]]
              [!c]
              (nums !a !b)
              ((c/comp #'not #'odd? #'+) !a !b :> !c)
              (:distinct false))
 
-    (test?<- [[5] [9] [11]] [!c] (nums !a _)
+    (test?<- [[5] [9] [11]] [!c]
+             (nums !a _)
              ((c/comp #'inc #'double-num #'inc) !a :> !c)
              (:distinct false))
 
@@ -147,8 +170,7 @@
     (test?<- [[3 -1 true] [6 0 false] [10 -2 true]]
              [!v1 !v2 !v3]
              (nums !a !b)
-             ((c/juxt #'+ #'- #'<) !a !b :> !v1 !v2 !v3))
-    ))
+             ((c/juxt #'+ #'- #'<) !a !b :> !v1 !v2 !v3))))
 
 (defn append-! [v]
   (str v "!"))
@@ -183,26 +205,30 @@
         pm2 (predmacro [invars outvars]
                        [[pm1 :<< invars :>> outvars]
                         [small-op? (first invars)]])]
-    (test?<- [["1!"]] [?v] (integers ?i) (pm2 ?i :> ?v))
-    ))
-
-(defn positive? [num]
-  (> num 0))
+    (test?<- [["1!"]]
+             [?v]
+             (integers ?i)
+             (pm2 ?i :> ?v))))
 
 (defn small? [num]
   (< num 10))
 
 (deftest test-composite-composites
   (let [nums [[1 2] [3 3] [4 6] [6 8] [-2 -1]]]
-    (test?<- [[4] [-2]] [!a] (nums !a _) ((c/negate (c/any #'odd? #'mult-3-sum?)) !a))
+    (test?<- [[4] [-2]]
+             [!a]
+             (nums !a _)
+             ((c/negate (c/any #'odd? #'mult-3-sum?)) !a))
+
     (test?<- [[3] [4] [6]]
              [!a]
              (nums !a _)
              ((c/any
                (c/all #'odd? #'mult-3-sum?)
-               (c/all #'even? #'positive? #'small?)) !a))
-    ;; TODO: not all any
-    ))
+               (c/all #'even? #'pos? #'small?)) !a))
+    (future-fact "TODO: not all any")))
 
 (deftest test-errors
-  (thrown?<- RuntimeException [?a ?b ?c :> ?d ?a] (+ ?a ?b ?c :> ?d)))
+  (thrown?<- RuntimeException
+             [?a ?b ?c :> ?d ?a]
+             (+ ?a ?b ?c :> ?d)))
