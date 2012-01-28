@@ -27,7 +27,7 @@
            [java.io File]
            [java.util ArrayList]
            [cascading.tuple Tuple TupleEntry Fields]
-           [cascading.scheme Scheme TextLine SequenceFile]
+           [cascading.scheme Scheme TextLine SequenceFile WritableSequenceFile]
            [cascading.tap Hfs Lfs GlobHfs Tap TemplateTap SinkMode]
            [cascading.tuple TupleEntryCollector]
            [cascading.flow Flow FlowConnector]
@@ -471,6 +471,9 @@
 
 (defn sequence-file [field-names]
   (SequenceFile. (fields field-names)))
+
+(defn writable-sequence-file [field-names key-type value-type]
+  (WritableSequenceFile. (w/fields field-names) key-type value-type))
 
 (deffilterop equal [& objs]
   (apply = objs))
