@@ -827,6 +827,40 @@
              (src ?thing)
              (multi-test ?thing :> ?result))))
 
+(defmapop [var-apply [v]]
+  "Applies the supplied var v to the supplied `xs`."
+  [& xs]
+  (apply v xs))
+
+(deftest test-var-constants
+  (let [coll-src [[[3 2 4 1]]
+                  [[1 2 3 4 5]]]
+        num-src  [[1 2] [3 4]]]
+    (fact?<- "Each tuple in source is a vector; the sum of each vector
+             should be reflected in the output."
+             [[10] [15]]
+             [?sum]
+             (coll-src ?coll)
+             (reduce #'+ ?coll :> ?sum))
+
+    (fact?<- "Operation parameters can be vars or anything kryo
+             serializable."
+             [[1 2 2] [3 4 12]]
+             [?x ?y ?z]
+             (num-src ?x ?y)
+             (var-apply [#'*] ?x ?y :> ?z))))
+
+(def bob-set #{"bob"})
+
+(deftest test-ifn-implementers
+  (let [people [["bob"] ["sam"]]]
+    (fact?<- "A set can be used as a predicate op, provided it's bound
+             to a var."
+             [["bob"]]
+             [?person]
+             (people ?person)
+             (bob-set ?person))))
+
 (future-fact "test outer join with functions.")
 
 (future-fact "test mongo"

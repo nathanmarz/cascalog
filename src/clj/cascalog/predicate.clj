@@ -8,6 +8,7 @@
   (:import [cascading.tap Tap]
            [cascading.operation Filter]
            [cascading.tuple Fields]
+           [clojure.lang IFn]
            [cascalog ClojureParallelAggregator ClojureBuffer
             ClojureBufferCombiner CombinerSpec CascalogFunction
             CascalogFunctionExecutor CascadingFilterToFunction
@@ -149,7 +150,7 @@
              (map? op)                       (:type op)
              (or (vector? op) (list? op))    ::data-structure
              (:pred-type (meta op))          (:pred-type (meta op))
-             (or (fn? op) (multifn? op))     ::vanilla-function
+             (instance? IFn op)              ::vanilla-function
              :else (u/throw-illegal (str op " is an invalid predicate.")))]
     (if (= ret :bufferiter) :buffer ret)))
 

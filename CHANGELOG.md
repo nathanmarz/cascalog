@@ -13,6 +13,32 @@
 
 This fix explicitly checks namespace existence, letting all others errors pass through. Anyone seeing an "unbound fn" exception will now see some far more enlightening exception about what's wrong with the namespace.
 
+* Anything that implements IFn can now be used as an op, provided it's bound to a var. For example, `(def is-bob? #{"bob"})` is now a valid predicate.
+
+* Vars can now be serialized as op parameters or constants. For example,
+
+```clojure
+;; Vars as parameter args
+(defmapop var-apply [v]
+   [& xs]
+   (apply v xs))
+
+(fact?<- [[1 2 3]]
+         [?x ?y ?z]
+         ([[1 2]] ?x ?y)
+         (var-apply [#'+] ?x ?y :> ?z))
+
+;; Vars as constants
+(def coll-src
+    [[[3 2 4 1]]
+     [[1 2 3 4 5]]])
+
+(fact?<- [[10] [15]]
+         [?sum]
+         (coll-src ?coll)
+         (reduce #'+ ?coll :> ?sum))
+```
+
 ## 1.8.5
 
 * Memory-Source-Tap now uses project settings from job-conf.clj (bugfix!)
