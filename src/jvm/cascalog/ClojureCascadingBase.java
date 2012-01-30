@@ -32,19 +32,23 @@ public class ClojureCascadingBase extends BaseOperation {
     private Object state;
     private IFn fn;
 
-    public ClojureCascadingBase(Object[] fn_spec, boolean stateful) {
+    public void initialize(Object[] fn_spec, boolean stateful) {
         serialized_spec = KryoService.serialize(fn_spec);
         this.stateful = stateful;
     }
 
+    public ClojureCascadingBase(Object[] fn_spec, boolean stateful) {
+        initialize(fn_spec, stateful);
+    }
+
     public ClojureCascadingBase(Fields fields, Object[] fn_spec, boolean stateful) {
         super(fields);
-        this.fn_spec = (Object[]) KryoService.deserialize(serialized_spec);
-        this.stateful = stateful;
+        initialize(fn_spec, stateful);
     }
 
     @Override
     public void prepare(FlowProcess flow_process, OperationCall op_call) {
+        this.fn_spec = (Object[]) KryoService.deserialize(serialized_spec);
         this.fn = Util.bootFn(fn_spec);
         if (stateful) {
             try {
