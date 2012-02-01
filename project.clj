@@ -9,7 +9,7 @@
                   riffle/riffle]]
     [thirdparty/jgrapht-jdk1.6 "0.8.1"]
     [cascading.kryo "0.1.5"]
-    [cascalog/carbonite "1.1.0"]
+    [cascalog/carbonite "1.1.1"]
     [riffle/riffle "0.1-dev"]
     [log4j/log4j "1.2.16"]
     [hadoop-util "0.2.7"]

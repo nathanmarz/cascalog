@@ -845,12 +845,18 @@
              (coll-src ?coll)
              (reduce #'+ ?coll :> ?sum))
 
-    (fact?<- "Operation parameters can be vars or anything kryo
+    (fact?- "Operation parameters can be vars or anything kryo
              serializable."
-             [[1 2 2] [3 4 12]]
-             [?x ?y ?z]
-             (num-src ?x ?y)
-             (var-apply [#'*] ?x ?y :> ?z))))
+            [[1 2 2] [3 4 12]]
+            (<- [?x ?y ?z]
+                (num-src ?x ?y)
+                (var-apply [#'*] ?x ?y :> ?z))
+
+            "Regexes are serializable w/ Kryo."
+            [["a" "b"]]
+            (<- [?a ?b]   
+                ([["a\tb"]] ?s)
+                (c/re-parse [#"[^\s]+"] :< ?s :> ?a ?b)))))
 
 (def bob-set #{"bob"})
 
