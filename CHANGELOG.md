@@ -39,6 +39,8 @@ This fix explicitly checks namespace existence, letting all others errors pass t
          (reduce #'+ ?coll :> ?sum))
 ```
 
+* Added Kryo serialization for `java.util.regex.Pattern`.
+
 ## 1.8.5
 
 * Memory-Source-Tap now uses project settings from job-conf.clj (bugfix!)
