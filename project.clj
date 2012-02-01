@@ -5,7 +5,7 @@
                   org.apache.hadoop/hadoop-core]]
     [org.clojure/tools.macro "0.1.1"]
     [cascading.kryo "0.1.5"]
-    [cascalog/carbonite "1.1.0"]
+    [cascalog/carbonite "1.1.1"]
     [log4j/log4j "1.2.16"]
     [hadoop-util "0.2.7"]
     [jackknife "0.1.2"]])
