@@ -477,15 +477,9 @@
         varargs? (p/varargs? op)
         [vars hof-args] (cond (and closure-args hof-args-count)
                               [(rest vars) (s/collectify closure-args)]
-                              hof-args-count
-                              [(rest vars) (s/collectify (first vars))]
                               :else
                               [vars nil])
         {invars :<< outvars :>>} (p/parse-variables vars (p/predicate-default-var op))]
-    (when
-        (and (false? varargs?) hof-args-count (not= hof-args-count (count (flatten hof-args))))
-      (throw-illegal (str "Need the same number of operation arguments : needed: "
-                          hof-args-count " got: " (count hof-args))))
     [op opvar hof-args invars outvars]))
 
 (defn- unzip-generators
