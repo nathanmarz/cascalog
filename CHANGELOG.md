@@ -30,7 +30,8 @@ This fix explicitly checks namespace existence, letting all others errors pass t
          (reduce #'+ ?coll :> ?sum))
 ```
 
-* Added Kryo serialization for `java.util.regex.Pattern`.
+* Added explicit Kryo serialization for `java.util.regex.Pattern`.
+* Kryo serialization now captures objects without default constructors.
 
 ## 1.8.5
 
