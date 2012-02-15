@@ -18,17 +18,20 @@
 package cascalog;
 
 import cascading.tuple.Tuple;
+import org.apache.commons.codec.binary.Base64;
 import org.apache.hadoop.io.NullWritable;
+import org.apache.hadoop.io.serializer.Deserializer;
+import org.apache.hadoop.io.serializer.SerializationFactory;
+import org.apache.hadoop.io.serializer.Serializer;
 import org.apache.hadoop.mapred.*;
-import org.apache.hadoop.util.StringUtils;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
+import java.io.*;
+import java.util.ArrayList;
 import java.util.List;
 
 public class TupleMemoryInputFormat implements InputFormat<TupleWrapper, NullWritable> {
 
+    public static final String ENCODING = "US-ASCII";
     public static final String TUPLES_PROPERTY = "memory.format.tuples";
 
     public static class TupleInputSplit implements InputSplit {
@@ -97,24 +100,79 @@ public class TupleMemoryInputFormat implements InputFormat<TupleWrapper, NullWri
     }
 
     public InputSplit[] getSplits(JobConf jc, int i) throws IOException {
-        List<Tuple> tuples = (List<Tuple>) getObject(jc, TUPLES_PROPERTY);
+        List<Tuple> tuples = retrieveTuples(jc, TUPLES_PROPERTY);
         return new InputSplit[]{new TupleInputSplit(tuples.size())};
     }
 
     public RecordReader<TupleWrapper, NullWritable>
     getRecordReader(InputSplit is, JobConf jc, Reporter rprtr) throws IOException {
-        return new TupleRecordReader((List<Tuple>) getObject(jc, TUPLES_PROPERTY));
+        return new TupleRecordReader(retrieveTuples(jc, TUPLES_PROPERTY));
     }
 
-
-    public static void setObject(JobConf conf, String key, Object o) {
-        conf.set(key, StringUtils.byteToHexString(KryoService.serialize(o)));
+    public static String encodeBytes(byte[] bytes) {
+        String byteString = null;
+        try {
+            byteString = new String(Base64.encodeBase64(bytes), "US-ASCII");
+        } catch (UnsupportedEncodingException e) {
+            throw new RuntimeException(e);
+        }
+        return byteString;
     }
 
-    public static Object getObject(JobConf conf, String key) {
+    public static byte[] decodeBytes(String str) {
+        byte[] decoded = null;
+        try {
+            byte[] bytes = str.getBytes(ENCODING);
+            decoded = Base64.decodeBase64(bytes);
+        } catch (UnsupportedEncodingException e) {
+            throw new RuntimeException(e);
+        }
+        return decoded;
+    }
+
+    public static void storeTuples(JobConf conf, String key, List<Tuple> tuples) {
+        SerializationFactory factory = new SerializationFactory(conf);
+        Serializer<Tuple> serializer = factory.getSerializer(Tuple.class);
+        ByteArrayOutputStream stream = new ByteArrayOutputStream();
+
+        try {
+            serializer.open(stream);
+            for(Tuple tuple: tuples) {
+                serializer.serialize(tuple);
+            }
+            serializer.close();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        String confVal = tuples.size() + ":" + encodeBytes(stream.toByteArray());
+        conf.set(key, confVal);
+    }
+
+    public static List<Tuple> retrieveTuples(JobConf conf, String key) {
         String s = conf.get(key);
-        if (s == null) { return null; }
-        byte[] val = StringUtils.hexStringToByte(s);
-        return KryoService.deserialize(val);
+        if (s == null)
+            return null;
+
+        String[] pieces = s.split(":");
+        int size = Integer.valueOf(pieces[0]);
+        byte[] val = decodeBytes(pieces[1]);
+
+        SerializationFactory factory = new SerializationFactory(conf);
+        Deserializer<Tuple> deserializer = factory.getDeserializer(Tuple.class);
+        ByteArrayInputStream stream = new ByteArrayInputStream(val);
+
+        List<Tuple> ret = new ArrayList<Tuple>();
+        try {
+            deserializer.open(stream);
+            for(int i = 0; i < size; i++) {
+                ret.add(deserializer.deserialize(null));
+            }
+            deserializer.close();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        return ret;
     }
 }
