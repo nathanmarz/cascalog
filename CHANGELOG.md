@@ -32,6 +32,7 @@ This fix explicitly checks namespace existence, letting all others errors pass t
 
 * Added explicit Kryo serialization for `java.util.regex.Pattern`.
 * Kryo serialization now captures objects without default constructors.
+* MemorySourceTap (and data structures) now use Hadoop's serialization mechanisms, vs defaulting to Kryo.
 
 ## 1.8.5
 
