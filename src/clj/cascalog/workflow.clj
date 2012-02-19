@@ -72,7 +72,7 @@
     (let [obj (collectify obj)]
       (if (empty? obj)
         Fields/ALL ; this is a hack since cascading doesn't support selecting no fields
-        (Fields. (into-array String (collectify obj)))))))
+        (Fields. (into-array String obj))))))
 
 (defn fields-array
   [fields-seq]
