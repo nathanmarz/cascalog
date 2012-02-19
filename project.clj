@@ -15,7 +15,7 @@
     [hadoop-util "0.2.7"]
     [jackknife "0.1.2"]])
 
-(defproject cascalog/cascalog "1.8.6"
+(defproject cascalog/cascalog "1.8.7-SNAPSHOT"
   :source-path "src/clj"
   :java-source-path "src/jvm"
   :jvm-opts ["-Xmx768m" "-server"]
