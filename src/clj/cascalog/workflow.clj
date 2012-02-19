@@ -32,7 +32,8 @@
            [cascading.tuple TupleEntryCollector]
            [cascading.flow Flow FlowConnector]
            [cascading.cascade Cascades]
-           [cascading.operation Identity Insert Debug]
+           [cascalog.ops KryoInsert]
+           [cascading.operation Identity Debug]
            [cascading.operation.aggregator First Count Sum Min Max]
            [cascading.pipe Pipe Each Every GroupBy CoGroup]
            [cascading.pipe.cogroup InnerJoin OuterJoin LeftJoin RightJoin MixedJoin]
@@ -223,7 +224,9 @@
 (defn insert [newfields vals]
   (fn [previous]
     (debug-print "insert" newfields vals)
-    (Each. previous (Insert. (fields newfields) (into-array Object (collectify vals))) Fields/ALL)))
+    (Each. previous (KryoInsert. (fields newfields)
+                                 (into-array Object (collectify vals)))
+           Fields/ALL)))
 
 (defn raw-each
   ([arg1] (fn [p] (debug-print "raw-each" arg1) (Each. p arg1)))

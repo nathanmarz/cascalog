@@ -79,7 +79,6 @@
         new-ops (s/remove-first (partial = op) (:operations tail))]
     (merge tail {:operations new-ops})))
 
-
 (defn- op-allowed? [tail op]
   (let [ground? (:ground? tail)
         available-fields (:available-fields tail)

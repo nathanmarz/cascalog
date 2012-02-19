@@ -19,7 +19,8 @@
            [org.apache.log4j Logger WriterAppender SimpleLayout]))
 
 (defn bootstrap []
-  (use 'cascalog.api)
+  (use 'cascalog.api
+       '[jackknife.seq :only (find-first)])
   (require '(cascalog [workflow :as w]
                       [ops :as c]
                       [vars :as v])))

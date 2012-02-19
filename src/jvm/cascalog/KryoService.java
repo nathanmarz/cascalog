@@ -1,8 +1,8 @@
 package cascalog;
 
+import cascading.kryo.Kryo;
 import cascading.kryo.KryoFactory;
 import cascalog.hadoop.ClojureKryoSerialization;
-import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.ObjectBuffer;
 import org.apache.log4j.Logger;
 
@@ -13,7 +13,7 @@ public class KryoService {
 
     static {
         ClojureKryoSerialization serialization = new ClojureKryoSerialization();
-        Kryo k = serialization.makeKryo();
+        Kryo k = serialization.populatedKryo();
         k.setRegistrationOptional(true);
 
         kryoBuf = KryoFactory.newBuffer(k);

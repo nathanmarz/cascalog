@@ -18,12 +18,13 @@
 ;; TODO: better to use UUIDs to avoid name collisions with client code?
 ;; Are the size of fields an issue in the actual flow execution perf-wise?
 (let [i (atom 0)]
-  (defn gen-unique-suffix [] (str "__gen" (swap! i inc))))
+  (defn gen-unique-suffix []
+    (str "__gen" (swap! i inc))))
 
 (defn- gen-var-fn [prefix]
   (fn this
-    ([suffix] (str prefix (gen-unique-suffix) suffix))
-    ([] (this ""))))
+    ([] (this ""))
+    ([suffix] (str prefix (gen-unique-suffix) suffix))))
 
 (def gen-non-nullable-var (gen-var-fn "?"))
 (def gen-nullable-var (gen-var-fn "!"))
@@ -58,7 +59,8 @@
   (try (.startsWith (extract-varname sym-or-str) "?")
        (catch Exception e nil)))
 
-(def nullable-var? (complement non-nullable-var?))
+(def nullable-var?
+  (complement non-nullable-var?))
 
 (defn unground-var?
   "!! vars that cause outer joins"

@@ -47,8 +47,7 @@ public class MemorySourceTap extends SourceTap {
         public void sourceInit(Tap tap, JobConf jc) throws IOException {
             FileInputFormat.setInputPaths(jc, "/" + UUID.randomUUID().toString());
             jc.setInputFormat(TupleMemoryInputFormat.class);
-            TupleMemoryInputFormat
-                .setObject(jc, TupleMemoryInputFormat.TUPLES_PROPERTY, this.tuples);
+            TupleMemoryInputFormat.storeTuples(jc, TupleMemoryInputFormat.TUPLES_PROPERTY, this.tuples);
         }
 
         @Override

@@ -38,24 +38,19 @@
   (impl/logical-comp ops #'impl/bool-or))
 
 (defn comp [& ops]
-  (let [ops (reverse ops)
-        intvars (map vector (v/gen-nullable-vars (dec (clojure.core/count ops))))
-        intvars (vec (cons "!invars" intvars))
-        allvars (conj intvars ["!result"])
-        varpairs (partition 2 1 allvars)]
-    (construct
-     [:<< "!invars" :> "!result"]
-     (map (fn [o [invars outvars]]
-            [o :<< invars :>> outvars])
-          ops
-          varpairs))))
+  (let [[invar & more] (v/gen-nullable-vars (inc (clojure.core/count ops)))
+        allvars (list* invar (map vector more))]
+    (construct [:<< invar :> (last more)]
+               (map (fn [o [invars outvars]]
+                      [o :<< invars :>> outvars])
+                    (reverse ops)
+                    (partition 2 1 allvars)))))
 
 (defn juxt [& ops]
   (let [outvars (v/gen-nullable-vars (clojure.core/count ops))]
     (construct
      [:<< "!invars" :>> outvars]
-     (map (fn [o v]
-            [o :<< "!invars" :> v])
+     (map (fn [o v] [o :<< "!invars" :> v])
           ops
           outvars))))
 
