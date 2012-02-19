@@ -60,7 +60,7 @@ public class MemorySourceTap extends SourceTap<HadoopFlowProcess, JobConf, Recor
         public void sourceConfInit(HadoopFlowProcess flowProcess, Tap tap, JobConf conf) {
             FileInputFormat.setInputPaths( conf, "/" + UUID.randomUUID().toString());
             conf.setInputFormat(TupleMemoryInputFormat.class);
-            TupleMemoryInputFormat.setObject(conf, TupleMemoryInputFormat.TUPLES_PROPERTY, this.tuples);
+            TupleMemoryInputFormat.storeTuples(conf, TupleMemoryInputFormat.TUPLES_PROPERTY, this.tuples);
         }
 
         @Override

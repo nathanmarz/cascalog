@@ -5,7 +5,7 @@
             [cascalog.conf :as conf]
             [cascalog.util :as u])
   (:import [cascalog.hadoop DefaultComparator]
-           [cascading.flow FlowException]))
+           [cascading CascadingException]))
 
 (def comma
   (partial s/join ","))
@@ -75,7 +75,7 @@
       (fact
         "Attempting to serialize an unregistered object when
       accept.all is set to false should throw a flow exception."
-        (??<- [?a] (cal-tuple ?a))) => (throws FlowException))))
+        (??<- [?a] (cal-tuple ?a))) => (throws CascadingException))))
 
 (tabular
  (fact "Test of various comparators."
