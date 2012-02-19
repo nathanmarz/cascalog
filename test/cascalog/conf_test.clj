@@ -5,7 +5,7 @@
             [cascalog.conf :as conf]
             [cascalog.util :as u])
   (:import [cascalog.hadoop DefaultComparator]
-           [cascading.flow CascadingException]))
+           [cascading CascadingException]))
 
 (def comma
   (partial s/join ","))
