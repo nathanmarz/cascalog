@@ -28,4 +28,5 @@
                      [lein-midje "1.0.8"]]
   :dependencies ~(conj shared-deps '[org.clojure/clojure "1.3.0"])
   :multi-deps {"1.2" [org.clojure/clojure "1.2.1"]
+               "1.4" [org.clojure/clojure "1.4.0-alpha3"]
                :all ~shared-deps})
