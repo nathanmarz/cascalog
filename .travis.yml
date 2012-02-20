@@ -1,0 +1,9 @@
+language: clojure
+script: lein compile, midje
+branches:
+  only:
+    - feature/cascading2
+    - develop
+    - master
+notifications:
+  irc: "irc.freenode.org#cascalog"

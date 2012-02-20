@@ -61,7 +61,7 @@
     (let [obj (collectify obj)]
       (if (empty? obj)
         Fields/ALL ; TODO: add Fields/NONE support
-        (Fields. (into-array String (collectify obj)))))))
+        (Fields. (into-array String obj))))))
 
 (defn fields-array
   [fields-seq]
