@@ -16,7 +16,7 @@
     limitations under the License.
 */
 
-package cascading.pipe.cogroup;
+package cascading.pipe.joiner;
 
 import cascading.tuple.Tuple;
 
@@ -31,14 +31,15 @@ public class CascalogJoiner implements Joiner {
         EXISTS;
     }
 
-    private List<JoinType> joins;
+    private JoinerClosure closure;
+    private final List<JoinType> joins;
 
     public CascalogJoiner(List<JoinType> joins) {
         this.joins = joins;
     }
 
-
-    public Iterator<Tuple> getIterator(GroupClosure closure) {
+    @Override public Iterator<Tuple> getIterator(JoinerClosure closure) {
+        this.closure = closure;
         return new JoinIterator(closure);
     }
 
@@ -47,19 +48,17 @@ public class CascalogJoiner implements Joiner {
     }
 
     protected class JoinIterator extends OuterJoin.JoinIterator {
-        public JoinIterator(GroupClosure closure) {
+        public JoinIterator(JoinerClosure closure) {
             super(closure);
         }
 
-        @Override
-        protected boolean isOuter(int i) {
-          return joins.get(i)!=JoinType.INNER && super.isOuter( i );
+        @Override protected boolean isOuter(int i) {
+            return joins.get(i)!=JoinType.INNER && super.isOuter( i );
         }
 
-        @Override
-        protected Iterator getIterator(int i) {
+        @Override protected Iterator getIterator(int i) {
             if(joins.get(i)==JoinType.EXISTS) {
-                final boolean isEmpty = ((CoGroupClosure) closure).isEmpty(i);
+                final boolean isEmpty = closure.isEmpty(i);
                 final Iterator wrapped = super.getIterator(i);
                 return new Iterator() {
                     private boolean emittedOne = false;
@@ -69,7 +68,8 @@ public class CascalogJoiner implements Joiner {
                     }
 
                     public Object next() {
-                        if(emittedOne) throw new RuntimeException("Shouldn't be accessing outerjoin_first more than once");
+                        if(emittedOne)
+                            throw new RuntimeException("Shouldn't be accessing outerjoin_first more than once");
                         emittedOne = true;
                         Tuple t = (Tuple) wrapped.next();
                         Tuple ret = new Tuple();

@@ -25,7 +25,7 @@
            [cascading.operation Identity Debug]
            [cascading.operation.aggregator First Count Sum Min Max]
            [cascading.pipe Pipe Each Every GroupBy CoGroup]
-           [cascading.pipe.cogroup InnerJoin OuterJoin LeftJoin RightJoin MixedJoin]
+           [cascading.pipe.joiner InnerJoin OuterJoin LeftJoin RightJoin MixedJoin]
            [cascalog ClojureFilter ClojureMapcat ClojureMap
             ClojureAggregator Util ClojureBuffer ClojureBufferIter
             FastFirst MemorySourceTap MultiGroupBy ClojureMultibuffer]))

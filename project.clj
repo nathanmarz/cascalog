@@ -1,6 +1,6 @@
 (def shared-deps
   '[[org.clojure/tools.macro "0.1.1"]
-    [cascading/cascading-hadoop "2.0.0-wip-184"
+    [cascading/cascading-hadoop "2.0.0-wip-226"
      :exclusions [org.codehaus.janino/janino
                   org.apache.hadoop/hadoop-core]]
     [org.clojure/tools.macro "0.1.1"]
@@ -10,7 +10,7 @@
     [hadoop-util "0.2.7"]
     [jackknife "0.1.2"]])
 
-(defproject cascalog/cascalog "1.9.0-wip4"
+(defproject cascalog/cascalog "1.9.0-wip5"
   :source-path "src/clj"
   :java-source-path "src/jvm"
   :jvm-opts ["-Xmx768m" "-server"

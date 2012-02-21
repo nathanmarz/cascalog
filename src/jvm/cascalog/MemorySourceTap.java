@@ -24,6 +24,7 @@ import cascading.scheme.SinkCall;
 import cascading.scheme.SourceCall;
 import cascading.tap.SourceTap;
 import cascading.tap.Tap;
+import cascading.tap.hadoop.RecordReaderIterator;
 import cascading.tuple.Fields;
 import cascading.tuple.Tuple;
 import cascading.tuple.TupleEntryIterator;
@@ -44,15 +45,13 @@ public class MemorySourceTap extends SourceTap<HadoopFlowProcess, JobConf, Recor
     public static class MemorySourceScheme extends Scheme<HadoopFlowProcess, JobConf, RecordReader, OutputCollector, Object[], Void> {
 
         private List<Tuple> tuples;
-        private String id;
 
         public MemorySourceScheme(List<Tuple> tuples, Fields fields) {
             super(fields);
             this.tuples = tuples;
         }
 
-        public List<Tuple> getTuples()
-        {
+        public List<Tuple> getTuples() {
             return this.tuples;
         }
 
@@ -70,7 +69,7 @@ public class MemorySourceTap extends SourceTap<HadoopFlowProcess, JobConf, Recor
 
         @Override
         public void sourcePrepare( HadoopFlowProcess flowProcess, SourceCall<Object[], RecordReader> sourceCall ) {
-            sourceCall.setContext( new Object[ 2 ] );
+            sourceCall.setContext(new Object[2]);
 
             sourceCall.getContext()[ 0 ] = sourceCall.getInput().createKey();
             sourceCall.getContext()[ 1 ] = sourceCall.getInput().createValue();
