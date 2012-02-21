@@ -31,7 +31,6 @@ public class CascalogJoiner implements Joiner {
         EXISTS;
     }
 
-    private JoinerClosure closure;
     private final List<JoinType> joins;
 
     public CascalogJoiner(List<JoinType> joins) {
@@ -39,7 +38,6 @@ public class CascalogJoiner implements Joiner {
     }
 
     @Override public Iterator<Tuple> getIterator(JoinerClosure closure) {
-        this.closure = closure;
         return new JoinIterator(closure);
     }
 
