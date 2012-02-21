@@ -3,6 +3,7 @@
 # http://about.travis-ci.org/docs/user/build-configuration/
 
 language: clojure
+before_install: lein plugin install lein-multi 1.1.0 && lein plugin install lein-midje 1.0.8
 script: lein compile, midje
 branches:
   only:
