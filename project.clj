@@ -10,7 +10,7 @@
     [hadoop-util "0.2.7"]
     [jackknife "0.1.2"]])
 
-(defproject cascalog/cascalog "1.9.0-wip5"
+(defproject cascalog/cascalog "1.9.0-wip6"
   :source-path "src/clj"
   :java-source-path "src/jvm"
   :jvm-opts ["-Xmx768m" "-server"
