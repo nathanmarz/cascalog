@@ -8,7 +8,7 @@
                   thirdparty/jgrapht-jdk1.6
                   riffle/riffle]]
     [thirdparty/jgrapht-jdk1.6 "0.8.1"]
-    [cascading.kryo "0.2.0"]
+    [cascading.kryo "0.2.1"]
     [cascalog/carbonite "1.1.1"]
     [riffle/riffle "0.1-dev"]
     [log4j/log4j "1.2.16"]
