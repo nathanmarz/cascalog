@@ -4,13 +4,13 @@
      :exclusions [org.codehaus.janino/janino
                   org.apache.hadoop/hadoop-core]]
     [org.clojure/tools.macro "0.1.1"]
-    [cascading.kryo "0.2.0"]
+    [cascading.kryo "0.2.1"]
     [cascalog/carbonite "1.1.1"]
     [log4j/log4j "1.2.16"]
     [hadoop-util "0.2.7"]
     [jackknife "0.1.2"]])
 
-(defproject cascalog/cascalog "1.9.0-wip6"
+(defproject cascalog/cascalog "1.9.0-wip7"
   :source-path "src/clj"
   :java-source-path "src/jvm"
   :jvm-opts ["-Xmx768m" "-server"
