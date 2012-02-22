@@ -1,4 +1,6 @@
-# About
+# Cascalog
+
+[![Build Status](https://secure.travis-ci.org/nathanmarz/cascalog.png?branch=develop)](http://travis-ci.org/nathanmarz/cascalog)
 
 Cascalog is a fully-featured data processing and querying library for Clojure. The main use cases for Cascalog are processing "Big Data" on top of Hadoop or doing analysis on your local computer from the Clojure REPL. Cascalog is a replacement for tools like Pig, Hive, and Cascading.
 
@@ -22,7 +24,7 @@ Cascalog is hosted at [Clojars](http://clojars.org/cascalog). Clojars is a maven
 
 To include Cascalog in your leiningen or cake project, add the following to your `project.clj`:
 
-    [cascalog "1.8.5"] ;; under :dependencies
+    [cascalog "1.8.6"] ;; under :dependencies
     [org.apache.hadoop/hadoop-core "0.20.2-dev"] ;; under :dev-dependencies
 
 Note that Cascalog is compatible with Clojure 1.2.0, 1.2.1 and 1.3.0. 

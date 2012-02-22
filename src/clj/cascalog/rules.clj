@@ -17,7 +17,7 @@
            [cascading.flow Flow FlowConnector]
            [cascading.pipe Pipe]
            [cascading.flow.hadoop HadoopFlowProcess]
-           [cascading.pipe.cogroup CascalogJoiner CascalogJoiner$JoinType]
+           [cascading.pipe.joiner CascalogJoiner CascalogJoiner$JoinType]
            [cascalog CombinerSpec ClojureCombiner ClojureCombinedAggregator Util]
            [org.apache.hadoop.mapred JobConf]
            [java.util ArrayList]))

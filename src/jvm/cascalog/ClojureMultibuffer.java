@@ -37,8 +37,7 @@ public class ClojureMultibuffer extends ClojureCascadingBase implements MultiBuf
     public void operate(MultiBufferContext context) {
         List inputTuples = new ArrayList();
         for (int i = 0; i < context.size(); i++) {
-            inputTuples.add(IteratorSeq
-                .create(new RegularTupleSeqConverter(context.getArgumentsIterator(i))));
+            inputTuples.add(IteratorSeq.create(new RegularTupleSeqConverter(context.getArgumentsIterator(i))));
         }
 
         ISeq result_seq = RT.seq(applyFunction(RT.seq(inputTuples)));

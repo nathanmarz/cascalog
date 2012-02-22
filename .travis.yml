@@ -1,0 +1,18 @@
+# See this guide for more settings:
+#
+# http://about.travis-ci.org/docs/user/build-configuration/
+
+language: clojure
+before_install: lein plugin install lein-multi 1.1.0 && lein plugin install lein-midje 1.0.8
+script: lein compile, midje
+branches:
+  only:
+    - feature/cascading2
+    - develop
+    - master
+notifications:
+  irc: "irc.freenode.org#cascalog"
+  email:
+    - nathanmarz@gmail.com
+    - sritchie09@gmail.com
+
