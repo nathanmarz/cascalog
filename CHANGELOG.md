@@ -1,3 +1,7 @@
+## 1.8.7
+
+* Fixed bug where KryoService would fail when two jobs were called simultaneously from different threads (as with cascalog.checkpoint).
+
 ## 1.8.6
 
 * "Call to unbound-fn" Error solved. To use functions within Cascalog queries, hadoop needed to call "require" on the containing namespace. If you define functions at the repl, the namespace file might not exist, and this call will fail; previously, Cascalog would squash these exceptions.
