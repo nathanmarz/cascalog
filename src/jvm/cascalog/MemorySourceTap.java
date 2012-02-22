@@ -24,6 +24,7 @@ import cascading.scheme.SinkCall;
 import cascading.scheme.SourceCall;
 import cascading.tap.SourceTap;
 import cascading.tap.Tap;
+import cascading.tap.hadoop.MultiRecordReaderIterator;
 import cascading.tap.hadoop.RecordReaderIterator;
 import cascading.tuple.Fields;
 import cascading.tuple.Tuple;
@@ -133,7 +134,13 @@ public class MemorySourceTap extends SourceTap<HadoopFlowProcess, JobConf, Recor
 
     @Override
     public TupleEntryIterator openForRead( HadoopFlowProcess flowProcess, RecordReader input ) throws IOException {
-        return new TupleEntrySchemeIterator( flowProcess, getScheme(), new RecordReaderIterator( input ) );
+        if (input != null)
+            return new TupleEntrySchemeIterator( flowProcess, getScheme(), new RecordReaderIterator( input ) );
+
+        JobConf conf = flowProcess.getJobConf();
+
+        return new TupleEntrySchemeIterator(flowProcess, getScheme(),
+            new MultiRecordReaderIterator(flowProcess, this, conf), "MemoryTap: " + getIdentifier());
     }
 
     @Override
