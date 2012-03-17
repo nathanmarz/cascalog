@@ -10,6 +10,7 @@ branches:
     - develop
     - master
 notifications:
+  irc: "irc.freenode.org#cascalog"
   email:
     - nathanmarz@gmail.com
     - sritchie09@gmail.com

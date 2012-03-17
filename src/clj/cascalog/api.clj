@@ -40,6 +40,7 @@
 (defalias hfs-tap tap/hfs-tap)
 (defalias lfs-tap tap/lfs-tap)
 (defalias sequence-file w/sequence-file)
+(defalias writable-sequence-file w/writable-sequence-file)
 (defalias text-line w/text-line)
 
 (defn hfs-textline
@@ -55,6 +56,8 @@
   (let [scheme (->> (:outfields (apply array-map opts) Fields/ALL)
                     (w/text-line ["line"]))]
     (apply tap/hfs-tap scheme path opts)))
+
+
 
 (defn lfs-textline
   "Creates a tap on the local filesystem using textline format.
@@ -95,6 +98,42 @@
   [path & opts]
   (let [scheme (-> (:outfields (apply array-map opts) Fields/ALL)
                    (w/sequence-file))]
+    (apply tap/lfs-tap scheme path opts)))
+
+(defn hfs-wrtseqfile
+"
+   Creates a tap on HDFS using sequence file format to read and write 
+   key and/or value Hadoop Writable objects directly. Different
+   filesystems can be selected by using different prefixes for `path`.
+
+   Supports keyword option for `:outfields`. See `cascalog.tap/hfs-tap`
+   for more keyword arguments.
+
+   Reference:
+   http://www.cascading.org/javadoc/cascading/tap/Hfs.html and
+   http://www.cascading.org/1.2/javadoc/cascading/scheme/WritableSequenceFile.html
+"
+  [path key-type value-type & opts]
+  (let [scheme (-> (:outfields (apply array-map opts) Fields/ALL)
+                   (writable-sequence-file key-type value-type))]
+    (apply tap/hfs-tap scheme path opts)))
+
+(defn lfs-wrtseqfile
+"
+   Creates a tap on the local filesystem using sequence file format to read 
+   and write key and/or value Hadoop Writable objects directly. Different
+   filesystems can be selected by using different prefixes for `path`.
+
+   Supports keyword option for `:outfields`. See `cascalog.tap/hfs-tap`
+   for more keyword arguments.
+
+   Reference:
+   http://www.cascading.org/javadoc/cascading/tap/Lfs.html and
+   http://www.cascading.org/1.2/javadoc/cascading/scheme/WritableSequenceFile.html
+"
+  [path key-type value-type & opts]
+  (let [scheme (-> (:outfields (apply array-map opts) Fields/ALL)
+                   (writable-sequence-file key-type value-type))]
     (apply tap/lfs-tap scheme path opts)))
 
 (defn stdout
