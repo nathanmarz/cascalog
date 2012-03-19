@@ -21,13 +21,14 @@
         [jackknife.core :only (safe-assert)]
         [jackknife.seq :only (collectify)])
   (:require [cascalog.conf :as conf]
+            [cascalog.vars :as v]
             [cascalog.util :as u]
             [hadoop-util.core :as hadoop])
   (:import [cascalog Util]
            [java.io File]
            [java.util ArrayList]
            [cascading.tuple Tuple TupleEntry Fields]
-           [cascading.scheme Scheme TextLine SequenceFile]
+           [cascading.scheme Scheme TextLine SequenceFile TextDelimited]
            [cascading.tap Hfs Lfs GlobHfs Tap TemplateTap SinkMode]
            [cascading.tuple TupleEntryCollector]
            [cascading.flow Flow FlowConnector]
@@ -471,6 +472,17 @@
 
 (defn sequence-file [field-names]
   (SequenceFile. (fields field-names)))
+
+(defn delimited
+  [field-seq delim & {:keys [classes skip-header?]}]
+  (let [skip-header? (boolean skip-header?)
+        field-seq    (fields field-seq)
+        field-seq    (if (and classes (not (.isDefined field-seq)))
+                       (fields (v/gen-nullable-vars (count classes)))
+                       field-seq)]
+    (if classes
+      (TextDelimited. field-seq skip-header? delim (into-array classes))
+      (TextDelimited. field-seq skip-header? delim))))
 
 (deffilterop equal [& objs]
   (apply = objs))
