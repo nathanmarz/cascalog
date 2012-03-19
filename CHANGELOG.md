@@ -10,6 +10,7 @@
 ## 1.8.7
 
 * Fixed bug where KryoService would fail when two jobs were called simultaneously from different threads (as with cascalog.checkpoint).
+* Added `lfs-delimited` and `hfs-delimited` tap functions.
 
 ## 1.8.6
 

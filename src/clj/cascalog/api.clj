@@ -27,6 +27,45 @@
 (defalias lfs-tap tap/lfs-tap)
 (defalias sequence-file w/sequence-file)
 (defalias text-line w/text-line)
+(defalias delimited w/delimited)
+
+(defn hfs-delimited
+  "Creates a tap on HDFS using Cascading's TextDelimited
+   scheme. Different filesystems can be selected by using different
+   prefixes for `path`.
+
+  Supports keyword option for `:outfields`, `:classes` and
+  `:skip-header?`. See `cascalog.tap/hfs-tap` for more keyword
+  arguments.
+
+   See http://www.cascading.org/javadoc/cascading/tap/Hfs.html and
+   http://www.cascading.org/javadoc/cascading/scheme/TextDelimited.html"
+  [path & opts]
+  (let [{:keys [outfields delimiter]} (apply array-map opts)
+        scheme (apply delimited
+                      (or outfields Fields/ALL)
+                      (or delimiter "\t")
+                      opts)]
+    (apply tap/hfs-tap scheme path opts)))
+
+(defn lfs-delimited
+  "Creates a tap on the local filesystem using Cascading's
+   TextDelimited scheme. Different filesystems can be selected by
+   using different prefixes for `path`.
+
+  Supports keyword option for `:outfields`, `:classes` and
+  `:skip-header?`. See `cascalog.tap/hfs-tap` for more keyword
+  arguments.
+
+   See http://www.cascading.org/javadoc/cascading/tap/Hfs.html and
+   http://www.cascading.org/javadoc/cascading/scheme/TextDelimited.html"
+  [path & opts]
+  (let [{:keys [outfields delimiter]} (apply array-map opts)
+        scheme (apply delimited
+                      (or outfields Fields/ALL)
+                      (or delimiter "\t")
+                      opts)]
+    (apply tap/lfs-tap scheme path opts)))
 
 (defn hfs-textline
   "Creates a tap on HDFS using textline format. Different filesystems

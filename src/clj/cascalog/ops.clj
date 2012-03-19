@@ -230,7 +230,7 @@
   (let [tap (:sink (hfs-seqfile tmp-path))
         n-fields (clojure.core/count tuple)]
     (fill-tap! tap l-seq)
-    (name-vars tap (v/gen-non-nullable-vars n-fields))))
+    (name-vars tap (v/gen-nullable-vars n-fields))))
 
 (defnk first-n
   "Accepts a generator and a number `n` and returns a subquery that
