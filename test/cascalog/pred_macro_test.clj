@@ -7,13 +7,15 @@
   (:require [cascalog.ops :as c]
             [cascalog.io :as io]))
 
+(def mac2
+  (<- [:< ?a]
+    (* ?a ?a :> ?a)))
+
 (deftest test-predicate-macro
   (let [mac1 (<- [?a :> ?b ?c]
                  (+ ?a 1 :> ?t)
                  (* ?t 2 :> ?b)
                  (+ ?a ?t :> ?c))
-        mac2 (<- [:< ?a]
-                 (* ?a ?a :> ?a))
         mac3 (<- [?a :> ?b]
                  (+ ?a ?a :> ?b))
         num1 [[0] [1] [2] [3]]]
@@ -26,7 +28,7 @@
     (test?<- [[0] [1]]
              [?n]
              (num1 ?n)
-             (mac2 ?n))
+             (#'mac2 ?n))
 
     ;; test that it allows same var used as input and output
     (test?<- [[0]]
