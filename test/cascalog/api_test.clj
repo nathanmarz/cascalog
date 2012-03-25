@@ -882,3 +882,4 @@
 (future-fact "Test only non-complex aggregators.")
 (future-fact "test only one buffer.")
 (future-fact "Test error on missing output fields.")
+(future-fact "Test reservoir sample operator.")
