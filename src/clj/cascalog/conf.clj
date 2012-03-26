@@ -20,8 +20,9 @@
 
 (def ^:dynamic *JOB-CONF* {})
 
-(defn project-conf []
+(defn project-conf [& [conf]]
   (project-merge (project-settings)
+                 (into {} conf)
                  *JOB-CONF*
                  {"io.serializations"
                   "cascalog.hadoop.ClojureKryoSerialization"}))

@@ -48,7 +48,7 @@ public class ClojureCascadingBase extends BaseOperation {
 
     @Override
     public void prepare(FlowProcess flow_process, OperationCall op_call) {
-        this.fn_spec = (Object[]) KryoService.deserialize(serialized_spec);
+        this.fn_spec = KryoService.deserialize(flow_process, serialized_spec);
         this.fn = Util.bootFn(fn_spec);
         if (stateful) {
             try {
