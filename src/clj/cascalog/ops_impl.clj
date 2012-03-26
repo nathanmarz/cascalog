@@ -78,44 +78,63 @@
   (fn [tuples]
     (take limit (map #(conj (vec %1) %2) tuples (iterate inc 1)))))
 
-(defn sample-init [_ reservoir-size]
+(def RANDOM (java.util.Random.))
+
+(defn sample-init
+  "emit a single tuple at a time"
+  [_ reservoir-size]
   (fn [sort-tuple & tuple] 
-    [[1 [(vec sort-tuple) (vec tuple)]]]))
+    [[1 [[(vec sort-tuple) (vec tuple)]]]]))
 
-(defn- mk-sample-comparator [options]
-  (fn [[^Comparable o1 _] [^Comparable o2 _]]
-    (if (:sort options)
-      (* (.compareTo o1 o2) (if (boolean (:reverse options)) -1 1))
-      0)))
-
-(defn- maybe-insert [reservoir item reservoir-size seen]
-  (let [item-vec (vec item)
-        reservoir-vec (vec reservoir)
-        r (-> (java.util.Random.) (.nextInt seen))]
+(defn- maybe-insert
+  "determine whether or not to replace a tuple in `reservoir` with `item`."
+  [reservoir item reservoir-size seen]
+  (let [r (.nextInt RANDOM seen)]
     (if (< r reservoir-size)
-      (seq (assoc reservoir-vec r item-vec))
+      (assoc reservoir r item)
       reservoir)))
 
-(defn sample-combine [_ reservoir-size]
+(defn sample-combine
+  "`list1` is the output of a previous `sample-combine`, or the output of
+  `sample-init` if `sample-combine` hasn't run yet.
+
+  `list2` is the output of `sample-init` and is assume to always be a single tuple.
+
+  if `seen` is < `reservoir-size`, add `list2` to `list1`, which represent the reservoir.
+  otherwise call `maybe-insert` on `list2`."
+  [_ reservoir-size]
   (fn [list1 list2]
     (let [seen (+ (first list1) (first list2))
-          res (concat (rest list1) (rest list2))]
-      [(if (> (count res) reservoir-size)
-         (cons seen (maybe-insert (rest list1) (first (rest list2)) reservoir-size seen))
-         (cons seen res))])))
+          list1 (second list1)
+          list2 (second list2)
+          res (conj list1 (first list2))]
+      [[seen (if (> (count res) reservoir-size)
+         (maybe-insert list1 (first list2) reservoir-size seen)
+         res)]]
+      )))
 
-(defn sample-extract [options reservoir-size]
+(defn sample-extract
+  "after all tuples have passed through `sample-combine`, this function is called.
+
+  NB. this function must take only a single argument or an exception is thrown."
+  [_ reservoir-size]
   (fn [alist]
     (let [seen (first alist)
-          compare-fn (mk-sample-comparator options)
-          values (if (<= (count (rest alist)) reservoir-size)
-                  (rest alist)
-                  (take reservoir-size (sort compare-fn (rest alist))))]
-      (map (partial apply concat) values))))
+          alist (second alist)
+          values (map (partial apply into) alist)]
+      (map #(conj % seen) values))))
 
-(defn sample-buffer [_ reservoir-size]
+(defn sample-buffer
+  "the results of all the distributed `sample-extract` operations are combined
+  into a single collection of tuples and a weighted reservoir sampling algorithm
+  as described at http://gregable.com/2007/10/reservoir-sampling.html is performed."
+  [_ reservoir-size]
   (fn [tuples]
-    (take reservoir-size tuples)))
+    (let [total-seen (reduce + (distinct (map last tuples)))
+          mk-key (fn [size seen] (Math/pow (.nextDouble RANDOM) (/ 1 (/ (double seen) total-seen))))
+          generate-keys (fn [x] (conj (vec (butlast x)) (mk-key reservoir-size (last x))))
+          samples (map #(generate-keys %) tuples)]
+      (map butlast (take reservoir-size (sort-by last > samples))))))
 
 (w/defaggregateop distinct-count-agg
   ([] [nil 0])
