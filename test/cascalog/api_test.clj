@@ -869,6 +869,26 @@
              (people ?person)
              (bob-set ?person))))
 
+(deftest test-reservoir-sample-count
+  (let [numbers [1 2 3 4 5 6 7 8 9 10]
+        sampling-query (<- [?s]
+                           (numbers ?n)
+                           (c/sample [5] ?n :> ?s))]
+    (fact?<- "sample should return a number of samples equal to the specified
+             sample size param"
+             [[5]]
+             [?count]
+             (sampling-query ?s)
+             (c/count ?count))))
+
+(deftest test-reservoir-sample-contents
+  (let [numbers [[1 2] [3 4] [5 6] [7 8] [9 10]]
+        sampling-query (<- [?s1 ?s2]
+                           (numbers ?n1 ?n2)
+                           (c/sample [5] ?n1 ?n2 :> ?s1 ?s2))]
+    (fact?- "sample should contain some of the inputs"
+             (contains #{[1 2] [3 4] [5 6]} :gaps-ok) sampling-query)))
+
 (future-fact "test outer join with functions.")
 
 (future-fact "test mongo"

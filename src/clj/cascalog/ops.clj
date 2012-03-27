@@ -99,6 +99,14 @@
 (def limit-rank
   (merge limit {:buffer-hof-var #'impl/limit-rank-buffer}))
 
+(defparallelbuf sample :hof? true
+  :init-hof-var #'impl/sample-init
+  :combine-hof-var #'impl/sample-combine
+  :extract-hof-var #'impl/sample-extract
+  :num-intermediate-vars-fn (fn [infields outfields]
+                              (inc (clojure.core/count infields)))
+  :buffer-hof-var #'impl/sample-buffer)
+
 (def avg
   (<- [!v :> !avg]
       (count !c)
