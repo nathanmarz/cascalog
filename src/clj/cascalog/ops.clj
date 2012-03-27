@@ -207,6 +207,13 @@
   (<- [:<< !invars :> !c]
       (:sort :<< !invars)
       (impl/distinct-count-agg :<< !invars :> !c)))
+      
+(defn fixed-sample-agg [amt]
+  (<- [:<< ?invars :>> ?outvars]
+    ((cascalog.ops.RandInt.) :<< ?invars :> ?rand)
+    (:sort ?rand)
+    (limit [amt] :<< ?invars :>> ?outvars)
+    ))
 
 ;; Common patterns
 
@@ -264,6 +271,16 @@
         (:sort :<< sort-vars)
         (:reverse reverse)
         (limit [n] :<< in-vars :>> out-vars))))
+
+(defn fixed-sample
+  "Returns a subquery getting a random sample of n elements from the generator"
+  [gen n]
+  (let [num-fields (num-out-fields gen)
+        in-vars  (v/gen-nullable-vars num-fields)
+        out-vars (v/gen-nullable-vars num-fields)]
+    (<- out-vars
+        (gen :>> in-vars)
+        ((fixed-sample-agg n) :<< in-vars :>> out-vars))))
 
 ;; Helpers to use within ops
 
