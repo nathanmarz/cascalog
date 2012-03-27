@@ -104,7 +104,7 @@
   :combine-hof-var #'impl/sample-combine
   :extract-hof-var #'impl/sample-extract
   :num-intermediate-vars-fn (fn [infields outfields]
-                              (clojure.core/count infields))
+                              (inc (clojure.core/count infields)))
   :buffer-hof-var #'impl/sample-buffer)
 
 (def avg
