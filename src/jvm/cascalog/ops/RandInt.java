@@ -24,7 +24,7 @@ public class RandInt extends CascalogFunction {
   }
 
   public void prepare(FlowProcess flowProcess, OperationCall operationCall) {
-    _rand = new Random(_seed + ((HadoopFlowProcess) flowProcess).getCurrentTaskNum());
+    _rand = new Random(_seed + ((HadoopFlowProcess) flowProcess).getCurrentSliceNum());
   }
 
   public void operate(FlowProcess flow_process, FunctionCall fn_call) {
