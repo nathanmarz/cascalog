@@ -4,6 +4,7 @@
 
 ;; source can be a cascalog-tap, subquery, or cascading tap sink can
 ;; be a cascading tap, a sink function, or a cascalog-tap
+
 (defstruct cascalog-tap :type :source :sink)
 
 (defn mk-cascalog-tap

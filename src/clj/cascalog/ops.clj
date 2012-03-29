@@ -110,13 +110,12 @@
   (<- [:<< !invars :> !c]
       (:sort :<< !invars)
       (impl/distinct-count-agg :<< !invars :> !c)))
-      
+
 (defn fixed-sample-agg [amt]
   (<- [:<< ?invars :>> ?outvars]
-    ((cascalog.ops.RandInt.) :<< ?invars :> ?rand)
-    (:sort ?rand)
-    (limit [amt] :<< ?invars :>> ?outvars)
-    ))
+      ((cascalog.ops.RandInt.) :<< ?invars :> ?rand)
+      (:sort ?rand)
+      (limit [amt] :<< ?invars :>> ?outvars)))
 
 ;; Common patterns
 
