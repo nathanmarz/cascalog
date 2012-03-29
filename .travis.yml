@@ -4,7 +4,7 @@
 
 language: clojure
 lein: lein2
-script: lein2 with-profile dev:1.2,dev:1.4 midje
+script: lein2 all compile, all midje
 branches:
   only:
     - feature/cascading2

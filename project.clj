@@ -23,6 +23,7 @@
   :codox {:include [cascalog.vars cascalog.ops cascalog.io cascalog.api]}
   :repositories {"conjars" "http://conjars.org/repo/"}
   :plugins [[lein-midje "2.0.0-SNAPSHOT"]]
+  :aliases { "all" ["with-profile" "dev:1.2,dev:1.4"]}
   :dependencies ~(conj shared '[org.clojure/clojure "1.3.0"])
   :profiles {:all {:dependencies ~shared}
              :1.2 {:dependencies [[org.clojure/clojure "1.2.1"]]}
