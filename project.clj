@@ -1,8 +1,5 @@
-(def shared-deps
+(def shared
   '[[org.clojure/tools.macro "0.1.1"]
-    ;; jgrapht exclusion works around cascading pom bug
-    ;; that causes projects dependent on cascalog to not
-    ;; be able to find jgrapht.
     [cascading/cascading-core "1.2.4"
      :exclusions [org.codehaus.janino/janino
                   thirdparty/jgrapht-jdk1.6
@@ -16,15 +13,20 @@
     [jackknife "0.1.2"]])
 
 (defproject cascalog/cascalog "1.8.7-SNAPSHOT"
-  :source-path "src/clj"
-  :java-source-path "src/jvm"
+  :description "Hadoop without the Hassle."
+  :license {:name "Eclipse Public License"
+            :url "http://www.eclipse.org/legal/epl-v10.html"}
+  :source-paths ["src/clj"]
+  :java-source-paths ["src/jvm"]
+  :min-lein-version "2.0.0"
   :jvm-opts ["-Xmx768m" "-server"]
-  :javac-options {:debug "true" :fork "true"}
-  :repositories {"conjars" "http://conjars.org/repo/"}
   :codox {:include [cascalog.vars cascalog.ops cascalog.io cascalog.api]}
-  :dev-dependencies [[org.apache.hadoop/hadoop-core "0.20.2-dev"]
-                     [midje-cascalog "0.4.0" :exclusions [org.clojure/clojure]]]
-  :dependencies ~(conj shared-deps '[org.clojure/clojure "1.3.0"])
-  :multi-deps {"1.2" [org.clojure/clojure "1.2.1"]
-               "1.4" [org.clojure/clojure "1.4.0-alpha3"]
-               :all ~shared-deps})
+  :repositories {"conjars" "http://conjars.org/repo/"}
+  :plugins [[lein-midje "2.0.0-SNAPSHOT"]]
+  :dependencies ~(conj shared '[org.clojure/clojure "1.3.0"])
+  :profiles {:all {:dependencies ~shared}
+             :1.2 {:dependencies [[org.clojure/clojure "1.2.1"]]}
+             :1.4 {:dependencies [[org.clojure/clojure "1.4.0-alpha3"]]}
+             :dev {:dependencies
+                   [[org.apache.hadoop/hadoop-core "0.20.2-dev"]
+                    [midje-cascalog "0.4.0" :exclusions [org.clojure/clojure]]]}})
