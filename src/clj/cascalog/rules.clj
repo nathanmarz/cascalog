@@ -580,11 +580,16 @@
                           vars)]
     [replacements (conj ret [op opvar newvars])]))
 
+(defn collectify-nil-as-seq [v]
+  (if v (s/collectify v)))
+
 (defn- build-predicate-macro-fn [invars-decl outvars-decl raw-predicates]
-  (if (seq (intersection (set invars-decl) (set outvars-decl)))
+  (when (seq (intersection (set (collectify-nil-as-seq invars-decl))
+                           (set (collectify-nil-as-seq outvars-decl))))
     (throw
      (RuntimeException.
-      "Cannot declare the same var as an input and output to predicate macro"))
+      (str "Cannot declare the same var as an input and output to predicate macro: "
+            invars-decl " " outvars-decl))))
     (fn [invars outvars]
       (let [outvars (if (and (empty? outvars)
                              (sequential? outvars-decl)
@@ -595,7 +600,7 @@
                                                           invars
                                                           outvars-decl
                                                           outvars))]
-        (second (reduce pred-macro-updater [replacements []] raw-predicates))))))
+        (second (reduce pred-macro-updater [replacements []] raw-predicates)))))
 
 (defn- build-predicate-macro [invars outvars raw-predicates]
   (p/predicate p/predicate-macro
