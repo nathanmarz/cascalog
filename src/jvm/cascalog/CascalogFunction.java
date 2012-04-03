@@ -22,8 +22,9 @@ import cascading.operation.FunctionCall;
 import cascading.operation.OperationCall;
 
 import java.io.Serializable;
+import jcascalog.CascalogOp;
 
-public abstract class CascalogFunction implements Serializable {
+public abstract class CascalogFunction implements Serializable, CascalogOp {
     public void prepare(FlowProcess flowProcess, OperationCall operationCall) {
 
     }

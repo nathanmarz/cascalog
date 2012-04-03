@@ -22,8 +22,9 @@ import cascading.operation.BufferCall;
 import cascading.operation.OperationCall;
 
 import java.io.Serializable;
+import jcascalog.CascalogOp;
 
-public abstract class CascalogBuffer implements Serializable {
+public abstract class CascalogBuffer implements Serializable, CascalogOp {
     public void prepare(FlowProcess flowProcess, OperationCall operationCall) {
 
     }
