@@ -41,6 +41,7 @@
 (defalias lfs-tap tap/lfs-tap)
 (defalias sequence-file w/sequence-file)
 (defalias text-line w/text-line)
+(defalias text-delimited w/text-delimited)
 
 (defn hfs-textline
   "Creates a tap on HDFS using textline format. Different filesystems
@@ -64,10 +65,51 @@
 
    See http://www.cascading.org/javadoc/cascading/tap/Lfs.html and
    http://www.cascading.org/javadoc/cascading/scheme/TextLine.html"
-  [path & opts]
+  [path delimiter & opts]
   (let [scheme (->> (:outfields (apply array-map opts) Fields/ALL)
                     (w/text-line ["line"]))]
     (apply tap/lfs-tap scheme path opts)))
+
+
+(defn hfs-textdelimited
+  "Creates a tap on HDFS using textdelimited format. Different filesystems
+   can be selected by using different prefixes for `path`.
+
+  Supports keyword option for `:outfields`.
+  `:delimiter` for the delimiter to split on
+  `:skip-header` if true will skip the first line
+  See `cascalog.tap/hfs-tap` for more keyword arguments.
+
+   See http://www.cascading.org/javadoc/cascading/tap/Hfs.html and
+   http://www.cascading.org/javadoc/cascading/scheme/TextLine.html"
+  [path & opts]
+  (let [opts-map (apply array-map opts)
+        delimiter (:delimiter opts-map ",")
+        skip-header (:skip-header opts-map false)
+        scheme (->> (:outfields opts-map Fields/ALL)
+                       (w/text-delimited Fields/ALL delimiter skip-header))]
+    (apply tap/hfs-tap scheme path opts)))
+
+(defn lfs-textdelimited
+  "Creates a tap on the local filesystem using a text delimted format.
+  Such as csv or tsv
+
+  Supports keyword option for `:outfields`.
+  `:delimiter` for the delimiter to split on
+  `:skip-header` if true will skip the first line
+  See `cascalog.tap/lfs-tap` for more keyword arguments.
+
+   See http://www.cascading.org/javadoc/cascading/tap/Lfs.html and
+   http://www.cascading.org/javadoc/cascading/scheme/TextLine.html"
+  [path & opts]
+  (let [opts-map (apply array-map opts)
+        delimiter (:delimiter opts-map ",")
+        skip-header (:skip-header opts-map false)
+        scheme (->> (:outfields opts-map Fields/ALL)
+                       (w/text-delimited Fields/ALL delimiter skip-header))]
+       (apply tap/lfs-tap scheme path opts)))
+
+
 
 (defn hfs-seqfile
   "Creates a tap on HDFS using sequence file format. Different
