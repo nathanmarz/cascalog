@@ -27,7 +27,7 @@
            [java.io File]
            [java.util ArrayList]
            [cascading.tuple Tuple TupleEntry Fields]
-           [cascading.scheme Scheme TextLine SequenceFile]
+           [cascading.scheme Scheme TextLine SequenceFile TextDelimited]
            [cascading.tap Hfs Lfs GlobHfs Tap TemplateTap SinkMode]
            [cascading.tuple TupleEntryCollector]
            [cascading.flow Flow FlowConnector]
@@ -468,6 +468,14 @@
      (TextLine. (fields field-names) (fields field-names)))
   ([source-fields sink-fields]
      (TextLine. (fields source-fields) (fields sink-fields))))
+
+(defn text-delimited
+  ([field-names delimiter]
+     (TextDelimited. (fields field-names) delimiter))
+  ([source-fields delimiter skip-header]
+     (TextDelimited. (fields source-fields) skip-header delimiter))
+  ([source-fields delimiter skip-header junk]
+     (TextDelimited. (fields source-fields) skip-header delimiter)))
 
 (defn sequence-file [field-names]
   (SequenceFile. (fields field-names)))
