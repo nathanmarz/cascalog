@@ -129,7 +129,9 @@
 
 ;; Query introspection
 
-(defmulti get-out-fields rules/generator-selector)
+(defmulti get-out-fields
+  "Get the fields of a generator."  
+  rules/generator-selector)
 
 (defmethod get-out-fields :tap [tap]
   (let [cfields (.getSourceFields tap)]
@@ -144,7 +146,9 @@
 (defmethod get-out-fields :cascalog-tap [cascalog-tap]
   (get-out-fields (:source cascalog-tap)))
 
-(defn num-out-fields [gen]
+(defn num-out-fields 
+  "Get the number of fields of a generator."
+  [gen]
   (if (or (list? gen) (vector? gen))
     (count (first gen))
     ;; TODO: should pluck from Tap if it doesn't define out-fields
@@ -284,7 +288,10 @@
    list of predicates. When making predicate macros this way, you must
    create intermediate variables with gen-nullable-var(s). This is
    because unlike the (<- [?a :> ?b] ...) way of doing pred macros,
-   Cascalog doesn't have a declaration for the inputs/outputs."
+   Cascalog doesn't have a declaration for the inputs/outputs.
+   
+   See https://github.com/nathanmarz/cascalog/wiki/Predicate-macros
+  "
   [& body]
   `(predmacro* (fn ~@body)))
 
@@ -339,7 +346,16 @@ as well."
                 ~buffer-spec
                 ~@sqs))
 
-(defmulti select-fields rules/generator-selector)
+(defmulti select-fields 
+"
+  Select fields of a named generator.
+
+  Example:
+  (<- [?a ?b ?sum]
+      (+ ?a ?b :> ?sum)
+      ((select-fields generator [\"?a\" \"?b\"]) ?a ?b))
+"
+  rules/generator-selector)
 
 (defmethod select-fields :tap [tap fields]
   (let [fields (collectify fields)

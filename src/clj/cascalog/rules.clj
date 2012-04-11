@@ -613,9 +613,10 @@
 
 (defn- expand-predicate-macros [raw-predicates]
   (mapcat (fn [[p _ vars :as raw-predicate]]
-            (if (p/predicate-macro? p)
-              (expand-predicate-macros (expand-predicate-macro p vars))
-              [raw-predicate]))
+            (let [p (if (var? p) (var-get p) p)]
+              (if (p/predicate-macro? p)
+                (expand-predicate-macros (expand-predicate-macro p vars))
+                [raw-predicate])))
           raw-predicates))
 
 (defn normalize-raw-predicates

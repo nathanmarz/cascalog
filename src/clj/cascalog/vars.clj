@@ -16,11 +16,30 @@
 (def gen-ungrounding-var (gen-var-fn "!!"))
 
 (defn gen-nullable-vars
+"
+  Generates the given number, 'amt', of nullable variables in a sequence.
+
+  Example:
+  (let [var-seq (gen-nullable-vars n)]
+    (?<- (hfs-textline out-path)
+         var-seq
+         (in :>> var-seq)))
+"
   ([amt] (gen-nullable-vars "" amt))
   ([suffix amt]
      (vec (take amt (repeatedly (partial gen-nullable-var suffix))))))
 
-(defn gen-non-nullable-vars [amt]
+(defn gen-non-nullable-vars
+"
+  Generates the given number, 'amt', of non-nullable variables in a sequence.
+
+  Example:
+  (let [var-seq (gen-non-nullable-vars n)]
+    (?<- (hfs-textline out-path)
+         var-seq
+         (in :>> var-seq)))
+"  
+  [amt]
   (vec (take amt (repeatedly gen-non-nullable-var))))
 
 (defn- extract-varname
@@ -31,20 +50,31 @@
 
 (def cascalog-keyword? #{:> :< :<< :>> :fn> :#> :?})
 
-(defn cascalog-var? [obj]
+(defn cascalog-var? 
+"
+  A predicate on 'obj' to check is it a cascalog variable.
+"  
+  [obj]
   (if (or (symbol? obj) (string? obj))
     (let [obj (extract-varname obj)]
       ((complement nil?) (some #(.startsWith obj %) ["?" "!" "!!"])))
     false))
 
-(defn uniquify-var [v]
+(defn uniquify-var 
+  "Return a modified variable name which is unique."  
+  [v]
   (str v (gen-unique-suffix)))
 
-(defn non-nullable-var? [sym-or-str]
+(defn non-nullable-var? 
+"
+  ? vars that is non-nullable
+"  
+  [sym-or-str]
   (try (.startsWith (extract-varname sym-or-str) "?")
        (catch Exception e nil)))
 
-(def nullable-var?
+(def ^{:doc "! vars that is nullable."}
+      nullable-var?
   (complement non-nullable-var?))
 
 (defn unground-var?
@@ -53,7 +83,8 @@
   (try (.startsWith (extract-varname sym-or-str) "!!")
        (catch Exception e nil)))
 
-(def ground-var? (complement unground-var?))
+(def ^{:doc "? vars that cause inner joins."}
+      ground-var? (complement unground-var?))
 
 (defn- flatten-vars [vars]
   (flatten (map #(if (map? %) (seq %) %) vars)))
