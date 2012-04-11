@@ -6,7 +6,7 @@
                   riffle/riffle]]
     [thirdparty/jgrapht-jdk1.6 "0.8.1"]
     [cascading.kryo "0.3.0-SNAPSHOT"]
-    [cascalog/carbonite "1.1.1"]
+    [cascalog/carbonite "1.2.0"]
     [riffle/riffle "0.1-dev"]
     [log4j/log4j "1.2.16"]
     [hadoop-util "0.2.7"]
@@ -18,7 +18,6 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :source-paths ["src/clj"]
   :java-source-paths ["src/jvm"]
-  :min-lein-version "2.0.0"
   :jvm-opts ["-Xmx768m" "-server"]
   :codox {:include [cascalog.vars cascalog.ops cascalog.io cascalog.api]}
   :repositories {"conjars" "http://conjars.org/repo/"}

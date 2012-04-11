@@ -1,7 +1,7 @@
 package cascalog;
 
-import cascading.kryo.Kryo;
 import cascalog.hadoop.ClojureKryoSerialization;
+import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import org.apache.log4j.Logger;
