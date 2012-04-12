@@ -27,9 +27,10 @@
            [cascading.operation.aggregator First Count Sum Min Max]
            [cascading.pipe Pipe Each Every GroupBy CoGroup]
            [cascading.pipe.joiner InnerJoin OuterJoin LeftJoin RightJoin MixedJoin]
+           [com.twitter.maple.tap MemorySourceTap]
            [cascalog ClojureFilter ClojureMapcat ClojureMap
             ClojureAggregator Util ClojureBuffer ClojureBufferIter
-            FastFirst MemorySourceTap MultiGroupBy ClojureMultibuffer]))
+            FastFirst MultiGroupBy ClojureMultibuffer]))
 
 (defn ns-fn-name-pair [v]
   (let [m (meta v)]

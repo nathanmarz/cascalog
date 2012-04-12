@@ -641,7 +641,7 @@
 (defn mk-raw-predicate [[op-sym & vars]]
   [op-sym (u/try-resolve op-sym) (v/vars->str vars)])
 
-(defn- pluck-tuple [tap]
+(defn pluck-tuple [tap]
   (with-open [it (-> (HadoopFlowProcess. (hadoop/job-conf (conf/project-conf)))
                      (.openTapForRead tap))]
     (if-let [iter (iterator-seq it)]

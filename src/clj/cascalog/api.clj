@@ -13,10 +13,11 @@
             [cascalog.io :as io]
             [cascalog.util :as u]
             [hadoop-util.core :as hadoop])  
-  (:import [cascading.flow Flow]
+  (:import [cascading.flow Flow FlowDef]
            [cascading.flow.hadoop HadoopFlowConnector]
            [cascading.tuple Fields]
-           [cascalog StdoutTap Util MemorySourceTap]
+           [cascalog StdoutTap Util]
+           [com.twitter.maple.tap MemorySourceTap]
            [cascading.pipe Pipe]))
 
 ;; Functions for creating taps and tap helpers
@@ -215,15 +216,17 @@
         sourcemap (apply merge (map :sourcemap gens))
         trapmap   (apply merge (map :trapmap gens))
         tails     (map rules/connect-to-sink gens sinks)
-        sinkmap   (w/taps-map tails sinks)]
-    (.connect (HadoopFlowConnector.
-               (u/project-merge (conf/project-conf)
-                                {"cascading.flow.job.pollinginterval" 100}))
-              flow-name
-              sourcemap
-              sinkmap
-              trapmap
-              (into-array Pipe tails))))
+        sinkmap   (w/taps-map tails sinks)
+        flowdef   (-> (FlowDef.)
+                      (.setName flow-name)
+                      (.addSources sourcemap)
+                      (.addSinks sinkmap)
+                      (.addTraps trapmap)
+                      (.addTails (into-array Pipe tails)))]
+    (-> (HadoopFlowConnector.
+         (u/project-merge (conf/project-conf)
+                          {"cascading.flow.job.pollinginterval" 100}))
+        (.connect flowdef))))
 
 (defn ?-
   "Executes 1 or more queries and emits the results of each query to
