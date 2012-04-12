@@ -1,7 +1,7 @@
 package cascalog.hadoop;
 
-import cascading.kryo.Kryo;
 import cascading.kryo.KryoSerialization;
+import com.esotericsoftware.kryo.Kryo;
 import org.apache.hadoop.conf.Configuration;
 
 import java.util.ArrayList;
@@ -31,7 +31,6 @@ public class ClojureKryoSerialization extends KryoSerialization {
         k.register(ArrayList.class);
         k.register(HashMap.class);
         k.register(HashSet.class);
-        k.register(byte[].class);
         return k;
     }
 }
