@@ -19,8 +19,8 @@
                  :archive "https://groups.google.com/d/forum/cascalog-user"
                  :post "cascalog-user@example.org"}
   :min-lein-version "2.0.0"
-  :jvm-opts ["-Xmx768m" "-server" "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n"]
-  :javac-options {:debug "true" :fork "true"}
+  :jvm-opts ["-Xmx768m" "-server"
+             "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n"]
   :source-paths ["src/clj"]
   :java-source-paths ["src/jvm"]
   :codox {:include [cascalog.vars cascalog.ops cascalog.io cascalog.api]}
