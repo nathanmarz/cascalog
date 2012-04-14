@@ -627,9 +627,12 @@
     (cond (var? p)
           [[(var-get p) p vars]]
         
+          (instance? Subquery p)
+          [[(.getCompiledSubquery p) _ vars]]
+          
           (instance? PredicateMacro p)
           (.getPredicates p (jcascalog.Fields. invars) (jcascalog.Fields. outvars))
-        
+
           :else
           ((:pred-fn p) invars outvars))))
 
