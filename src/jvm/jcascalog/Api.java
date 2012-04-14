@@ -10,6 +10,7 @@ import clojure.lang.Keyword;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 public class Api {
     public static Flow compileFlow(String name, List<Tap> taps, List<Object> gens) {
@@ -85,6 +86,10 @@ public class Api {
     public static Fields genNullableVars(int amt) {
         List<String> vars = (List<String>) Util.bootSimpleFn("cascalog.vars", "gen-nullable-vars").invoke(amt);
         return new Fields(vars);
+    }
+    
+    public static void setApplicationConf(Map conf) {
+        Util.bootSimpleFn("cascalog.conf", "set-job-conf!").invoke(conf);
     }
     
     public static Object negate(Object op) {
