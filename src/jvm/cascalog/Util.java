@@ -126,4 +126,12 @@ public class Util {
     public static boolean truthy(Object obj) {
         return ((obj != null) && (!Boolean.FALSE.equals(obj)));
     }
+    
+    public static List<Object> toList(Object[] arr) {
+        List<Object> ret = new ArrayList<Object>();
+        for(Object o: arr) {
+            ret.add(o);
+        }
+        return ret;
+    }
 }
