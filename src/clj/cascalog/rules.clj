@@ -33,6 +33,7 @@
            [cascading.pipe.cogroup CascalogJoiner CascalogJoiner$JoinType]
            [cascalog CombinerSpec ClojureCombiner ClojureCombinedAggregator Util]
            [org.apache.hadoop.mapred JobConf]
+           [jcascalog Predicate Subquery PredicateMacro]
            [java.util ArrayList]))
 
 ;; infields for a join are the names of the join fields
@@ -621,31 +622,31 @@
                (build-predicate-macro-fn invars outvars raw-predicates)))
 
 (defn- expand-predicate-macro
-  [{pred-fn :pred-fn} vars]
+  [p vars]
   (let [{invars :<< outvars :>>} (p/parse-variables vars :<)]
-    (pred-fn invars outvars)))
+    (cond (var? p)
+          [[(var-get p) p vars]]
+        
+          (instance? PredicateMacro p)
+          (.getPredicates p (jcascalog.Fields. invars) (jcascalog.Fields. outvars))
+        
+          :else
+          ((:pred-fn p) invars outvars))))
 
-;;TODO: expand Predicate, PredicateMacro, and Subquery into regular predicates
 (defn- expand-predicate-macros [raw-predicates]
-  (mapcat (fn [[p _ vars :as raw-predicate]]
-            (let [p (if (var? p) (var-get p) p)]
+  (mapcat (fn [raw-predicate]
+            (let [[p _ vars :as raw-predicate]
+                             (if (instance? Predicate raw-predicate)
+                                (.toRawCascalogPredicate raw-predicate)
+                                raw-predicate )]
               (if (p/predicate-macro? p)
                 (expand-predicate-macros (expand-predicate-macro p vars))
                 [raw-predicate])))
           raw-predicates))
 
-(defn normalize-raw-predicates
-  "support passing around ops as vars."
-  [raw-predicates]
-  (for [[p v vars] raw-predicates]
-    (if (var? p)
-      [(var-get p) p vars]
-      [p v vars])))
-
 (defn build-rule [out-vars raw-predicates]
   (let [raw-predicates (-> raw-predicates
-                           expand-predicate-macros
-                           normalize-raw-predicates)
+                           expand-predicate-macros)
         parsed (p/parse-variables out-vars :?)]
     (if (seq (parsed :?))
       (build-query out-vars raw-predicates)

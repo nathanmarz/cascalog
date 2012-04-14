@@ -24,6 +24,7 @@
            [cascading.operation Filter]
            [cascading.tuple Fields]
            [clojure.lang IFn]
+           [jcascalog PredicateMacro]
            [cascalog ClojureParallelAggregator ClojureBuffer
             ClojureBufferCombiner CombinerSpec CascalogFunction
             CascalogFunctionExecutor CascadingFilterToFunction
@@ -175,7 +176,10 @@
              (predicate-dispatcher p)))
 
 (defn predicate-macro? [p]
-  (and (map? p) (= :predicate-macro (:type p))))
+  (or (var? p)
+      (instance? PredicateMacro p)
+      (and (map? p) (= :predicate-macro (:type p)))
+      ))
 
 (defn- ground-fields? [outfields]
   (every? v/ground-var? outfields))
