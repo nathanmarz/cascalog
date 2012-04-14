@@ -3,8 +3,10 @@ package jcascalog;
 import cascading.flow.Flow;
 import cascading.tap.Tap;
 import cascalog.Util;
+import clojure.lang.ArraySeq;
 import clojure.lang.IFn;
 import clojure.lang.IteratorSeq;
+import clojure.lang.Keyword;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -12,7 +14,7 @@ import java.util.List;
 public class Api {
     public static Flow compileFlow(String name, List<Tap> taps, List<Object> gens) {
         List<Object> args = toCompileFlowArgs(name, taps, gens);
-        return (Flow) getFn("compile-flow").applyTo(IteratorSeq.create(args.iterator()));
+        return (Flow) getApiFn("compile-flow").applyTo(IteratorSeq.create(args.iterator()));
     }
     
     public static Flow compileFlow(List<Tap> taps, List<Object> gens) {
@@ -29,7 +31,7 @@ public class Api {
     
     public static void execute(String name, List<Tap> taps, List<Object> gens) {
         List<Object> args = toCompileFlowArgs(name, taps, gens);
-        getFn("?-").applyTo(IteratorSeq.create(args.iterator()));
+        getApiFn("?-").applyTo(IteratorSeq.create(args.iterator()));
     }
     
     public static void execute(String name, Tap tap, Object gen) {
@@ -49,7 +51,7 @@ public class Api {
     }
     
     public static Object union(List<Object> gens) {
-        return getFn("union").applyTo(IteratorSeq.create(gens.iterator()));
+        return getApiFn("union").applyTo(IteratorSeq.create(gens.iterator()));
     }
     
     public static Object combine(Object... gens) {
@@ -57,23 +59,23 @@ public class Api {
     }
     
     public static Object combine(List<Object> gens) {
-        return getFn("combine").applyTo(IteratorSeq.create(gens.iterator()));
+        return getApiFn("combine").applyTo(IteratorSeq.create(gens.iterator()));
     }
     
     public static int numOutFields(Object gen) {
-        return ((Number) getFn("num-out-fields").invoke(gen)).intValue();
+        return ((Number) getApiFn("num-out-fields").invoke(gen)).intValue();
     }
     
     public static Fields getOutFields(Object gen) {
-        return new Fields((List<Object>)getFn("get-out-fields").invoke(gen));        
+        return new Fields((List<Object>) getApiFn("get-out-fields").invoke(gen));        
     }
     
     public static Object selectFields(Object gen, Fields fields) {
-        return getFn("select-fields").invoke(gen, fields);
+        return getApiFn("select-fields").invoke(gen, fields);
     }
     
     public static Object nameVars(Object gen, Fields vars) {
-        return getFn("name-vars").invoke(gen, vars);        
+        return getApiFn("name-vars").invoke(gen, vars);        
     }
     
     public static String genNullableVar() {
@@ -85,7 +87,75 @@ public class Api {
         return new Fields(vars);
     }
     
-    private static IFn getFn(String name) {
+    public static Object negate(Object op) {
+        return getOpFn("negate").invoke(op);
+    }
+    
+    public static Object all(Object... ops) {
+        return getOpFn("all").applyTo(ArraySeq.create(ops));
+    }
+    
+    public static Object any(Object... ops) {
+        return getOpFn("any").applyTo(ArraySeq.create(ops));        
+    }
+    
+    public static Object comp(Object... ops) {
+        return getOpFn("comp").applyTo(ArraySeq.create(ops));                
+    }
+    
+    public static Object juxt(Object... ops) {
+        return getOpFn("juxt").applyTo(ArraySeq.create(ops));                        
+    }
+    
+    public static Object each(Object... ops) {
+        return getOpFn("each").applyTo(ArraySeq.create(ops));                                
+    }
+    
+    public static Object partial(Object op, Object... args) {
+        List<Object> all = new ArrayList<Object>();
+        all.add(op);
+        for(Object o: args) {
+            all.add(o);
+        }
+        return getOpFn("partial").applyTo(IteratorSeq.create(all.iterator()));
+    }
+    
+    public static Object firstN(Object gen, int n) {
+        return firstN(gen, n, new FirstNArgs());        
+    }
+
+    public static Object firstN(Object gen, int n, FirstNArgs args) {
+        List<Object> all = new ArrayList<Object>();
+        all.add(gen);
+        all.add(n);
+        all.add(Keyword.intern(":sort"));
+        all.add(args.sortParam);
+        all.add(Keyword.intern("reverse"));
+        all.add(args.reverse);
+        return getOpFn("first-n").applyTo(IteratorSeq.create(all.iterator()));
+    }
+    
+    public static class FirstNArgs {
+        private Object sortParam = null;
+        private boolean reverse = false;
+        
+        public FirstNArgs sort(String field) {
+            sortParam = field;
+            return this;
+        }
+        
+        public FirstNArgs sort(List<String> fields) {
+            sortParam = fields;
+            return this;
+        }
+        
+        public FirstNArgs reverse(boolean reverse) {
+            this.reverse = reverse;
+            return this;
+        }
+    }
+    
+    private static IFn getApiFn(String name) {
         return Util.bootSimpleFn("cascalog.api", name);
     }
     
@@ -100,5 +170,9 @@ public class Api {
             args.add(gens.get(i));
         }
         return args;
+    }
+
+    private static IFn getOpFn(String name) {
+        return Util.bootSimpleFn("cascalog.ops", name);
     }
 }
