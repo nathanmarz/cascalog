@@ -21,9 +21,8 @@ import cascading.flow.FlowProcess;
 import cascading.operation.AggregatorCall;
 import cascading.operation.OperationCall;
 import java.io.Serializable;
-import jcascalog.IPredicateOp;
 
-public abstract class CascalogAggregator implements Serializable, IPredicateOp {
+public abstract class CascalogAggregator implements Serializable {
     public void prepare(FlowProcess flowProcess, OperationCall operationCall) {
 
     }

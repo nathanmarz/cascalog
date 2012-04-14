@@ -61,9 +61,14 @@ public class Util {
                 throw new RuntimeException(e);
         }
     }
-    public static IFn bootSimpleFn(String ns_name, String fn_name) {
+    
+    public static Var getVar(String ns_name, String fn_name) {
         tryRequire(ns_name);
-        return RT.var(ns_name, fn_name);
+        return RT.var(ns_name, fn_name);        
+    }
+    
+    public static IFn bootSimpleFn(String ns_name, String fn_name) {
+        return getVar(ns_name, fn_name);
     }
 
     public static IFn bootFn(Object[] fn_spec) {
