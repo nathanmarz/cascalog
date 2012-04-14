@@ -25,17 +25,13 @@ public class Predicate {
         _hofArgs = hofArgs;
     }
     
-    public List<Object> toCascalogPredicate() {
+    public List<Object> toRawCascalogPredicate() {
         List<Object> pred = new ArrayList<Object>();
-        addOp(pred, _op);
-        pred.addAll(_fieldsDeclaration);
+        pred.add(_op); // the op
+        pred.add(null); // the "var"
+        List<Object> hofAndFields = new ArrayList<Object>(_fieldsDeclaration);
+        if(_hofArgs!=null) hofAndFields.add(0, _hofArgs);
+        pred.add(hofAndFields);
         return pred;
-    }
-    
-    private void addOp(List<Object> pred, Object op) {
-        pred.add(op);
-        if(_hofArgs!=null) {
-            pred.add(_hofArgs);
-        }
-    }
+    }    
 }
