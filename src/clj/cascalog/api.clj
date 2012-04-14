@@ -119,6 +119,9 @@
 (defmethod get-out-fields :cascalog-tap [cascalog-tap]
   (get-out-fields (:source cascalog-tap)))
 
+(defmethod get-out-fields :java-subquery [sq]
+  (get-out-fields (.getCompiledSubquery sq)))
+
 (defn num-out-fields [gen]
   (if (or (list? gen) (vector? gen))
     (count (first gen))
@@ -334,6 +337,9 @@ as well."
 
 (defmethod select-fields :cascalog-tap [cascalog-tap fields]
   (select-fields (:source cascalog-tap) fields))
+
+(defmethod select-fields :java-subquery [sq fields]
+  (select-fields (.getCompiledSubquery sq) fields))
 
 (defn name-vars [gen vars]
   (let [vars (collectify vars)]

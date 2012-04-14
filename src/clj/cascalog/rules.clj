@@ -708,9 +708,9 @@ cascading tap, returns a new generator with field-names."
       (.isReplace cfields)))
 
 (defn generator-selector [gen & args]
-  (if (instance? Tap gen)
-    :tap
-    (:type gen)))
+  (cond (instance? Tap gen) :tap
+        (instance? Subquery gen) :java-subquery
+        :else (:type gen)))
 
 (defn normalize-sink-connection [sink subquery]
   (cond (fn? sink)  (sink subquery)
