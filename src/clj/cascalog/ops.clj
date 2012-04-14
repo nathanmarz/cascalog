@@ -122,11 +122,11 @@
   `cascalog.io/with-fs-tmp`; for example,
 
     (with-fs-tmp [_ tmp-dir]
-      (let [lazy-tap (pixel-generator tmp-dir lazy-seq)]
-      (?<- (stdout)
-           [?field1 ?field2 ... etc]
-           (lazy-tap ?field1 ?field2)
-           ...)))"
+      (let [lazy-tap (lazy-generator tmp-dir lazy-seq)]
+        (?<- (stdout)
+             [?field1 ?field2 ... etc]
+             (lazy-tap ?field1 ?field2)
+             ...)))"
   [tmp-path [tuple :as l-seq]]
   {:pre [(coll? tuple)]}
   (let [tap (:sink (hfs-seqfile tmp-path))
