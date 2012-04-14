@@ -33,7 +33,7 @@
            [cascading.pipe.cogroup CascalogJoiner CascalogJoiner$JoinType]
            [cascalog CombinerSpec ClojureCombiner ClojureCombinedAggregator Util]
            [org.apache.hadoop.mapred JobConf]
-           [jcascalog Predicate Subquery PredicateMacro]
+           [jcascalog Predicate Subquery PredicateMacro ClojureOp]
            [java.util ArrayList]))
 
 ;; infields for a join are the names of the join fields
@@ -621,17 +621,26 @@
   (p/predicate p/predicate-macro
                (build-predicate-macro-fn invars outvars raw-predicates)))
 
+(defn- to-jcascalog-fields [fields]
+  (if fields
+    (jcascalog.Fields. fields)
+    (jcascalog.Fields. [])
+    ))
+
 (defn- expand-predicate-macro
   [p vars]
   (let [{invars :<< outvars :>>} (p/parse-variables vars :<)]
     (cond (var? p)
           [[(var-get p) p vars]]
-        
+      
           (instance? Subquery p)
-          [[(.getCompiledSubquery p) _ vars]]
-          
+          [[(.getCompiledSubquery p) nil vars]]
+        
+          (instance? ClojureOp p)
+          [(.toRawCascalogPredicate p vars)]
+        
           (instance? PredicateMacro p)
-          (.getPredicates p (jcascalog.Fields. invars) (jcascalog.Fields. outvars))
+          (.getPredicates p (to-jcascalog-fields invars) (to-jcascalog-fields outvars))
 
           :else
           ((:pred-fn p) invars outvars))))
@@ -687,9 +696,15 @@ cascading tap, returns a new generator with field-names."
 (defn connect-to-sink [gen sink]
   ((w/pipe-rename (u/uuid)) (:pipe gen)))
 
+(defn normalize-gen [gen]
+  (if (instance? Subquery gen)
+    (.getCompiledSubquery gen)
+    gen
+    ))
+
 (defn combine* [gens distinct?]
   ;; it would be nice if cascalog supported Fields/UNKNOWN as output of generator
-  (let [gens (map enforce-gen-schema gens)
+  (let [gens (->> gens (map normalize-gen) (map enforce-gen-schema))
         outfields (:outfields (first gens))
         pipes (map :pipe gens)
         pipes (for [p pipes]

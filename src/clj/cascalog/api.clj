@@ -223,7 +223,9 @@
   for the query and will show up in the JobTracker UI."
   [& args]
   (let [[flow-name bindings] (rules/parse-exec-args args)
-        [sinks gens] (->> (partition 2 bindings)
+        [sinks gens] (->> bindings
+                          (map rules/normalize-gen)
+                          (partition 2)
                           (mapcat (partial apply rules/normalize-sink-connection))
                           (unweave))
         gens      (map rules/enforce-gen-schema gens)
