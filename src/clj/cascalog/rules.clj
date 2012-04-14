@@ -620,6 +620,7 @@
   (let [{invars :<< outvars :>>} (p/parse-variables vars :<)]
     (pred-fn invars outvars)))
 
+;;TODO: expand Predicate, PredicateMacro, and Subquery into regular predicates
 (defn- expand-predicate-macros [raw-predicates]
   (mapcat (fn [[p _ vars :as raw-predicate]]
             (let [p (if (var? p) (var-get p) p)]
