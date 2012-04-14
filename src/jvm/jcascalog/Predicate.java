@@ -8,12 +8,12 @@ public class Predicate {
     List<Object> _pred = new ArrayList<Object>();
     
     
-    public Predicate(CascalogOp op, Fields defaultFields) {
+    public Predicate(IPredicateOp op, Fields defaultFields) {
         _pred.add(op);
         _pred.addAll(defaultFields);
     }
 
-    public Predicate(CascalogOp op, Fields infields, Fields outFields) {
+    public Predicate(IPredicateOp op, Fields infields, Fields outFields) {
         _pred.add(op);
         _pred.addAll(infields);
         _pred.add(Keyword.intern(">"));
