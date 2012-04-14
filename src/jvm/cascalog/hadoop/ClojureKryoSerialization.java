@@ -13,7 +13,6 @@ import java.util.HashSet;
 
 import static carbonite.JavaBridge.enhanceRegistry;
 
-/** User: sritchie Date: 12/1/11 Time: 12:21 PM */
 public class ClojureKryoSerialization extends KryoSerialization implements Comparison {
 
     public ClojureKryoSerialization() {
