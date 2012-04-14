@@ -6,6 +6,7 @@ import cascalog.Util;
 import clojure.lang.IFn;
 import clojure.lang.IteratorSeq;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class Api {
@@ -17,10 +18,26 @@ public class Api {
     public static Flow compileFlow(List<Tap> taps, List<Object> gens) {
         return compileFlow(null, taps, gens);
     }
+
+    public static Flow compileFlow(String name, Tap tap, Object gen) {
+        return compileFlow(name, Arrays.asList(tap), Arrays.asList(gen));
+    } 
+    
+    public static Flow compileFlow(Tap tap, Object gen) {
+        return compileFlow(Arrays.asList(tap), Arrays.asList(gen));
+    } 
     
     public static void execute(String name, List<Tap> taps, List<Object> gens) {
         List<Object> args = toCompileFlowArgs(name, taps, gens);
         getFn("?-").applyTo(IteratorSeq.create(args.iterator()));
+    }
+    
+    public static void execute(String name, Tap tap, Object gen) {
+        execute(name, Arrays.asList(tap), Arrays.asList(gen));
+    } 
+    
+    public static void execute(Tap tap, Object gen) {
+        execute(Arrays.asList(tap), Arrays.asList(gen));
     }
     
     public static void execute(List<Tap> taps, List<Object> gens) {
@@ -57,6 +74,15 @@ public class Api {
     
     public static Object nameVars(Object gen, Fields vars) {
         return getFn("name-vars").invoke(gen, vars);        
+    }
+    
+    public static String genNullableVar() {
+        return (String) Util.bootSimpleFn("cascalog.vars", "gen-nullable-var").invoke();
+    }
+    
+    public static Fields genNullableVars(int amt) {
+        List<String> vars = (List<String>) Util.bootSimpleFn("cascalog.vars", "gen-nullable-vars").invoke(amt);
+        return new Fields(vars);
     }
     
     private static IFn getFn(String name) {

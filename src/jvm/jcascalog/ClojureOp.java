@@ -3,10 +3,10 @@ package jcascalog;
 // TODO: implement as part of transformation to real predicates
 
 import cascalog.Util;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
 
-public class ClojureOp implements PredicateMacro {
+public class ClojureOp {
     String _namespace;
     String _name;
     List<Object> _hofArgs;
@@ -20,11 +20,14 @@ public class ClojureOp implements PredicateMacro {
     public ClojureOp(String namespace, String name) {
         this(namespace, name, null);
     }
-
-    @Override
-    public List<Predicate> getPredicates(Fields inFields, Fields outFields) {
-        Predicate pred = new Predicate(Util.getVar(_namespace, _name), inFields, outFields);
-        pred.setHofArgs(_hofArgs);
-        return Arrays.asList(pred);
-    }
+    
+    public List<Object> toRawCascalogPredicate(List<Object> fieldsDeclaration) {
+        List<Object> pred = new ArrayList<Object>();
+        pred.add(Util.getVar(_namespace, _name)); // the op
+        pred.add(null); // the "var"
+        List<Object> hofAndFields = new ArrayList<Object>(fieldsDeclaration);
+        if(_hofArgs!=null) hofAndFields.add(0, _hofArgs);
+        pred.add(hofAndFields);
+        return pred;
+    }  
 }
