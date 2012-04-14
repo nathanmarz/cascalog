@@ -35,7 +35,8 @@
   (import '[cascalog StdoutTap])
   (import '[jcascalog Api Fields Predicate PredicateMacro Subquery])
   (import '[jcascalog.op Sum Count Div Plus Minus Multiply Avg OpHelpers
-            Max Min Limit LimitRank ReParse DistinctCount OpHelpers$FirstNArgs]))
+            Max Min Limit LimitRank ReParse DistinctCount OpHelpers$FirstNArgs
+            Option]))
 
 (def person
   [
