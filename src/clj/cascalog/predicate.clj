@@ -27,7 +27,8 @@
            [cascalog ClojureParallelAggregator ClojureBuffer
             ClojureBufferCombiner CombinerSpec CascalogFunction
             CascalogFunctionExecutor CascadingFilterToFunction
-            CascalogBuffer CascalogBufferExecutor]))
+            CascalogBuffer CascalogBufferExecutor CascalogAggregator
+            CascalogAggregatorExecutor]))
 
 ;; doing it this way b/c pain to put metadata directly on a function
 ;; assembly-maker is a function that takes in infields & outfields and returns
@@ -156,15 +157,16 @@
 (defn- predicate-dispatcher
   [op & rest]
   (let [ret (cond
-             (keyword? op)                   ::option
-             (instance? Tap op)              ::tap
-             (instance? Filter op)           ::cascading-filter
-             (instance? CascalogFunction op) ::cascalog-function
-             (instance? CascalogBuffer op)   ::cascalog-buffer
-             (map? op)                       (:type op)
-             (or (vector? op) (list? op))    ::data-structure
-             (:pred-type (meta op))          (:pred-type (meta op))
-             (instance? IFn op)              ::vanilla-function
+             (keyword? op)                     ::option
+             (instance? Tap op)                ::tap
+             (instance? Filter op)             ::cascading-filter
+             (instance? CascalogFunction op)   ::cascalog-function
+             (instance? CascalogBuffer op)     ::cascalog-buffer
+             (instance? CascalogAggregator op) ::cascalog-aggregator
+             (map? op)                         (:type op)
+             (or (vector? op) (list? op))      ::data-structure
+             (:pred-type (meta op))            (:pred-type (meta op))
+             (instance? IFn op)                ::vanilla-function
              :else (u/throw-illegal (str op " is an invalid predicate.")))]
     (if (= ret :bufferiter) :buffer ret)))
 
@@ -394,6 +396,33 @@
 
 (defmethod predicate-default-var ::cascalog-buffer [& args] :>)
 (defmethod hof-predicate? ::cascalog-buffer [op & args] false)
+(defmethod build-predicate-specific ::cascalog-buffer
+  [op _ _ infields outfields options]
+  (predicate aggregator
+             true
+             nil
+             identity
+             (w/raw-every (w/fields infields)
+                          (CascalogBufferExecutor. (w/fields outfields) op)
+                          Fields/ALL)
+             identity
+             infields
+             outfields))
+
+(defmethod predicate-default-var ::cascalog-aggregator [& args] :>)
+(defmethod hof-predicate? ::cascalog-aggregator [op & args] false)
+(defmethod build-predicate-specific ::cascalog-aggregator
+  [op _ _ infields outfields options]
+  (predicate aggregator
+             false
+             nil
+             identity
+             (w/raw-every (w/fields infields)
+                          (CascalogAggregatorExecutor. (w/fields outfields) op)
+                          Fields/ALL)
+             identity
+             infields
+             outfields))
 
 (defmethod predicate-default-var :cascalog-tap [& args] :>)
 (defmethod hof-predicate? :cascalog-tap [op & args] false)
@@ -433,19 +462,6 @@
   [_ _ _ infields outfields options]
   (-> (build-predicate-specific = #'= _ infields outfields options)
       (assoc :allow-on-genfilter? true)))
-
-(defmethod build-predicate-specific ::cascalog-buffer
-  [op _ _ infields outfields options]
-  (predicate aggregator
-             true
-             nil
-             identity
-             (w/raw-every (w/fields infields)
-                          (CascalogBufferExecutor. (w/fields outfields) op)
-                          Fields/ALL)
-             identity
-             infields
-             outfields))
 
 (defn- variable-substitution
   "Returns [newvars {map of newvars to values to substitute}]"

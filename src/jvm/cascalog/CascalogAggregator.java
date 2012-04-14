@@ -18,20 +18,21 @@
 package cascalog;
 
 import cascading.flow.FlowProcess;
-import cascading.operation.FunctionCall;
+import cascading.operation.AggregatorCall;
 import cascading.operation.OperationCall;
-
 import java.io.Serializable;
 import jcascalog.IPredicateOp;
 
-public abstract class CascalogFunction implements Serializable, IPredicateOp {
+public abstract class CascalogAggregator implements Serializable, IPredicateOp {
     public void prepare(FlowProcess flowProcess, OperationCall operationCall) {
 
     }
 
-    public abstract void operate(FlowProcess flow_process, FunctionCall fn_call);
-
     public void cleanup(FlowProcess flowProcess, OperationCall operationCall) {
 
     }
+
+    public abstract void start(FlowProcess flowProcess, AggregatorCall aggregatorCall);
+    public abstract void aggregate(FlowProcess fp, AggregatorCall ac);
+    public abstract void complete(FlowProcess flowProcess, AggregatorCall aggregatorCall);
 }
