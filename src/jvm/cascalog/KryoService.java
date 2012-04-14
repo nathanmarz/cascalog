@@ -6,7 +6,6 @@ import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import org.apache.log4j.Logger;
 
-/** User: sritchie Date: 12/16/11 Time: 8:34 PM */
 public class KryoService {
 
     /**

@@ -8,7 +8,6 @@ import org.apache.hadoop.conf.Configured;
 import java.io.Serializable;
 import java.util.Comparator;
 
-/** User: sritchie Date: 12/12/11 Time: 3:23 PM */
 public class DefaultComparator extends Configured implements Comparator, Serializable {
 
     TupleSerialization serialization;
