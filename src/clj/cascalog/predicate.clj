@@ -24,7 +24,7 @@
            [cascading.operation Filter]
            [cascading.tuple Fields]
            [clojure.lang IFn]
-           [jcascalog PredicateMacro]
+           [jcascalog PredicateMacro Subquery]
            [cascalog ClojureParallelAggregator ClojureBuffer
             ClojureBufferCombiner CombinerSpec CascalogFunction
             CascalogFunctionExecutor CascadingFilterToFunction
@@ -178,6 +178,7 @@
 (defn predicate-macro? [p]
   (or (var? p)
       (instance? PredicateMacro p)
+      (instance? Subquery p)
       (and (map? p) (= :predicate-macro (:type p)))
       ))
 
