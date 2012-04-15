@@ -473,10 +473,10 @@
 
 (defn- parse-predicate [[op opvar vars]]
   (let [closure-args (p/closure-args op)
-        [vars hof-args] (cond (and closure-args (p/hof-predicate? op))
+        hof-args-count (p/hof-args op)
+        varargs? (p/varargs? op)
+        [vars hof-args] (cond (and closure-args hof-args-count)
                               [(rest vars) (s/collectify closure-args)]
-                              (p/hof-predicate? op)
-                              [(rest vars) (s/collectify (first vars))]
                               :else
                               [vars nil])
         {invars :<< outvars :>>} (p/parse-variables vars (p/predicate-default-var op))]

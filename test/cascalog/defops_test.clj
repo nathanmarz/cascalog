@@ -18,6 +18,11 @@
   {:great-meta "yes!"}
   [x] x)
 
+(defmapop ident-varargs
+  "Identity with some added varargs"
+  {:params [y & args]}
+   [x] [x y (vec args)])
+
 (defmapop ident-stateful
   "Identity operation."
   {:params [y]
@@ -74,6 +79,41 @@
 
   "ident-meta shouldn't have a docstring in its metadata."
   (meta #'ident-meta) =not=> (contains {:doc anything}))
+
+(def ident-stateful-single-arg (ident-stateful 1))
+(def ident-stateful-vec-args (ident-stateful [1]))
+
+(deftest parse-defop-args-test
+  (let [src [[1] [2]]]
+    (test?<- [[5] [6]] [?y] (src ?x) ((ident-stateful [1]) ?x :> ?y))
+    (test?<- [[5] [6]] [?y] (src ?x) ((ident-stateful 1) ?x :> ?y))
+    (test?<- [[5] [6]] [?y] (src ?x) (ident-stateful-single-arg ?x :> ?y))
+    (test?<- [[5] [6]] [?y] (src ?x) (ident-stateful-vec-args ?x :> ?y))
+    (doseq [func [ident ident-doc ident-meta ident-both]]
+      (test?<- [[1] [2]] [?y] (src ?x) (func ?x :> ?y)))))
+
+(deftest varargs-capabilites-test
+  (let [src [["a" 1] ["b" 2] ["a" 3]]]
+    (test?<- [["a" 1 [31 99]] ["b" 1 [31 99]]] [?a ?d ?varargs]
+             (src ?a ?b) ((ident-varargs 1 31 99) ?a :> ?a ?d ?varargs))))
+
+(deftest varargs-should-be-optional-test
+  (let [src [["a" 1] ["b" 2] ["a" 3]]]
+    (test?<- [["a" 9] ["b" 9]] [?a ?d]
+             (src ?a ?b) ((ident-varargs 9) ?a :> ?a ?d))))
+
+(deftest ops-throw-error-illegal-nbr-params-test
+  (let [src [["a" 1] ["b" 2] ["a" 3]]]
+    (is (thrown? RuntimeException
+                 (test?<- [["a" 1 [31 99]] ["b" 1 [31 99]]] [?a ?d]
+                          (src ?a ?b) ((ident-stateful 31 99) ?a :> ?a ?d))))))
+
+(deftest get-metadata-test
+  (is (= "yes!" (:great-meta (meta ident-stateful))))
+  (is (= "yes!" (:great-meta (meta #'ident-stateful))))
+  (is (= "Identity operation." (:doc (meta ident-doc))))
+  (is (= "Identity operation." (:doc (meta #'ident-doc))))
+  (is (= nil (:doc (meta #'ident-meta)))))
 
 (defn five->two [a b c d e]
   [(+ a b c) (+ d e)])
