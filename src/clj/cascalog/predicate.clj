@@ -284,7 +284,7 @@
                                     Fields/ALL))]
     (predicate aggregator
                false
-               pagg
+               java-pagg
                identity
                serial-assem
                identity
