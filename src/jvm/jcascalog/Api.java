@@ -133,7 +133,7 @@ public class Api {
         List<Object> all = new ArrayList<Object>();
         all.add(gen);
         all.add(n);
-        all.add(Keyword.intern(":sort"));
+        all.add(Keyword.intern("sort"));
         all.add(args.sortParam);
         all.add(Keyword.intern("reverse"));
         all.add(args.reverse);
