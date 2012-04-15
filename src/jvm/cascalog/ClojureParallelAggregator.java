@@ -23,58 +23,51 @@ import cascading.operation.AggregatorCall;
 import cascading.operation.BaseOperation;
 import cascading.operation.OperationCall;
 import cascading.tuple.Fields;
-import clojure.lang.IFn;
-import clojure.lang.ISeq;
+import java.util.ArrayList;
+import java.util.List;
 
 public class ClojureParallelAggregator extends BaseOperation<Object> implements Aggregator<Object> {
-    private Object[] init_spec;
-    private Object[] combine_spec;
-    private IFn init_fn;
-    private IFn combine_fn;
+    ParallelAgg agg;
     private int args;
 
-    public ClojureParallelAggregator(Fields outfields, Object[] init_spec, Object[] combine_spec,
-        int args) {
+    public ClojureParallelAggregator(Fields outfields, ParallelAgg agg, int args) {
         super(outfields);
-        this.init_spec = init_spec;
-        this.combine_spec = combine_spec;
+        this.agg = agg;
         this.args = args;
     }
 
-    public void prepare(FlowProcess flow_process, OperationCall<Object> op_call) {
-        this.init_fn = Util.bootFn(init_spec);
-        this.combine_fn = Util.bootFn(combine_spec);
+    public void prepare(FlowProcess flowProcess, OperationCall<Object> opCall) {
+        this.agg.prepare(flowProcess, opCall);
     }
 
-    public void start(FlowProcess flow_process, AggregatorCall<Object> ag_call) {
-        ag_call.setContext(null);
+    public void start(FlowProcess flowProcess, AggregatorCall<Object> aggCall) {
+        aggCall.setContext(null);
     }
 
-    public void aggregate(FlowProcess flow_process, AggregatorCall<Object> ag_call) {
+    public void aggregate(FlowProcess flowProcess, AggregatorCall<Object> aggCall) {
         try {
-            ISeq fn_args_seq = Util.coerceFromTuple(ag_call.getArguments().getTuple());
-            Object o;
-            if (this.args > 0) { o = this.init_fn.applyTo(fn_args_seq); } else {
-                o = this.init_fn.invoke();
+            List<Object> initted;
+            // workaround lack of empty tuples in cascading
+            if (this.args > 0) {
+                initted = agg.init(Util.tupleToList(aggCall.getArguments().getTuple()));
+            } else {
+                initted = agg.init(new ArrayList<Object>());
             }
 
-            ISeq oseq = Util.coerceToSeq(o);
-
-            ISeq currContext = (ISeq) ag_call.getContext();
+            List<Object> currContext = (List<Object>) aggCall.getContext();
             if (currContext == null) {
-                ag_call.setContext(oseq);
+                aggCall.setContext(initted);
             } else {
-                ag_call.setContext(Util
-                    .coerceToSeq(this.combine_fn.applyTo(Util.cat(currContext, oseq))));
+                aggCall.setContext(agg.combine(currContext, initted));
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
-    public void complete(FlowProcess flow_process, AggregatorCall<Object> ag_call) {
+    public void complete(FlowProcess flowProcess, AggregatorCall<Object> aggCall) {
         try {
-            ag_call.getOutputCollector().add(Util.coerceToTuple(ag_call.getContext()));
+            aggCall.getOutputCollector().add(Util.coerceToTuple(aggCall.getContext()));
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

@@ -29,7 +29,7 @@
             ClojureBufferCombiner CombinerSpec CascalogFunction
             CascalogFunctionExecutor CascadingFilterToFunction
             CascalogBuffer CascalogBufferExecutor CascalogAggregator
-            CascalogAggregatorExecutor]))
+            CascalogAggregatorExecutor ClojureParallelAgg]))
 
 ;; doing it this way b/c pain to put metadata directly on a function
 ;; assembly-maker is a function that takes in infields & outfields and returns
@@ -273,9 +273,9 @@
   [pagg _ _ infields outfields options]
   (let [init-spec (w/fn-spec (:init-var pagg))
         combine-spec (w/fn-spec (:combine-var pagg))
+        java-pagg (ClojureParallelAgg. (CombinerSpec. init-spec combine-spec))
         cascading-agg (ClojureParallelAggregator. (w/fields outfields)
-                                                  init-spec
-                                                  combine-spec
+                                                  java-pagg
                                                   (count infields))
         serial-assem (if (empty? infields)
                        (w/raw-every cascading-agg Fields/ALL)
