@@ -23,13 +23,16 @@ public class KryoInsert extends BaseOperation implements Function {
 
     public Tuple getTuple() {
         if (this.values == null) {
-            Object[] values = (Object[]) KryoService.deserialize(this.serialized);
+            Object[] values = (Object[]) KryoService.deserialize(null, this.serialized);
             this.values = new Tuple(values);
         }
         return this.values;
     }
 
     @Override public void operate(FlowProcess flowProcess, FunctionCall functionCall) {
+        // TODO we could pass flowProcess through getTuple to KryoService#deserialize here,
+        //      but since the rest of this class doesn't have a FlowProcess to use in
+        //      ser/deser, we could run into trouble if we're not consistent.
         functionCall.getOutputCollector().add( new Tuple( getTuple() ) );
     }
 

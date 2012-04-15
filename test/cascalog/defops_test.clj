@@ -26,6 +26,13 @@
   ([state x] (+ x y state))
   ([state] nil))
 
+(defmapop [string-stateful [y]]
+  "append \"-\" y and \"-string\""
+  {:stateful true}
+  ([] "-string")
+  ([state x] (str x "-" y state))
+  ([state] nil))
+
 (deftest defops-arg-parsing-test
   (let [src      [[1] [2]]
         mk-query (fn [afn]
@@ -48,6 +55,17 @@
      ident-doc
      ident-meta
      ident-both)))
+
+(deftest defops-custom-serializer-for-param-test
+    ; Normally, the result would be "one-bar-string", but we have a custom
+    ; serializer for StringBuffer. Using this serializer, all StringBuffers are
+    ; serialized with contents "foo".
+    (with-job-conf
+      {"cascading.kryo.registrations" "java.lang.StringBuffer,cascalog.test.StringBufferKryoSerializer"}
+      (fact?<- [["one-foo-string"]]
+        [?y]
+        ([["one"]] ?x)
+        (string-stateful [(StringBuffer. "bar")] ?x :> ?y))))
 
 (facts "Metadata testing."
   "Both function and var should contain custom metadata."
