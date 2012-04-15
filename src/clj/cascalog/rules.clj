@@ -31,7 +31,8 @@
            [cascading.flow Flow FlowConnector]
            [cascading.pipe Pipe]
            [cascading.pipe.cogroup CascalogJoiner CascalogJoiner$JoinType]
-           [cascalog CombinerSpec ClojureCombiner ClojureCombinedAggregator Util]
+           [cascalog CombinerSpec ClojureCombiner ClojureCombinedAggregator Util
+                     ClojureParallelAgg]
            [org.apache.hadoop.mapred JobConf]
            [jcascalog Predicate Subquery PredicateMacro ClojureOp]
            [java.util ArrayList]))
@@ -220,13 +221,14 @@
       [[newvar] (w/insert newvar 1)])))
 
 (defn- specify-parallel-agg [{pagg :parallel-agg}]
-  (CombinerSpec. (w/fn-spec (:init-var pagg))
-                 (w/fn-spec (:combine-var pagg))))
+  (ClojureParallelAgg.
+    (CombinerSpec. (w/fn-spec (:init-var pagg))
+                   (w/fn-spec (:combine-var pagg)))))
 
-(defn- mk-combined-aggregator [combiner-spec argfields outfields]
+(defn- mk-combined-aggregator [pagg argfields outfields]
   (w/raw-every (w/fields argfields)
                (ClojureCombinedAggregator. (w/fields outfields)
-                                           (. combiner-spec combiner_spec))
+                                           pagg)
                Fields/ALL))
 
 (defn mk-agg-arg-fields [fields]

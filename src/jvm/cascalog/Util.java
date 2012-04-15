@@ -23,6 +23,8 @@ import clojure.lang.*;
 
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 
 public class Util {
@@ -95,6 +97,14 @@ public class Util {
         }
     }
 
+    public static List coerceToList(Object o) {
+        if (o instanceof List) {
+            return (List) o;
+        } else {
+            return Arrays.asList(o);
+        }
+    }    
+    
     public static IteratorSeq coerceFromTuple(Tuple tuple) {
         return IteratorSeq.create(tuple.iterator());
     }
@@ -125,6 +135,23 @@ public class Util {
     // TODO: convert to RT.booleanCast
     public static boolean truthy(Object obj) {
         return ((obj != null) && (!Boolean.FALSE.equals(obj)));
+    }
+    
+    public static void tupleIntoList(List<Object> ret, Tuple tuple) {
+        Iterator it = tuple.iterator();
+        while(it.hasNext()) {
+            ret.add(it.next());
+        }
+    }
+    
+    public static List<Object> tupleToList(Tuple tuple) {
+        List<Object> ret = new ArrayList<Object>();
+        tupleIntoList(ret, tuple);
+        return ret;
+    }
+    
+    public static List<Object> tupleToList(TupleEntry tuple) {
+        return tupleToList(tuple.getTuple());
     }
     
     public static List<Object> toList(Object[] arr) {
