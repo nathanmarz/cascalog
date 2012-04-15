@@ -25,7 +25,8 @@
   :dev-dependencies [[org.apache.hadoop/hadoop-core "0.20.2-dev"]
                      [midje-cascalog "0.4.0" :exclusions [org.clojure/clojure]]
                      [lein-multi "1.1.0"]
-                     [lein-midje "1.0.8"]]
+                     [lein-midje "1.0.8"]
+                     [lein-swank "1.4.4"]]
   :dependencies ~(conj shared-deps '[org.clojure/clojure "1.3.0"])
   :multi-deps {"1.2" [org.clojure/clojure "1.2.1"]
                "1.4" [org.clojure/clojure "1.4.0-alpha3"]
