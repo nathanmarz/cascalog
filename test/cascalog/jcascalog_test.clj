@@ -1,7 +1,7 @@
 (ns cascalog.jcascalog-test
   (:use [clojure test]
         [cascalog api testing])
-  (:import [cascalog.test MultiplyAgg RangeOp])
+  (:import [cascalog.test MultiplyAgg RangeOp DoubleOp])
   (:import [jcascalog Api Fields Option Predicate
             PredicateMacro Subquery Api$FirstNArgs])
   (:import [jcascalog.op Avg Count Div Limit Sum Plus Multiply Equals])
@@ -74,4 +74,11 @@
         ]))
     ))
 
-;; test "comp" or "juxt"
+(deftest test-java-each
+  (let [data [[1 2 3] [4 5 6]]]
+    (test?- [[2 4 6] [8 10 12]]
+      (Subquery. (Fields. ["?x" "?y" "?z"])
+        [(Predicate. data (Fields. ["?a" "?b" "?c"]))
+         (Predicate. (Api/each (DoubleOp.)) (Fields. ["?a" "?b" "?c"]) (Fields. ["?x" "?y" "?z"]))
+         ]))
+    ))
