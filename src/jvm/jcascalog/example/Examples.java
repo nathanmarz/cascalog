@@ -74,17 +74,6 @@ public class Examples {
             new Predicate(Playground.GENDER, new Fields("?person", "m"))
             ));
     }
-
-    /*
-(let [many-follows (<- [?person]
-                       (follows ?person _)
-                       (c/count ?count)
-                       (> ?count 2))]
-  (?<- (stdout) [?person1 ?person2]
-       (many-follows ?person1)
-       (many-follows ?person2)
-       (follows ?person1 ?person2))) 
-     */
     
     public static void followsManyFollows() {
         Subquery manyFollows =
