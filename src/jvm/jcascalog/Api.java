@@ -1,7 +1,6 @@
 package jcascalog;
 
 import cascading.flow.Flow;
-import cascading.tap.Tap;
 import cascalog.Util;
 import clojure.lang.ArraySeq;
 import clojure.lang.IFn;
@@ -21,37 +20,37 @@ public class Api {
         return getApiFn("hfs-seqfile").invoke(path);
     }
     
-    public static Flow compileFlow(String name, List<Tap> taps, List<Object> gens) {
+    public static Flow compileFlow(String name, List<Object> taps, List<Object> gens) {
         List<Object> args = toCompileFlowArgs(name, taps, gens);
         return (Flow) getApiFn("compile-flow").applyTo(IteratorSeq.create(args.iterator()));
     }
     
-    public static Flow compileFlow(List<Tap> taps, List<Object> gens) {
+    public static Flow compileFlow(List<Object> taps, List<Object> gens) {
         return compileFlow(null, taps, gens);
     }
 
-    public static Flow compileFlow(String name, Tap tap, Object gen) {
+    public static Flow compileFlow(String name, Object tap, Object gen) {
         return compileFlow(name, Arrays.asList(tap), Arrays.asList(gen));
     } 
     
-    public static Flow compileFlow(Tap tap, Object gen) {
+    public static Flow compileFlow(Object tap, Object gen) {
         return compileFlow(Arrays.asList(tap), Arrays.asList(gen));
     } 
     
-    public static void execute(String name, List<Tap> taps, List<Object> gens) {
+    public static void execute(String name, List<Object> taps, List<Object> gens) {
         List<Object> args = toCompileFlowArgs(name, taps, gens);
         getApiFn("?-").applyTo(IteratorSeq.create(args.iterator()));
     }
     
-    public static void execute(String name, Tap tap, Object gen) {
+    public static void execute(String name, Object tap, Object gen) {
         execute(name, Arrays.asList(tap), Arrays.asList(gen));
     } 
     
-    public static void execute(Tap tap, Object gen) {
+    public static void execute(Object tap, Object gen) {
         execute(Arrays.asList(tap), Arrays.asList(gen));
     }
     
-    public static void execute(List<Tap> taps, List<Object> gens) {
+    public static void execute(List<Object> taps, List<Object> gens) {
         execute(null, taps, gens);
     }
     
@@ -172,7 +171,7 @@ public class Api {
         return Util.bootSimpleFn("cascalog.api", name);
     }
     
-    private static List<Object> toCompileFlowArgs(String name, List<Tap> taps, List<Object> gens) {
+    private static List<Object> toCompileFlowArgs(String name, List<Object> taps, List<Object> gens) {
         if(taps.size()!=gens.size()) {
             throw new IllegalArgumentException("Must have same number of taps and generators");
         }

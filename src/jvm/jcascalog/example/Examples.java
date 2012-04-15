@@ -8,6 +8,7 @@ import jcascalog.Playground;
 import jcascalog.Predicate;
 import jcascalog.Subquery;
 import jcascalog.op.Count;
+import jcascalog.op.GT;
 import jcascalog.op.LT;
 import jcascalog.op.Multiply;
 
@@ -73,6 +74,51 @@ public class Examples {
             new Predicate(Playground.GENDER, new Fields("?person", "m"))
             ));
     }
+
+    /*
+(let [many-follows (<- [?person]
+                       (follows ?person _)
+                       (c/count ?count)
+                       (> ?count 2))]
+  (?<- (stdout) [?person1 ?person2]
+       (many-follows ?person1)
+       (many-follows ?person2)
+       (follows ?person1 ?person2))) 
+     */
+    
+    public static void followsManyFollows() {
+        Subquery manyFollows =
+                new Subquery(
+                    new Fields("?person"),
+                    new Predicate(Playground.FOLLOWS, new Fields("?person", "_")),
+                    new Predicate(new Count(), new Fields("?count")),
+                    new Predicate(new GT(), new Fields("?count", 2))
+                    );
+        Api.execute(
+          new StdoutTap(),
+          new Subquery(new Fields("?person1", "?person2"),
+            new Predicate(manyFollows, new Fields("?person1")),
+            new Predicate(manyFollows, new Fields("?person2")),
+            new Predicate(Playground.FOLLOWS, new Fields("?person1", "?person2"))
+            ));
+    }
+
+    public static void followsManyFollowsConcise() {
+        // this implementation uses Api.each to shorten the implementation
+        Subquery manyFollows =
+                new Subquery(
+                    new Fields("?person"),
+                    new Predicate(Playground.FOLLOWS, new Fields("?person", "_")),
+                    new Predicate(new Count(), new Fields("?count")),
+                    new Predicate(new GT(), new Fields("?count", 2))
+                    );
+        Api.execute(
+          new StdoutTap(),
+          new Subquery(new Fields("?person1", "?person2"),
+            new Predicate(Api.each(manyFollows), new Fields("?person1", "?person2")),
+            new Predicate(Playground.FOLLOWS, new Fields("?person1", "?person2"))
+            ));
+    }    
     
     public static void sentenceUniqueWords() {
         Api.execute(
@@ -89,6 +135,15 @@ public class Examples {
           new Subquery(new Fields("?word", "?count"),
             new Predicate(Playground.SENTENCE, new Fields("?sentence")),
             new Predicate(new Split(), new Fields("?sentence"), new Fields("?word")),
+            new Predicate(new Count(), new Fields("?count"))
+            ));
+    }
+
+    public static void lineCountWithFiles() {
+        Api.execute(
+          Api.hfsTextline("/tmp/myresults"),
+          new Subquery(new Fields("?count"),
+            new Predicate(Api.hfsTextline("src/jvm/jcascalog/example"), new Fields("_")),
             new Predicate(new Count(), new Fields("?count"))
             ));
     }
