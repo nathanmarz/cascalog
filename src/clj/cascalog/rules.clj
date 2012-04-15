@@ -220,11 +220,6 @@
     (let [newvar (v/gen-nullable-var)]
       [[newvar] (w/insert newvar 1)])))
 
-(defn- specify-parallel-agg [{pagg :parallel-agg}]
-  (ClojureParallelAgg.
-    (CombinerSpec. (w/fn-spec (:init-var pagg))
-                   (w/fn-spec (:combine-var pagg)))))
-
 (defn- mk-combined-aggregator [pagg argfields outfields]
   (w/raw-every (w/fields argfields)
                (ClojureCombinedAggregator. (w/fields outfields)
@@ -238,7 +233,7 @@
 (defn- mk-parallel-aggregator [grouping-fields aggs]
   (let [argfields  (map #(mk-agg-arg-fields (:infields %)) aggs)
         tempfields (map #(v/gen-nullable-vars (count (:outfields %))) aggs)
-        specs      (map specify-parallel-agg aggs)
+        specs      (map :parallel-agg aggs)
         combiner (ClojureCombiner. (w/fields grouping-fields)
                                    argfields
                                    (w/fields (apply concat tempfields))
