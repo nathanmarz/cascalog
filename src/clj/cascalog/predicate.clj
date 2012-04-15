@@ -29,7 +29,7 @@
             ClojureBufferCombiner CombinerSpec CascalogFunction
             CascalogFunctionExecutor CascadingFilterToFunction
             CascalogBuffer CascalogBufferExecutor CascalogAggregator
-            CascalogAggregatorExecutor ClojureParallelAgg]))
+            CascalogAggregatorExecutor ClojureParallelAgg ParallelAgg]))
 
 ;; doing it this way b/c pain to put metadata directly on a function
 ;; assembly-maker is a function that takes in infields & outfields and returns
@@ -164,6 +164,7 @@
              (instance? CascalogFunction op)   ::cascalog-function
              (instance? CascalogBuffer op)     ::cascalog-buffer
              (instance? CascalogAggregator op) ::cascalog-aggregator
+             (instance? ParallelAgg op)        ::java-parallel-agg
              (map? op)                         (:type op)
              (or (vector? op) (list? op))      ::data-structure
              (:pred-type (meta op))            (:pred-type (meta op))
@@ -267,14 +268,11 @@
                outfields
                trapmap)))
 
-(defmethod predicate-default-var ::parallel-aggregator [& args] :>)
-(defmethod hof-predicate? ::parallel-aggregator [& args] false)
-(defmethod build-predicate-specific ::parallel-aggregator
-  [pagg _ _ infields outfields options]
-  (let [init-spec (w/fn-spec (:init-var pagg))
-        combine-spec (w/fn-spec (:combine-var pagg))
-        java-pagg (ClojureParallelAgg. (CombinerSpec. init-spec combine-spec))
-        cascading-agg (ClojureParallelAggregator. (w/fields outfields)
+(defmethod predicate-default-var ::java-parallel-agg [& args] :>)
+(defmethod hof-predicate? ::java-parallel-agg [& args] false)
+(defmethod build-predicate-specific ::java-parallel-agg
+  [java-pagg _ _ infields outfields options]
+  (let [cascading-agg (ClojureParallelAggregator. (w/fields outfields)
                                                   java-pagg
                                                   (count infields))
         serial-assem (if (empty? infields)
@@ -290,6 +288,16 @@
                identity
                infields
                outfields)))
+
+(defmethod predicate-default-var ::parallel-aggregator [& args] :>)
+(defmethod hof-predicate? ::parallel-aggregator [& args] false)
+(defmethod build-predicate-specific ::parallel-aggregator
+  [pagg _ _ infields outfields options]
+  (let [init-spec (w/fn-spec (:init-var pagg))
+        combine-spec (w/fn-spec (:combine-var pagg))
+        java-pagg (ClojureParallelAgg. (CombinerSpec. init-spec combine-spec))]
+    (build-predicate-specific java-pagg nil nil infields outfields options)
+    ))
 
 (defmethod predicate-default-var ::parallel-buffer [& args] :>)
 (defmethod hof-predicate? ::parallel-buffer [op & args] (:hof? op))
