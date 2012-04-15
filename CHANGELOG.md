@@ -3,6 +3,8 @@
 * Fixed bug where KryoService would fail when two jobs were called simultaneously from different threads (as with cascalog.checkpoint).
 * Added `lfs-delimited` and `hfs-delimited` tap functions.
 * Added `fixed-sample` operator to `cascalog.ops`
+* Exposed a pure-Java, fully-interoperable API to Cascalog called JCascalog
+* Regular Java lists can now be used as generators
 * Bug fix: make vars containing predmacros work properly
 
 ## 1.8.6
