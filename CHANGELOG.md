@@ -1,5 +1,7 @@
 ## Unreleased
 
+* Exposed a pure-Java, fully-interoperable API to Cascalog called JCascalog
+* Regular Java lists can now be used as generators
 * Bug fix: make vars containing predmacros work properly
 
 ## 1.8.6
