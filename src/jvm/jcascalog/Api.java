@@ -112,8 +112,8 @@ public class Api {
         return getOpFn("juxt").applyTo(ArraySeq.create(ops));                        
     }
     
-    public static Object each(Object... ops) {
-        return getOpFn("each").applyTo(ArraySeq.create(ops));                                
+    public static Object each(Object op) {
+        return getOpFn("each").invoke(op);                           
     }
     
     public static Object partial(Object op, Object... args) {
