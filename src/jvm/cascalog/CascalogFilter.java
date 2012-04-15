@@ -13,5 +13,4 @@ public abstract class CascalogFilter extends BaseOperation implements Filter {
     }
     
     public abstract boolean isKeep(FlowProcess process, FilterCall filterCall);
-    
 }

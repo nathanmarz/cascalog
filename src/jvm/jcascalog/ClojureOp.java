@@ -1,7 +1,5 @@
 package jcascalog;
 
-// TODO: implement as part of transformation to real predicates
-
 import cascalog.Util;
 import java.util.ArrayList;
 import java.util.List;
