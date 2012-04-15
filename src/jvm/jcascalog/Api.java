@@ -13,6 +13,14 @@ import java.util.List;
 import java.util.Map;
 
 public class Api {
+    public static Object hfsTextline(String path) {
+        return getApiFn("hfs-textline").invoke(path);
+    }
+
+    public static Object hfsSeqfile(String path) {
+        return getApiFn("hfs-seqfile").invoke(path);
+    }
+    
     public static Flow compileFlow(String name, List<Tap> taps, List<Object> gens) {
         List<Object> args = toCompileFlowArgs(name, taps, gens);
         return (Flow) getApiFn("compile-flow").applyTo(IteratorSeq.create(args.iterator()));
