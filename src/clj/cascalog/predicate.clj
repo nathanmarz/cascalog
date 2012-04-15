@@ -155,6 +155,10 @@
       (assoc ret selector-default (argsmap selector-default))
       ret)))
 
+(defn any-list? [val]
+  (or (list? val)
+      (instance? java.util.List val)))
+
 (defn- predicate-dispatcher
   [op & rest]
   (let [ret (cond
@@ -166,7 +170,7 @@
              (instance? CascalogAggregator op) ::cascalog-aggregator
              (instance? ParallelAgg op)        ::java-parallel-agg
              (map? op)                         (:type op)
-             (or (vector? op) (list? op))      ::data-structure
+             (or (vector? op) (any-list? op))  ::data-structure
              (:pred-type (meta op))            (:pred-type (meta op))
              (instance? IFn op)                ::vanilla-function
              :else (u/throw-illegal (str op " is an invalid predicate.")))]
