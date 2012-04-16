@@ -160,9 +160,10 @@
 (defmethod get-out-fields :cascalog-tap [cascalog-tap]
   (get-out-fields (:source cascalog-tap)))
 
-(defn num-out-fields 
-  "Get the number of fields of a generator."
-  [gen]
+(defmethod get-out-fields :java-subquery [sq]
+  (get-out-fields (.getCompiledSubquery sq)))
+
+(defn num-out-fields [gen]
   (if (or (list? gen) (vector? gen))
     (count (first gen))
     ;; TODO: should pluck from Tap if it doesn't define out-fields
@@ -222,7 +223,9 @@
   for the query and will show up in the JobTracker UI."
   [& args]
   (let [[flow-name bindings] (rules/parse-exec-args args)
-        [sinks gens] (->> (partition 2 bindings)
+        [sinks gens] (->> bindings
+                          (map rules/normalize-gen)
+                          (partition 2)
                           (mapcat (partial apply rules/normalize-sink-connection))
                           (unweave))
         gens      (map rules/enforce-gen-schema gens)
@@ -389,6 +392,9 @@ as well."
 
 (defmethod select-fields :cascalog-tap [cascalog-tap fields]
   (select-fields (:source cascalog-tap) fields))
+
+(defmethod select-fields :java-subquery [sq fields]
+  (select-fields (.getCompiledSubquery sq) fields))
 
 (defn name-vars [gen vars]
   (let [vars (collectify vars)]

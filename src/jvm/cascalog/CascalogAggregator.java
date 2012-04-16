@@ -17,27 +17,21 @@
 
 package cascalog;
 
-import cascading.tuple.Tuple;
-import clojure.lang.ISeq;
+import cascading.flow.FlowProcess;
+import cascading.operation.AggregatorCall;
+import cascading.operation.OperationCall;
+import java.io.Serializable;
 
-import java.util.Iterator;
+public abstract class CascalogAggregator implements Serializable {
+    public void prepare(FlowProcess flowProcess, OperationCall operationCall) {
 
-public class RegularTupleSeqConverter implements Iterator<ISeq> {
-    private Iterator<Tuple> _tuples;
-
-    public RegularTupleSeqConverter(Iterator<Tuple> tuples) {
-        _tuples = tuples;
     }
 
-    public boolean hasNext() {
-        return _tuples.hasNext();
+    public void cleanup(FlowProcess flowProcess, OperationCall operationCall) {
+
     }
 
-    public ISeq next() {
-        return Util.coerceFromTuple(_tuples.next());
-    }
-
-    public void remove() {
-        _tuples.remove();
-    }
+    public abstract void start(FlowProcess flowProcess, AggregatorCall aggregatorCall);
+    public abstract void aggregate(FlowProcess fp, AggregatorCall ac);
+    public abstract void complete(FlowProcess flowProcess, AggregatorCall aggregatorCall);
 }
