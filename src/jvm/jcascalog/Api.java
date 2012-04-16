@@ -147,6 +147,10 @@ public class Api {
         return getOpFn("first-n").applyTo(IteratorSeq.create(all.iterator()));
     }
     
+    public static Object fixedSample(Object gen, int amt) {
+        return getOpFn("fixed-sample").invoke(gen, amt);       
+    }
+    
     public static class FirstNArgs {
         private Object sortParam = null;
         private boolean reverse = false;
