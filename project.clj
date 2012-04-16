@@ -13,13 +13,13 @@
     [jackknife "0.1.2"]])
 
 (defproject cascalog/cascalog "1.8.7-SNAPSHOT"
-  :description "Hadoop without the Hassle."
+  :description "Data processing on Hadoop without the hassle."
   :url "http://www.cascalog.org"
-  :license {:name "Eclipse Public License"
-            :url "http://www.eclipse.org/legal/epl-v10.html"}
-  :mailing-list {:name "Questions and discussion about Cascalog, a Clojure-based query language for Hadoop."
-                 :archive "https://groups.google.com/d/forum/cascalog-user"
-                 :post "cascalog-user@example.org"}
+  :license {:name "GPLv3"
+            :url "http://www.gnu.org/licenses/gpl-3.0.html"}
+  :mailing-list {:name "Cascalog user mailing list"
+                 :archive "https://groups.google.com/group/cascalog-user"
+                 :post "cascalog-user@googlegroups.com"}
   :source-paths ["src/clj"]
   :java-source-paths ["src/jvm"]
   :jvm-opts ["-Xmx768m" "-server"]
