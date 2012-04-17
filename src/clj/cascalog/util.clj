@@ -40,9 +40,6 @@
               [(conj newseq newval) (merge subs sub)]))
           [[] {}] aseq))
 
-(defn try-resolve [obj]
-  (when (symbol? obj) (resolve obj)))
-
 (defn multi-set
   "Returns a map of elem to count"
   [aseq]

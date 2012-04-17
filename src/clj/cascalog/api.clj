@@ -293,7 +293,7 @@
   (p/predicate p/predicate-macro
                (fn [invars outvars]
                  (for [[op & vars] (pred-macro-fn invars outvars)]
-                   [op nil vars]))))
+                   [op vars]))))
 
 (defmacro predmacro
   "A more general but more verbose way to create predicate macros.
@@ -318,7 +318,7 @@ destructuring in a predicate macro, the & symbol must be stringified
 as well."
   [outvars preds]
   (let [outvars (v/vars->str outvars)
-        preds (for [[p & vars] preds] [p nil (v/vars->str vars)])]
+        preds (for [[p & vars] preds] [p (v/vars->str vars)])]
     (rules/build-rule outvars preds)))
 
 (defn union
