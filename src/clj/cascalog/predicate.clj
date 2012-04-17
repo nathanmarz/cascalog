@@ -213,7 +213,7 @@
   (predicate aggregator buffer?
              nil
              identity
-             (apply w/exec op infields :fn> outfields :> Fields/ALL)
+             (w/exec op infields :fn> outfields :> Fields/ALL)
              identity
              infields
              outfields))
