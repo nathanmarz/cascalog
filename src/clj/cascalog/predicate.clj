@@ -14,7 +14,7 @@
 ;;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (ns cascalog.predicate
-  (:use [cascalog.util :only (uuid multifn? substitute-if)]
+  (:use [cascalog.util :only (uuid multifn? substitute-if search-for-var)]
         [jackknife.seq :only (transpose)]
         [clojure.tools.macro :only (name-with-attributes)])
   (:require [jackknife.core :as u]
@@ -323,9 +323,10 @@
 (defmethod predicate-default-var ::vanilla-function [& args] :<)
 (defmethod hof-predicate? ::vanilla-function [& args] false)
 (defmethod build-predicate-specific ::vanilla-function
-  [_ opvar _ infields outfields options]
-  (u/safe-assert opvar "Functions must have vars associated with them.")
-  (let [[func-fields out-selector] (if (not-empty outfields)
+  [afn _ _ infields outfields options]
+  (let [opvar (search-for-var afn)
+        _ (u/safe-assert opvar "Vanilla functions must have vars associated with them.")
+        [func-fields out-selector] (if (not-empty outfields)
                                      [outfields Fields/ALL]
                                      [nil nil])
         assembly (w/filter opvar infields :fn> func-fields :> out-selector)]

@@ -163,3 +163,12 @@
              [(if (keyword? k)
                 (name k)
                 (str k)) v])))
+
+(defn search-for-var [val]
+  (->> (loaded-libs)
+       (map ns-map)
+       (mapcat identity)
+       (map second)
+       (filter #(and (var? %) (= (var-get %) val)))
+       first ))
+
