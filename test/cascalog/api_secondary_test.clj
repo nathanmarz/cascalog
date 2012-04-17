@@ -243,9 +243,11 @@
 (defmultibufferop count-sum [seq1 seq2]
   [[(count seq1) (reduce + (map second seq2))]])
 
-(defmultibufferop [count-arg [arg]] [seq1 seq2 seq3]
-  [[(count seq1) (count seq2) (count seq3)]
-   [arg arg arg]])
+
+(defn count-arg [arg]
+  (multibufferop [seq1 seq2 seq3]
+    [[(count seq1) (count seq2) (count seq3)]
+     [arg arg arg]]))
 
 (deftest test-multigroup
   (let [val1 [["a" 1] ["b" 2] ["a" 10]]
@@ -261,5 +263,5 @@
     (test?- [["a" 2 2 0] ["a" 9 9 9]
              ["b" 1 1 2] ["b" 9 9 9]
              ["c" 0 0 2] ["c" 9 9 9]]
-            (multigroup [?key] [?v1 ?v2 ?v3] [count-arg [9]]
+            (multigroup [?key] [?v1 ?v2 ?v3] (count-arg 9)
                         gen1 gen1 gen2))))

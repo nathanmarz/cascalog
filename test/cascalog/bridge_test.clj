@@ -8,9 +8,6 @@
            [cascalog ClojureFilter ClojureMap ClojureMapcat
             ClojureAggregator Util]))
 
-(fact "ns-fn-name-pair should produce a pair of strings."
-  (w/ns-fn-name-pair #'str) => ["clojure.core" "str"])
-
 (def obj-array-class
   (Class/forName "[Ljava.lang.Object;"))
 
@@ -35,27 +32,6 @@
    [actual]
    (instance? expected actual)))
 
-(tabular
- (fact
-   "fn-spec should propery resolve a var (or vector of var and
-   arguments) into an object array of namespace, function name
-   and (optionally) arguments."
-   (let [spec (w/fn-spec ?input)]
-     spec       => (is-type obj-array-class)
-     (seq spec) => ?result-vec))
- ?input       ?result-vec
- #'plus-one   ["cascalog.bridge-test" "plus-one"]
- [#'plus-n 3] ["cascalog.bridge-test" "plus-n" 3])
-
-
-(tabular
- (fact "bootFn tests, simple and higher order."
-   (let [spec (into-array Object ?spec)
-         f    (Util/bootFn spec)]
-     (f 1) => ?result))
- ?spec                               ?result
- ["cascalog.bridge-test" "plus-one"] [2]
- ["cascalog.bridge-test" "plus-n" 3] [4])
 
 (facts "Fields tests."
   (let [f1 (w/fields "foo")
@@ -77,7 +53,7 @@
  (w/pipe "name") "name")
 
 (fact "Clojure Filter test."
-  (let [fil (ClojureFilter. (w/fn-spec #'odd?) false)]
+  (let [fil (ClojureFilter. odd?)]
     (t/invoke-filter fil [1]) => false
     (t/invoke-filter fil [2]) => true))
 
@@ -86,16 +62,13 @@
    (t/invoke-function ?clj-map [1]) => [[2]])
  ?clj-map
  (ClojureMap. (w/fields "num")
-              (w/fn-spec #'inc-wrapped)
-              false)
+              inc-wrapped)
  (ClojureMap. (w/fields "num")
-              (w/fn-spec #'inc)
-              false))
+              inc))
 
 (facts "ClojureMap test, multiple fields."
   (let [m (ClojureMap. (w/fields ["num1" "num2"])
-                       (w/fn-spec #'inc-both)
-                       false)]
+                       inc-both)]
     (t/invoke-function m [1 2]) => [[2 3]]))
 
 (defn iterate-inc-wrapped [num]
@@ -113,11 +86,9 @@
    (t/invoke-function ?clj-mapcat [1]) => [[2] [3] [4]])
  ?clj-mapcat
  (ClojureMapcat. (w/fields "num")
-                 (w/fn-spec #'iterate-inc-wrapped)
-                 false)
+                 iterate-inc-wrapped)
  (ClojureMapcat. (w/fields "num")
-                 (w/fn-spec #'iterate-inc)
-                 false))
+                 iterate-inc))
 
 (defn sum
   ([] 0)
@@ -126,6 +97,5 @@
 
 (fact "ClojureAggregator test."
   (let [a (ClojureAggregator. (w/fields "sum")
-                              (w/fn-spec #'sum)
-                              false)]
+                              sum)]
     (t/invoke-aggregator a [[1] [2] [3]]) => [[6]]))

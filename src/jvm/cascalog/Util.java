@@ -75,22 +75,6 @@ public class Util {
         return getVar(ns_name, fn_name);
     }
 
-    public static IFn bootFn(Object[] fn_spec) {
-        String ns_name = (String) fn_spec[0];
-        String fn_name = (String) fn_spec[1];
-        IFn simple_fn = bootSimpleFn(ns_name, fn_name);
-        if (fn_spec.length == 2) {
-            return simple_fn;
-        } else {
-            ISeq hof_args = ArraySeq.create(fn_spec).next().next();
-            try {
-                return (IFn) simple_fn.applyTo(hof_args);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        }
-    }
-
     public static ISeq coerceToSeq(Object o) {
         if (o instanceof List) {
             return RT.seq(o);

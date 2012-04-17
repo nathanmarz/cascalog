@@ -205,11 +205,6 @@
              outfields
              false))
 
-(defn- mk-hof-fn-spec [avar args]
-  avar ;; TODO am going to need to redo how hof stuff works for parallelbuf
-  ;;(w/fn-spec (cons avar args))
-  )
-
 (defn- simpleagg-build-predicate
   [buffer? op hof-args infields outfields options]
   (predicate aggregator buffer?
