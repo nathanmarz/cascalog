@@ -4,6 +4,12 @@
 * Fixed bug where KryoService would fail when two jobs were called simultaneously from different threads (as with cascalog.checkpoint).
 * Added `lfs-delimited` and `hfs-delimited` tap functions.
 * Added `fixed-sample` operator to `cascalog.ops`
+* Exposed a pure-Java, fully-interoperable API to Cascalog called JCascalog
+* Added fixed-sample query builder function for getting a fixed-cardinality uniform random sample of a generator. The implementation is efficient and can be used on any size dataset.
+* Added fixed-sample-agg aggregator to ops for taking a fixed-cardinality sample of the group.
+* Regular Java lists can now be used as generators
+* cascalog.playground/bootstrap* functions will now lower io.sort.mb to 1 for all jobs so they run faster locally.
+* Bug fix: lazy-generator no longer filters out tuples with nil values.
 * Bug fix: make vars containing predmacros work properly
 
 ## 1.8.6

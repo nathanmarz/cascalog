@@ -31,8 +31,10 @@
            [cascading.flow Flow FlowConnector]
            [cascading.pipe Pipe]
            [cascading.pipe.cogroup CascalogJoiner CascalogJoiner$JoinType]
-           [cascalog CombinerSpec ClojureCombiner ClojureCombinedAggregator Util]
+           [cascalog CombinerSpec ClojureCombiner ClojureCombinedAggregator Util
+                     ClojureParallelAgg]
            [org.apache.hadoop.mapred JobConf]
+           [jcascalog Predicate Subquery PredicateMacro ClojureOp]
            [java.util ArrayList]))
 
 ;; infields for a join are the names of the join fields
@@ -218,14 +220,10 @@
     (let [newvar (v/gen-nullable-var)]
       [[newvar] (w/insert newvar 1)])))
 
-(defn- specify-parallel-agg [{pagg :parallel-agg}]
-  (CombinerSpec. (w/fn-spec (:init-var pagg))
-                 (w/fn-spec (:combine-var pagg))))
-
-(defn- mk-combined-aggregator [combiner-spec argfields outfields]
+(defn- mk-combined-aggregator [pagg argfields outfields]
   (w/raw-every (w/fields argfields)
                (ClojureCombinedAggregator. (w/fields outfields)
-                                           (. combiner-spec combiner_spec))
+                                           pagg)
                Fields/ALL))
 
 (defn mk-agg-arg-fields [fields]
@@ -235,7 +233,7 @@
 (defn- mk-parallel-aggregator [grouping-fields aggs]
   (let [argfields  (map #(mk-agg-arg-fields (:infields %)) aggs)
         tempfields (map #(v/gen-nullable-vars (count (:outfields %))) aggs)
-        specs      (map specify-parallel-agg aggs)
+        specs      (map :parallel-agg aggs)
         combiner (ClojureCombiner. (w/fields grouping-fields)
                                    argfields
                                    (w/fields (apply concat tempfields))
@@ -620,31 +618,44 @@
   (p/predicate p/predicate-macro
                (build-predicate-macro-fn invars outvars raw-predicates)))
 
+(defn- to-jcascalog-fields [fields]
+  (if fields
+    (jcascalog.Fields. fields)
+    (jcascalog.Fields. [])
+    ))
+
 (defn- expand-predicate-macro
-  [{pred-fn :pred-fn} vars]
+  [p vars]
   (let [{invars :<< outvars :>>} (p/parse-variables vars :<)]
-    (pred-fn invars outvars)))
+    (cond (var? p)
+          [[(var-get p) vars]]
+      
+          (instance? Subquery p)
+          [[(.getCompiledSubquery p) vars]]
+        
+          (instance? ClojureOp p)
+          [(.toRawCascalogPredicate p vars)]
+        
+          (instance? PredicateMacro p)
+          (.getPredicates p (to-jcascalog-fields invars) (to-jcascalog-fields outvars))
+
+          :else
+          ((:pred-fn p) invars outvars))))
 
 (defn- expand-predicate-macros [raw-predicates]
-  (mapcat (fn [[p vars :as raw-predicate]]
-            (let [p (if (var? p) (var-get p) p)]
+  (mapcat (fn [raw-predicate]
+            (let [[p vars :as raw-predicate]
+                             (if (instance? Predicate raw-predicate)
+                                (.toRawCascalogPredicate raw-predicate)
+                                raw-predicate )]
               (if (p/predicate-macro? p)
                 (expand-predicate-macros (expand-predicate-macro p vars))
                 [raw-predicate])))
           raw-predicates))
 
-(defn normalize-raw-predicates
-  "support passing around ops as vars."
-  [raw-predicates]
-  (for [[p vars] raw-predicates]
-    (if (var? p)
-      [(var-get p) vars]
-      [p vars])))
-
 (defn build-rule [out-vars raw-predicates]
   (let [raw-predicates (-> raw-predicates
-                           expand-predicate-macros
-                           normalize-raw-predicates)
+                           expand-predicate-macros)
         parsed (p/parse-variables out-vars :?)]
     (if (seq (parsed :?))
       (build-query out-vars raw-predicates)
@@ -682,9 +693,15 @@ cascading tap, returns a new generator with field-names."
 (defn connect-to-sink [gen sink]
   ((w/pipe-rename (u/uuid)) (:pipe gen)))
 
+(defn normalize-gen [gen]
+  (if (instance? Subquery gen)
+    (.getCompiledSubquery gen)
+    gen
+    ))
+
 (defn combine* [gens distinct?]
   ;; it would be nice if cascalog supported Fields/UNKNOWN as output of generator
-  (let [gens (map enforce-gen-schema gens)
+  (let [gens (->> gens (map normalize-gen) (map enforce-gen-schema))
         outfields (:outfields (first gens))
         pipes (map :pipe gens)
         pipes (for [p pipes]
@@ -708,9 +725,9 @@ cascading tap, returns a new generator with field-names."
       (.isReplace cfields)))
 
 (defn generator-selector [gen & args]
-  (if (instance? Tap gen)
-    :tap
-    (:type gen)))
+  (cond (instance? Tap gen) :tap
+        (instance? Subquery gen) :java-subquery
+        :else (:type gen)))
 
 (defn normalize-sink-connection [sink subquery]
   (cond (fn? sink)  (sink subquery)

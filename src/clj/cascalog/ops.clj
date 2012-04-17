@@ -122,18 +122,18 @@
 (defn lazy-generator
   "Returns a cascalog generator on the supplied sequence of
   tuples. `lazy-generator` serializes each item in the lazy sequence
-  into a sequencefile located at the supplied temporary directory, and
-  returns a tap into its guts.
+  into a sequencefile located at the supplied temporary directory and returns
+  a tap for the data in that directory.
 
-  I recommend wrapping queries that use this tap with
+  It's recommended to wrap queries that use this tap with
   `cascalog.io/with-fs-tmp`; for example,
 
     (with-fs-tmp [_ tmp-dir]
-      (let [lazy-tap (pixel-generator tmp-dir lazy-seq)]
-      (?<- (stdout)
-           [?field1 ?field2 ... etc]
-           (lazy-tap ?field1 ?field2)
-           ...)))"
+      (let [lazy-tap (lazy-generator tmp-dir lazy-seq)]
+        (?<- (stdout)
+             [?field1 ?field2 ... etc]
+             (lazy-tap ?field1 ?field2)
+             ...)))"
   [tmp-path [tuple :as l-seq]]
   {:pre [(coll? tuple)]}
   (let [tap (:sink (hfs-seqfile tmp-path))
