@@ -9,7 +9,7 @@
         sink-data {:fields ["b" "c"] :tuples [[1 3] [10 12]]}]
     (test-assembly source-data sink-data
                    (w/map inc "a" :fn> "c" :> ["b" "c"]))))
-
+ 
 (w/defmapop add-double
   [v1 v2]
   (* 2 (+ v1 v2)))
@@ -35,7 +35,8 @@
         sink-data {:fields ["v"]
                    :tuples [[2] [-2] [24]]}]
     (test-assembly source-data sink-data
-                   (w/exec add-double ["n1" "n2"] :fn> "v" :> "v"))))
+                   (w/exec add-double ["n1" "n2"] :fn> "v" :> "v")
+                   )))
 
 (w/defmapcatop keeper-dropper [v]
   (cond (= v 1)  [v]
