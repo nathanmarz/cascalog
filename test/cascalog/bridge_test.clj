@@ -1,5 +1,5 @@
 (ns cascalog.bridge-test
-  (:use midje.sweet)
+  (:use clojure.test)
   (:require [cascalog.workflow :as w]
             [cascalog.testing :as t]
             [cascalog.util :as u])
@@ -24,52 +24,43 @@
 (defn inc-both [num1 num2]
   [(inc num1) (inc num2)])
 
-(defn is-type
-  "Accepts a class and returns a checker that tests whether or not its
-  input is an instance of the supplied class."
-  [^Class expected]
-  (chatty-checker
-   [actual]
-   (instance? expected actual)))
 
-
-(facts "Fields tests."
+(deftest field-tests
   (let [f1 (w/fields "foo")
         f2 (w/fields ["foo" "bar"])]
-    (facts "Single fields should resolve properly."
-      f1       => #(instance? Fields %)
-      (seq f1) => ["foo"])
+    (is (instance? Fields f1))
+    (is (= ["foo"] (seq f1)))
+    
+    (is (instance? Fields f2))
+    (is (= ["foo" "bar"] (seq f2)))))
 
-    (facts "Double fields should resolve properly."
-      f2       => #(instance? Fields %)
-      (seq f2) => ["foo" "bar"])))
+(deftest pipe-testing
+  (let [p1 (w/pipe)
+        p2 (w/pipe "name")]
+    (is (instance? Pipe p1))
+    (is (instance? Pipe p2))
+    (is (= 36 (.length (.getName p1))))
+    (is (= "name") (.getName p2))
+    ))
 
-(tabular 
- (fact "Pipe testing."
-   ?pipe => #(instance? Pipe %)
-   (.getName ?pipe) => ?check)
- ?pipe           ?check
- (w/pipe)        #(= 36 (.length %))
- (w/pipe "name") "name")
 
-(fact "Clojure Filter test."
+(def clojure-filter-test
   (let [fil (ClojureFilter. odd?)]
-    (t/invoke-filter fil [1]) => false
-    (t/invoke-filter fil [2]) => true))
+    (is (= false (t/invoke-filter fil [1])))
+    (is (t/invoke-filter fil [2]))))
 
-(tabular
- (fact "ClojureMap test, single field."
-   (t/invoke-function ?clj-map [1]) => [[2]])
- ?clj-map
- (ClojureMap. (w/fields "num")
-              inc-wrapped)
- (ClojureMap. (w/fields "num")
-              inc))
+(deftest clojure-map-single-field
+  (is (= [[2]] (t/invoke-function (ClojureMap. (w/fields "num")
+                                    inc-wrapped)
+                                  [1])))
+  (is (= [[2]] (t/invoke-function (ClojureMap. (w/fields "num")
+                                    inc)
+                                  [1]))))
 
-(facts "ClojureMap test, multiple fields."
+(deftest clojure-map-multiple-fields
   (let [m (ClojureMap. (w/fields ["num1" "num2"])
                        inc-both)]
-    (t/invoke-function m [1 2]) => [[2 3]]))
+    (is (= [[2 3]] (t/invoke-function m [1 2])))))
 
 (defn iterate-inc-wrapped [num]
   (list [(+ num 1)]
@@ -81,21 +72,22 @@
         (+ num 2)
         (+ num 3)))
 
-(tabular
- (fact "ClojureMapCat test, single field."
-   (t/invoke-function ?clj-mapcat [1]) => [[2] [3] [4]])
- ?clj-mapcat
- (ClojureMapcat. (w/fields "num")
-                 iterate-inc-wrapped)
- (ClojureMapcat. (w/fields "num")
-                 iterate-inc))
+(deftest clojure-mapcat-single
+  (is (= [[2] [3] [4]] (t/invoke-function
+                                  (ClojureMapcat. (w/fields "num")
+                                    iterate-inc-wrapped)
+                                  [1])))
+  (is (= [[2] [3] [4]] (t/invoke-function
+                                  (ClojureMapcat. (w/fields "num")
+                                    iterate-inc)
+                                  [1]))))
 
 (defn sum
   ([] 0)
   ([mem v] (+ mem v))
   ([mem] [mem]))
 
-(fact "ClojureAggregator test."
+(deftest clojure-agg-test
   (let [a (ClojureAggregator. (w/fields "sum")
                               sum)]
-    (t/invoke-aggregator a [[1] [2] [3]]) => [[6]]))
+    (is (= [[6]] (t/invoke-aggregator a [[1] [2] [3]])))))

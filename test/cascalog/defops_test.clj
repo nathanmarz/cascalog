@@ -18,6 +18,8 @@
   {:great-meta "yes!"}
   [x] x)
 
+(defn ident-stateful [y]
+  (mapop))
 (defmapop [ident-stateful [y]]
   "Identity operation."
   {:stateful true
