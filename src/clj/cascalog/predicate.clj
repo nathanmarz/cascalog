@@ -35,12 +35,12 @@
 ;; assembly-maker is a function that takes in infields & outfields and returns
 ;; [preassembly postassembly]
 (defstruct parallel-aggregator
-  :type :init-var :combine-var)
+  :type :init :combine)
 
 ;; :num-intermediate-vars-fn takes as input infields, outfields
 (defstruct parallel-buffer
-  :type :hof? :init-hof-var :combine-hof-var
-  :extract-hof-var :num-intermediate-vars-fn :buffer-hof-var)
+  :type :init-hof :combine-hof
+  :extract-hof :num-intermediate-vars-fn :buffer-hof)
 
 (defmacro defparallelagg
   "Binds an efficient aggregator to the supplied symbol. A parallel
@@ -48,39 +48,33 @@
   then combines the results each tuple's initialization until one
   result is achieved. `defparallelagg` accepts two keyword arguments:
 
-  :init-var -- A var bound to a fn that accepts raw tuples and returns
-  an intermediate result; #'one, for example.
+  :init -- A fn that accepts raw tuples and returns
+  an intermediate result; one, for example.
 
-  :combine-var -- a var bound to a fn that both accepts and returns
+  :combine -- A fn that both accepts and returns
   intermediate results.
 
   For example,
 
   (defparallelagg sum
-  :init-var #'identity
-  :combine-var #'+)
+  :init identity
+  :combine +)
 
   Used as
 
   (sum ?x :> ?y)"
-  {:arglists '([name doc-string? attr-map? & {:keys [init-var combine-var]}])}
+  {:arglists '([name doc-string? attr-map? & {:keys [init combine]}])}
   [name & body]
   (let [[name body] (name-with-attributes name body)]
     `(def ~name
        (struct-map cascalog.predicate/parallel-aggregator
          :type ::parallel-aggregator ~@body))))
 
-(defmacro defparallelbuf
-  {:arglists '([name doc-string? attr-map? & {:keys [init-hof-var
-                                                     combine-hof-var
-                                                     extract-hof-var
-                                                     num-intermediate-vars-fn
-                                                     buffer-hof-var]}])}
-  [name & body]
-  (let [[name body] (name-with-attributes name body)]
-    `(def ~name
-       (struct-map cascalog.predicate/parallel-buffer
-         :type ::parallel-buffer ~@body))))
+(defn parallelbuf [& args]
+  (apply struct-map
+         parallel-buffer
+         :type ::parallel-buffer
+         args))
 
 ;; ids are so they can be used in sets safely
 (defmacro defpredicate [name & attrs]
@@ -203,11 +197,6 @@
   (or (:name trap)
       (uuid)))
 
-(defn- hof-prepend [hof-args & args]
-  (if hof-args
-    (cons hof-args args)
-    args))
-
 (defn- simpleop-build-predicate
   [op hof-args infields outfields options]
   (predicate operation
@@ -299,26 +288,24 @@
 (defmethod hof-predicate? ::parallel-aggregator [& args] false)
 (defmethod build-predicate-specific ::parallel-aggregator
   [pagg _ infields outfields options]
-  (let [init-spec (:init-var pagg) ;; TODO need to change how this works
-        combine-spec (:combine-var pagg)
-        java-pagg (ClojureParallelAgg. (CombinerSpec. init-spec combine-spec))]
+  (let [java-pagg (ClojureParallelAgg. (CombinerSpec. (:init pagg) (:combine pagg)))]
     (build-predicate-specific java-pagg nil infields outfields options)
     ))
 
 (defmethod predicate-default-var ::parallel-buffer [& args] :>)
-(defmethod hof-predicate? ::parallel-buffer [op & args] (:hof? op))
+(defmethod hof-predicate? ::parallel-buffer [op & args] false)
 (defmethod build-predicate-specific ::parallel-buffer
-  [pbuf hof-args infields outfields options]
+  [pbuf _ infields outfields options]
   (let [temp-vars (v/gen-nullable-vars ((:num-intermediate-vars-fn pbuf)
                                         infields
                                         outfields))
-        hof-args  (cons (dissoc options :trap) hof-args)
         sort-fields (:sort options)
         sort-fields (if (empty? sort-fields) nil sort-fields)
+        hof-args (dissoc options :trap)
         combiner-spec (CombinerSpec.
-                       (mk-hof-fn-spec (:init-hof-var pbuf) hof-args)
-                       (mk-hof-fn-spec (:combine-hof-var pbuf) hof-args)
-                       (mk-hof-fn-spec (:extract-hof-var pbuf) hof-args))
+                       ((:init-hof pbuf) hof-args)
+                       ((:combine-hof pbuf) hof-args)
+                       ((:extract-hof pbuf) hof-args))
         combiner (fn [group-fields]
                    (w/raw-each Fields/ALL
                                (ClojureBufferCombiner.
@@ -330,8 +317,7 @@
                                Fields/RESULTS))
         group-assembly (w/raw-every (w/fields temp-vars)
                                     (ClojureBuffer. (w/fields outfields)
-                                                    (mk-hof-fn-spec
-                                                     (:buffer-hof-var pbuf) hof-args))
+                                                    ((:buffer-hof pbuf) hof-args))
                                     Fields/ALL)]
     (predicate aggregator
                true

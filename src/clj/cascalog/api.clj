@@ -434,7 +434,7 @@ as well."
 
 (defalias defparallelagg p/defparallelagg)
 
-(defalias defparallelbuf p/defparallelbuf)
+(defalias parallelbuf p/parallelbuf)
 
 ;; Miscellaneous helpers
 

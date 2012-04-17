@@ -47,7 +47,7 @@ public class ClojureBufferCombiner extends ClojureCombinerBase {
     @Override
     public void prepare(FlowProcess flowProcess, OperationCall operationCall) {
         super.prepare(flowProcess, operationCall);
-        extract_fn = Util.bootFn(spec.extractor_spec);
+        extract_fn = spec.getExtractor(); //relies on spec.prepare() being called in superclass...
     }
 
     @Override
