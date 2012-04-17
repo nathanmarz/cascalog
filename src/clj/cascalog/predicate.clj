@@ -198,7 +198,7 @@
 (defn- simpleop-build-predicate
   [op hof-args infields outfields options]
   (predicate operation
-             (apply w/exec op infields :fn> outfields :> Fields/ALL)
+             (w/exec op infields :fn> outfields :> Fields/ALL)
              infields
              outfields
              false))
@@ -358,7 +358,7 @@
   (let [[func-fields out-selector] (if (not-empty outfields)
                                      [outfields Fields/ALL]
                                      [nil nil])
-        assembly (apply w/exec op infields :fn> func-fields :> out-selector)]
+        assembly (w/exec op infields :fn> func-fields :> out-selector)]
     (predicate operation
                assembly
                infields

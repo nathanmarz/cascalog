@@ -269,7 +269,7 @@
 (defn outer-joiner [] (OuterJoin.))
 
 (defn ophelper [type builder body]
-  `(u/merge-meta (s/fn ~@body) {::op-builder ~builder :pred-type type}))
+  `(u/merge-meta (s/fn ~@body) {::op-builder ~builder :pred-type ~type}))
 
 (defmacro mapop [& body] (ophelper :map map body))
 (defmacro mapcatop [& body] (ophelper :mapcat mapcat body))
