@@ -396,6 +396,21 @@ as well."
 
 ;; Defining custom operations
 
+(defalias mapop w/mapop)
+
+(defalias mapcatop w/mapcatop)
+
+(defalias bufferop w/bufferop)
+          
+(defalias multibufferop w/multibufferop)
+          
+(defalias bufferiterop w/bufferiterop)
+          
+(defalias aggregateop w/aggregateop)
+          
+(defalias filterop w/filterop)
+          
+
 (defalias defmapop w/defmapop
   "Defines a custom operation that appends new fields to the input tuple.")
 

@@ -269,7 +269,7 @@
 (defn outer-joiner [] (OuterJoin.))
 
 (defn ophelper [type builder body]
-  `(merge-meta (s/fn ~@body) {::op-builder ~builder :pred-type type}))
+  `(u/merge-meta (s/fn ~@body) {::op-builder ~builder :pred-type type}))
 
 (defmacro mapop [& body] (ophelper :map map body))
 (defmacro mapcatop [& body] (ophelper :mapcat mapcat body))
@@ -284,13 +284,13 @@
 (defn defhelper [name op-sym body]
   `(def ~name (~op-sym ~@body)))
 
-(defmacro defmapop [name & body] (defhelper name 'mapop body))
-(defmacro defmapcatop [name & body] (defhelper name 'mapcatop body))
-(defmacro deffilterop [name & body] (defhelper name 'filterop body))
-(defmacro defaggregateop [name & body] (defhelper name 'aggregateop body))
-(defmacro defbufferop [name & body] (defhelper name 'bufferop body))
-(defmacro defbufferiterop [name & body] (defhelper name 'bufferiterop body))
-(defmacro defmultibufferop [name & body] (defhelper name 'multibufferop body))
+(defmacro defmapop [name & body] (defhelper name `mapop body))
+(defmacro defmapcatop [name & body] (defhelper name `mapcatop body))
+(defmacro deffilterop [name & body] (defhelper name `filterop body))
+(defmacro defaggregateop [name & body] (defhelper name `aggregateop body))
+(defmacro defbufferop [name & body] (defhelper name `bufferop body))
+(defmacro defbufferiterop [name & body] (defhelper name `bufferiterop body))
+(defmacro defmultibufferop [name & body] (defhelper name `multibufferop body))
 
 (defn exec [op & args]
   (let [builder (get (meta op) ::op-builder filter)]

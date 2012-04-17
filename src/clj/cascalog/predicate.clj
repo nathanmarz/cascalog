@@ -204,7 +204,9 @@
              false))
 
 (defn- mk-hof-fn-spec [avar args]
-  (w/fn-spec (cons avar args)))
+  avar ;; TODO am going to need to redo how hof stuff works for parallelbuf
+  ;;(w/fn-spec (cons avar args))
+  )
 
 (defn- simpleagg-build-predicate
   [buffer? op hof-args infields outfields options]
@@ -263,8 +265,8 @@
 (defmethod hof-predicate? ::parallel-aggregator [& args] false)
 (defmethod build-predicate-specific ::parallel-aggregator
   [pagg _ infields outfields options]
-  (let [init-spec (w/fn-spec (:init-var pagg))
-        combine-spec (w/fn-spec (:combine-var pagg))
+  (let [init-spec (:init-var pagg) ; TODO: will need to change how this works
+        combine-spec (:combine-var pagg)
         cascading-agg (ClojureParallelAggregator. (w/fields outfields)
                                                   init-spec
                                                   combine-spec
@@ -309,8 +311,7 @@
         group-assembly (w/raw-every (w/fields temp-vars)
                                     (ClojureBuffer. (w/fields outfields)
                                                     (mk-hof-fn-spec
-                                                     (:buffer-hof-var pbuf) hof-args)
-                                                    false)
+                                                     (:buffer-hof-var pbuf) hof-args))
                                     Fields/ALL)]
     (predicate aggregator
                true
@@ -357,7 +358,7 @@
   (let [[func-fields out-selector] (if (not-empty outfields)
                                      [outfields Fields/ALL]
                                      [nil nil])
-        assembly (apply w/exec op infields :fn> func-fields :> out-selector))]
+        assembly (apply w/exec op infields :fn> func-fields :> out-selector)]
     (predicate operation
                assembly
                infields
@@ -463,7 +464,7 @@
 (defn- mk-null-check [fields]
   (let [non-null-fields (filter v/non-nullable-var? fields)]
     (if (not-empty non-null-fields)
-      (non-null? non-null-fields)
+      (w/exec non-null? non-null-fields)
       identity)))
 
 (defmulti enhance-predicate (fn [pred & rest] (:type pred)))

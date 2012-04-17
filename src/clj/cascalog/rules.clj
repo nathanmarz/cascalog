@@ -219,8 +219,9 @@
       [[newvar] (w/insert newvar 1)])))
 
 (defn- specify-parallel-agg [{pagg :parallel-agg}]
-  (CombinerSpec. (w/fn-spec (:init-var pagg))
-                 (w/fn-spec (:combine-var pagg))))
+  ;; TODO: need to change how this works
+  (CombinerSpec. (:init-var pagg)
+                 (:combine-var pagg)))
 
 (defn- mk-combined-aggregator [combiner-spec argfields outfields]
   (w/raw-every (w/fields argfields)

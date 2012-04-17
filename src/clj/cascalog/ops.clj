@@ -73,8 +73,9 @@
 
 ;; Operations to use within queries
 
-(defmapop [re-parse [pattern]] [str]
-  (re-seq pattern str))
+(defn re-parse [pattern]
+  (mapop [str]
+    (re-seq pattern str)))
 
 (defparallelagg count
   :init-var #'impl/one
