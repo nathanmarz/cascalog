@@ -169,3 +169,5 @@
        (filter #(and (var? %) (= (var-get %) val)))
        first ))
 
+(defn merge-meta [val ameta]
+  (with-meta val (merge (meta val) ameta)))

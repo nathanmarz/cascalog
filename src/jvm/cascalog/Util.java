@@ -28,6 +28,8 @@ import java.util.List;
 public class Util {
     static Var require = RT.var("clojure.core", "require");
     static Var symbol = RT.var("clojure.core", "symbol");
+    static IFn serializeFn = bootSimpleFn("serializable.fn", "serialize");
+    static IFn deserializeFn = bootSimpleFn("serializable.fn", "deserialize");
 
     public static ISeq cat(ISeq s1, ISeq s2) {
         if (s1 == null || RT.seq(s1) == null) { return s2; }
@@ -120,5 +122,13 @@ public class Util {
     // TODO: convert to RT.booleanCast
     public static boolean truthy(Object obj) {
         return ((obj != null) && (!Boolean.FALSE.equals(obj)));
+    }
+    
+    public static byte[] serializeFn(IFn fn) {
+        return (byte[]) serializeFn.invoke(fn);
+    }
+
+    public static IFn deserializeFn(byte[] ser) {
+        return (IFn) deserializeFn.invoke(ser);
     }
 }

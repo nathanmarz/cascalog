@@ -10,6 +10,7 @@
     [riffle/riffle "0.1-dev"]
     [log4j/log4j "1.2.16"]
     [hadoop-util "0.2.7"]
+    [cascalog/serializable-fn "0.0.2"]
     [jackknife "0.1.2"]])
 
 (defproject cascalog/cascalog "1.8.7-SNAPSHOT"

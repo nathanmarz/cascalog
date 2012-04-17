@@ -23,7 +23,8 @@
   (:require [cascalog.conf :as conf]
             [cascalog.vars :as v]
             [cascalog.util :as u]
-            [hadoop-util.core :as hadoop])
+            [hadoop-util.core :as hadoop]
+            [serializable.fn :as s])
   (:import [cascalog Util]
            [java.io File]
            [java.util ArrayList]
@@ -41,29 +42,6 @@
            [cascalog ClojureFilter ClojureMapcat ClojureMap
             ClojureAggregator Util ClojureBuffer ClojureBufferIter
             FastFirst MemorySourceTap MultiGroupBy ClojureMultibuffer]))
-
-(defn ns-fn-name-pair [v]
-  (let [m (meta v)]
-    [(str (:ns m)) (str (:name m))]))
-
-(defn fn-spec [v-or-coll]
-  "v-or-coll => var or [var & params]
-   Returns an Object array that is used to represent a Clojure function.
-   If the argument is a var, the array represents that function.
-   If the argument is a coll, the array represents the function returned
-   by applying the first element, which should be a var, to the rest of the
-   elements."
-  (cond
-   (var? v-or-coll)
-   (into-array Object (ns-fn-name-pair v-or-coll))
-
-   (coll? v-or-coll)
-   (into-array Object
-               (concat
-                (ns-fn-name-pair (clojure.core/first v-or-coll))
-                (next v-or-coll)))
-
-   :else (throw (IllegalArgumentException. (str v-or-coll)))))
 
 (defn fields
   {:tag Fields}
@@ -91,24 +69,19 @@
    (and (sequential? obj) (every? string? obj))))
 
 (defn parse-args
-  "arr => func-spec in-fields? :fn> func-fields :> out-fields
+  "arr => op in-fields? :fn> func-fields :> out-fields
   
   returns [in-fields func-fields spec out-fields]"
   ([arr] (parse-args arr Fields/RESULTS))
-  ([[func-args & varargs] defaultout]
-     (let [spec      (fn-spec func-args)
-           func-var  (if (var? func-args)
-                       func-args
-                       (clojure.core/first func-args))
-           first-elem (clojure.core/first varargs)
+  ([[op & varargs] defaultout]
+     (let [first-elem (clojure.core/first varargs)
            [in-fields keyargs] (if (or (nil? first-elem)
                                        (keyword? first-elem))
                                  [Fields/ALL (apply hash-map varargs)]
                                  [(fields (clojure.core/first varargs))
                                   (apply hash-map (rest varargs))])
-           stateful (get (meta func-var) :stateful false)
-           options  (merge {:fn> (:fields (meta func-var)) :> defaultout} keyargs)]
-       [in-fields (fields (:fn> options)) spec (fields (:> options)) stateful])))
+           options  (merge {:fn> (:fields (meta op)) :> defaultout} keyargs)]
+       [in-fields (fields (:fn> options)) op (fields (:> options))])))
 
 (defn pipe
   "Returns a Pipe of the given name, or if one is not supplied with a
@@ -133,26 +106,26 @@
 (defn filter [& args]
   (fn [previous]
     (debug-print "filter" args)
-    (let [[in-fields func-fields spec out-fields stateful] (parse-args args)]
+    (let [[in-fields func-fields op out-fields] (parse-args args)]
       (if func-fields
         (Each. previous in-fields
-               (ClojureMap. func-fields spec stateful) out-fields)
+               (ClojureMap. func-fields op) out-fields)
         (Each. previous in-fields
-               (ClojureFilter. spec stateful))))))
+               (ClojureFilter. op))))))
 
 (defn mapcat [& args]
   (fn [previous]
     (debug-print "mapcat" args)
-    (let [[in-fields func-fields spec out-fields stateful] (parse-args args)]
+    (let [[in-fields func-fields op out-fields] (parse-args args)]
       (Each. previous in-fields
-             (ClojureMapcat. func-fields spec stateful) out-fields))))
+             (ClojureMapcat. func-fields op) out-fields))))
 
 (defn map [& args]
   (fn [previous]
     (debug-print "map" args)
-    (let [[in-fields func-fields spec out-fields stateful] (parse-args args)]
+    (let [[in-fields func-fields op out-fields] (parse-args args)]
       (Each. previous in-fields
-             (ClojureMap. func-fields spec stateful) out-fields))))
+             (ClojureMap. func-fields op) out-fields))))
 
 (defn group-by
   ([]
@@ -213,7 +186,7 @@
   (fn [previous]
     (debug-print "identity" args)
     ;;  + is a hack. TODO: split up parse-args into parse-args and parse-selector-args
-    (let [[in-fields func-fields _ out-fields _] (parse-args (cons #'+ args) Fields/RESULTS)
+    (let [[in-fields func-fields _ out-fields] (parse-args (cons + args) Fields/RESULTS)
           id-func (if func-fields (Identity. func-fields) (Identity.))]
       (Each. previous in-fields id-func out-fields))))
 
@@ -249,35 +222,35 @@
 (defn aggregate [& args]
   (fn [^Pipe previous]
     (debug-print "aggregate" args)
-    (let [[^Fields in-fields func-fields specs ^Fields out-fields stateful]
+    (let [[^Fields in-fields func-fields op ^Fields out-fields]
           (parse-args args Fields/ALL)]
       (Every. previous in-fields
-              (ClojureAggregator. func-fields specs stateful) out-fields))))
+              (ClojureAggregator. func-fields op) out-fields))))
 
 (defn buffer [& args]
   (fn [^Pipe previous]
     (debug-print "buffer" args)
-    (let [[^Fields in-fields func-fields specs ^Fields out-fields stateful]
+    (let [[^Fields in-fields func-fields op ^Fields out-fields]
           (parse-args args Fields/ALL)]
       (Every. previous in-fields
-              (ClojureBuffer. func-fields specs stateful) out-fields))))
+              (ClojureBuffer. func-fields op) out-fields))))
 
 (defn bufferiter [& args]
   (fn [^Pipe previous]
     (debug-print "bufferiter" args)
-    (let [[^Fields in-fields func-fields specs ^Fields out-fields stateful] (parse-args args Fields/ALL)]
+    (let [[^Fields in-fields func-fields op ^Fields out-fields] (parse-args args Fields/ALL)]
       (Every. previous in-fields
-              (ClojureBufferIter. func-fields specs stateful) out-fields))))
+              (ClojureBufferIter. func-fields op) out-fields))))
 
 (defn multibuffer [& args]
   (fn [pipes fields-sum]
     (debug-print "multibuffer" args)
-    (let [[group-fields func-fields specs _ stateful] (parse-args args Fields/ALL)]
+    (let [[group-fields func-fields op _] (parse-args args Fields/ALL)]
       (MultiGroupBy.
        pipes
        group-fields
        fields-sum
-       (ClojureMultibuffer. func-fields specs stateful)))))
+       (ClojureMultibuffer. func-fields op)))))
 
 ;; we shouldn't need a seq for fields (b/c we know how many pipes we have)
 (defn co-group
@@ -295,120 +268,33 @@
 
 (defn outer-joiner [] (OuterJoin.))
 
-(defn- update-arglists
-  "Scans the forms of a def* operation and adds an appropriate
-  `:arglists` entry to the supplied `sym`'s metadata."
-  [sym [form :as args]]
-  (let [arglists (if (vector? form)
-                   (list form)
-                   (clojure.core/map clojure.core/first args))]
-    (u/meta-conj sym {:arglists (list 'quote arglists)})))
+(defn ophelper [builder body]
+  `(merge-meta (s/fn ~@body) {::op-builder ~builder}))
 
-(defn- update-fields
-  "Examines the first item in a def* operation's forms. If the first
-  form defines a sequence of Cascading output fields, these are added
-  to the supplied `sym`'s metadata and dropped from the form
-  sequence. Else, `sym` and `forms` are left unchanged.
+(defmacro mapop [& body] (ophelper map body))
+(defmacro mapcatop [& body] (ophelper mapcat body))
+(defmacro filterop [& body] (ophelper filter body))
+(defmacro aggregateop [& body] (ophelper aggregate body))
+(defmacro bufferop [& body] (ophelper buffer body))
+(defmacro bufferiterop [& body] (ophelper bufferiter body))
+(defmacro multibufferop [& body] (ophelper multibuffer body))
 
-  This function will no longer be necessary, if Cascalog deprecates
-  the ability to name output fields before the dynamic argument
-  vector."
-  [sym [form :as forms]]
-  (if (string? (clojure.core/first form))
-    [(u/meta-conj sym {:fields form}) (rest forms)]
-    [sym forms]))
+;; TODO: need to add ability to do metadata args and such for docstrings...
+;; TODO: need to add ability to make a "prepared op" that will be called with the flowProcess, etc. in the task.
+;; TODO: need an exec function;; no longer pipe the mapop, etc. directly. call exec which will grab the builder out of the metadata
+;; this would also be useful for setting up stateful op
+(defn defhelper [name op-sym body]
+  `(def ~name (~op-sym ~@body)))
 
-(defn assert-nonvariadic [args]
-  (safe-assert (not (some #{'&} args))
-               (str "Defops currently don't support variadic arguments.\n"
-                    "The following argument vector is invalid: " args)))
+(defmacro defmapop [name & body] (defhelper name 'mapop body))
+(defmacro defmapcatop [name & body] (defhelper name 'mapcatop body))
+(defmacro deffilterop [name & body] (defhelper name 'filterop body))
+(defmacro defaggregateop [name & body] (defhelper name 'aggregateop body))
+(defmacro defbufferop [name & body] (defhelper name 'bufferop body))
+(defmacro defbufferiterop [name & body] (defhelper name 'bufferiterop body))
+(defmacro defmultibufferop [name & body] (defhelper name 'multibufferop body))
 
-(defn- parse-defop-args
-  "Accepts a def* type and the body of a def* operation binding,
-  outfits the function var with all appropriate metadata, and returns
-  a 3-tuple containing `[fname f-args args]`.
 
-  * `fname`: the function var.
-  * `f-args`: static variable declaration vector.
-  * `args`: dynamic variable declaration vector."
-  [type [spec & args]]  
-  (let [[fname f-args] (if (sequential? spec)
-                         [(clojure.core/first spec) (second spec)]
-                         [spec nil])
-        [fname args] (->> [fname args]
-                          (apply name-with-attributes)
-                          (apply update-fields))
-        fname (update-arglists fname args)
-        fname (u/meta-conj fname {:pred-type (keyword (name type))
-                                  :hof? (boolean f-args)})]
-    (assert-nonvariadic f-args)
-    [fname f-args args]))
-
-(defn- defop-helper
-  "Binding helper for cascalog def* ops. Function value is tagged with
-   appropriate cascalog metadata; metadata can be accessed with `(meta
-   op)`, rather than the previous `(op :meta)` requirement. This is so
-   you can pass operations around and dynamically create flows."
-  [type args]
-  (let  [[fname func-args funcdef] (parse-defop-args type args)
-         args-sym        (gensym "args")
-         args-sym-all    (gensym "argsall")
-         runner-name     (symbol (str fname "__"))
-         func-form       (if func-args
-                           `[(var ~runner-name) ~@func-args]
-                           `(var ~runner-name))
-         runner-body     (if func-args
-                           `(~func-args (fn ~@funcdef))
-                           funcdef)
-         assembly-args   (if func-args
-                           `[~func-args & ~args-sym]
-                           `[ & ~args-sym])]
-    `(do (defn ~runner-name
-           ~(assoc (meta fname)
-              :no-doc true
-              :skip-wiki true)
-           ~@runner-body)
-         (def ~fname
-           (with-meta
-             (fn [& ~args-sym-all]
-               (let [~assembly-args ~args-sym-all]
-                 (apply ~type ~func-form ~args-sym)))
-             ~(meta fname))))))
-
-(defmacro defmapop  
-  {:arglists '([name doc-string? attr-map? [fn-args*] body])}
-  [& args]
-  (defop-helper 'cascalog.workflow/map args))
-
-(defmacro defmapcatop
-  {:arglists '([name doc-string? attr-map? [fn-args*] body])}
-  [& args]
-  (defop-helper 'cascalog.workflow/mapcat args))
-
-(defmacro deffilterop
-  {:arglists '([name doc-string? attr-map? [fn-args*] body])}
-  [& args]
-  (defop-helper 'cascalog.workflow/filter args))
-
-(defmacro defaggregateop
-  {:arglists '([name doc-string? attr-map? [fn-args*] body])}
-  [& args]
-  (defop-helper 'cascalog.workflow/aggregate args))
-
-(defmacro defbufferop
-  {:arglists '([name doc-string? attr-map? [fn-args*] body])}
-  [& args]
-  (defop-helper 'cascalog.workflow/buffer args))
-
-(defmacro defmultibufferop
-  {:arglists '([name doc-string? attr-map? [fn-args*] body])}
-  [& args]
-  (defop-helper 'cascalog.workflow/multibuffer args))
-
-(defmacro defbufferiterop
-  {:arglists '([name doc-string? attr-map? [fn-args*] body])}
-  [& args]
-  (defop-helper 'cascalog.workflow/bufferiter args))
 
 (defn assemble
   ([x] x)
