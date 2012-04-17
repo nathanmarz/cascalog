@@ -24,10 +24,12 @@
            [cascading.operation Filter]
            [cascading.tuple Fields]
            [clojure.lang IFn]
+           [jcascalog PredicateMacro Subquery ClojureOp]
            [cascalog ClojureParallelAggregator ClojureBuffer
             ClojureBufferCombiner CombinerSpec CascalogFunction
             CascalogFunctionExecutor CascadingFilterToFunction
-            CascalogBuffer CascalogBufferExecutor]))
+            CascalogBuffer CascalogBufferExecutor CascalogAggregator
+            CascalogAggregatorExecutor ClojureParallelAgg ParallelAgg]))
 
 ;; doing it this way b/c pain to put metadata directly on a function
 ;; assembly-maker is a function that takes in infields & outfields and returns
@@ -153,18 +155,24 @@
       (assoc ret selector-default (argsmap selector-default))
       ret)))
 
+(defn any-list? [val]
+  (or (list? val)
+      (instance? java.util.List val)))
+
 (defn- predicate-dispatcher
   [op & rest]
   (let [ret (cond
-             (keyword? op)                   ::option
-             (instance? Tap op)              ::tap
-             (instance? Filter op)           ::cascading-filter
-             (instance? CascalogFunction op) ::cascalog-function
-             (instance? CascalogBuffer op)   ::cascalog-buffer
-             (map? op)                       (:type op)
-             (or (vector? op) (list? op))    ::data-structure
-             (:pred-type (meta op))          (:pred-type (meta op))
-             (instance? IFn op)              ::vanilla-function
+             (keyword? op)                     ::option
+             (instance? Tap op)                ::tap
+             (instance? Filter op)             ::cascading-filter
+             (instance? CascalogFunction op)   ::cascalog-function
+             (instance? CascalogBuffer op)     ::cascalog-buffer
+             (instance? CascalogAggregator op) ::cascalog-aggregator
+             (instance? ParallelAgg op)        ::java-parallel-agg
+             (map? op)                         (:type op)
+             (or (vector? op) (any-list? op))  ::data-structure
+             (:pred-type (meta op))            (:pred-type (meta op))
+             (instance? IFn op)                ::vanilla-function
              :else (u/throw-illegal (str op " is an invalid predicate.")))]
     (if (= ret :bufferiter) :buffer ret)))
 
@@ -173,7 +181,12 @@
              (predicate-dispatcher p)))
 
 (defn predicate-macro? [p]
-  (and (map? p) (= :predicate-macro (:type p))))
+  (or (var? p)
+      (instance? PredicateMacro p)
+      (instance? Subquery p)
+      (instance? ClojureOp p)
+      (and (map? p) (= :predicate-macro (:type p)))
+      ))
 
 (defn- ground-fields? [outfields]
   (every? v/ground-var? outfields))
@@ -261,15 +274,12 @@
                outfields
                trapmap)))
 
-(defmethod predicate-default-var ::parallel-aggregator [& args] :>)
-(defmethod hof-predicate? ::parallel-aggregator [& args] false)
-(defmethod build-predicate-specific ::parallel-aggregator
-  [pagg _ infields outfields options]
-  (let [init-spec (:init-var pagg) ; TODO: will need to change how this works
-        combine-spec (:combine-var pagg)
-        cascading-agg (ClojureParallelAggregator. (w/fields outfields)
-                                                  init-spec
-                                                  combine-spec
+(defmethod predicate-default-var ::java-parallel-agg [& args] :>)
+(defmethod hof-predicate? ::java-parallel-agg [& args] false)
+(defmethod build-predicate-specific ::java-parallel-agg
+  [java-pagg _ infields outfields options]
+  (let [cascading-agg (ClojureParallelAggregator. (w/fields outfields)
+                                                  java-pagg
                                                   (count infields))
         serial-assem (if (empty? infields)
                        (w/raw-every cascading-agg Fields/ALL)
@@ -278,12 +288,22 @@
                                     Fields/ALL))]
     (predicate aggregator
                false
-               pagg
+               java-pagg
                identity
                serial-assem
                identity
                infields
                outfields)))
+
+(defmethod predicate-default-var ::parallel-aggregator [& args] :>)
+(defmethod hof-predicate? ::parallel-aggregator [& args] false)
+(defmethod build-predicate-specific ::parallel-aggregator
+  [pagg _ infields outfields options]
+  (let [init-spec (:init-var pagg) ;; TODO need to change how this works
+        combine-spec (:combine-var pagg)
+        java-pagg (ClojureParallelAgg. (CombinerSpec. init-spec combine-spec))]
+    (build-predicate-specific java-pagg nil infields outfields options)
+    ))
 
 (defmethod predicate-default-var ::parallel-buffer [& args] :>)
 (defmethod hof-predicate? ::parallel-buffer [op & args] (:hof? op))
@@ -393,6 +413,33 @@
 
 (defmethod predicate-default-var ::cascalog-buffer [& args] :>)
 (defmethod hof-predicate? ::cascalog-buffer [op & args] false)
+(defmethod build-predicate-specific ::cascalog-buffer
+  [op _ infields outfields options]
+  (predicate aggregator
+             true
+             nil
+             identity
+             (w/raw-every (w/fields infields)
+                          (CascalogBufferExecutor. (w/fields outfields) op)
+                          Fields/ALL)
+             identity
+             infields
+             outfields))
+
+(defmethod predicate-default-var ::cascalog-aggregator [& args] :>)
+(defmethod hof-predicate? ::cascalog-aggregator [op & args] false)
+(defmethod build-predicate-specific ::cascalog-aggregator
+  [op _ infields outfields options]
+  (predicate aggregator
+             false
+             nil
+             identity
+             (w/raw-every (w/fields infields)
+                          (CascalogAggregatorExecutor. (w/fields outfields) op)
+                          Fields/ALL)
+             identity
+             infields
+             outfields))
 
 (defmethod predicate-default-var :cascalog-tap [& args] :>)
 (defmethod hof-predicate? :cascalog-tap [op & args] false)
@@ -429,19 +476,6 @@
   [_ _ infields outfields options]
   (-> (build-predicate-specific = _ infields outfields options)
       (assoc :allow-on-genfilter? true)))
-
-(defmethod build-predicate-specific ::cascalog-buffer
-  [op _ infields outfields options]
-  (predicate aggregator
-             true
-             nil
-             identity
-             (w/raw-every (w/fields infields)
-                          (CascalogBufferExecutor. (w/fields outfields) op)
-                          Fields/ALL)
-             identity
-             infields
-             outfields))
 
 (defn- variable-substitution
   "Returns [newvars {map of newvars to values to substitute}]"
