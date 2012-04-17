@@ -2,18 +2,6 @@
   (:use cascalog.util
         midje.sweet))
 
-(def p 5)
-
-(facts "Test try-resolve."
-  (binding [*ns* (find-ns 'cascalog.util-test)]
-    (try-resolve 'qqq) => nil
-    (try-resolve '+) => #'+
-    (let [a 1]
-      (try-resolve 'a) => nil)
-    (try-resolve 10) => nil
-    (try-resolve [1 2 3]) => nil
-    (try-resolve 'p) => #'p))
-
 (tabular
  (fact "test-all-pairs"
    (all-pairs ?input) => ?result)
