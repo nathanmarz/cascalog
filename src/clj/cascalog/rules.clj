@@ -99,7 +99,7 @@
 
 ;; TODO: refactor and simplify drift algorithm
 (defn- add-drift-op [tail equality-sets rename-map new-drift-map]
-  (let [eq-assemblies (map w/equal equality-sets)
+  (let [eq-assemblies (map (partial w/exec w/equal) equality-sets)
         outfields (vec (keys rename-map))
         rename-in (vec (vals rename-map))
         rename-assembly (if (seq rename-in)

@@ -298,14 +298,11 @@ as well."
   (rules/combine* gens false))
 
 (defn multigroup*
-  [declared-group-vars buffer-out-vars buffer-spec & sqs]
-  (let [[buffer-op hof-args] (if (sequential? buffer-spec) buffer-spec [buffer-spec nil])
-        sq-out-vars (map get-out-fields sqs)
+  [declared-group-vars buffer-out-vars buffer-op & sqs]
+  (let [sq-out-vars (map get-out-fields sqs)
         group-vars (apply set/intersection (map set sq-out-vars))
         num-vars (reduce + (map count sq-out-vars))
-        pipes (into-array Pipe (map :pipe sqs))
-        args [declared-group-vars :fn> buffer-out-vars]
-        args (if hof-args (cons hof-args args) args)]
+        pipes (into-array Pipe (map :pipe sqs))]
     (safe-assert (seq declared-group-vars)
                  "Cannot do global grouping with multigroup")
     (safe-assert (= (set group-vars) (set declared-group-vars))
@@ -313,7 +310,7 @@ as well."
     (p/predicate p/generator nil
                  true
                  (apply merge (map :sourcemap sqs))
-                 ((apply buffer-op args) pipes num-vars)
+                 ((w/exec buffer-op declared-group-vars :fn> buffer-out-vars) pipes num-vars)
                  (concat declared-group-vars buffer-out-vars)
                  (apply merge (map :trapmap sqs)))))
 
