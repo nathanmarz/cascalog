@@ -28,13 +28,19 @@ public class ClojureCascadingBase extends BaseOperation {
     private byte[] serialized_fn;
     private IFn fn;
 
+    private void init(IFn fn) {
+        serialized_fn = Util.serializeFn(fn); 
+        // test to make sure it's deserializable
+        Util.deserializeFn(serialized_fn);
+    }
+    
     public ClojureCascadingBase(IFn fn) {
-        serialized_fn = Util.serializeFn(fn);        
+        init(fn);
     }
     
     public ClojureCascadingBase(Fields fields, IFn fn) {
         super(fields);
-        serialized_fn = Util.serializeFn(fn);
+        init(fn);
     }
 
     @Override
