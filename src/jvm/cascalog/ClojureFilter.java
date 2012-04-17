@@ -20,13 +20,12 @@ package cascalog;
 import cascading.flow.FlowProcess;
 import cascading.operation.Filter;
 import cascading.operation.FilterCall;
-import cascading.tuple.Fields;
 import clojure.lang.IFn;
 import clojure.lang.ISeq;
 
 public class ClojureFilter extends ClojureCascadingBase implements Filter {
-    public ClojureFilter(Fields fields, IFn fn) {
-        super(fields, fn);
+    public ClojureFilter(IFn fn) {
+        super(fn);
     }
 
     public boolean isRemove(FlowProcess flow_process, FilterCall filter_call) {

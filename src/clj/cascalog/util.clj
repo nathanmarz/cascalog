@@ -161,13 +161,5 @@
                 (name k)
                 (str k)) v])))
 
-(defn search-for-var [val]
-  (->> (loaded-libs)
-       (map ns-map)
-       (mapcat identity)
-       (map second)
-       (filter #(and (var? %) (= (var-get %) val)))
-       first ))
-
 (defn merge-meta [val ameta]
   (with-meta val (merge (meta val) ameta)))

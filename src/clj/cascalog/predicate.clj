@@ -14,7 +14,7 @@
 ;;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (ns cascalog.predicate
-  (:use [cascalog.util :only (uuid multifn? substitute-if search-for-var)]
+  (:use [cascalog.util :only (uuid multifn? substitute-if)]
         [jackknife.seq :only (transpose)]
         [clojure.tools.macro :only (name-with-attributes)])
   (:require [jackknife.core :as u]
@@ -198,7 +198,7 @@
 (defn- simpleop-build-predicate
   [op hof-args infields outfields options]
   (predicate operation
-             (apply op (hof-prepend hof-args infields :fn> outfields :> Fields/ALL))
+             (apply w/exec op infields :fn> outfields :> Fields/ALL)
              infields
              outfields
              false))
@@ -211,7 +211,7 @@
   (predicate aggregator buffer?
              nil
              identity
-             (apply op (hof-prepend hof-args infields :fn> outfields :> Fields/ALL))
+             (apply w/exec op infields :fn> outfields :> Fields/ALL)
              identity
              infields
              outfields))
@@ -324,43 +324,40 @@
 (defmethod hof-predicate? ::vanilla-function [& args] false)
 (defmethod build-predicate-specific ::vanilla-function
   [afn _ infields outfields options]
-  (let [opvar (search-for-var afn)
-        _ (u/safe-assert opvar "Vanilla functions must have vars associated with them.")
-        [func-fields out-selector] (if (not-empty outfields)
+  (let [[func-fields out-selector] (if (not-empty outfields)
                                      [outfields Fields/ALL]
                                      [nil nil])
-        assembly (w/filter opvar infields :fn> func-fields :> out-selector)]
+        assembly (w/filter afn infields :fn> func-fields :> out-selector)]
     (predicate operation assembly infields outfields false)))
 
 (defmethod predicate-default-var :map [& args] :>)
-(defmethod hof-predicate? :map [op & args]       (:hof? (meta op)))
+(defmethod hof-predicate? :map [op & args] false)
 (defmethod build-predicate-specific :map [& args]
   (apply simpleop-build-predicate args))
 
 (defmethod predicate-default-var :mapcat [& args] :>)
-(defmethod hof-predicate? :mapcat [op & args]    (:hof? (meta op)))
+(defmethod hof-predicate? :mapcat [op & args] false)
 (defmethod build-predicate-specific :mapcat [& args]
   (apply simpleop-build-predicate args))
 
 (defmethod predicate-default-var :aggregate [& args] :>)
-(defmethod hof-predicate? :aggregate [op & args] (:hof? (meta op)))
+(defmethod hof-predicate? :aggregate [op & args] false)
 (defmethod build-predicate-specific :aggregate [& args]
   (apply simpleagg-build-predicate false args))
 
 (defmethod predicate-default-var :buffer [& args] :>)
-(defmethod hof-predicate? :buffer [op & args]    (:hof? (meta op)))
+(defmethod hof-predicate? :buffer [op & args] false)
 (defmethod build-predicate-specific :buffer [& args]
   (apply simpleagg-build-predicate true args))
 
 (defmethod predicate-default-var :filter [& args] :<)
-(defmethod hof-predicate? :filter [op & args]    (:hof? (meta op)))
+(defmethod hof-predicate? :filter [op & args] false)
 (defmethod build-predicate-specific :filter
   [op hof-args infields outfields options]
   (let [[func-fields out-selector] (if (not-empty outfields)
                                      [outfields Fields/ALL]
                                      [nil nil])
-        assembly (apply op (hof-prepend hof-args infields
-                                        :fn> func-fields :> out-selector))]
+        assembly (apply w/exec op infields :fn> func-fields :> out-selector))]
     (predicate operation
                assembly
                infields

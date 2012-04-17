@@ -316,10 +316,11 @@
     (throw (RuntimeException. "Planner exception: Generator has inbound nodes")))
   pred)
 
-(w/defmapop [join-fields-selector [num-fields]] [& args]
-  (let [joins (partition num-fields args)]
-    (or (s/find-first (partial s/some? (complement nil?)) joins)
-        (repeat num-fields nil))))
+(defn join-fields-selector [num-fields]
+  (w/mapop [& args]
+    (let [joins (partition num-fields args)]
+        (or (s/find-first (partial s/some? (complement nil?)) joins)
+            (repeat num-fields nil)))))
 
 (w/defmapop truthy? [arg]
   (if arg true false))
@@ -376,10 +377,10 @@
                             (mapcat
                              (fn [gen joinfields]
                                (if-let [join-set-var (:join-set-var gen)]
-                                 [(truthy? (take 1 joinfields) :fn> [join-set-var] :> Fields/ALL)]))
+                                 [(w/exec truthy? (take 1 joinfields) :fn> [join-set-var] :> Fields/ALL)]))
                              prevgens join-renames)
-                            [(join-fields-selector [num-join-fields]
-                                                   (flatten join-renames) :fn> join-fields :> Fields/SWAP)
+                            [(w/exec (join-fields-selector num-join-fields)
+                                     (flatten join-renames) :fn> join-fields :> Fields/SWAP)
                              (w/select keep-fields)
                              ;; maintain the pipe name (important for setting traps on subqueries)
                              (w/pipe-rename (new-pipe-name prevgens))]))]

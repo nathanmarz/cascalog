@@ -268,21 +268,19 @@
 
 (defn outer-joiner [] (OuterJoin.))
 
-(defn ophelper [builder body]
-  `(merge-meta (s/fn ~@body) {::op-builder ~builder}))
+(defn ophelper [type builder body]
+  `(merge-meta (s/fn ~@body) {::op-builder ~builder :pred-type type}))
 
-(defmacro mapop [& body] (ophelper map body))
-(defmacro mapcatop [& body] (ophelper mapcat body))
-(defmacro filterop [& body] (ophelper filter body))
-(defmacro aggregateop [& body] (ophelper aggregate body))
-(defmacro bufferop [& body] (ophelper buffer body))
-(defmacro bufferiterop [& body] (ophelper bufferiter body))
-(defmacro multibufferop [& body] (ophelper multibuffer body))
+(defmacro mapop [& body] (ophelper :map map body))
+(defmacro mapcatop [& body] (ophelper :mapcat mapcat body))
+(defmacro filterop [& body] (ophelper :filter filter body))
+(defmacro aggregateop [& body] (ophelper :aggregate aggregate body))
+(defmacro bufferop [& body] (ophelper :buffer buffer body))
+(defmacro bufferiterop [& body] (ophelper :bufferiter bufferiter body))
+(defmacro multibufferop [& body] (ophelper :multibuffer multibuffer body))
 
 ;; TODO: need to add ability to do metadata args and such for docstrings...
 ;; TODO: need to add ability to make a "prepared op" that will be called with the flowProcess, etc. in the task.
-;; TODO: need an exec function;; no longer pipe the mapop, etc. directly. call exec which will grab the builder out of the metadata
-;; this would also be useful for setting up stateful op
 (defn defhelper [name op-sym body]
   `(def ~name (~op-sym ~@body)))
 
@@ -294,7 +292,10 @@
 (defmacro defbufferiterop [name & body] (defhelper name 'bufferiterop body))
 (defmacro defmultibufferop [name & body] (defhelper name 'multibufferop body))
 
-
+(defn exec [op & args]
+  (let [builder (get (meta op) ::op-builder filter)]
+    (apply builder op args)
+    ))
 
 (defn assemble
   ([x] x)
@@ -431,9 +432,6 @@ identity.  identity."
 
 (defn write-dot [^Flow flow ^String path]
   (.writeDOT flow path))
-
-(defn exec [^Flow flow]
-  (.complete flow))
 
 (defn fill-tap! [^Tap tap xs] 
   (with-open [^TupleEntryCollector collector (.openForWrite tap (hadoop/job-conf
