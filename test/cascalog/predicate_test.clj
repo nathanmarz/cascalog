@@ -5,7 +5,7 @@
         cascalog.testing)
   (:require [cascalog.workflow :as w]))
 
-(w/defmapop timesplusone ["blahfield"]
+(w/defmapop timesplusone
   [a b]
   (inc (* a b)))
 
@@ -27,7 +27,7 @@
                          :outfields ["?q"]}))
     (test-assembly source-data sink-data (:assembly pred))))
 
-(w/defmapop addplusone ["blah" "blah2"]
+(w/defmapop addplusone
   [& all]
   [(inc (apply + all))
    (first all)])
@@ -52,7 +52,7 @@
       (:outfields pred) => #(= 4 (count %)))
     (test-assembly source-data sink-data (:assembly pred))))
 
-(w/defmapop nilop ["f1" "f2"] [a]
+(w/defmapop nilop [a]
   (if (= a 1)
     [nil a]
     [a nil]))
@@ -70,7 +70,7 @@
                      :tuples [[2 nil] [3 nil]]} ]
     (test-assembly source-data sink-data (:assembly pred))))
 
-(w/defmapcatop many-vals ["val"] [n]
+(w/defmapcatop many-vals [n]
   (cond (odd? n) [(* n 2) (* 3 n) (* n n)]
         (= n 2)  []
         :else     [(inc n)]))
