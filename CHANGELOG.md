@@ -1,5 +1,6 @@
 ## 1.8.7
 
+* Functions no longer need to be passed around as vars to be used in queries (although they still need to be bound to vars).
 * Fixed bug where KryoService would fail when two jobs were called simultaneously from different threads (as with cascalog.checkpoint).
 * Added `lfs-delimited` and `hfs-delimited` tap functions.
 * Added `fixed-sample` operator to `cascalog.ops`
