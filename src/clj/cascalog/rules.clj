@@ -440,10 +440,10 @@
        (merge DEFAULT-OPTIONS)))
 
 (defn- mk-var-uniquer-reducer [out?]
-  (fn [[preds vmap] [op hof-args invars outvars]]
+  (fn [[preds vmap] [op invars outvars]]
     (let [[updatevars vmap] (v/uniquify-vars (if out? outvars invars) out? vmap)
           [invars outvars] (if out? [invars updatevars] [updatevars outvars])]
-      [(conj preds [op hof-args invars outvars]) vmap])))
+      [(conj preds [op invars outvars]) vmap])))
 
 ;; TODO: Move mk-drift-map to graph?
 
@@ -459,7 +459,7 @@
     [out-vars raw-predicates drift-map]))
 
 (defn split-outvar-constants
-  [[op hof-args invars outvars]]
+  [[op invars outvars]]
   (let [[new-outvars newpreds] (reduce
                                 (fn [[outvars preds] v]
                                   (if (v/cascalog-var? v)
@@ -467,25 +467,23 @@
                                     (let [newvar (v/gen-nullable-var)]
                                       [(conj outvars newvar)
                                        (conj preds [(p/predicate p/outconstant-equal)
-                                                    nil [v newvar] []])])))
+                                                    [v newvar]
+                                                    []])])))
                                 [[] []]
                                 outvars)]
-    (cons [op hof-args invars new-outvars] newpreds)))
+    (cons [op invars new-outvars] newpreds)))
 
-(defn- rewrite-predicate [[op hof-args invars outvars :as predicate]]
+(defn- rewrite-predicate [[op invars outvars :as predicate]]
   (if-not (and (p/generator? op) (seq invars))
     predicate
     (if (= 1 (count outvars))
-      [(p/predicate p/generator-filter op (first outvars)) hof-args [] invars]
+      [(p/predicate p/generator-filter op (first outvars)) [] invars]
       (throw-illegal (str "Generator filter can only have one outvar -> "
                           outvars)))))
 
 (defn- parse-predicate [[op vars]]
-  (let [[vars hof-args] (if (p/hof-predicate? op)
-                          [(rest vars) (s/collectify (first vars))]
-                          [vars nil])
-        {invars :<< outvars :>>} (p/parse-variables vars (p/predicate-default-var op))]
-    [op hof-args invars outvars]))
+  (let [{invars :<< outvars :>>} (p/parse-variables vars (p/predicate-default-var op))]
+    [op invars outvars]))
 
 (defn- unzip-generators
   "Returns a vector containing two sequences; the subset of the
@@ -499,12 +497,12 @@
   to be used as a set, false otherwise."
   [parsed-pred]
   (and (p/generator? (first parsed-pred))
-       (not-empty (nth parsed-pred 2))))
+       (not-empty (nth parsed-pred 1))))
 
 (defn- gen-as-set-ungrounding-vars
   "Returns a sequence of ungrounding vars present in the
   generators-as-sets contained within the supplied sequence of parsed
-  predicates (of the form `[op hof-args invars outvars]`)."
+  predicates (of the form `[op invars outvars]`)."
   [parsed-preds]
   (mapcat (comp (partial filter v/unground-var?)
                 #(->> % (take-last 2) (apply concat)))
@@ -512,7 +510,7 @@
 
 (defn- parse-ungrounding-outvars
   "For the supplied sequence of parsed cascalog predicates of the form
-  `[op hof-args invars outvars]`, returns a vector of two
+  `[op invars outvars]`, returns a vector of two
   entries: a sequence of all output ungrounding vars that appear
   within generator predicates, and a sequence of all ungrounding vars
   that appear within non-generator predicates."
