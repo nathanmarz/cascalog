@@ -22,7 +22,9 @@ import cascading.operation.BaseOperation;
 import cascading.operation.OperationCall;
 import cascading.tuple.Fields;
 import clojure.lang.IFn;
+import clojure.lang.IPersistentMap;
 import clojure.lang.ISeq;
+import clojure.lang.RT;
 
 public class ClojureCascadingBase extends BaseOperation {
     private byte[] serialized_fn;
@@ -46,6 +48,9 @@ public class ClojureCascadingBase extends BaseOperation {
     @Override
     public void prepare(FlowProcess flow_process, OperationCall op_call) {
         this.fn = Util.deserializeFn(serialized_fn);
+        IPersistentMap meta = RT.meta(fn);
+        // TODO: if the func has perpare metadata on it, invoke it with flowProcess and opCall.
+        // the result is either a function, or a map containing :prepare, :operate, and :cleanup
     }
 
     protected Object applyFunction(ISeq seq) {

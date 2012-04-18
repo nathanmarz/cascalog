@@ -268,16 +268,24 @@
 
 (defn outer-joiner [] (OuterJoin.))
 
-(defn ophelper [type builder body]
-  `(u/merge-meta (s/fn ~@body) {::op-builder ~builder :pred-type ~type}))
+(defn ophelper [type builder afn]
+  (u/merge-meta afn {::op-builder builder :pred-type type}))
 
-(defmacro mapop [& body] (ophelper :map map body))
-(defmacro mapcatop [& body] (ophelper :mapcat mapcat body))
-(defmacro filterop [& body] (ophelper :filter filter body))
-(defmacro aggregateop [& body] (ophelper :aggregate aggregate body))
-(defmacro bufferop [& body] (ophelper :buffer buffer body))
-(defmacro bufferiterop [& body] (ophelper :bufferiter bufferiter body))
-(defmacro multibufferop [& body] (ophelper :multibuffer multibuffer body))
+(def mapop* (partial ophelper :map map))
+(def mapcatop* (partial ophelper :mapcat mapcat))
+(def filterop* (partial ophelper :filter filter))
+(def aggregateop* (partial ophelper :aggregate aggregate))
+(def bufferop* (partial ophelper :buffer buffer))
+(def bufferiterop* (partial ophelper :bufferiter bufferiter))
+(def multibufferop* (partial ophelper :multibufferop multibuffer))
+
+(defmacro mapop [& body] `(mapop* (s/fn ~@body)))
+(defmacro mapcatop [& body] `(mapcatop* (s/fn ~@body)))
+(defmacro filterop [& body] `(filterop* (s/fn ~@body)))
+(defmacro aggregateop [& body] `(aggregateop* (s/fn ~@body)))
+(defmacro bufferop [& body] `(bufferop* (s/fn ~@body)))
+(defmacro bufferiterop [& body] `(bufferiterop* (s/fn ~@body)))
+(defmacro multibufferop [& body] `(multibufferop* (s/fn ~@body)))
 
 ;; TODO: need to add ability to do metadata args and such for docstrings...
 ;; TODO: need to add ability to make a "prepared op" that will be called with the flowProcess, etc. in the task.
