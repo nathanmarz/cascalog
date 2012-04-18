@@ -12,7 +12,7 @@
     [hadoop-util "0.2.7"]
     [jackknife "0.1.2"]])
 
-(defproject cascalog/cascalog "1.8.7-SNAPSHOT"
+(defproject cascalog/cascalog "1.8.7"
   :description "Data processing on Hadoop without the hassle."
   :url "http://www.cascalog.org"
   :license {:name "GPLv3"
