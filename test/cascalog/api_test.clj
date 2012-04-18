@@ -8,9 +8,7 @@
            [cascalog.test KeepEven OneBuffer CountAgg SumAgg]
            [cascalog.ops IdentityBuffer]))
 
-;;TODO fix docstring support
-;;(defmapop mk-one "Returns 1 for any input." [& tuple] 1)
-(defmapop mk-one [& tuple] 1)
+(defmapop mk-one "Returns 1 for any input." [& tuple] 1)
 
 (deftest test-no-input
   (let [nums [[1] [2] [3]]]
@@ -157,9 +155,8 @@
              (* 2 ?s :> ?s2))))
 
 (defaggregateop evens-vs-odds
-;; TODO fix docstring support
-;;   "Decrements state for odd inputs, increases for even. Returns final
-;;    state as a 1-tuple."
+"Decrements state for odd inputs, increases for even. Returns final
+ state as a 1-tuple."
   ([] 0)
   ([context val] (if (odd? val)
                    (dec context)
