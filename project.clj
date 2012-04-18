@@ -5,8 +5,8 @@
                   thirdparty/jgrapht-jdk1.6
                   riffle/riffle]]
     [thirdparty/jgrapht-jdk1.6 "0.8.1"]
-    [cascading.kryo "0.3.0"]
-    [cascalog/carbonite "1.2.0"]
+    [cascading.kryo "0.3.1"]
+    [cascalog/carbonite "1.2.1"]
     [riffle/riffle "0.1-dev"]
     [log4j/log4j "1.2.16"]
     [hadoop-util "0.2.7"]
@@ -28,7 +28,7 @@
   :repositories {"conjars" "http://conjars.org/repo/"}
   :plugins [[lein-midje "2.0.0-SNAPSHOT"]
             [lein-swank "1.4.4"]]
-  :aliases { "all" ["with-profile" "dev:1.2,dev:1.4"]}
+  :aliases {"all" ["with-profile" "dev:1.2,dev:1.4"]}
   :dependencies ~(conj shared '[org.clojure/clojure "1.3.0"])
   :dev-dependencies [[org.apache.hadoop/hadoop-core "0.20.2-dev"]
                      [midje-cascalog "0.4.0" :exclusions [org.clojure/clojure]]]
