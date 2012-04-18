@@ -1,10 +1,9 @@
 ## 1.8.7
 
-* Functions no longer need to be passed around as vars to be used in queries (although they still need to be bound to vars).
-* Fixed bug where KryoService would fail when two jobs were called simultaneously from different threads (as with cascalog.checkpoint).
-* Added `lfs-delimited` and `hfs-delimited` tap functions.
-* Added `fixed-sample` operator to `cascalog.ops`
 * Exposed a pure-Java, fully-interoperable API to Cascalog called JCascalog
+* Upgraded to Kryo 2
+* Functions no longer need to be passed around as vars to be used in queries (although they still need to be bound to vars somewhere).
+* Fixed bug where KryoService would fail when two jobs were called simultaneously from different threads (as with cascalog.checkpoint).
 * Added fixed-sample query builder function for getting a fixed-cardinality uniform random sample of a generator. The implementation is efficient and can be used on any size dataset.
 * Added fixed-sample-agg aggregator to ops for taking a fixed-cardinality sample of the group.
 * Regular Java lists can now be used as generators
