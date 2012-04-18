@@ -401,19 +401,12 @@
 (defn hof-arithmetic [a b]
   (mapop [n] (+ b (* a n))))
 
-;; TODO: stateful operations should return a map containing :init,
-;; :op, :finish
-;; TODO: need a notion of preparation for functions
 (defn sum-plus [a]
-  (bufferop [tuples]
-    ;; TODO... need a notion of preparedness...
-    ))
-    
-; (defbufferop [sum-plus [a]]
-;   {:stateful true}
-;   ([] (* 3 a))
-;   ([state tuples] [(apply + state (map first tuples))])
-;   ([state] nil))
+  (prepbufferop [process opcall]
+    (let [state (* 3 a)]
+    (fn [tuples]
+      [(apply + state (map first tuples))]
+      ))))
 
 (deftest test-hof-ops
   (let [integer [[1] [2] [6]]]
@@ -432,11 +425,10 @@
              (integer ?v)
              ((hof-arithmetic 2 1) ?v :> ?n))
 
-    ;; TODO: need preparedness to put this test back in
-    ;; (test?<- [[72]]
-    ;;          [?n]
-    ;;          (integer ?v)
-    ;;          ((sum-plus 21) ?v :> ?n))
+    (test?<- [[72]]
+             [?n]
+             (integer ?v)
+             ((sum-plus 21) ?v :> ?n))
              ))
 
 (defn lala-appended [source]

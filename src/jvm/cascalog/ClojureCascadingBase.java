@@ -22,13 +22,14 @@ import cascading.operation.BaseOperation;
 import cascading.operation.OperationCall;
 import cascading.tuple.Fields;
 import clojure.lang.IFn;
-import clojure.lang.IPersistentMap;
 import clojure.lang.ISeq;
-import clojure.lang.RT;
+import clojure.lang.Keyword;
+import java.util.Map;
 
 public class ClojureCascadingBase extends BaseOperation {
     private byte[] serialized_fn;
     private IFn fn;
+    private IFn cleanupFn;
 
     private void init(IFn fn) {
         serialized_fn = Util.serializeFn(fn); 
@@ -46,11 +47,24 @@ public class ClojureCascadingBase extends BaseOperation {
     }
 
     @Override
-    public void prepare(FlowProcess flow_process, OperationCall op_call) {
-        this.fn = Util.deserializeFn(serialized_fn);
-        IPersistentMap meta = RT.meta(fn);
-        // TODO: if the func has perpare metadata on it, invoke it with flowProcess and opCall.
-        // the result is either a function, or a map containing :prepare, :operate, and :cleanup
+    public void prepare(FlowProcess flowProcess, OperationCall opCall) {
+        IFn fn = Util.deserializeFn(serialized_fn);
+        Boolean isPrepared = (Boolean) Util.bootSimpleFn("cascalog.workflow", "prepared?").invoke(fn);  
+        
+        if(isPrepared.booleanValue()) {
+            Object res = fn.invoke(flowProcess, opCall);
+            if(res instanceof Map) {
+                Map resmap = (Map) res;
+                this.fn = (IFn) resmap.get(Keyword.intern("operate"));
+                this.cleanupFn = (IFn) resmap.get(Keyword.intern("cleanup"));
+            } else {
+                this.fn = (IFn) res;
+                this.cleanupFn = null;
+            }
+        } else {
+            this.fn = fn;
+            this.cleanupFn = null;
+        }
     }
 
     protected Object applyFunction(ISeq seq) {
@@ -80,7 +94,9 @@ public class ClojureCascadingBase extends BaseOperation {
 
 
     @Override
-    public void cleanup(FlowProcess flowProcess, OperationCall op_call) {
-        //TODO: how to manage cleanup...
+    public void cleanup(FlowProcess flowProcess, OperationCall opCall) {
+        if(cleanupFn!=null) {
+            cleanupFn.invoke();
+        }
     }
 }

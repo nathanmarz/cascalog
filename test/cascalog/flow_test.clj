@@ -14,20 +14,19 @@
   [v1 v2]
   (* 2 (+ v1 v2)))
 
-;; TODO: need to add preparedness to get this to work
-;; (w/defmapop stateful-add
-;;   {:stateful true}
-;;   ([] 10)
-;;   ([state val] (+ state val))
-;;   ([state] nil))
-;; 
-;; (deftest test-statefulmapop
-;;   (let [source-data {:fields ["n"]
-;;                      :tuples [[1] [2] [3]]}
-;;         sink-data {:fields ["v"]
-;;                    :tuples [[11] [12] [13]]}]
-;;     (test-assembly source-data sink-data
-;;                    (stateful-add "n" :fn> "v" :> "v"))))
+(w/defprepmapop stateful-add [process opcall]
+  (let [state 10]
+    (fn [val]
+      (+ state val)
+      )))
+
+(deftest test-statefulmapop
+  (let [source-data {:fields ["n"]
+                     :tuples [[1] [2] [3]]}
+        sink-data {:fields ["v"]
+                   :tuples [[11] [12] [13]]}]
+    (test-assembly source-data sink-data
+                   (w/exec stateful-add "n" :fn> "v" :> "v"))))
 
 (deftest test-map-op
   (let [source-data {:fields ["n1" "n2"]

@@ -360,6 +360,21 @@ as well."
 
 ;; Defining custom operations
 
+(defalias mapop* w/mapop*)
+
+(defalias mapcatop* w/mapcatop*)
+
+(defalias bufferop* w/bufferop*)
+          
+(defalias multibufferop* w/multibufferop*)
+          
+(defalias bufferiterop* w/bufferiterop*)
+          
+(defalias aggregateop* w/aggregateop*)
+
+(defalias filterop* w/filterop*)
+
+
 (defalias mapop w/mapop)
 
 (defalias mapcatop w/mapcatop)
@@ -372,8 +387,7 @@ as well."
           
 (defalias aggregateop w/aggregateop)
           
-(defalias filterop w/filterop)
-          
+(defalias filterop w/filterop)          
 
 (defalias defmapop w/defmapop
   "Defines a custom operation that appends new fields to the input tuple.")
@@ -393,6 +407,22 @@ as well."
 (defalias defparallelagg p/defparallelagg)
 
 (defalias parallelbuf p/parallelbuf)
+
+(defalias prepmapop w/prepmapop)
+(defalias prepmapcatop w/prepmapcatop)
+(defalias prepfilterop w/prepfilterop)
+(defalias prepaggregateop  w/prepaggregateop)
+(defalias prepbufferop w/prepbufferop)
+(defalias prepbufferiterop w/prepbufferiterop)
+(defalias prepmultibufferop w/prepmultibufferop)
+
+(defalias defprepmapop w/defprepmapop)
+(defalias defprepmapcatop w/defprepmapcatop)
+(defalias defprepfilterop w/defprepfilterop)
+(defalias defprepaggregateop w/defprepaggregateop)
+(defalias defprepbufferop w/defprepbufferop)
+(defalias defprepbufferiterop w/defprepbufferiterop)
+(defalias defprepmultibufferop w/defprepmultibufferop)
 
 ;; Miscellaneous helpers
 

@@ -288,7 +288,6 @@
 (defmacro multibufferop [& body] `(multibufferop* (s/fn ~@body)))
 
 ;; TODO: need to add ability to do metadata args and such for docstrings...
-;; TODO: need to add ability to make a "prepared op" that will be called with the flowProcess, etc. in the task.
 (defn defhelper [name op-sym body]
   `(def ~name (~op-sym ~@body)))
 
@@ -299,6 +298,29 @@
 (defmacro defbufferop [name & body] (defhelper name `bufferop body))
 (defmacro defbufferiterop [name & body] (defhelper name `bufferiterop body))
 (defmacro defmultibufferop [name & body] (defhelper name `multibufferop body))
+
+(defn prepared? [op]
+  (= true (-> op meta ::prepared)))
+
+(defn prepared [afn]
+  (u/merge-meta afn {::prepared true}))
+
+(defmacro prepmapop [& body] `(prepared (mapop ~@body)))
+(defmacro prepmapcatop [& body] `(prepared (mapcatop ~@body)))
+(defmacro prepfilterop [& body] `(prepared (filterop ~@body)))
+(defmacro prepaggregateop [& body] `(prepared (aggregateop ~@body)))
+(defmacro prepbufferop [& body] `(prepared (bufferop ~@body)))
+(defmacro prepbufferiterop [& body] `(prepared (bufferiterop ~@body)))
+(defmacro prepmultibufferop [& body] `(prepared (multibufferop ~@body)))
+
+(defmacro defprepmapop [name & body] (defhelper name `prepmapop body))
+(defmacro defprepmapcatop [name & body] (defhelper name `prepmapcatop body))
+(defmacro defprepfilterop [name & body] (defhelper name `prepfilterop body))
+(defmacro defprepaggregateop [name & body] (defhelper name `prepaggregateop body))
+(defmacro defprepbufferop [name & body] (defhelper name `prepbufferop body))
+(defmacro defprepbufferiterop [name & body] (defhelper name `prepbufferiterop body))
+(defmacro defprepmultibufferop [name & body] (defhelper name `prepmultibufferop body))
+
 
 (defn exec [op & args]
   (let [builder (get (meta op) ::op-builder filter)]
