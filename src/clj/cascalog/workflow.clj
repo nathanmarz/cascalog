@@ -287,9 +287,9 @@
 (defmacro bufferiterop [& body] `(bufferiterop* (s/fn ~@body)))
 (defmacro multibufferop [& body] `(multibufferop* (s/fn ~@body)))
 
-;; TODO: need to add ability to do metadata args and such for docstrings...
 (defn defhelper [name op-sym body]
-  `(def ~name (~op-sym ~@body)))
+  (let [[name body] (name-with-attributes name body)]
+    `(def ~name (~op-sym ~@body))))
 
 (defmacro defmapop [name & body] (defhelper name `mapop body))
 (defmacro defmapcatop [name & body] (defhelper name `mapcatop body))
