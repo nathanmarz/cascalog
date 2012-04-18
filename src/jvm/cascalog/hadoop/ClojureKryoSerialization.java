@@ -1,9 +1,9 @@
 package cascalog.hadoop;
 
-import cascading.kryo.Kryo;
 import cascading.kryo.KryoSerialization;
 import cascading.tuple.Comparison;
 import clojure.lang.Util;
+import com.esotericsoftware.kryo.Kryo;
 import org.apache.hadoop.conf.Configuration;
 
 import java.util.ArrayList;
@@ -13,7 +13,6 @@ import java.util.HashSet;
 
 import static carbonite.JavaBridge.enhanceRegistry;
 
-/** User: sritchie Date: 12/1/11 Time: 12:21 PM */
 public class ClojureKryoSerialization extends KryoSerialization implements Comparison {
 
     public ClojureKryoSerialization() {
@@ -34,7 +33,6 @@ public class ClojureKryoSerialization extends KryoSerialization implements Compa
         k.register(ArrayList.class);
         k.register(HashMap.class);
         k.register(HashSet.class);
-        k.register(byte[].class);
         return k;
     }
 

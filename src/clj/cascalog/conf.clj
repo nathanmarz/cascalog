@@ -25,3 +25,6 @@
                  *JOB-CONF*
                  {"io.serializations"
                   "cascalog.hadoop.ClojureKryoSerialization"}))
+
+(defn set-job-conf! [amap]
+  (alter-var-root #'*JOB-CONF* (fn [& ignored] (into {} amap))))

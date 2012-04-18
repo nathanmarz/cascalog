@@ -40,9 +40,6 @@
               [(conj newseq newval) (merge subs sub)]))
           [[] {}] aseq))
 
-(defn try-resolve [obj]
-  (when (symbol? obj) (resolve obj)))
-
 (defn multi-set
   "Returns a map of elem to count"
   [aseq]
@@ -163,3 +160,12 @@
              [(if (keyword? k)
                 (name k)
                 (str k)) v])))
+
+(defn search-for-var [val]
+  (->> (loaded-libs)
+       (map ns-map)
+       (mapcat identity)
+       (map second)
+       (filter #(and (var? %) (= (var-get %) val)))
+       first ))
+

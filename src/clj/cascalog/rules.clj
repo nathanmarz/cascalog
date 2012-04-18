@@ -31,8 +31,10 @@
            [cascading.flow Flow FlowConnector]
            [cascading.pipe Pipe]
            [cascading.pipe.cogroup CascalogJoiner CascalogJoiner$JoinType]
-           [cascalog CombinerSpec ClojureCombiner ClojureCombinedAggregator Util]
+           [cascalog CombinerSpec ClojureCombiner ClojureCombinedAggregator Util
+                     ClojureParallelAgg]
            [org.apache.hadoop.mapred JobConf]
+           [jcascalog Predicate Subquery PredicateMacro ClojureOp]
            [java.util ArrayList]))
 
 ;; infields for a join are the names of the join fields
@@ -218,14 +220,10 @@
     (let [newvar (v/gen-nullable-var)]
       [[newvar] (w/insert newvar 1)])))
 
-(defn- specify-parallel-agg [{pagg :parallel-agg}]
-  (CombinerSpec. (w/fn-spec (:init-var pagg))
-                 (w/fn-spec (:combine-var pagg))))
-
-(defn- mk-combined-aggregator [combiner-spec argfields outfields]
+(defn- mk-combined-aggregator [pagg argfields outfields]
   (w/raw-every (w/fields argfields)
                (ClojureCombinedAggregator. (w/fields outfields)
-                                           (. combiner-spec combiner_spec))
+                                           pagg)
                Fields/ALL))
 
 (defn mk-agg-arg-fields [fields]
@@ -235,7 +233,7 @@
 (defn- mk-parallel-aggregator [grouping-fields aggs]
   (let [argfields  (map #(mk-agg-arg-fields (:infields %)) aggs)
         tempfields (map #(v/gen-nullable-vars (count (:outfields %))) aggs)
-        specs      (map specify-parallel-agg aggs)
+        specs      (map :parallel-agg aggs)
         combiner (ClojureCombiner. (w/fields grouping-fields)
                                    argfields
                                    (w/fields (apply concat tempfields))
@@ -441,10 +439,10 @@
        (merge DEFAULT-OPTIONS)))
 
 (defn- mk-var-uniquer-reducer [out?]
-  (fn [[preds vmap] [op opvar hof-args invars outvars]]
+  (fn [[preds vmap] [op hof-args invars outvars]]
     (let [[updatevars vmap] (v/uniquify-vars (if out? outvars invars) out? vmap)
           [invars outvars] (if out? [invars updatevars] [updatevars outvars])]
-      [(conj preds [op opvar hof-args invars outvars]) vmap])))
+      [(conj preds [op hof-args invars outvars]) vmap])))
 
 ;; TODO: Move mk-drift-map to graph?
 
@@ -460,7 +458,7 @@
     [out-vars raw-predicates drift-map]))
 
 (defn split-outvar-constants
-  [[op opvar hof-args invars outvars]]
+  [[op hof-args invars outvars]]
   (let [[new-outvars newpreds] (reduce
                                 (fn [[outvars preds] v]
                                   (if (v/cascalog-var? v)
@@ -468,25 +466,25 @@
                                     (let [newvar (v/gen-nullable-var)]
                                       [(conj outvars newvar)
                                        (conj preds [(p/predicate p/outconstant-equal)
-                                                    nil nil [v newvar] []])])))
+                                                    nil [v newvar] []])])))
                                 [[] []]
                                 outvars)]
-    (cons [op opvar hof-args invars new-outvars] newpreds)))
+    (cons [op hof-args invars new-outvars] newpreds)))
 
-(defn- rewrite-predicate [[op opvar hof-args invars outvars :as predicate]]
+(defn- rewrite-predicate [[op hof-args invars outvars :as predicate]]
   (if-not (and (p/generator? op) (seq invars))
     predicate
     (if (= 1 (count outvars))
-      [(p/predicate p/generator-filter op (first outvars)) nil hof-args [] invars]
+      [(p/predicate p/generator-filter op (first outvars)) hof-args [] invars]
       (throw-illegal (str "Generator filter can only have one outvar -> "
                           outvars)))))
 
-(defn- parse-predicate [[op opvar vars]]
+(defn- parse-predicate [[op vars]]
   (let [[vars hof-args] (if (p/hof-predicate? op)
                           [(rest vars) (s/collectify (first vars))]
                           [vars nil])
         {invars :<< outvars :>>} (p/parse-variables vars (p/predicate-default-var op))]
-    [op opvar hof-args invars outvars]))
+    [op hof-args invars outvars]))
 
 (defn- unzip-generators
   "Returns a vector containing two sequences; the subset of the
@@ -500,12 +498,12 @@
   to be used as a set, false otherwise."
   [parsed-pred]
   (and (p/generator? (first parsed-pred))
-       (not-empty (nth parsed-pred 3))))
+       (not-empty (nth parsed-pred 2))))
 
 (defn- gen-as-set-ungrounding-vars
   "Returns a sequence of ungrounding vars present in the
   generators-as-sets contained within the supplied sequence of parsed
-  predicates (of the form `[op opvar hof-args invars outvars]`)."
+  predicates (of the form `[op hof-args invars outvars]`)."
   [parsed-preds]
   (mapcat (comp (partial filter v/unground-var?)
                 #(->> % (take-last 2) (apply concat)))
@@ -513,7 +511,7 @@
 
 (defn- parse-ungrounding-outvars
   "For the supplied sequence of parsed cascalog predicates of the form
-  `[op opvar hof-args invars outvars]`, returns a vector of two
+  `[op hof-args invars outvars]`, returns a vector of two
   entries: a sequence of all output ungrounding vars that appear
   within generator predicates, and a sequence of all ungrounding vars
   that appear within non-generator predicates."
@@ -536,7 +534,7 @@
      (not-empty gen-as-set-vars)
      (throw-illegal (str "Can't have unground vars in generators-as-sets."
                          (vec gen-as-set-vars)
-                         " violate(s) the rules."))
+                         " violate(s) the rules.\n\n" (pr-str parsed-preds)))
 
      (not-empty extra-vars)
      (throw-illegal (str "Ungrounding vars must originate within a generator. "
@@ -587,12 +585,12 @@
     (swap! replacements assoc v new-name)
     new-name))
 
-(defn- pred-macro-updater [[replacements ret] [op opvar vars]]
+(defn- pred-macro-updater [[replacements ret] [op vars]]
   (let [newvars (postwalk #(if (v/cascalog-var? %)
                              (new-var-name! replacements %)
                              %)
                           vars)]
-    [replacements (conj ret [op opvar newvars])]))
+    [replacements (conj ret [op newvars])]))
 
 (defn collectify-nil-as-seq [v]
   (if v (s/collectify v)))
@@ -620,30 +618,44 @@
   (p/predicate p/predicate-macro
                (build-predicate-macro-fn invars outvars raw-predicates)))
 
+(defn- to-jcascalog-fields [fields]
+  (if fields
+    (jcascalog.Fields. fields)
+    (jcascalog.Fields. [])
+    ))
+
 (defn- expand-predicate-macro
-  [{pred-fn :pred-fn} vars]
+  [p vars]
   (let [{invars :<< outvars :>>} (p/parse-variables vars :<)]
-    (pred-fn invars outvars)))
+    (cond (var? p)
+          [[(var-get p) vars]]
+      
+          (instance? Subquery p)
+          [[(.getCompiledSubquery p) vars]]
+        
+          (instance? ClojureOp p)
+          [(.toRawCascalogPredicate p vars)]
+        
+          (instance? PredicateMacro p)
+          (.getPredicates p (to-jcascalog-fields invars) (to-jcascalog-fields outvars))
+
+          :else
+          ((:pred-fn p) invars outvars))))
 
 (defn- expand-predicate-macros [raw-predicates]
-  (mapcat (fn [[p _ vars :as raw-predicate]]
-            (if (p/predicate-macro? p)
-              (expand-predicate-macros (expand-predicate-macro p vars))
-              [raw-predicate]))
+  (mapcat (fn [raw-predicate]
+            (let [[p vars :as raw-predicate]
+                             (if (instance? Predicate raw-predicate)
+                                (.toRawCascalogPredicate raw-predicate)
+                                raw-predicate )]
+              (if (p/predicate-macro? p)
+                (expand-predicate-macros (expand-predicate-macro p vars))
+                [raw-predicate])))
           raw-predicates))
-
-(defn normalize-raw-predicates
-  "support passing around ops as vars."
-  [raw-predicates]
-  (for [[p v vars] raw-predicates]
-    (if (var? p)
-      [(var-get p) p vars]
-      [p v vars])))
 
 (defn build-rule [out-vars raw-predicates]
   (let [raw-predicates (-> raw-predicates
-                           expand-predicate-macros
-                           normalize-raw-predicates)
+                           expand-predicate-macros)
         parsed (p/parse-variables out-vars :?)]
     (if (seq (parsed :?))
       (build-query out-vars raw-predicates)
@@ -652,7 +664,7 @@
                              raw-predicates))))
 
 (defn mk-raw-predicate [[op-sym & vars]]
-  [op-sym (u/try-resolve op-sym) (v/vars->str vars)])
+  [op-sym (v/vars->str vars)])
 
 (defn- pluck-tuple [tap]
   (with-open [it (.openForRead tap (hadoop/job-conf (conf/project-conf)))]
@@ -681,9 +693,15 @@ cascading tap, returns a new generator with field-names."
 (defn connect-to-sink [gen sink]
   ((w/pipe-rename (u/uuid)) (:pipe gen)))
 
+(defn normalize-gen [gen]
+  (if (instance? Subquery gen)
+    (.getCompiledSubquery gen)
+    gen
+    ))
+
 (defn combine* [gens distinct?]
   ;; it would be nice if cascalog supported Fields/UNKNOWN as output of generator
-  (let [gens (map enforce-gen-schema gens)
+  (let [gens (->> gens (map normalize-gen) (map enforce-gen-schema))
         outfields (:outfields (first gens))
         pipes (map :pipe gens)
         pipes (for [p pipes]
@@ -707,9 +725,9 @@ cascading tap, returns a new generator with field-names."
       (.isReplace cfields)))
 
 (defn generator-selector [gen & args]
-  (if (instance? Tap gen)
-    :tap
-    (:type gen)))
+  (cond (instance? Tap gen) :tap
+        (instance? Subquery gen) :java-subquery
+        :else (:type gen)))
 
 (defn normalize-sink-connection [sink subquery]
   (cond (fn? sink)  (sink subquery)

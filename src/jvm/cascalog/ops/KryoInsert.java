@@ -8,7 +8,6 @@ import cascading.tuple.Fields;
 import cascading.tuple.Tuple;
 import cascalog.KryoService;
 
-/** User: sritchie Date: 1/30/12 Time: 10:11 AM */
 public class KryoInsert extends BaseOperation implements Function {
     /** Field values */
     private final byte[] serialized;

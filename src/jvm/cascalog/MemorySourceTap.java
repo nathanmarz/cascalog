@@ -34,9 +34,7 @@ import java.util.UUID;
 
 public class MemorySourceTap extends SourceTap {
     public static class MemorySourceScheme extends Scheme {
-
-        private List<Tuple> tuples;
-        private String id;
+        private transient List<Tuple> tuples;
 
         public MemorySourceScheme(List<Tuple> tuples, Fields fields) {
             super(fields);
@@ -96,6 +94,4 @@ public class MemorySourceTap extends SourceTap {
         MemorySourceTap other = (MemorySourceTap) object;
         return id.equals(other.id);
     }
-
-
 }
