@@ -113,7 +113,7 @@
 
 (defn fixed-sample-agg [amt]
   (<- [:<< ?invars :>> ?outvars]
-      ((cascalog.ops.RandInt.) :<< ?invars :> ?rand)
+      ((cascalog.ops.RandLong.) :<< ?invars :> ?rand)
       (:sort ?rand)
       (limit [amt] :<< ?invars :>> ?outvars)))
 
