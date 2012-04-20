@@ -24,45 +24,43 @@ import cascading.operation.AggregatorCall;
 import cascading.operation.BaseOperation;
 import cascading.operation.OperationCall;
 import cascading.tuple.Fields;
-import clojure.lang.IFn;
 import clojure.lang.ISeq;
+import java.util.List;
 
 public class ClojureCombinedAggregator extends BaseOperation<Object> implements Aggregator<Object> {
-    private Object[] combine_spec;
-    private IFn combine_fn;
+    private ParallelAgg _agg;
 
-    public ClojureCombinedAggregator(Fields outfields, Object[] combine_spec) {
+    public ClojureCombinedAggregator(Fields outfields, ParallelAgg agg) {
         super(outfields);
-        this.combine_spec = combine_spec;
+        _agg = agg;
     }
 
     @Override
-    public void prepare(FlowProcess flow_process, OperationCall<Object> op_call) {
-        this.combine_fn = Util.bootFn(combine_spec);
+    public void prepare(FlowProcess flowProcess, OperationCall<Object> opCall) {
+        _agg.prepare(flowProcess, opCall);
     }
 
-    public void start(FlowProcess flow_process, AggregatorCall<Object> ag_call) {
-        ag_call.setContext(null);
+    public void start(FlowProcess flowProcess, AggregatorCall<Object> aggCall) {
+        aggCall.setContext(null);
     }
 
-    public void aggregate(FlowProcess flow_process, AggregatorCall<Object> ag_call) {
+    public void aggregate(FlowProcess flowProcess, AggregatorCall<Object> aggCall) {
         try {
-            ISeq args = Util.coerceFromTuple(ag_call.getArguments());
-            ISeq currContext = (ISeq) ag_call.getContext();
+            List<Object> args = Util.tupleToList(aggCall.getArguments());
+            List<Object> currContext = (List<Object>) aggCall.getContext();
             if (currContext == null) {
-                ag_call.setContext(args);
+                aggCall.setContext(args);
             } else {
-                ag_call.setContext(Util
-                    .coerceToSeq(this.combine_fn.applyTo(Util.cat(currContext, args))));
+                aggCall.setContext(_agg.combine(currContext, args));
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
-    public void complete(FlowProcess flow_process, AggregatorCall<Object> ag_call) {
+    public void complete(FlowProcess flowProcess, AggregatorCall<Object> aggCall) {
         try {
-            ag_call.getOutputCollector().add(Util.coerceToTuple(ag_call.getContext()));
+            aggCall.getOutputCollector().add(Util.coerceToTuple(aggCall.getContext()));
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

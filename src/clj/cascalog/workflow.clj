@@ -472,17 +472,6 @@
 (defn sequence-file [field-names]
   (SequenceFile. (fields field-names)))
 
-(defn delimited
-  [field-seq delim & {:keys [classes skip-header?]}]
-  (let [skip-header? (boolean skip-header?)
-        field-seq    (fields field-seq)
-        field-seq    (if (and classes (not (.isDefined field-seq)))
-                       (fields (v/gen-nullable-vars (count classes)))
-                       field-seq)]
-    (if classes
-      (TextDelimited. field-seq skip-header? delim (into-array classes))
-      (TextDelimited. field-seq skip-header? delim))))
-
 (deffilterop equal [& objs]
   (apply = objs))
 

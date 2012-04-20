@@ -29,7 +29,7 @@ import java.util.List;
 public class ClojureCombiner extends ClojureCombinerBase {
 
     public ClojureCombiner(Fields groupFields, List<Fields> argFields, Fields outFields,
-        List<CombinerSpec> agg_specs) {
+        List<ParallelAgg> agg_specs) {
         super(groupFields, false, null, argFields, outFields, agg_specs, "cascalog.combiner.aggregator.size", 10000);
     }
 

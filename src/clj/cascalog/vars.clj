@@ -73,7 +73,7 @@
   (try (.startsWith (extract-varname sym-or-str) "?")
        (catch Exception e nil)))
 
-(def ^{:doc "! vars that is nullable."}
+(def ^{:doc "! or !! vars that are nullable."}
       nullable-var?
   (complement non-nullable-var?))
 
@@ -83,7 +83,7 @@
   (try (.startsWith (extract-varname sym-or-str) "!!")
        (catch Exception e nil)))
 
-(def ^{:doc "? vars that cause inner joins."}
+(def ^{:doc "? and ! vars that can cause joins."}
       ground-var? (complement unground-var?))
 
 (defn- flatten-vars [vars]

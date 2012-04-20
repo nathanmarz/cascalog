@@ -8,19 +8,12 @@ import cascading.tuple.Tuple;
 import java.util.Random;
 import cascalog.CascalogFunction;
 
-public class RandInt extends CascalogFunction {
+public class RandLong extends CascalogFunction {
   long _seed;
   Random _rand;
-  Integer _max;
 
-  public RandInt() {
+  public RandLong() {
     _seed = new Random().nextLong();
-    _max = null;
-  }
-
-  public RandInt(int max) {
-    this();
-    _max = max;
   }
 
   public void prepare(FlowProcess flowProcess, OperationCall operationCall) {
@@ -28,9 +21,6 @@ public class RandInt extends CascalogFunction {
   }
 
   public void operate(FlowProcess flow_process, FunctionCall fn_call) {
-      int rand;
-      if(_max==null) rand = _rand.nextInt();
-      else rand = _rand.nextInt(_max);
-      fn_call.getOutputCollector().add(new Tuple(rand));
+      fn_call.getOutputCollector().add(new Tuple(_rand.nextLong()));
   }
 }

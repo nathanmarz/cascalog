@@ -5,7 +5,7 @@
   (:require [cascalog.ops :as c]
             [cascalog.util :as u])
   (:import [cascading.tuple Fields]
-           [cascalog.test KeepEven OneBuffer]
+           [cascalog.test KeepEven OneBuffer CountAgg SumAgg]
            [cascalog.ops IdentityBuffer]))
 
 (defmapop mk-one
@@ -729,6 +729,19 @@
              [?f1 ?f2out ?f3out]
              (vals ?f1 ?f2 ?f3)
              ((IdentityBuffer.) ?f2 ?f3 :> ?f2out ?f3out))))
+
+(deftest test-java-aggregator
+  (let [vals [["a" 1] ["a" 2] ["b" 3] ["c" 8] ["c" 13] ["b" 1] ["d" 5] ["c" 8]]]
+    (test?<- [["a" 2] ["b" 2] ["c" 3] ["d" 1]]
+             [?f1 ?o]
+             (vals ?f1 _)
+             ((CountAgg.) :> ?o))
+
+    (test?<- [["a" 3 2] ["b" 4 2] ["c" 29 3] ["d" 5 1]]
+             [?key ?sum ?count]
+             (vals ?key ?val)
+             ((CountAgg.) ?count)
+             ((SumAgg.) ?val :> ?sum))))
 
 (defn run-union-combine-tests
   "Runs a series of tests on the union and combine operations. v1,

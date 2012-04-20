@@ -1,4 +1,5 @@
 (ns cascalog.playground
+  (:require [cascalog.conf :as conf])
   (:import [java.io PrintStream]
            [cascalog WriterOutputStream]
            [org.apache.log4j Logger WriterAppender SimpleLayout]))
@@ -6,6 +7,7 @@
 (defn bootstrap []
   (use 'cascalog.api
        '[jackknife.seq :only (find-first)])
+  (conf/set-job-conf! {"io.sort.mb" 1})
   (require '(cascalog [workflow :as w]
                       [ops :as c]
                       [vars :as v])))
@@ -15,6 +17,13 @@
   (-> (Logger/getRootLogger)
       (.addAppender (WriterAppender. (SimpleLayout.) *out*)))
   (System/setOut (PrintStream. (WriterOutputStream. *out*))))
+
+(defn bootstrap-jcascalog []
+  (import '[cascalog StdoutTap])
+  (import '[jcascalog Api Fields Predicate PredicateMacro Subquery
+            Api$FirstNArgs Option])
+  (import '[jcascalog.op Sum Count Div Plus Minus Multiply Avg
+            Max Min Limit LimitRank ReParse DistinctCount]))
 
 (def person
   [

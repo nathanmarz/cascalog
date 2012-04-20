@@ -28,45 +28,6 @@
 (defalias lfs-tap tap/lfs-tap)
 (defalias sequence-file w/sequence-file)
 (defalias text-line w/text-line)
-(defalias delimited w/delimited)
-
-(defn hfs-delimited
-  "Creates a tap on HDFS using Cascading's TextDelimited
-   scheme. Different filesystems can be selected by using different
-   prefixes for `path`.
-
-  Supports keyword option for `:outfields`, `:classes` and
-  `:skip-header?`. See `cascalog.tap/hfs-tap` for more keyword
-  arguments.
-
-   See http://www.cascading.org/javadoc/cascading/tap/Hfs.html and
-   http://www.cascading.org/javadoc/cascading/scheme/TextDelimited.html"
-  [path & opts]
-  (let [{:keys [outfields delimiter]} (apply array-map opts)
-        scheme (apply delimited
-                      (or outfields Fields/ALL)
-                      (or delimiter "\t")
-                      opts)]
-    (apply tap/hfs-tap scheme path opts)))
-
-(defn lfs-delimited
-  "Creates a tap on the local filesystem using Cascading's
-   TextDelimited scheme. Different filesystems can be selected by
-   using different prefixes for `path`.
-
-  Supports keyword option for `:outfields`, `:classes` and
-  `:skip-header?`. See `cascalog.tap/hfs-tap` for more keyword
-  arguments.
-
-   See http://www.cascading.org/javadoc/cascading/tap/Hfs.html and
-   http://www.cascading.org/javadoc/cascading/scheme/TextDelimited.html"
-  [path & opts]
-  (let [{:keys [outfields delimiter]} (apply array-map opts)
-        scheme (apply delimited
-                      (or outfields Fields/ALL)
-                      (or delimiter "\t")
-                      opts)]
-    (apply tap/lfs-tap scheme path opts)))
 
 (defn hfs-textline
   "Creates a tap on HDFS using textline format. Different filesystems
@@ -147,9 +108,10 @@
 (defmethod get-out-fields :cascalog-tap [cascalog-tap]
   (get-out-fields (:source cascalog-tap)))
 
-(defn num-out-fields 
-  "Get the number of fields of a generator."
-  [gen]
+(defmethod get-out-fields :java-subquery [sq]
+  (get-out-fields (.getCompiledSubquery sq)))
+
+(defn num-out-fields [gen]
   (if (or (list? gen) (vector? gen))
     (count (first gen))
     ;; TODO: should pluck from Tap if it doesn't define out-fields
@@ -209,7 +171,9 @@
   for the query and will show up in the JobTracker UI."
   [& args]
   (let [[flow-name bindings] (rules/parse-exec-args args)
-        [sinks gens] (->> (partition 2 bindings)
+        [sinks gens] (->> bindings
+                          (map rules/normalize-gen)
+                          (partition 2)
                           (mapcat (partial apply rules/normalize-sink-connection))
                           (unweave))
         gens      (map rules/enforce-gen-schema gens)
@@ -282,7 +246,7 @@
   (p/predicate p/predicate-macro
                (fn [invars outvars]
                  (for [[op & vars] (pred-macro-fn invars outvars)]
-                   [op nil vars]))))
+                   [op vars]))))
 
 (defmacro predmacro
   "A more general but more verbose way to create predicate macros.
@@ -307,7 +271,7 @@ destructuring in a predicate macro, the & symbol must be stringified
 as well."
   [outvars preds]
   (let [outvars (v/vars->str outvars)
-        preds (for [[p & vars] preds] [p nil (v/vars->str vars)])]
+        preds (for [[p & vars] preds] [p (v/vars->str vars)])]
     (rules/build-rule outvars preds)))
 
 (defn union
@@ -378,6 +342,9 @@ as well."
 
 (defmethod select-fields :cascalog-tap [cascalog-tap fields]
   (select-fields (:source cascalog-tap) fields))
+
+(defmethod select-fields :java-subquery [sq fields]
+  (select-fields (.getCompiledSubquery sq) fields))
 
 (defn name-vars [gen vars]
   (let [vars (collectify vars)]

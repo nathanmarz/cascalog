@@ -12,7 +12,6 @@
 (deftest test-map-pred
   (let [pred (build-predicate {}
                               timesplusone
-                              (var timesplusone)
                               nil
                               ["?f1" "?f2"]
                               ["?q"])
@@ -36,7 +35,6 @@
 (deftest test-variable-substitution
   (let [pred (build-predicate {}
                               addplusone
-                              (var addplusone)
                               nil
                               ["?f1" "?f2" 3 4 "?f3"]
                               ["?s" "?s2"])
@@ -63,7 +61,6 @@
   (let [pred (build-predicate
               {}
               nilop
-              (var nilop)
               nil
               ["?i"]
               ["?o1" "!o2"])
@@ -79,7 +76,7 @@
         :else     [(inc n)]))
 
 (deftest test-mapcat-pred
-  (let [pred (build-predicate {} many-vals nil nil ["?a"] ["?b"])
+  (let [pred (build-predicate {} many-vals nil ["?a"] ["?b"])
         source-data {:fields ["?a"]
                      :tuples [[1] [2] [3] [4]]}
         sink-data   {:fields ["?b"]
@@ -89,7 +86,7 @@
 (future-fact "Test filter predicate.")
 
 (deftest test-vanilla-filter
-  (let [pred (build-predicate {} odd? (var odd?) nil ["?f"] [])
+  (let [pred (build-predicate {} odd? nil ["?f"] [])
         source-data {:fields ["?f"]
                      :tuples [[1] [2] [3] [4] [6] [9] [10]]}
         sink-data   {:fields ["?f"]
@@ -97,7 +94,7 @@
     (test-assembly source-data sink-data (:assembly pred))))
 
 (deftest test-filter-func
-  (let [pred (build-predicate {} odd? (var odd?) nil ["?f"] ["?o"])
+  (let [pred (build-predicate {} odd? nil ["?f"] ["?o"])
         source-data {:fields ["?f"]
                      :tuples [[1] [2] [3] [4] [6] [9] [10]]}
         sink-data   {:fields ["?f" "?o"]

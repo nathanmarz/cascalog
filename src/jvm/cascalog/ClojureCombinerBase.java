@@ -35,12 +35,10 @@ import java.util.*;
 import java.util.Map.Entry;
 
 public abstract class ClojureCombinerBase extends BaseOperation implements Function {
-    private List<CombinerSpec> specs;
+    private List<ParallelAgg> aggs;
     private Fields groupFields;
     private Fields sortFields;
     private List<Fields> argFields;
-    private List<IFn> init_fns = null;
-    private List<IFn> combiner_fns = null;
     private boolean includeSort;
     private String cacheConfArg;
     private int defaultCacheSize;
@@ -56,13 +54,13 @@ public abstract class ClojureCombinerBase extends BaseOperation implements Funct
     }
 
     public ClojureCombinerBase(Fields groupFields, boolean includeSort, Fields sortFields,
-        List<Fields> argFields, Fields outFields, List<CombinerSpec> agg_specs, String cacheConfArg,
+        List<Fields> argFields, Fields outFields, List<ParallelAgg> agg_specs, String cacheConfArg,
         int defaultCacheSize) {
         super(appendFields(groupFields, sortFields, outFields));
         if (argFields.size() != agg_specs.size()) {
             throw new IllegalArgumentException("All lists to ClojureCombiner must be same length");
         }
-        this.specs = new ArrayList<CombinerSpec>(agg_specs);
+        this.aggs = new ArrayList<ParallelAgg>(agg_specs);
         this.groupFields = groupFields;
         this.sortFields = sortFields;
         this.includeSort = includeSort;
@@ -72,18 +70,15 @@ public abstract class ClojureCombinerBase extends BaseOperation implements Funct
     }
 
     //map from grouping to combiner to combined tuple
-    LinkedHashMap<Tuple, Map<Integer, ISeq>> combined;
+    LinkedHashMap<Tuple, Map<Integer, List<Object>>> combined;
 
     @Override
     public void prepare(FlowProcess flowProcess, OperationCall operationCall) {
         JobConf jc = ((HadoopFlowProcess) flowProcess).getJobConf();
         this.cacheSize = jc.getInt(this.cacheConfArg, this.defaultCacheSize);
-        combined = new LinkedHashMap<Tuple, Map<Integer, ISeq>>(1000, (float) 0.75, true);
-        init_fns = new ArrayList<IFn>();
-        combiner_fns = new ArrayList<IFn>();
-        for (CombinerSpec cs : this.specs) {
-            init_fns.add(Util.bootFn(cs.init_spec));
-            combiner_fns.add(Util.bootFn(cs.combiner_spec));
+        combined = new LinkedHashMap<Tuple, Map<Integer, List<Object>>>(1000, (float) 0.75, true);
+        for(ParallelAgg agg: aggs) {
+            agg.prepare(flowProcess, operationCall);
         }
     }
 
@@ -91,33 +86,37 @@ public abstract class ClojureCombinerBase extends BaseOperation implements Funct
         Tuple group = fc.getArguments().selectTuple(groupFields);
         Tuple sortArgs = null;
         if (includeSort) {
-            if (sortFields != null) { sortArgs = fc.getArguments().selectTuple(sortFields); } else {
+            if (sortFields != null) {
+                sortArgs = fc.getArguments().selectTuple(sortFields);
+            } else {
                 sortArgs = new Tuple();
             }
         }
-        Map<Integer, ISeq> vals = combined.get(group);
+        Map<Integer, List<Object>> vals = combined.get(group);
         if (vals == null) {
-            vals = new HashMap<Integer, ISeq>(specs.size());
+            vals = new HashMap<Integer, List<Object>>(aggs.size());
             combined.put(group, vals);
         }
-        for (int i = 0; i < specs.size(); i++) {
+        for (int i = 0; i < aggs.size(); i++) {
             try {
                 Fields specArgFields = argFields.get(i);
-                ISeq val;
-                IFn init_fn = init_fns.get(i);
+                List<Object> val;
+                ParallelAgg agg = aggs.get(i);
                 if (specArgFields == null) {
-                    val = Util.coerceToSeq(init_fn.invoke());
+                    val = agg.init(new ArrayList<Object>());
                 } else {
                     Tuple args = fc.getArguments().selectTuple(specArgFields);
-                    ISeq toApply = Util.coerceFromTuple(args);
-                    if (sortArgs != null) {
-                        toApply = RT.cons(Util.coerceFromTuple(sortArgs), toApply);
+                    List<Object> toApply = new ArrayList<Object>();
+                    if(sortArgs!=null) {
+                        toApply.add(Util.tupleToList(sortArgs));
                     }
-                    val = Util.coerceToSeq(init_fn.applyTo(toApply));
+                    Util.tupleIntoList(toApply, args);                    
+                    val = agg.init(toApply);
                 }
+
                 if (vals.get(i) != null) {
-                    ISeq existing = vals.get(i);
-                    val = Util.coerceToSeq(combiner_fns.get(i).applyTo(Util.cat(existing, val)));
+                    List<Object> existing = vals.get(i);
+                    val = agg.combine(existing, val);
                 }
                 vals.put(i, val);
             } catch (Exception e) {
@@ -129,15 +128,15 @@ public abstract class ClojureCombinerBase extends BaseOperation implements Funct
 
         if (combined.size() >= this.cacheSize) {
             Tuple evict = combined.keySet().iterator().next();
-            Map<Integer, ISeq> removing = combined.remove(evict);
+            Map<Integer, List<Object>> removing = combined.remove(evict);
             writeMap(evict, removing, fc);
         }
     }
 
-    private void writeMap(Tuple group, Map<Integer, ISeq> val, OperationCall opCall) {
-        List<Object> toWrite = Util.seqToList(val.get(0));
-        for (int i = 1; i < specs.size(); i++) {
-            toWrite.addAll(Util.seqToList(val.get(i)));
+    private void writeMap(Tuple group, Map<Integer, List<Object>> val, OperationCall opCall) {
+        List<Object> toWrite = new ArrayList<Object>(val.get(0));
+        for (int i = 1; i < aggs.size(); i++) {
+            toWrite.addAll(val.get(i));
         }
         write(group, toWrite, opCall);
     }
@@ -146,7 +145,7 @@ public abstract class ClojureCombinerBase extends BaseOperation implements Funct
 
     @Override
     public void cleanup(FlowProcess flowProcess, OperationCall operationCall) {
-        for (Entry<Tuple, Map<Integer, ISeq>> e : combined.entrySet()) {
+        for (Entry<Tuple, Map<Integer, List<Object>>> e : combined.entrySet()) {
             writeMap(e.getKey(), e.getValue(), operationCall);
         }
     }
