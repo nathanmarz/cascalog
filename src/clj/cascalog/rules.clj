@@ -670,11 +670,15 @@ cascading tap, returns a new generator with field-names."
         (or (instance? Tap g)
             (vector? g)
             (list? g))
-        (let [pluck (if (instance? Tap g) pluck-tuple first)
-              vars  (v/gen-nullable-vars (count (pluck g)))]
-          (->> [[g :>> vars] [:distinct false]]
-               (map mk-raw-predicate)
-               (build-rule vars)))
+        (let [pluck (if (instance? Tap g) pluck-tuple, first)
+              size  (count (pluck g))
+              vars  (v/gen-nullable-vars size)]
+          (if (zero? size)
+            (throw-illegal
+             "Data structure is empty -- memory sources must contain tuples.")
+            (->> [[g :>> vars] [:distinct false]]
+                 (map mk-raw-predicate)
+                 (build-rule vars))))
         :else g))
 
 ;; TODO: Why does this not use gen?
@@ -684,8 +688,7 @@ cascading tap, returns a new generator with field-names."
 (defn normalize-gen [gen]
   (if (instance? Subquery gen)
     (.getCompiledSubquery gen)
-    gen
-    ))
+    gen))
 
 (defn combine* [gens distinct?]
   ;; it would be nice if cascalog supported Fields/UNKNOWN as output of generator

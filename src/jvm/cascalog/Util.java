@@ -23,10 +23,7 @@ import cascading.tuple.TupleEntry;
 import clojure.lang.*;
 
 import java.io.FileNotFoundException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 
 public class Util {
     static Var require = RT.var("clojure.core", "require");
@@ -139,9 +136,8 @@ public class Util {
     }
     
     public static void tupleIntoList(List<Object> ret, Tuple tuple) {
-        Iterator it = tuple.iterator();
-        while(it.hasNext()) {
-            ret.add(it.next());
+        for (Object aTuple : tuple) {
+            ret.add(aTuple);
         }
     }
     
@@ -157,9 +153,7 @@ public class Util {
     
     public static List<Object> toList(Object[] arr) {
         List<Object> ret = new ArrayList<Object>();
-        for(Object o: arr) {
-            ret.add(o);
-        }
+        Collections.addAll(ret, arr);
         return ret;
     }
 }

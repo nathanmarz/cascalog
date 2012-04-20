@@ -18,17 +18,17 @@
 
 package cascalog;
 
-import cascading.flow.Flow;
-import cascading.flow.FlowListener;
+import cascading.flow.hadoop.HadoopFlowProcess;
 import cascading.scheme.hadoop.SequenceFile;
 import cascading.tap.hadoop.Lfs;
 import cascading.tuple.Fields;
 import cascading.tuple.TupleEntryIterator;
+import org.apache.hadoop.mapred.JobConf;
 
 import java.io.File;
 import java.io.IOException;
 
-public class StdoutTap extends Lfs implements FlowListener {
+public class StdoutTap extends Lfs {
     public StdoutTap() {
         super(new SequenceFile(Fields.ALL), getTempDir());
     }
@@ -48,31 +48,17 @@ public class StdoutTap extends Lfs implements FlowListener {
         return temp.getAbsoluteFile().getPath();
     }
 
-    public void onStarting(Flow flow) {
-
-    }
-
-    public void onStopping(Flow flow) {
-
-    }
-
-    public void onCompleted(Flow flow) {
-        try {
-            TupleEntryIterator it = flow.openTapForRead(this);
-            System.out.println("");
-            System.out.println("");
-            System.out.println("RESULTS");
-            System.out.println("-----------------------");
-            while (it.hasNext()) {
-                System.out.println(it.next().getTuple());
-            }
-            System.out.println("-----------------------");
-        } catch (IOException ioe) {
-            throw new RuntimeException(ioe);
+    @Override
+    public boolean commitResource(JobConf conf) throws java.io.IOException {
+        TupleEntryIterator it = new HadoopFlowProcess(conf).openTapForRead(this);
+        System.out.println("");
+        System.out.println("");
+        System.out.println("RESULTS");
+        System.out.println("-----------------------");
+        while (it.hasNext()) {
+            System.out.println(it.next().getTuple());
         }
-    }
-
-    public boolean onThrowable(Flow flow, Throwable thrwbl) {
-        return false;
+        System.out.println("-----------------------");
+        return true;
     }
 }

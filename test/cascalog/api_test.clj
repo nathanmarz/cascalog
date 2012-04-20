@@ -600,10 +600,20 @@
 (deftest memory-self-join-test
   (let [src [["a"]]
         src2 (memory-source-tap [["a"]])]
-    (with-expected-sink-sets [empty1 []
-                              empty2 []]
-      (test?<- src [!a] (src !a) (src !a) (:distinct false) (:trap empty1))
-      (test?<- src [!a] (src2 !a) (src2 !a) (:distinct false) (:trap empty2)))))
+    (with-expected-sink-sets [empty1 [], empty2 []]
+      (test?<- src
+               [!a]
+               (src !a)
+               (src !a)
+               (:distinct false)
+               (:trap empty1))
+
+      (test?<- src
+               [!a]
+               (src2 !a)
+               (src2 !a)
+               (:distinct false)
+               (:trap empty2)))))
 
 (deftest test-trap
   (let [num [[1] [2]]]
@@ -768,15 +778,15 @@
                            (<- [?v] ([[2] [4] [6]] ?v) (:distinct false))))
 
 (deftest test-cascading-union-combine
-  (with-tmp-sources [v1 [[1] [2] [3]]
-                     v2 [[3] [4] [5]]
-                     v3 [[2] [4] [6]]
-                     e1 []]
+  (let [v1 [[1] [2] [3]]
+        v2 [[3] [4] [5]]
+        v3 [[2] [4] [6]]
+        e1 []]
     (run-union-combine-tests v1 v2 v3)
 
     "Can't use empty taps inside of a union or combine."
-    (is (thrown? RuntimeException (union e1)))
-    (is (thrown? RuntimeException (combine e1)))))
+    (is (thrown? IllegalArgumentException (union e1)))
+    (is (thrown? IllegalArgumentException (combine e1)))))
 
 (deftest test-select-fields-tap
   (let [data (memory-source-tap ["f1" "f2" "f3" "f4"]

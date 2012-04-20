@@ -30,6 +30,7 @@ import cascading.pipe.joiner.JoinerClosure;
 import cascading.tuple.Fields;
 import cascading.tuple.Tuple;
 import cascading.tuple.hadoop.HadoopSpillableTupleList;
+import org.apache.hadoop.io.compress.CompressionCodec;
 
 import java.io.Serializable;
 import java.util.Arrays;
@@ -43,7 +44,7 @@ public class MultiGroupBy extends SubAssembly {
 
     public static class MultiBufferContext {
         JoinerClosure _closure;
-        HadoopSpillableTupleList _results = new HadoopSpillableTupleList(10000, null, null);
+        HadoopSpillableTupleList _results = new HadoopSpillableTupleList(10000, (CompressionCodec) null, null);
         int _pipeFieldsSum;
 
         public MultiBufferContext(JoinerClosure closure, int pipeFieldsSum) {
