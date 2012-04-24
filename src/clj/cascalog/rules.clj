@@ -730,12 +730,16 @@ cascading tap, returns a new generator with field-names."
     [f rest]
     ["" args]))
 
-;; TODO: try (into [] (.getTuple t))
 (defn get-sink-tuples [^Tap sink]
-  (if (map? sink)
-    (get-sink-tuples (:sink sink))
-    (with-open [it (-> (HadoopFlowProcess. (hadoop/job-conf (conf/project-conf)))
-                       (.openTapForRead sink))]
-      (doall
-       (for [^TupleEntry t (iterator-seq it)]
-         (vec (Util/coerceFromTuple (Tuple. (.getTuple t)))))))))
+  (let [conf (hadoop/job-conf (conf/project-conf))]
+    (cond (map? sink)
+          (get-sink-tuples (:sink sink))
+
+          (not (.resourceExists sink conf))
+          []
+
+          :else (with-open [it (-> (HadoopFlowProcess. conf)
+                                   (.openTapForRead sink))]
+                  (doall
+                   (for [^TupleEntry t (iterator-seq it)]
+                     (into [] (Tuple. (.getTuple t)))))))))
