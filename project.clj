@@ -12,7 +12,7 @@
     [hadoop-util "0.2.7"]
     [jackknife "0.1.2"]])
 
-(defproject cascalog/cascalog "1.8.7"
+(defproject cascalog/cascalog "1.8.8-SNAPSHOT"
   :description "Data processing on Hadoop without the hassle."
   :url "http://www.cascalog.org"
   :license {:name "GPLv3"
@@ -20,8 +20,8 @@
   :mailing-list {:name "Cascalog user mailing list"
                  :archive "https://groups.google.com/group/cascalog-user"
                  :post "cascalog-user@googlegroups.com"}
-  :source-paths ["src/clj"]
-  :java-source-paths ["src/jvm"]
+  :source-path "src/clj"
+  :java-source-path "src/jvm"
   :jvm-opts ["-Xmx768m" "-server"]
   :codox {:include [cascalog.vars cascalog.ops cascalog.io cascalog.api]}
   :repositories {"conjars" "http://conjars.org/repo/"}
