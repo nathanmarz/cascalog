@@ -29,7 +29,7 @@ import cascading.pipe.joiner.Joiner;
 import cascading.pipe.joiner.JoinerClosure;
 import cascading.tuple.Fields;
 import cascading.tuple.Tuple;
-import cascading.tuple.hadoop.HadoopSpillableTupleList;
+import cascading.tuple.hadoop.collect.HadoopSpillableTupleList;
 import org.apache.hadoop.io.compress.CompressionCodec;
 
 import java.io.Serializable;
@@ -38,6 +38,7 @@ import java.util.Iterator;
 import java.util.UUID;
 
 public class MultiGroupBy extends SubAssembly {
+
     public static interface MultiBuffer extends Serializable {
         void operate(MultiBufferContext context);
     }

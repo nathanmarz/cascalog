@@ -19,7 +19,7 @@
            [java.util ArrayList]
            [clojure.lang IPersistentCollection]
            [org.apache.hadoop.mapred JobConf]
-           [cascading.flow.hadoop HadoopUtil]
+           [cascading.flow.hadoop.util HadoopUtil]
            [java.io File]))
 
 (defn roundtrip [obj]
