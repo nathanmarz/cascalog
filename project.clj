@@ -11,7 +11,7 @@
     [com.twitter/maple "0.1.4"]
     [jackknife "0.1.2"]])
 
-(defproject cascalog/cascalog "1.9.0-wip9"
+(defproject cascalog/cascalog "1.9.0-wip10"
   :description "Hadoop without the Hassle."
   :url "http://www.cascalog.org"
   :license {:name "Eclipse Public License"
