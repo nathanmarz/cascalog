@@ -5,13 +5,13 @@
 
 (defn- leaves [form]
   (if (coll? form)
-    (reduce (fn [curr elem] (set/union curr (leaves elem)))
-            #{}
+    (reduce (fn [curr elem] (concat curr (leaves elem)))
+            []
             form)
-  #{form}))
+  [form]))
 
 (defn inlineop-builder [op-sym body]
-  (let [used-vars (->> body leaves (filter symbol?) (filter v/cascalog-var?))
+  (let [used-vars (->> body leaves set (filter symbol?) (filter v/cascalog-var?))
         impl `(~op-sym ~(vec used-vars) ~@body)]
     `(cascalog.api/predmacro [invars# outvars#]
       {:pre [(zero? (count invars#))]}
