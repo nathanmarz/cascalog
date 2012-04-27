@@ -390,9 +390,9 @@ as well."
           
 (defalias filterop w/filterop)
 
-(defmacro imapop [& body] (inline/inlineop-builder `mapop body))   
-(defmacro imapcatop [& body] (inline/inlineop-builder `mapcatop body))
-(defmacro ifilterop [& body] (inline/inlineop-builder `filterop body))        
+(defmacro mapop> [& body] (inline/inlineop-builder `mapop body))   
+(defmacro mapcatop> [& body] (inline/inlineop-builder `mapcatop body))
+(defmacro filterop> [& body] (inline/inlineop-builder `filterop body))        
 
 (defalias defmapop w/defmapop
   "Defines a custom operation that appends new fields to the input tuple.")
