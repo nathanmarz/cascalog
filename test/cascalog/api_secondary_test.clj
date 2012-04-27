@@ -265,3 +265,15 @@
              ["c" 0 0 2] ["c" 9 9 9]]
             (multigroup [?key] [?v1 ?v2 ?v3] (count-arg 9)
                         gen1 gen1 gen2))))
+
+(deftest test-inline
+  (let [age [["alice jackson" 25] ["bob" 26] ["bill" 31]]]
+    (test?<- [["alice"] ["jackson"] ["bob"] ["bill"]]
+             [?word]
+             (age ?name _)
+             ((mapcatop> (.split ?name " ")) :> ?word))
+    (test?<- [["bill"]]
+             [?name]
+             (age ?name ?age)
+             ((filterop> (and (> ?age 30) (.startsWith ?name "b")))))
+    ))
