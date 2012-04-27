@@ -27,6 +27,7 @@
             [cascalog.predicate :as p]
             [cascalog.io :as io]
             [cascalog.util :as u]
+            [cascalog.inline :as inline]
             [hadoop-util.core :as hadoop])  
   (:import [cascading.flow Flow FlowConnector]
            [cascading.tuple Fields]
@@ -387,7 +388,11 @@ as well."
           
 (defalias aggregateop w/aggregateop)
           
-(defalias filterop w/filterop)          
+(defalias filterop w/filterop)
+
+(defmacro imapop [& body] (inline/inlineop-builder `mapop body))   
+(defmacro imapcatop [& body] (inline/inlineop-builder `mapcatop body))
+(defmacro ifilterop [& body] (inline/inlineop-builder `filterop body))        
 
 (defalias defmapop w/defmapop
   "Defines a custom operation that appends new fields to the input tuple.")
