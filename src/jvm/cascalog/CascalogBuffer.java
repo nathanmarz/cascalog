@@ -26,7 +26,6 @@ import java.io.Serializable;
 
 public abstract class CascalogBuffer implements Serializable {
     public void prepare(FlowProcess flowProcess, OperationCall operationCall) {
-
     }
 
     public abstract void operate(FlowProcess flowProcess, BufferCall bufCall);
