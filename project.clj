@@ -7,7 +7,7 @@
     [cascading.kryo "0.3.1"]
     [cascalog/carbonite "1.2.1"]
     [log4j/log4j "1.2.16"]
-    [hadoop-util "0.2.7"]
+    [hadoop-util "0.2.8"]
     [com.twitter/maple "0.1.5"]
     [jackknife "0.1.2"]])
 
@@ -18,7 +18,7 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :mailing-list {:name "Cascalog user mailing list"
                  :archive "https://groups.google.com/d/forum/cascalog-user"
-                 :post "cascalog-user@example.org"}
+                 :post "cascalog-user@googlegroups.com"}
   :min-lein-version "2.0.0"
   :jvm-opts ["-Xmx768m" "-server"
              "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n"]
@@ -29,7 +29,7 @@
   :codox {:include [cascalog.vars cascalog.ops cascalog.io cascalog.api]}
   :repositories {"conjars" "http://conjars.org/repo/"}
   :plugins [[lein-midje "2.0.0-SNAPSHOT"]
-            [lein-swank "1.4.4"]]
+            [swank-clojure "1.4.2"]]
   :aliases {"all" ["with-profile" "dev:1.2,dev:1.4"]}
   :dependencies ~(conj shared '[org.clojure/clojure "1.3.0"])
   :dev-dependencies [[org.apache.hadoop/hadoop-core "0.20.2-dev"]
