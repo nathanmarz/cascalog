@@ -171,7 +171,9 @@ public class Api {
         }
     }
     
-    private static IFn getApiFn(String name) {
+    // XXX should not be public
+    // done for avoiding to much changes in the original code
+    public static IFn getApiFn(String name) {
         return Util.bootSimpleFn("cascalog.api", name);
     }
     

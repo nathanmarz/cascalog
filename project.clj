@@ -32,10 +32,14 @@
   :aliases {"all" ["with-profile" "dev:1.2,dev:1.4"]}
   :dependencies ~(conj shared '[org.clojure/clojure "1.3.0"])
   :dev-dependencies [[org.apache.hadoop/hadoop-core "0.20.2-dev"]
-                     [midje-cascalog "0.4.0" :exclusions [org.clojure/clojure]]]
+                     [midje-cascalog "0.4.0" :exclusions [org.clojure/clojure]]
+                     [junit "4.8.2"]
+                     [org.easytesting/fest-assert "1.4"]]
   :profiles {:all {:dependencies ~shared}
              :1.2 {:dependencies [[org.clojure/clojure "1.2.1"]]}
              :1.4 {:dependencies [[org.clojure/clojure "1.4.0-alpha3"]]}
              :dev {:dependencies
                    [[org.apache.hadoop/hadoop-core "0.20.2-dev"]
-                    [midje-cascalog "0.4.0" :exclusions [org.clojure/clojure]]]}})
+                    [midje-cascalog "0.4.0" :exclusions [org.clojure/clojure]]
+                     [junit "4.8.2"]
+                     [org.easytesting/fest-assert "1.4"]]}})
