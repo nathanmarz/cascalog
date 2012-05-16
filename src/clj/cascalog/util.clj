@@ -146,11 +146,27 @@
                 (name k)
                 (str k)) v])))
 
+(defn try-parse-num [^String s]
+  (try
+    (Long/parseLong s)
+    (catch NumberFormatException _
+      nil )))
+
+(defn recent-eval? [v]
+  (let [m (meta v)
+        ^String name (-> m :name str)]
+    (and (= "clojure.core" (:ns m))
+         (.startsWith name "*")
+         (try-parse-num (.substring name 1))         
+         )))
+
 (defn search-for-var [val]
+  ;; get all of them, filter out *1, *2, and *3, sort by static -> dynamic
   (->> (all-ns)
        (map ns-map)
        (mapcat identity)
        (map second)
        (filter #(and (var? %) (= (var-get %) val)))
+       (filter (complement recent-eval?))
+       (sort-by (fn [v] (if (-> v meta :dynamic) 1 0)))
        first ))
-
