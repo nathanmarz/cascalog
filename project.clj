@@ -29,7 +29,8 @@
   :codox {:include [cascalog.vars cascalog.ops cascalog.io cascalog.api]}
   :repositories {"conjars" "http://conjars.org/repo/"}
   :plugins [[lein-midje "2.0.0-SNAPSHOT"]
-            [lein-swank "1.4.2"]]
+            [lein-swank "1.4.2"]
+            [lein-clojars "0.8.0"]]
   :aliases {"all" ["with-profile" "dev:1.2,dev:1.4"]}
   :dependencies ~(conj shared '[org.clojure/clojure "1.3.0"])
   :dev-dependencies [[org.apache.hadoop/hadoop-core "0.20.2-dev"]
