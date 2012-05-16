@@ -1,6 +1,6 @@
 (def shared
   '[[org.clojure/tools.macro "0.1.1"]
-    [cascading/cascading-hadoop "2.0.0-wip-286"
+    [cascading/cascading-hadoop "2.0.0-wip-291"
      :exclusions [org.codehaus.janino/janino
                   org.apache.hadoop/hadoop-core]]
     [org.clojure/tools.macro "0.1.1"]
@@ -11,7 +11,7 @@
     [com.twitter/maple "0.1.5"]
     [jackknife "0.1.2"]])
 
-(defproject cascalog/cascalog "1.9.0-wip11"
+(defproject cascalog/cascalog "1.9.0-wip12"
   :description "Hadoop without the Hassle."
   :url "http://www.cascalog.org"
   :license {:name "Eclipse Public License"
