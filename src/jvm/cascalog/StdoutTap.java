@@ -68,6 +68,10 @@ public class StdoutTap extends Lfs implements FlowListener {
             System.out.println("-----------------------");
         } catch (IOException ioe) {
             throw new RuntimeException(ioe);
+        } finally {
+            if (it != null) {
+                it.close();
+            }
         }
     }
 
