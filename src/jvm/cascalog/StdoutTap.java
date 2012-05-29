@@ -55,9 +55,10 @@ public class StdoutTap extends Lfs implements FlowListener {
 
     }
 
-    public void onCompleted(Flow flow) {
+      public void onCompleted(Flow flow) {
+          TupleEntryIterator it = null;
         try {
-            TupleEntryIterator it = this.openForRead(flow.getJobConf());
+            it = this.openForRead(flow.getJobConf());
             System.out.println("");
             System.out.println("");
             System.out.println("RESULTS");
