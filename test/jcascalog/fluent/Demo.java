@@ -18,9 +18,14 @@ import org.junit.Test;
 
 // TODO project configuration : should be set to 1.6 compatibility (and not 1.5) and should
 // include src/jvm as a source folder in eclipse...
-// TODO nice to have : the query represented in clojure
+// TODO nice to have : the query represented in clojure as a way to debug and learn the clojure way
 public class Demo {
 
+	/**
+	 * <pre>
+	 * (?<- (stdout) [?name] (full-names _ ?name))
+	 * </pre>
+	 */
 	@Test
 	public void shouldHandleQueryWithOnlyASourcePredicate() {
 		// given
@@ -40,6 +45,13 @@ public class Demo {
 						"George Jett"));
 	}
 
+	/**
+	 * <pre>
+	 * (?<- (stdout) [?person ?age ?double-age]
+	 * 					(age ?person ?age)
+	 * 					(* ?age 2 :> ?double-age))
+	 * </pre>
+	 */
 	@Test
 	@SuppressWarnings("unchecked")
 	public void shouldHandleOutFields() {
@@ -64,6 +76,13 @@ public class Demo {
 						"chris", 40L, 80L));
 	}
 
+	/**
+	 * <pre>
+	 * (let [subquery (<- [?person] (age ?person ?age) (> ?age 35))]
+	 * 		(?<- (stdout) [?name] (subquery ?person) (full-names ?person ?name))
+	 * )
+	 * </pre>
+	 */
 	@Test
 	public void shouldHandleNestedQueries() {
 		// given
