@@ -8,7 +8,6 @@ import jcascalog.Predicate;
 import jcascalog.Subquery;
 import jcascalog.fluent.op.BooleanOp;
 import jcascalog.fluent.op.NonBooleanOp;
-import jcascalog.fluent.op.Op;
 import jcascalog.fluent.op.SpecialOp;
 import cascading.tap.Tap;
 
@@ -32,7 +31,7 @@ public class QueryBuilder implements PredicateContainer, OutCollector {
 		backupInFields = null;
 	}
 	
-	private QueryBuilder addPartialPredicate(Op op, Object... fields) {
+	private QueryBuilder addPartialPredicate(Object op, Object... fields) {
 		backupPreviousPredicate();
 		this.backupOp = op;
 		backupInFields = new Fields(fields);
@@ -46,9 +45,10 @@ public class QueryBuilder implements PredicateContainer, OutCollector {
 	}
 
 	@Override
-	public PredicateContainer pred(Op op, Object... fields) {
+	public QueryBuilder pred(Object op, Object... fields) {
 		return addPartialPredicate(op, fields);
 	}
+	
 	
 	@Override
 	public PredicateContainer pred(Predicate predicate) {
@@ -85,11 +85,11 @@ public class QueryBuilder implements PredicateContainer, OutCollector {
 	}
 
 	@Override
-	public PredicateContainer out(Object field) {
+	public PredicateContainer out(Object... fields) {
 		if(backupOp == null) {
 			throw new IllegalStateException("addPartialPredicate(op,fields) should have been called before.");
 		}
-		predicates.add(new Predicate(backupOp, backupInFields, new Fields(field)));
+		predicates.add(new Predicate(backupOp, backupInFields, new Fields(fields)));
 		backupOp = null;
 		backupInFields = null;
 		return this;

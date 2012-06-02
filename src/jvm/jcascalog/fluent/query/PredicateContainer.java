@@ -6,7 +6,6 @@ import jcascalog.Predicate;
 import jcascalog.Subquery;
 import jcascalog.fluent.op.BooleanOp;
 import jcascalog.fluent.op.NonBooleanOp;
-import jcascalog.fluent.op.Op;
 import jcascalog.fluent.op.SpecialOp;
 import cascading.tap.Tap;
 import cascalog.MemorySourceTap;
@@ -16,7 +15,7 @@ public interface PredicateContainer {
 	/**
 	 * Generic without type help.
 	 */
-	public PredicateContainer pred(Op op, Object... fields);
+	public QueryBuilder pred(Object op, Object... fields);
 	
 	/**
 	 * Generic without type help, useful for option.
