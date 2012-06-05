@@ -16,8 +16,7 @@
   (:import [cascading.flow Flow FlowDef]
            [cascading.flow.hadoop HadoopFlowConnector]
            [cascading.tuple Fields]
-           [cascalog StdoutTap Util]
-           [com.twitter.maple.tap MemorySourceTap]
+           [com.twitter.maple.tap MemorySourceTap StdoutTap]
            [cascading.pipe Pipe]))
 
 ;; Functions for creating taps and tap helpers

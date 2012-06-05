@@ -16,8 +16,7 @@
            [cascading.scheme.hadoop TextLine SequenceFile TextDelimited]
            [cascading.scheme Scheme]
            [cascading.tap Tap SinkMode]
-           [cascading.tap.hadoop Hfs Lfs GlobHfs TemplateTap
-            TemplateTap$TemplateScheme]
+           [cascading.tap.hadoop Hfs Lfs GlobHfs TemplateTap]
            [cascading.tuple TupleEntryCollector]
            [cascading.flow Flow  FlowDef]
            [cascading.flow.hadoop HadoopFlowProcess HadoopFlowConnector]

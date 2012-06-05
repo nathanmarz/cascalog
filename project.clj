@@ -8,7 +8,7 @@
     [cascalog/carbonite "1.2.1"]
     [log4j/log4j "1.2.16"]
     [hadoop-util "0.2.8"]
-    [com.twitter/maple "0.1.10"]
+    [com.twitter/maple "0.2.0"]
     [jackknife "0.1.2"]])
 
 (defproject cascalog/cascalog "1.9.0-SNAPSHOT"

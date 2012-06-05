@@ -404,7 +404,7 @@
               :outfields project-fields}))))
 
 (def DEFAULT-OPTIONS
-  {:distinct true
+  {:distinct false
    :sort nil
    :reverse false
    :trap nil})
