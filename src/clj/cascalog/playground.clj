@@ -19,10 +19,10 @@
   (System/setOut (PrintStream. (WriterOutputStream. *out*))))
 
 (defn bootstrap-jcascalog []
-  (import '[cascalog StdoutTap])
-  (import '[jcascalog Api Fields Predicate PredicateMacro Subquery
-            Api$FirstNArgs Option])
-  (import '[jcascalog.op Sum Count Div Plus Minus Multiply Avg
+  (import '[com.twitter.maple.tap StdoutTap]
+          '[jcascalog Api Fields Predicate PredicateMacro Subquery
+            Api$FirstNArgs Option]
+          '[jcascalog.op Sum Count Div Plus Minus Multiply Avg
             Max Min Limit LimitRank ReParse DistinctCount]))
 
 (def person

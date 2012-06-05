@@ -7,7 +7,6 @@ lein: lein2
 script: lein2 compile, midje
 branches:
   only:
-    - feature/cascading2
     - develop
     - master
 notifications:
