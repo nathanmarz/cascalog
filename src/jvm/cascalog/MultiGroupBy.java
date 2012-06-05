@@ -36,8 +36,10 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.UUID;
+import org.apache.log4j.Logger;
 
 public class MultiGroupBy extends SubAssembly {
+    public static Logger LOG = Logger.getLogger(MultiGroupBy.class);
 
     public static interface MultiBuffer extends Serializable {
         void operate(MultiBufferContext context);
@@ -114,7 +116,24 @@ public class MultiGroupBy extends SubAssembly {
         public Iterator<Tuple> getIterator(JoinerClosure closure) {
             _buffer.setContext(closure);
             _buffer.operate();
-            return _buffer.getResults().iterator();
+            final Iterator<Tuple> it = _buffer.getResults().iterator();
+            return new Iterator<Tuple>() {
+
+                @Override
+                public boolean hasNext() {
+                    return it.hasNext();
+                }
+
+                @Override
+                public Tuple next() {
+                    return new Tuple(it.next());
+                }
+
+                @Override
+                public void remove() {
+                    it.remove();
+                }                
+            };
         }
 
         public int numJoins() {
