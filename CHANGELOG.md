@@ -7,7 +7,7 @@
 * Extensive documentation of functions in cascalog.ops
 * Cascalog now pulls in Clojure 1.4.0 by default (with testing against 1.2 and 1.3)
 * `cascalog.StdoutTap` moved to `com.twitter.maple.StdoutTap`
-* `:distinct` defaults to true instead of true (!!)
+* `:distinct` defaults to false instead of true (!!)
 
 ## 1.8.7
 
