@@ -31,12 +31,12 @@
     (test?<- [["j"] ["n"]]
              [?p]
              (age ?p ?a)
-             (< ?a 25))
+             (< ?a 25)
+             (:distinct true))
     (test?<- [["j"] ["n"] ["n"]]
              [?p]
              (age ?p ?a)
-             (< ?a 25)
-             (:distinct false))))
+             (< ?a 25))))
 
 (deftest test-larger-tuples
   (let [stats [["n" 6 190 nil] ["n" 6 195 nil]
@@ -102,7 +102,8 @@
              (friends !p _)
              (age !p !age)
              (interest !p !interest)
-             (gender !p !gender))))
+             (gender !p !gender)
+             (:distinct true))))
 
 (defmapcatop split [^String words]
   (seq (.split words "\\s+")))
@@ -308,7 +309,8 @@
              [?p ?s]
              (person ?p)
              (follows ?p !!p2)
-             (existence2str !!p2 :> ?s))))
+             (existence2str !!p2 :> ?s)
+             (:distinct true))))
 
 (deftest test-outer-join-complex
   (let [age [["a" 20] ["b" 30]
