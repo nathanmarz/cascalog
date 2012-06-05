@@ -58,6 +58,7 @@ public class StdoutTap extends Lfs {
         while (it.hasNext()) {
             System.out.println(it.next().getTuple());
         }
+        it.close();
         System.out.println("-----------------------");
         return true;
     }
