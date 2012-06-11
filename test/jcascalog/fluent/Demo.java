@@ -1,27 +1,21 @@
 package jcascalog.fluent;
 
-import static jcascalog.Api.juxt;
 import static jcascalog.Playground.AGE;
 import static jcascalog.Playground.FOLLOWS;
 import static jcascalog.Playground.FULL_NAMES;
+import static jcascalog.fluent.JCascalog.prepareResultsFrom;
 import static jcascalog.fluent.JCascalog.query;
-import static jcascalog.fluent.JCascalog.resultsFrom;
+import static jcascalog.fluent.TestingJCascalog.flatten;
 import static jcascalog.fluent.op.BooleanOps.gt;
-import static jcascalog.fluent.op.NonBooleanOps.minus;
 import static jcascalog.fluent.op.NonBooleanOps.multiply;
-import static jcascalog.fluent.op.NonBooleanOps.plus;
 import static org.fest.assertions.Assertions.assertThat;
 
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
 import jcascalog.fluent.query.PredicateContainer;
 
 import org.junit.Test;
-
-import clojure.lang.Var;
 
 import cascading.flow.FlowProcess;
 import cascading.operation.FunctionCall;
@@ -45,10 +39,10 @@ public class Demo {
 				.pred(FULL_NAMES, "_", "?name");
 
 		// when
-		final List<List<?>> encapsulatedNames = resultsFrom(query);
+		final List<?> names = flatten(prepareResultsFrom(query).andRun());
 
 		// then
-		assertThat(flatten(encapsulatedNames)).isEqualTo(//
+		assertThat(names).isEqualTo(//
 				Arrays.asList("A B C D E",//
 						"Alice Smith",//
 						"Bobby John Johnson", //
@@ -68,15 +62,15 @@ public class Demo {
 	@SuppressWarnings("unchecked")
 	public void shouldHandleOutFields() {
 		// given
-		final PredicateContainer query = query("?person", "?age", "?double-age")
-				.pred(AGE, "?person", "?age")
+		final PredicateContainer query = query("?person", "?age", "?double-age")//
+				.pred(AGE, "?person", "?age")//
 				.pred(multiply(), "?age", 2).out("?double-age");
 
 		// when
-		final List<List<?>> encapsulatedResults = resultsFrom(query);
+		final List<?> results = flatten(prepareResultsFrom(query).andRun());
 
 		// then
-		assertThat(flatten(encapsulatedResults)).isEqualTo(//
+		assertThat(results).isEqualTo(//
 				Arrays.asList("david", 25L, 50L,//
 						"emily", 25L, 50L, //
 						"kumar", 27L, 54L, //
@@ -107,10 +101,10 @@ public class Demo {
 				.pred(FULL_NAMES, "?person", "?name");
 
 		// when
-		final List<List<?>> encapsulatedNames = resultsFrom(query);
+		final List<?> names = flatten(prepareResultsFrom(query).andRun());
 
 		// then
-		assertThat(flatten(encapsulatedNames)).isEqualTo(//
+		assertThat(names).isEqualTo(//
 				Arrays.asList("CHRIS"));
 	}
 
@@ -140,10 +134,10 @@ public class Demo {
 				.pred(gt(), "?knowledge", 60);
 
 		// when
-		final List<List<?>> encapsulatedResults = resultsFrom(query);
+		final List<?> results = flatten(prepareResultsFrom(query).andRun());
 
 		// then
-		assertThat(flatten(encapsulatedResults)).isEqualTo(//
+		assertThat(results).isEqualTo(//
 				Arrays.asList("david","luanne", 61, -11,//
 						"alice", "bob", 61, -5, //
 						"bob", "luanne", 69, -3, //
@@ -161,18 +155,6 @@ public class Demo {
 	    }
 	}
 
-	private List<?> flatten(List<List<?>> tuples) {
-		if (tuples.isEmpty()) {
-			return Collections.emptyList();
-		}
-		final List<Object> flatList = new ArrayList<Object>(tuples.size()
-				* tuples.get(0).size());
-		for (List<?> tuple : tuples) {
-			for (Object element : tuple) {
-				flatList.add(element);
-			}
-		}
-		return flatList;
-	}
+
 
 }

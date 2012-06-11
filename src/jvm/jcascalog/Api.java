@@ -54,6 +54,12 @@ public class Api {
         execute(null, taps, gens);
     }
     
+    @SuppressWarnings("unchecked")
+	public static List<List<List<?>>> executeAndReturnResults(List<Object> gens) {
+		IteratorSeq seq = IteratorSeq.create(gens.iterator());
+		return (List<List<List<?>>>) Api.getApiFn("??-").applyTo(seq);
+    }
+    
     public static Object union(Object... gens) {
         return union(Util.toList(gens));
     }
@@ -173,9 +179,7 @@ public class Api {
         }
     }
     
-    // XXX should not be public
-    // done for avoiding to much changes in the original code
-    public static IFn getApiFn(String name) {
+    private static IFn getApiFn(String name) {
         return Util.bootSimpleFn("cascalog.api", name);
     }
     

@@ -6,13 +6,16 @@ import java.util.List;
 import jcascalog.Fields;
 import jcascalog.Predicate;
 import jcascalog.Subquery;
+import jcascalog.fluent.JCascalog;
 import jcascalog.fluent.op.BooleanOp;
 import jcascalog.fluent.op.NonBooleanOp;
 import jcascalog.fluent.op.SpecialOp;
 import cascading.tap.Tap;
 
+/**
+ * Fluent builder for {@link JCascalog} queries.
+ */
 public class QueryBuilder implements PredicateContainer, OutCollector {
-	
 	private final Fields finalFields;
 	private final List<Predicate> predicates = new LinkedList<Predicate>();
 	
