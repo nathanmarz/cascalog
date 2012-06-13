@@ -2,7 +2,7 @@
   (:use clojure.test
         cascalog.testing
         cascalog.api
-        midje.sweet)
+        [midje sweet cascalog])
   (:import [cascading.tuple Fields])
   (:require [cascalog.ops :as c]
             [cascalog.io :as io]))
@@ -53,6 +53,7 @@
         var-out (<- [!a :>> !allout]
                     (str !a "a" :> !b)
                     (splitter !b :>> !allout))]
+
     (test?<- [["123a"] ["234a"] ["335a"]]
              [!out]
              (triplets !a !b !c)
@@ -68,17 +69,29 @@
              (triplets !a !b !c)
              (complex-mac !a !b !c :> !o1 !o2 !o3))
 
-    ;; this test doesn't work because cascading doesn't allow
-    ;; functions with no input
-    ;; (test?<- [["12" ""] ["23" ""] ["33" ""]]
-    ;;         [!o2 !o3]
-    ;;         (triplets !a !b _) (complex-mac !a !b :> !o1 !o2 !o3))
+
+    (future-fact?<-
+     "this test doesn't work because cascading doesn't allow
+      functions with no input"
+     [["12" ""] ["23" ""] ["33" ""]]
+            [!o2 !o3]
+            (triplets !a !b _) (complex-mac !a !b :> !o1 !o2 !o3))
 
     (test?<- [["12" "12"] ["23" "23"] ["33" "33"]]
              [!o1 !o2]
-             (triplets !a !b _) (complex-mac !a !b :> !o1 !o2 !o3))
-    (test?<- [["a" "ba"] ["c" "da"]] [!a !b] (pairs !i) (var-out !i :> !a !b))
-    (test?<- [["aa"] ["ba"]] [!a] (singles !i) (var-out !i :> !a))))
+
+             (triplets !a !b _)
+             (complex-mac !a !b :> !o1 !o2 !o3))
+
+    (test?<- [["a" "ba"] ["c" "da"]]
+             [!a !b]
+             (pairs !i)
+             (var-out !i :> !a !b))
+
+    (test?<- [["aa"] ["ba"]]
+             [!a]
+             (singles !i)
+             (var-out !i :> !a))))
 
 (future-fact " TODO: test construct with destructuring, esp. string &")
 
@@ -109,10 +122,11 @@
     (test?<- [[1 2]] [!a !b]
              (nums !a !b)
              ((c/any #'odd-sum? #'large-total?) !a !b !a :> false))
-
+    
     (test?<- [[1 2]] [!a !b]
              (nums !a !b)
              ((c/all #'odd-sum? #'large-total? #'mult-3-sum?) !a !b !b !b !b !b !b !b))
+
     (test?<- [[3 3]] [!a !b]
              (nums !a !b)
              ((c/all #'odd-sum? #'mult-3-sum?) !a))
@@ -121,6 +135,7 @@
              [!a]
              (nums _ !a)
              ((c/negate #'odd?) !a))
+
     (test?<- [[3]]
              [!a]
              (nums !a !b)
@@ -167,15 +182,21 @@
 
 (deftest test-each
   (let [triples [[1 2 3] [3 4 1]]]
-    (test?<-[["1!" "2!"] ["3!" "4!"]] [!v1 !v2] (triples !a !b !c)
+    (test?<-[["1!" "2!"] ["3!" "4!"]]
+            [!v1 !v2]
+            (triples !a !b !c)
             ((c/each #'append-!) !a !b :> !v1 !v2)
             (:distinct false))
 
-    (test?<-[["2!"] ["4!"]] [!v] (triples !a !b !c)
+    (test?<-[["2!"] ["4!"]]
+            [!v]
+            (triples !a !b !c)
             ((c/each #'append-!) !b :> !v)
             (:distinct false))
 
-    (test?<-[[3 1 2]] [!c !a !b] (triples !a !b !c)
+    (test?<-[[3 1 2]]
+            [!c !a !b]
+            (triples !a !b !c)
             ((c/each small-op?) !a !b !c)
             (:distinct false))))
 

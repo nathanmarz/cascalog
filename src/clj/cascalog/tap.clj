@@ -37,7 +37,7 @@
   opened up on the supplied path or file object. Supported keyword
   options are:
 
-  `:sinkmode` - can be `:keep`, `:append` or `:replace`.
+  `:sinkmode` - can be `:keep`, `:update` or `:replace`.
 
   `:sinkparts` - used to constrain the segmentation of output files.
 
@@ -62,7 +62,7 @@
   opened up on the supplied path or file object. Supported keyword
   options are:
 
-  `:sinkmode` - can be `:keep`, `:append` or `:replace`.
+  `:sinkmode` - can be `:keep`, `:update` or `:replace`.
 
   `:sinkparts` - used to constrain the segmentation of output files.
 

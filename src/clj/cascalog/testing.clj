@@ -1,18 +1,3 @@
-;;    Copyright 2010 Nathan Marz
-;; 
-;;    This program is free software: you can redistribute it and/or modify
-;;    it under the terms of the GNU General Public License as published by
-;;    the Free Software Foundation, either version 3 of the License, or
-;;    (at your option) any later version.
-;; 
-;;    This program is distributed in the hope that it will be useful,
-;;    but WITHOUT ANY WARRANTY; without even the implied warranty of
-;;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-;;    GNU General Public License for more details.
-;; 
-;;    You should have received a copy of the GNU General Public License
-;;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 (ns cascalog.testing
   (:use clojure.test
         cascalog.api        
@@ -27,16 +12,19 @@
            [cascading.pipe Pipe]
            [cascading.operation ConcreteCall]
            [cascading.flow FlowProcess]
-           [cascalog Util ClojureMap MemorySourceTap]
+           [cascading.flow.hadoop HadoopFlowProcess]
+           [cascalog Util ClojureMap]
+           [com.twitter.maple.tap MemorySourceTap]
            [java.lang Comparable]
            [java.util ArrayList]
            [clojure.lang IPersistentCollection]
            [org.apache.hadoop.mapred JobConf]
+           [cascading.flow.hadoop.util HadoopUtil]
            [java.io File]))
 
 (defn roundtrip [obj]
-  (cascading.util.Util/deserializeBase64
-   (cascading.util.Util/serializeBase64 obj)))
+  (HadoopUtil/deserializeBase64
+   (HadoopUtil/serializeBase64 obj)))
 
 (defn invoke-filter [fil coll]
   (let [fil     (roundtrip fil)
@@ -115,8 +103,10 @@
   ;; unable to use with-log-level here for some reason
   (let [spec (mapify-spec spec)
         source (mk-test-tap (:fields spec) path)]
-    (with-open [collector (.openForWrite source
-                                         (hadoop/job-conf (conf/project-conf)))]
+    (with-open [^TupleEntryCollector collector (-> (HadoopFlowProcess.
+                                                    (hadoop/job-conf
+                                                     (conf/project-conf)))
+                                                   (.openTapForWrite source))]
       (doall (map #(.add collector (Util/coerceToTuple %))
                   (-> spec mapify-spec :tuples)))
       source)))
