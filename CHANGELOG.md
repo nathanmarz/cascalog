@@ -8,6 +8,7 @@
 * Cascalog now pulls in Clojure 1.4.0 by default (with testing against 1.2 and 1.3)
 * `cascalog.StdoutTap` moved to `com.twitter.maple.StdoutTap`
 * `:distinct` defaults to false instead of true (!!)
+* Bug fix: Cascalog does a better job mapping functions to vars, doesn't get confused by "recent vars" (*1, *2, etc)
 
 ## 1.8.7
 
