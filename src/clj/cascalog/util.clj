@@ -1,18 +1,3 @@
-;;    Copyright 2010 Nathan Marz
-;; 
-;;    This program is free software: you can redistribute it and/or modify
-;;    it under the terms of the GNU General Public License as published by
-;;    the Free Software Foundation, either version 3 of the License, or
-;;    (at your option) any later version.
-;; 
-;;    This program is distributed in the hope that it will be useful,
-;;    but WITHOUT ANY WARRANTY; without even the implied warranty of
-;;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-;;    GNU General Public License for more details.
-;; 
-;;    You should have received a copy of the GNU General Public License
-;;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 (ns cascalog.util
   (:use [jackknife.core :only (update-vals)]
         [jackknife.seq :only (unweave merge-to-vec collectify)])
@@ -161,11 +146,27 @@
                 (name k)
                 (str k)) v])))
 
+(defn try-parse-num [^String s]
+  (try
+    (Long/parseLong s)
+    (catch NumberFormatException _
+      nil )))
+
+(defn recent-eval? [v]
+  (let [m (meta v)
+        ^String name (-> m :name str)]
+    (and (= "clojure.core" (:ns m))
+         (.startsWith name "*")
+         (try-parse-num (.substring name 1))         
+         )))
+
 (defn search-for-var [val]
-  (->> (loaded-libs)
+  ;; get all of them, filter out *1, *2, and *3, sort by static -> dynamic
+  (->> (all-ns)
        (map ns-map)
        (mapcat identity)
        (map second)
        (filter #(and (var? %) (= (var-get %) val)))
+       (filter (complement recent-eval?))
+       (sort-by (fn [v] (if (-> v meta :dynamic) 1 0)))
        first ))
-

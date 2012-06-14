@@ -2,20 +2,22 @@
 
 [![Build Status](https://secure.travis-ci.org/nathanmarz/cascalog.png?branch=develop)](http://travis-ci.org/nathanmarz/cascalog)
 
-Cascalog is a fully-featured data processing and querying library for Clojure. The main use cases for Cascalog are processing "Big Data" on top of Hadoop or doing analysis on your local computer from the Clojure REPL. Cascalog is a replacement for tools like Pig, Hive, and Cascading.
-
-Cascalog operates at a significantly higher level of abstraction than a tool like SQL. More importantly, its tight integration with Clojure gives you the power to use abstraction and composition techniques with your data processing code just like you would with any other code. It's this latter point that sets Cascalog far above any other tool in terms of expressive power.
+Cascalog is a fully-featured data processing and querying library for Clojure or Java. The main use cases for Cascalog are processing "Big Data" on top of Hadoop or doing analysis on your local computer. Cascalog is a replacement for tools like Pig, Hive, and Cascading and operates at a significantly higher level of abstraction than those tools.
 
 Follow the getting started steps, check out the tutorial, and you'll be running Cascalog queries on your local computer within 5 minutes.
 
-# Getting Started
+# Getting Started with JCascalog
+
+To get started with JCascalog, Cascalog's pure-Java API, see [this wiki page](https://github.com/nathanmarz/cascalog/wiki/JCascalog). The jcascalog.Playground class has in-memory datasets that you can play with to learn the basics.
+
+# Getting started with Clojure Cascalog
 
 The best way to get started with Cascalog is experiment with the toy datasets that ship with the project. These datasets are served from memory and can be played with purely from the REPL. Just follow these steps and you'll be on your way:
 
 1. Install [leiningen](http://github.com/technomancy/leiningen)
 2. Make sure you have Java 1.6 (run `java -version`)
 3. checkout the Cascalog project using Git
-4. `lein deps && lein compile && lein repl`
+4. `lein deps, compile, repl`
 5. Work through the examples in the [introductory](http://nathanmarz.com/blog/introducing-cascalog-a-clojure-based-query-language-for-hado.html) [tutorials](http://nathanmarz.com/blog/new-cascalog-features-outer-joins-combiners-sorting-and-more.html)
 
 # Using Cascalog within a project
@@ -24,10 +26,10 @@ Cascalog is hosted at [Clojars](http://clojars.org/cascalog). Clojars is a maven
 
 To include Cascalog in your leiningen or cake project, add the following to your `project.clj`:
 
-    [cascalog "1.8.6"] ;; under :dependencies
+    [cascalog "1.9.0"] ;; under :dependencies
     [org.apache.hadoop/hadoop-core "0.20.2-dev"] ;; under :dev-dependencies
 
-Note that Cascalog is compatible with Clojure 1.2.0, 1.2.1 and 1.3.0. 
+Note that Cascalog is compatible with Clojure 1.2.0, 1.2.1, 1.3.0, and 1.4.0. 
     
 # Documentation and Issue Tracker
 

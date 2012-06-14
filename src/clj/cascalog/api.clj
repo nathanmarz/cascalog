@@ -1,36 +1,22 @@
-;;    Copyright 2010 Nathan Marz
-;; 
-;;    This program is free software: you can redistribute it and/or modify
-;;    it under the terms of the GNU General Public License as published by
-;;    the Free Software Foundation, either version 3 of the License, or
-;;    (at your option) any later version.
-;; 
-;;    This program is distributed in the hope that it will be useful,
-;;    but WITHOUT ANY WARRANTY; without even the implied warranty of
-;;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-;;    GNU General Public License for more details.
-;; 
-;;    You should have received a copy of the GNU General Public License
-;;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 (ns cascalog.api
   (:use [cascalog.debug :only (debug-print)]
         [jackknife.core :only (safe-assert throw-runtime)]
         [jackknife.def :only (defalias)]
         [jackknife.seq :only (unweave collectify)])
   (:require [clojure.set :as set]
-            [cascalog.rules :as rules]
             [cascalog.vars :as v]
             [cascalog.tap :as tap]
             [cascalog.conf :as conf]
             [cascalog.workflow :as w]
             [cascalog.predicate :as p]
+            [cascalog.rules :as rules]
             [cascalog.io :as io]
             [cascalog.util :as u]
             [hadoop-util.core :as hadoop])  
-  (:import [cascading.flow Flow FlowConnector]
+  (:import [cascading.flow Flow FlowDef]
+           [cascading.flow.hadoop HadoopFlowConnector]
            [cascading.tuple Fields]
-           [cascalog StdoutTap Util MemorySourceTap]
+           [com.twitter.maple.tap MemorySourceTap StdoutTap]
            [cascading.pipe Pipe]))
 
 ;; Functions for creating taps and tap helpers
@@ -193,15 +179,17 @@
         sourcemap (apply merge (map :sourcemap gens))
         trapmap   (apply merge (map :trapmap gens))
         tails     (map rules/connect-to-sink gens sinks)
-        sinkmap   (w/taps-map tails sinks)]
-    (.connect (FlowConnector.
-               (u/project-merge (conf/project-conf)
-                                {"cascading.flow.job.pollinginterval" 100}))
-              flow-name
-              sourcemap
-              sinkmap
-              trapmap
-              (into-array Pipe tails))))
+        sinkmap   (w/taps-map tails sinks)
+        flowdef   (-> (FlowDef.)
+                      (.setName flow-name)
+                      (.addSources sourcemap)
+                      (.addSinks sinkmap)
+                      (.addTraps trapmap)
+                      (.addTails (into-array Pipe tails)))]
+    (-> (HadoopFlowConnector.
+         (u/project-merge (conf/project-conf)
+                          {"cascading.flow.job.pollinginterval" 100}))
+        (.connect flowdef))))
 
 (defn ?-
   "Executes 1 or more queries and emits the results of each query to

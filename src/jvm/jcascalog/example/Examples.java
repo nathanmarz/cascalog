@@ -1,6 +1,6 @@
 package jcascalog.example;
 
-import cascalog.StdoutTap;
+import com.twitter.maple.tap.StdoutTap;
 import jcascalog.Api;
 import jcascalog.Fields;
 import jcascalog.Option;

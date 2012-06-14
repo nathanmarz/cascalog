@@ -258,8 +258,11 @@
             (multigroup [?key]
                         [?count ?sum]
                         count-sum gen1 gen2))
+
     (test?- [["a" 2 2 0] ["a" 9 9 9]
              ["b" 1 1 2] ["b" 9 9 9]
              ["c" 0 0 2] ["c" 9 9 9]]
-            (multigroup [?key] [?v1 ?v2 ?v3] [count-arg [9]]
+            (multigroup [?key]
+                        [?v1 ?v2 ?v3]
+                        [count-arg [9]]
                         gen1 gen1 gen2))))
