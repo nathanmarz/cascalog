@@ -23,6 +23,7 @@
   :jvm-opts ["-Xmx768m" "-server" "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n"]
   :source-path "src/clj"
   :java-source-path "src/jvm"
+  :javac-options {:target "1.6" :source "1.6"}
   :source-paths ["src/clj"]
   :java-source-paths ["src/jvm"]
   :codox {:include [cascalog.vars cascalog.ops cascalog.io cascalog.api]}
