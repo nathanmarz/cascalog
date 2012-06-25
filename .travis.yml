@@ -9,6 +9,8 @@ branches:
   only:
     - develop
     - master
+jdk:
+  - openjdk6
 notifications:
   email:
     - nathanmarz@gmail.com
