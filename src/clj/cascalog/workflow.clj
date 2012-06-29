@@ -72,6 +72,10 @@
   [pipes]
   (into-array Pipe pipes))
 
+(defn taps-array
+  [taps]
+  (into-array Tap taps))
+
 (defn- fields-obj? [obj]
   "Returns true for a Fields instance, a string, or an array of strings."
   (or
@@ -114,9 +118,9 @@
 
 (defn- as-pipes
   [pipe-or-pipes]
-  (let [pipes (if (instance? Pipe pipe-or-pipes)
-                [pipe-or-pipes] pipe-or-pipes)]
-    (into-array Pipe pipes)))
+  (pipes-array (if (instance? Pipe pipe-or-pipes)
+                 [pipe-or-pipes]
+                 pipe-or-pipes)))
 
 ;; with a :fn> defined, turns into a function
 (defn filter [& args]
@@ -194,9 +198,7 @@
 (defn select [keep-fields]
   (fn [previous]
     (debug-print "select" keep-fields)
-    (let [ret (Each. previous (fields keep-fields) (Identity.))]
-      ret
-      )))
+    (Each. previous (fields keep-fields) (Identity.))))
 
 (defn identity [& args]
   (fn [previous]
@@ -273,16 +275,10 @@
   [fields-seq declared-fields joiner]
   (fn [& pipes-seq]
     (debug-print "cogroup" fields-seq declared-fields joiner)
-    (CoGroup.
-  	  (pipes-array pipes-seq)
-  	  (fields-array fields-seq)
-  	  (fields declared-fields)
-  	  joiner)))
-
-(defn mixed-joiner [bool-seq]
-  (MixedJoin. (boolean-array bool-seq)))
-
-(defn outer-joiner [] (OuterJoin.))
+    (CoGroup. (pipes-array pipes-seq)
+              (fields-array fields-seq)
+              (fields declared-fields)
+              joiner)))
 
 (defn- update-arglists
   "Scans the forms of a def* operation and adds an appropriate
@@ -418,24 +414,9 @@
           (let ~bindings
             ~return)))))
 
-(defmacro defassembly
-  ([name args return]
-     `(defassembly ~name ~args [] ~return))
-  ([name args bindings return]
-     `(def ~name (cascalog.workflow/assembly ~args ~bindings ~return))))
-
-(defn join-assembly [fields-seq declared-fields joiner]
-  (assembly [& pipes-seq]
-            (pipes-seq (co-group fields-seq declared-fields joiner))))
-
-(defn inner-join [fields-seq declared-fields]
-  (join-assembly fields-seq declared-fields (InnerJoin.)))
-
-(defn outer-join [fields-seq declared-fields]
-  (join-assembly fields-seq declared-fields (OuterJoin.)))
-
 (defn taps-map [pipes taps]
-  (Cascades/tapsMap (into-array Pipe pipes) (into-array Tap taps)))
+  (Cascades/tapsMap (pipess-array pipes)
+                    (taps-array taps)))
 
 (defn flow-def
   [flow-name sourcemap sinkmap trapmap tails]
@@ -444,7 +425,7 @@
     (.addSources sourcemap)
     (.addSinks sinkmap)
     (.addTraps trapmap)
-    (.addTails (into-array Pipe tails))))
+    (.addTails (pipes-array tails))))
 
 (defn mk-flow [sources sinks assembly]
   (let [sources (collectify sources)
@@ -458,7 +439,7 @@
     (.connect (HadoopFlowConnector.)
               (taps-map source-pipes sources)
               (taps-map tail-pipes sinks)
-              (into-array Pipe tail-pipes))))
+              (pipes-array tail-pipes))))
 
 (defn text-line
   ([]
