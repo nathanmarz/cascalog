@@ -133,7 +133,12 @@
           (<- [?n2]
               (nums ?n)
               (inc ?n :> ?n2)
-              (:distinct false))))))
+              (:distinct false)))
+      (is (= '(([1] [2]))
+             (??- "flow3"
+                  (<- [?n]
+                      (nums ?n)
+                      (:distinct false))))))))
 
 (deftest test-data-structure
   (let [src  [[1 5] [5 6] [8 2]]
