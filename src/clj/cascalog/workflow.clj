@@ -85,7 +85,7 @@
 
 (defn parse-args
   "arr => func-spec in-fields? :fn> func-fields :> out-fields
-  
+
   returns [in-fields func-fields spec out-fields]"
   ([arr] (parse-args arr Fields/RESULTS))
   ([[func-args & varargs] defaultout]
@@ -316,7 +316,7 @@
   * `fname`: the function var.
   * `f-args`: static variable declaration vector.
   * `args`: dynamic variable declaration vector."
-  [type [spec & args]]  
+  [type [spec & args]]
   (let [[fname f-args] (if (sequential? spec)
                          [(clojure.core/first spec) (second spec)]
                          [spec nil])
@@ -360,7 +360,7 @@
                  (apply ~type ~func-form ~args-sym)))
              ~(meta fname))))))
 
-(defmacro defmapop  
+(defmacro defmapop
   {:arglists '([name doc-string? attr-map? [fn-args*] body])}
   [& args]
   (defop-helper 'cascalog.workflow/map args))
@@ -415,7 +415,7 @@
             ~return)))))
 
 (defn taps-map [pipes taps]
-  (Cascades/tapsMap (pipess-array pipes)
+  (Cascades/tapsMap (pipes-array pipes)
                     (taps-array taps)))
 
 (defn flow-def
