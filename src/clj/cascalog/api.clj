@@ -210,15 +210,18 @@
   "Executes one or more queries and returns a seq of seqs of tuples
    back, one for each subquery given.
   
-  Syntax: (??- sink1 query1 sink2 query2 ...)"
-  [& subqueries]
-  ;; TODO: should be checking for flow name here
-  (io/with-fs-tmp [fs tmp]
-    (hadoop/mkdirs fs tmp)
-    (let [outtaps (for [q subqueries] (hfs-seqfile (str tmp "/" (u/uuid))))
-          bindings (mapcat vector outtaps subqueries)]
-      (apply ?- bindings)
-      (doall (map rules/get-sink-tuples outtaps)))))
+  Syntax: (??- query1 query2 ...) or (??- query-name query1 query2 ...)
+
+  If the first argument is a string, that will be used as the name
+  for the query and will show up in the JobTracker UI."
+  [& args]
+  (let [[name [& subqueries]] (rules/parse-exec-args args)]
+   (io/with-fs-tmp [fs tmp]
+     (hadoop/mkdirs fs tmp)
+     (let [outtaps (for [q subqueries] (hfs-seqfile (str tmp "/" (u/uuid))))
+           bindings (mapcat vector outtaps subqueries)]
+       (apply ?- name bindings)
+       (doall (map rules/get-sink-tuples outtaps))))))
 
 (defmacro ?<-
   "Helper that both defines and executes a query in a single call.
