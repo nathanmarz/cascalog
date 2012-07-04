@@ -1,5 +1,6 @@
 (ns cascalog.io
   (:require [cascalog.util :as u]
+            [cascalog.conf :as conf]
             [clojure.java.io :as io]
             [hadoop-util.core :as hadoop])
   (:import [java.io File PrintWriter]
@@ -97,13 +98,20 @@ Raise an exception if any deletion fails unless silently is true."
    (for [t paths]
      (.delete fs (hadoop/path t) true))))
 
-(defmacro with-fs-tmp [[fs-sym & tmp-syms] & body]
-  (let [tmp-paths (mapcat (fn [t]
-                            [t `(str "/tmp/cascalog_reserved/" (u/uuid))])
+(defmacro with-fs-tmp
+  "Generates unique, temporary path names as subfolders of <root>/cascalog_reserved.
+
+  <root> by default will be '/tmp', but you can configure it via the JobConf property
+  'cascalog.tmpdir'."
+  [[fs-sym & tmp-syms] & body]
+  (let [tmp-root (str (get (conf/project-conf) "cascalog.tmpdir" "/tmp")
+                      "/cascalog_reserved")
+        tmp-paths (mapcat (fn [t]
+                            [t `(str ~tmp-root "/" (u/uuid))])
                           tmp-syms)]
     `(let [~fs-sym (hadoop/filesystem)
            ~@tmp-paths]
-       (.mkdirs ~fs-sym (hadoop/path "/tmp/cascalog_reserved"))
+       (.mkdirs ~fs-sym (hadoop/path ~tmp-root))
        (try
          ~@body
          (finally
