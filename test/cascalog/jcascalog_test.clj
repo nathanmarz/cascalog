@@ -2,7 +2,7 @@
   (:use clojure.test
         [cascalog api testing])
   (:import [cascalog.test MultiplyAgg RangeOp DoubleOp]
-           [jcascalog Api Fields Option Predicate
+           [jcascalog Api Option Predicate
             PredicateMacro Subquery Api$FirstNArgs]
            [jcascalog.op Avg Count Div Limit Sum Plus Multiply Equals]))
 
@@ -10,60 +10,64 @@
   (let [value [["a" 1] ["a" 2] ["b" 10]
                ["c" 3] ["b" 2] ["a" 6]]]
     (test?- [["a" 18] ["b" 24] ["c" 6]]
-            (Subquery. (Fields. ["?letter" "?doublesum"])
-                       [(Predicate. value (Fields. ["?letter" "?v"]))
-                        (Predicate. (Multiply.) (Fields. ["?v" 2]) (Fields. ["?double"]))
-                        (Predicate. (Sum.) (Fields. ["?double"]) (Fields. ["?doublesum"])) ]))
+            (-> (Subquery. ["?letter" "?doublesum"])
+                (.predicate value ["?letter" "?v"])
+                (.predicate (Multiply.) ["?v" 2]) (.out ["?double"])
+                (.predicate (Sum.) ["?double"]) (.out ["?doublesum"])
+                ))
     
     (test?- [["a"] ["a"] ["a"]]
-            (Subquery. (Fields. ["?letter"])
-                       [(Predicate. value (Fields. ["?letter" "_"]))
-                        (Predicate. (Equals.) (Fields. ["?letter" "a"]))]))
+            (-> (Subquery. ["?letter"])
+                (.predicate value ["?letter" "_"])
+                (.predicate (Equals.) ["?letter" "a"])))
 
     (test?- [["a"]]
-            (Subquery. (Fields. ["?letter"])
-                       [(Predicate. value (Fields. ["?letter" "_"]))
-                        (Predicate. #'= (Fields. ["?letter" "a"]))
-                        (Option/distinct true)]))
+            (-> (Subquery. ["?letter"])
+                (.predicate value ["?letter" "_"])
+                (.predicate #'= ["?letter" "a"])
+                (.predicate Option/DISTINCT [true])
+                ))
 
     (test?- [[(* 1 2 3628800 6 2 720) 24]]
-            (Subquery. (Fields. ["?result" "?count"])
-                       [(Predicate. value (Fields. ["_" "?v"]))
-                        (Predicate. (RangeOp.) (Fields. ["?v"]) (Fields. ["?v2"]))
-                        (Predicate. (MultiplyAgg.) (Fields. ["?v2"]) (Fields. ["?result"])) 
-                        (Predicate. (Count.) (Fields. ["?count"])) ]))))
+            (-> (Subquery. ["?result" "?count"])
+                (.predicate value ["_" "?v"])
+                (.predicate (RangeOp.) ["?v"]) (.out ["?v2"])
+                (.predicate (MultiplyAgg.) ["?v2"]) (.out ["?result"])
+                (.predicate (Count.) ["?count"])
+                ))))
 
 (def my-avg
   (reify PredicateMacro
     (getPredicates [this [val] [avg]]
       (let [count-var (Api/genNullableVar)
             sum-var (Api/genNullableVar)]
-        [(Predicate. (Count.) (Fields. [count-var]))
-         (Predicate. (Sum.) (Fields. [val]) (Fields. [sum-var]))
-         (Predicate. (Div.) (Fields. [sum-var count-var]) (Fields. [avg]))]))))
+        [(Predicate. (Count.) [count-var])
+         (Predicate. (Sum.) [val] [sum-var])
+         (Predicate. (Div.) [sum-var count-var] [avg])]))))
 
 (deftest test-java-predicate-macro
   (let [nums [[1] [2] [3] [4] [5]]]
     (test?- [[3]]
-            (Subquery. (Fields. ["?avg"])
-                       [(Predicate. nums (Fields. ["?v"]))
-                        (Predicate. my-avg (Fields. ["?v"]) (Fields. ["?avg"]))]))))
+            (-> (Subquery. ["?avg"])
+                (.predicate nums ["?v"])
+                (.predicate my-avg ["?v"]) (.out ["?avg"])
+                ))))
 
 (deftest test-first-n
   (let [data [["a" 1] ["a" 1] ["b" 1] ["c" 1] ["c" 1] ["a" 1]
               ["d" 1]]
-        sq (Subquery. (Fields. ["?l" "?count"])
-                      [(Predicate. data (Fields. ["?l" "_"]))
-                       (Predicate. (Count.) (Fields. ["?count"]))
-                       ])
+        sq (-> (Subquery. ["?l" "?count"])
+                (.predicate data ["?l" "_"])
+                (.predicate (Count.) ["?count"]))
         firstn (Api/firstN sq 2 (-> (Api$FirstNArgs.) (.sort "?count") (.reverse true)))]
     (test?- [["c"]]
-            (Subquery. (Fields. ["?l"])
-                       [(Predicate. firstn (Fields. ["?l" 2]))]))))
+            (-> (Subquery. ["?l"])
+                (.predicate firstn ["?l" 2])))))
 
 (deftest test-java-each
   (let [data [[1 2 3] [4 5 6]]]
     (test?- [[2 4 6] [8 10 12]]
-            (Subquery. (Fields. ["?x" "?y" "?z"])
-                       [(Predicate. data (Fields. ["?a" "?b" "?c"]))
-                        (Predicate. (Api/each (DoubleOp.)) (Fields. ["?a" "?b" "?c"]) (Fields. ["?x" "?y" "?z"]))]))))
+            (-> (Subquery. ["?x" "?y" "?z"])
+                (.predicate data ["?a" "?b" "?c"])
+                (.predicate (Api/each (DoubleOp.)) ["?a" "?b" "?c"]) (.out ["?x" "?y" "?z"])
+                ))))

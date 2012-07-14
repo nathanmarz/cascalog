@@ -5,25 +5,31 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Predicate {
-    List<Object> _fieldsDeclaration = new ArrayList<Object>();
+    List<Object> _initialFields;
+    List<Object> _outFields = null;
     Object _op;
     
-    public Predicate(Object op, Fields defaultFields) {
+    public Predicate(Object op, List<Object> initialFields) {
         _op = op;
-        _fieldsDeclaration.addAll(defaultFields);
+        _initialFields = initialFields;
     }
 
-    public Predicate(Object op, Fields infields, Fields outFields) {
+    public Predicate(Object op, List<Object> inFields, List<Object> outFields) {
         _op = op;
-        _fieldsDeclaration.addAll(infields);
-        _fieldsDeclaration.add(Keyword.intern(">"));
-        _fieldsDeclaration.addAll(outFields);
-    }
+        _initialFields = inFields;
+        _outFields = outFields;
+    }    
     
     public List<Object> toRawCascalogPredicate() {
+        List<Object> fieldsDeclaration = new ArrayList<Object>();
+        fieldsDeclaration.addAll(_initialFields);
+        if(_outFields != null) {
+            fieldsDeclaration.add(Keyword.intern(">"));
+            fieldsDeclaration.addAll(_outFields);
+        }
         List<Object> pred = new ArrayList<Object>();
-        pred.add(_op); // the op
-        pred.add(_fieldsDeclaration);
+        pred.add(_op);
+        pred.add(fieldsDeclaration);
         return pred;
     }    
 }
