@@ -1,6 +1,8 @@
 ### 1.9.1
 
 * Upgraded Kryo to 2.16 (via `cascading.kryo` and `carbonite` upgrades)
+* Redid JCascalog interface with a fluent API
+* Added PredicateMacroTemplate to JCascalog
 
 ### 1.9.0
 
