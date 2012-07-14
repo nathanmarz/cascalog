@@ -1,3 +1,7 @@
+### 1.9.1
+
+* Upgraded Kryo to 2.16 (via `cascading.kryo` and `carbonite` upgrades)
+
 ### 1.9.0
 
 * Cascalog now uses the Apache 2.0 license (formerly used GNU)
