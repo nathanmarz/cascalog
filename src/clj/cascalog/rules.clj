@@ -20,7 +20,7 @@
            [cascalog CombinerSpec ClojureCombiner ClojureCombinedAggregator Util
             ClojureParallelAgg]
            [org.apache.hadoop.mapred JobConf]
-           [jcascalog Predicate Subquery PredicateMacro ClojureOp]
+           [jcascalog Predicate Subquery PredicateMacro ClojureOp PredicateMacroTemplate]
            [java.util ArrayList]))
 
 ;; infields for a join are the names of the join fields
@@ -572,7 +572,8 @@
     new-name))
 
 (defn- pred-macro-updater [[replacements ret] [op vars]]
-  (let [newvars (postwalk #(if (v/cascalog-var? %)
+  (let [vars (vec vars) ; in case it's a java data structure
+        newvars (postwalk #(if (v/cascalog-var? %)
                              (new-var-name! replacements %)
                              %)
                           vars)]
@@ -625,6 +626,9 @@
           (instance? PredicateMacro p)
           (.getPredicates p (to-jcascalog-fields invars) (to-jcascalog-fields outvars))
 
+          (instance? PredicateMacroTemplate p)
+          [[(.getCompiledPredMacro p) vars]]
+          
           :else
           ((:pred-fn p) invars outvars))))
 

@@ -2,7 +2,7 @@
   (:use clojure.test
         [cascalog api testing])
   (:import [cascalog.test MultiplyAgg RangeOp DoubleOp]
-           [jcascalog Api Option Predicate
+           [jcascalog Api Option Predicate PredicateMacroTemplate
             PredicateMacro Subquery Api$FirstNArgs]
            [jcascalog.op Avg Count Div Limit Sum Plus Multiply Equals]))
 
@@ -51,6 +51,22 @@
             (-> (Subquery. ["?avg"])
                 (.predicate nums ["?v"])
                 (.predicate my-avg ["?v"]) (.out ["?avg"])
+                ))))
+
+(def my-avg-template
+  (-> (PredicateMacroTemplate/build ["?v"]) (.out ["?avg"])
+      (.predicate (Count.) ["?count"])
+      (.predicate (Sum.) ["?v"]) (.out ["?sum"])
+      (.predicate (Div.) ["?sum" "?count"]) (.out ["?avg"])
+      ))
+
+(deftest test-java-predicate-macro-template
+  (let [nums [[1] [2] [3] [4] [5]]]
+    (test?- [[3]]
+            (-> (Subquery. ["?avg"])
+                ;; use ?sum name here to try to confuse it (test that it renames intermediate vars)
+                (.predicate nums ["?sum"])
+                (.predicate my-avg-template ["?sum"]) (.out ["?avg"])
                 ))))
 
 (deftest test-first-n
