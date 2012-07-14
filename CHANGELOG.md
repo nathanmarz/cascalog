@@ -1,3 +1,9 @@
+### 1.9.1
+
+* Upgraded Kryo to 2.16 (via `cascading.kryo` and `carbonite` upgrades)
+* Redid JCascalog interface with a fluent API
+* Added PredicateMacroTemplate to JCascalog
+
 ### 1.9.0
 
 * Cascalog now uses the Apache 2.0 license (formerly used GNU)
