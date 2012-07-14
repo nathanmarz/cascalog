@@ -54,6 +54,12 @@ public class Api {
         execute(null, taps, gens);
     }
     
+    @SuppressWarnings("unchecked")
+	public static List<List<List<?>>> executeAndReturnResults(List<Object> gens) {
+		IteratorSeq seq = IteratorSeq.create(gens.iterator());
+		return (List<List<List<?>>>) Api.getApiFn("??-").applyTo(seq);
+    }
+    
     public static Object union(Object... gens) {
         return union(Util.toList(gens));
     }
@@ -74,7 +80,8 @@ public class Api {
         return ((Number) getApiFn("num-out-fields").invoke(gen)).intValue();
     }
     
-    public static Fields getOutFields(Object gen) {
+    @SuppressWarnings("unchecked")
+	public static Fields getOutFields(Object gen) {
         return new Fields((List<Object>) getApiFn("get-out-fields").invoke(gen));        
     }
     
@@ -90,12 +97,13 @@ public class Api {
         return (String) Util.bootSimpleFn("cascalog.vars", "gen-nullable-var").invoke();
     }
     
+    @SuppressWarnings("unchecked")
     public static Fields genNullableVars(int amt) {
-        List<String> vars = (List<String>) Util.bootSimpleFn("cascalog.vars", "gen-nullable-vars").invoke(amt);
+		List<String> vars = (List<String>) Util.bootSimpleFn("cascalog.vars", "gen-nullable-vars").invoke(amt);
         return new Fields(vars);
     }
     
-    public static void setApplicationConf(Map conf) {
+    public static void setApplicationConf(Map<?,?> conf) {
         Util.bootSimpleFn("cascalog.conf", "set-job-conf!").invoke(conf);
     }
     
