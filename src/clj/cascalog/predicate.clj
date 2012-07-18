@@ -9,7 +9,7 @@
            [cascading.operation Filter]
            [cascading.tuple Fields]
            [clojure.lang IFn]
-           [jcascalog PredicateMacro Subquery ClojureOp]
+           [jcascalog PredicateMacro Subquery ClojureOp PredicateMacroTemplate]
            [cascalog ClojureParallelAggregator ClojureBuffer
             ClojureBufferCombiner CombinerSpec CascalogFunction
             CascalogFunctionExecutor CascadingFilterToFunction
@@ -169,6 +169,7 @@
 (defn predicate-macro? [p]
   (or (var? p)
       (instance? PredicateMacro p)
+      (instance? PredicateMacroTemplate p)
       (instance? Subquery p)
       (instance? ClojureOp p)
       (and (map? p) (= :predicate-macro (:type p)))
