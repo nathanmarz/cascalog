@@ -4,11 +4,11 @@
      :exclusions [org.codehaus.janino/janino
                   org.apache.hadoop/hadoop-core]]
     [org.clojure/tools.macro "0.1.1"]
-    [cascading.kryo "0.4.2"]
+    [cascading.kryo "0.4.3"]
     [cascalog/carbonite "1.3.0"]
     [log4j/log4j "1.2.16"]
     [hadoop-util "0.2.8"]
-    [com.twitter/maple "0.2.0"]
+    [com.twitter/maple "0.2.2"]
     [jackknife "0.1.2"]])
 
 (defproject cascalog/cascalog "1.10.1-SNAPSHOT"
