@@ -4,7 +4,7 @@
 
 language: clojure
 lein: lein2
-script: lein2 do compile, midje
+script: lein2 with-profile dev,1.2:dev,1.3:dev,default do compile, midje
 branches:
   only:
     - develop
@@ -12,6 +12,7 @@ branches:
 jdk:
   - openjdk6
 notifications:
+  irc: "irc.freenode.org#cascalog"
   email:
     - nathanmarz@gmail.com
     - sritchie09@gmail.com
