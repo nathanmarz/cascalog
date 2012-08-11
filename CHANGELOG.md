@@ -1,4 +1,4 @@
-### 1.9.1
+### 1.10.0
 
 * Upgraded Kryo to 2.16 (via `cascading.kryo` and `carbonite` upgrades)
 * Redid JCascalog interface with a fluent API

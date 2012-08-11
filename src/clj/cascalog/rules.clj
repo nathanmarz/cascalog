@@ -253,8 +253,8 @@
     (throw-illegal "Cannot specify a sort when there are no aggregators"))
   (if (and (not (:distinct options))
            (empty? aggs))
-    prev-tail  
-    (let [aggs (or (not-empty aggs) [p/distinct-aggregator])      
+    prev-tail
+    (let [aggs (or (not-empty aggs) [p/distinct-aggregator])
           [grouping-fields inserter] (normalize-grouping grouping-fields)
           [prep-aggs postgroup-aggs] (build-agg-assemblies grouping-fields aggs)
           assem        (apply w/compose-straight-assemblies
@@ -616,19 +616,19 @@
   (let [{invars :<< outvars :>>} (p/parse-variables vars :<)]
     (cond (var? p)
           [[(var-get p) vars]]
-      
+
           (instance? Subquery p)
           [[(.getCompiledSubquery p) vars]]
-        
+
           (instance? ClojureOp p)
           [(.toRawCascalogPredicate p vars)]
-        
+
           (instance? PredicateMacro p)
           (.getPredicates p (to-jcascalog-fields invars) (to-jcascalog-fields outvars))
 
           (instance? PredicateMacroTemplate p)
           [[(.getCompiledPredMacro p) vars]]
-          
+
           :else
           ((:pred-fn p) invars outvars))))
 
