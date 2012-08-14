@@ -23,8 +23,10 @@
            [java.io File]))
 
 (defn roundtrip [obj]
-  (HadoopUtil/deserializeBase64
-   (HadoopUtil/serializeBase64 obj)))
+  (let [conf (hadoop/job-conf (conf/project-conf))]
+    (HadoopUtil/deserializeBase64
+      (HadoopUtil/serializeBase64 obj conf true)
+      conf (class obj) true)))
 
 (defn invoke-filter [fil coll]
   (let [fil     (roundtrip fil)
