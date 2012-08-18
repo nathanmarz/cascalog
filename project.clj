@@ -1,6 +1,6 @@
 (def shared
   '[[org.clojure/tools.macro "0.1.1"]
-    [cascading/cascading-hadoop "2.0.0"
+    [cascading/cascading-hadoop "2.0.3"
      :exclusions [org.codehaus.janino/janino
                   org.apache.hadoop/hadoop-core]]
     [org.clojure/tools.macro "0.1.1"]
