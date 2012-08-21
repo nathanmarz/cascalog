@@ -44,7 +44,7 @@
              :dev {:dependencies
                    ~(conj shared-dev '[org.apache.hadoop/hadoop-core "0.20.2-dev"])}
              :dev-20.205 {:dependencies
-                          ~(conj shared-dev '[org.apache.hadoop/hadoop-core "0.20.205"])}
+                          ~(conj shared-dev '[org.apache.hadoop/hadoop-core "0.20.205.0"])}
              :dev-cdh3u2 {:dependencies
                           ~(conj shared-dev '[org.apache.hadoop/hadoop-core "0.20.2-cdh3u2"])}
              :dev-1.0.0 {:dependencies
