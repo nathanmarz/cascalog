@@ -34,7 +34,7 @@
   :plugins [[lein-midje "2.0.0-SNAPSHOT"]
             [lein-swank "1.4.2"]
             [lein-clojars "0.8.0"]]
-  :aliases {"all" ["with-profile" "dev:1.3,dev:dev-cdh3u2:dev-20.205:dev-20.205,1.3:dev-1.0.0:dev-1.0.3"]}
+  :aliases {"all" ["with-profile" "dev:1.3,dev:dev-cdh3u2:dev-20.205:dev-1.0.0"]}
   :dependencies ~(conj shared '[org.clojure/clojure "1.4.0"])
   :dev-dependencies [[org.apache.hadoop/hadoop-core "0.20.2-dev"]
                      [midje-cascalog "0.4.0" :exclusions [org.clojure/clojure]]]
