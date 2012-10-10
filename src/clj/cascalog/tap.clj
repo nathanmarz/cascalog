@@ -48,8 +48,10 @@
   used as a sink.
 
   `:templatefields` - When pattern is supplied via :sink-template, this option allows a
-  subset of output fields to be used in the naming scheme."
-  [scheme path-or-file & {:keys [sinkmode sinkparts sink-template
+  subset of output fields to be used in the naming scheme.
+
+  See f.ex. the http://docs.cascading.org/cascading/2.0/javadoc/cascading/scheme/local/TextDelimited.html scheme."
+  [^cascading.scheme.Scheme scheme path-or-file & {:keys [sinkmode sinkparts sink-template
                                  source-pattern templatefields]
                           :or {templatefields Fields/ALL}}]
   (-> scheme
