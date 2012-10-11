@@ -88,3 +88,15 @@
         temp-tap
         (api/?<- temp-tap [?a ?b] (tuples ?a ?b))
         temp-tap => (produces [[1 2] [2 3]])))))
+
+(fact
+ "It's possible to read from a tab-separated text file tap (with default options)."
+ (let [file (str "file://" (.getAbsolutePath (clojure.java.io/file "test\\test-data.tsv")))
+       lfs-test-source (hfs-tap (cascading.scheme.hadoop.TextDelimited.) file)]
+ lfs-test-source => (produces [["a" "1"] ["b" "2"]])))
+
+(fact
+ "It's possible to read from a tab-separated text file tap (with custom options)."
+ (let [file (str "file://" (.getAbsolutePath (clojure.java.io/file "test\\test-data.tsv")))
+       lfs-test-source (hfs-tap (cascading.scheme.hadoop.TextDelimited. (w/fields ["?f1" "?f2"]) "\t") file)]; or Fields/ALL instead of (w/fields ...)
+ lfs-test-source => (produces [["a" "1"] ["b" "2"]])))
