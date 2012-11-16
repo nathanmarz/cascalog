@@ -11,6 +11,9 @@
     [com.twitter/maple "0.2.2"]
     [jackknife "0.1.2"]])
 
+(def shared-dev
+  '[[midje-cascalog "0.4.0" :exclusions [org.clojure/clojure]]])
+
 (defproject cascalog/cascalog "1.10.1-SNAPSHOT"
   :description "Hadoop without the Hassle."
   :url "http://www.cascalog.org"
@@ -26,11 +29,12 @@
   :source-paths ["src/clj"]
   :java-source-paths ["src/jvm"]
   :codox {:include [cascalog.vars cascalog.ops cascalog.io cascalog.api]}
-  :repositories {"conjars" "http://conjars.org/repo/"}
+  :repositories {"conjars" "http://conjars.org/repo/"
+                 "cloudera" "https://repository.cloudera.com/artifactory/cloudera-repos/"}
   :plugins [[lein-midje "2.0.0-SNAPSHOT"]
             [lein-swank "1.4.2"]
             [lein-clojars "0.8.0"]]
-  :aliases {"all" ["with-profile" "dev:1.2,dev:1.3"]}
+  :aliases {"all" ["with-profile" "dev:1.3,dev:dev-cdh3u2:dev-20.205:dev-20.205,1.3:dev-1.0.0:dev-1.0.3"]}
   :dependencies ~(conj shared '[org.clojure/clojure "1.4.0"])
   :dev-dependencies [[org.apache.hadoop/hadoop-core "0.20.2-dev"]
                      [midje-cascalog "0.4.0" :exclusions [org.clojure/clojure]]]
@@ -38,5 +42,14 @@
              :1.2 {:dependencies [[org.clojure/clojure "1.2.1"]]}
              :1.3 {:dependencies [[org.clojure/clojure "1.3.0"]]}
              :dev {:dependencies
-                   [[org.apache.hadoop/hadoop-core "0.20.2-dev"]
-                    [midje-cascalog "0.4.0" :exclusions [org.clojure/clojure]]]}})
+                   ~(conj shared-dev '[org.apache.hadoop/hadoop-core "0.20.2-dev"])}
+             :dev-20.205 {:dependencies
+                          ~(conj shared-dev '[org.apache.hadoop/hadoop-core "0.20.205.0"])}
+             :dev-cdh3u2 {:dependencies
+                          ~(conj shared-dev '[org.apache.hadoop/hadoop-core "0.20.2-cdh3u2"])}
+             :dev-1.0.0 {:dependencies
+                         ~(conj shared-dev '[org.apache.hadoop/hadoop-core "1.0.0"])}
+             :dev-1.0.3 {:dependencies
+                         ~(conj shared-dev '[org.apache.hadoop/hadoop-core "1.0.3"])}
+             :dev-cdh4.0.1 {:dependencies
+                            ~(conj shared-dev '[org.apache.hadoop/hadoop-core "2.0.0-mr1-cdh4.0.1"])}})
