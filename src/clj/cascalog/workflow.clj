@@ -25,7 +25,7 @@
            [cascading.operation Identity Debug]
            [cascading.operation.aggregator First Count Sum Min Max]
            [cascading.pipe Pipe Each Every GroupBy CoGroup]
-           [cascading.pipe.joiner InnerJoin OuterJoin LeftJoin RightJoin MixedJoin]
+           [cascading.pipe.joiner InnerJoin]
            [com.twitter.maple.tap MemorySourceTap]
            [cascalog ClojureFilter ClojureMapcat ClojureMap
             ClojureAggregator Util ClojureBuffer ClojureBufferIter
@@ -426,6 +426,19 @@
     (.addSinks sinkmap)
     (.addTraps trapmap)
     (.addTails (pipes-array tails))))
+
+(defmacro defassembly
+  ([name args return]
+     `(defassembly ~name ~args [] ~return))
+  ([name args bindings return]
+     `(def ~name (cascalog.workflow/assembly ~args ~bindings ~return))))
+
+(defn join-assembly [fields-seq declared-fields joiner]
+  (assembly [& pipes-seq]
+            (pipes-seq (co-group fields-seq declared-fields joiner))))
+
+(defn inner-join [fields-seq declared-fields]
+  (join-assembly fields-seq declared-fields (InnerJoin.)))
 
 (defn mk-flow [sources sinks assembly]
   (let [sources (collectify sources)
