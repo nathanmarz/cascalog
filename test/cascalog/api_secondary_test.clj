@@ -60,6 +60,14 @@
                    [(-> [[age "?p" "?a"] [#'inc "?a" :> "?a2"]]
                         (conj [gender "?p" "!!g"]))]))))
 
+(deftest test-fail-to-construct
+  (let [foos [["alice"] ["bob"]]]
+    (is (thrown-with-msg? RuntimeException #"Missing.*?bar"
+          (test?- []
+                  (apply construct
+                         ["?foo" "?bar"]
+                         [(-> [[foos "?foo"]])]))))))
+
 (deftest test-cascalog-tap-source
   (io/with-log-level :fatal
     (let [num [[1]]
