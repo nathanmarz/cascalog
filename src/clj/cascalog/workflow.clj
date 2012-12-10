@@ -268,7 +268,7 @@
        pipes
        group-fields
        fields-sum
-       (ClojureMultibuffer. func-fields specs stateful)))))
+       (ClojureMultibuffer. func-fields specs)))))
 
 ;; we shouldn't need a seq for fields (b/c we know how many pipes we have)
 (defn co-group
