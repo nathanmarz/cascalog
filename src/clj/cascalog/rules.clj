@@ -395,7 +395,9 @@
     (debug-print "build gen:" my-needed project-fields pred)
     (if (and forceproject (not= project-fields needed-vars))
       (throw-runtime (str "Only able to build to " project-fields
-                          " but need " needed-vars))
+                          " but need " needed-vars
+                          ". Missing " (vec (clojure.set/difference (set needed-vars)
+                                                                    (set project-fields)))))
       (merge newgen
              {:pipe ((mk-projection-assembly forceproject
                                              project-fields
