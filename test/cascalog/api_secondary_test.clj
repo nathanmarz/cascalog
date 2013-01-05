@@ -60,6 +60,14 @@
                    [(-> [[age "?p" "?a"] [#'inc "?a" :> "?a2"]]
                         (conj [gender "?p" "!!g"]))]))))
 
+(deftest test-fail-to-construct
+  (let [foos [["alice"] ["bob"]]]
+    (is (thrown-with-msg? RuntimeException #"Missing.*?bar"
+          (test?- []
+                  (apply construct
+                         ["?foo" "?bar"]
+                         [(-> [[foos "?foo"]])]))))))
+
 (deftest test-cascalog-tap-source
   (io/with-log-level :fatal
     (let [num [[1]]
@@ -133,7 +141,12 @@
           (<- [?n2]
               (nums ?n)
               (inc ?n :> ?n2)
-              (:distinct false))))))
+              (:distinct false)))
+      (is (= '(([1] [2]))
+             (??- "flow3"
+                  (<- [?n]
+                      (nums ?n)
+                      (:distinct false))))))))
 
 (deftest test-data-structure
   (let [src  [[1 5] [5 6] [8 2]]
@@ -260,6 +273,7 @@
             (multigroup [?key]
                         [?count ?sum]
                         count-sum gen1 gen2))
+
     (test?- [["a" 2 2 0] ["a" 9 9 9]
              ["b" 1 1 2] ["b" 9 9 9]
              ["c" 0 0 2] ["c" 9 9 9]]

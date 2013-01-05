@@ -8,7 +8,9 @@
            [cascalog.test KeepEven OneBuffer CountAgg SumAgg]
            [cascalog.ops IdentityBuffer]))
 
-(defmapop mk-one "Returns 1 for any input." [& tuple] 1)
+(defmapop mk-one
+  "Returns 1 for any input."
+  [& tuple] 1)
 
 (deftest test-no-input
   (let [nums [[1] [2] [3]]]
@@ -29,12 +31,12 @@
     (test?<- [["j"] ["n"]]
              [?p]
              (age ?p ?a)
-             (< ?a 25))
+             (< ?a 25)
+             (:distinct true))
     (test?<- [["j"] ["n"] ["n"]]
              [?p]
              (age ?p ?a)
-             (< ?a 25)
-             (:distinct false))))
+             (< ?a 25))))
 
 (deftest test-larger-tuples
   (let [stats [["n" 6 190 nil] ["n" 6 195 nil]
@@ -100,7 +102,8 @@
              (friends !p _)
              (age !p !age)
              (interest !p !interest)
-             (gender !p !gender))))
+             (gender !p !gender)
+             (:distinct true))))
 
 (defmapcatop split [^String words]
   (seq (.split words "\\s+")))
@@ -256,7 +259,7 @@
              (pairs ?f1 ?v)
              (:sort ?v)
              (select-first ?v :> ?f2))
-    
+
     (test?<- [["a" 3] ["b" 20]]
              [?f1 ?f2]
              (pairs ?f1 ?v)
@@ -306,7 +309,8 @@
              [?p ?s]
              (person ?p)
              (follows ?p !!p2)
-             (existence2str !!p2 :> ?s))))
+             (existence2str !!p2 :> ?s)
+             (:distinct true))))
 
 (deftest test-outer-join-complex
   (let [age [["a" 20] ["b" 30]
@@ -344,7 +348,7 @@
                [!!a]
                (age !!a ?b)
                (rec1 !!a _ _ :> true))
-    
+
     (thrown?<- IllegalArgumentException
                [?a !!c]
                (age ?a ?b)
@@ -440,7 +444,7 @@
     (test?<- [["nathan davidlalala"] ["chickenlalala"]]
              [?out]
              ((lala-appended sentence) ?out))
-    
+
     (test?<- [["nathan davida"] ["chickena"]]
              [?out]
              (sentence :>> [?line])
@@ -542,7 +546,7 @@
              [?l !m]
              (wide :#> 5 {4 ?l 2 !m})
              (:distinct false))
-    
+
     (test?<- [[4] [2] [3]]
              [?n3]
              (wide _ ?n1 _ _ ?n2)
@@ -589,6 +593,28 @@
   (or (even? n)
       (throw (RuntimeException.))))
 
+(deffilterop a-fail [n & all]
+  (if (= "a" n)
+    (throw (RuntimeException.)) true))
+
+(deftest memory-self-join-test
+  (let [src [["a"]]
+        src2 (memory-source-tap [["a"]])]
+    (with-expected-sink-sets [empty1 [], empty2 []]
+      (test?<- src
+               [!a]
+               (src !a)
+               (src !a)
+               (:distinct false)
+               (:trap empty1))
+
+      (test?<- src
+               [!a]
+               (src2 !a)
+               (src2 !a)
+               (:distinct false)
+               (:trap empty2)))))
+
 (deftest test-trap
   (let [num [[1] [2]]]
     (with-expected-sink-sets [trap1 [[1]] ]
@@ -604,17 +630,17 @@
                                     (odd-fail ?n))))))
 
 (deftest test-trap-joins
-  (let [age [["A" 20] ["B" 21]]
+  (let [age    [["A" 20] ["B" 21]]
         gender [["A" "m"] ["B" "f"]]]
-    (with-expected-sink-sets [trap1 [["B" 21]]
-                              trap2 [["B" 21 "f"]]]
+    (with-expected-sink-sets [trap1 [[21]]
+                              trap2 [[21 "f"]]]
       (test?<- [["A" 20 "m"]]
                [?p ?a ?g]
                (age ?p ?a)
                (gender ?p ?g)
                (odd-fail ?a)
                (:trap trap1))
-      
+
       (test?<- [["A" 20 "m"]]
                [?p ?a ?g]
                (age ?p ?a)
@@ -625,7 +651,7 @@
 (deftest test-multi-trap
   (let [age [["A" 20] ["B" 21]]
         weight [["A" 191] ["B" 192]]]
-    (with-expected-sink-sets [trap1 [["B" 21]]
+    (with-expected-sink-sets [trap1 [[21]]
                               trap2 [["A" 20 191]] ]
       (let [sq (<- [?p ?a]
                    (age ?p ?a)
@@ -680,7 +706,7 @@
              (vals ?a ?b ?c)
              (multipagg ?a ?b ?c :> ?d ?e)
              (c/count ?count))
-    
+
     (test?<- [[12 935 3]]
              [?d ?e ?count]
              (vals ?a ?b ?c)
@@ -694,7 +720,7 @@
              (vals ?v)
              ((KeepEven.) ?v)
              (:distinct false))
-    
+
     (test?<- [[0 true] [1 false]
               [2 true] [3 false]]
              [?v ?b]
@@ -752,15 +778,15 @@
                            (<- [?v] ([[2] [4] [6]] ?v) (:distinct false))))
 
 (deftest test-cascading-union-combine
-  (with-tmp-sources [v1 [[1] [2] [3]]
-                     v2 [[3] [4] [5]]
-                     v3 [[2] [4] [6]]
-                     e1 [[]]]
+  (let [v1 [[1] [2] [3]]
+        v2 [[3] [4] [5]]
+        v3 [[2] [4] [6]]
+        e1 []]
     (run-union-combine-tests v1 v2 v3)
 
     "Can't use empty taps inside of a union or combine."
-    (is (thrown? RuntimeException (union e1)))
-    (is (thrown? RuntimeException (combine e1)))))
+    (is (thrown? IllegalArgumentException (union e1)))
+    (is (thrown? IllegalArgumentException (combine e1)))))
 
 (deftest test-select-fields-tap
   (let [data (memory-source-tap ["f1" "f2" "f3" "f4"]
@@ -864,7 +890,7 @@
 
             "Regexes are serializable w/ Kryo."
             [["a" "b"]]
-            (<- [?a ?b]   
+            (<- [?a ?b]
                 ([["a\tb"]] ?s)
                 ((c/re-parse #"[^\s]+") :< ?s :> ?a ?b)))))
 

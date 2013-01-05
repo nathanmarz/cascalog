@@ -1,18 +1,3 @@
-;;    Copyright 2010 Nathan Marz
-;; 
-;;    This program is free software: you can redistribute it and/or modify
-;;    it under the terms of the GNU General Public License as published by
-;;    the Free Software Foundation, either version 3 of the License, or
-;;    (at your option) any later version.
-;; 
-;;    This program is distributed in the hope that it will be useful,
-;;    but WITHOUT ANY WARRANTY; without even the implied warranty of
-;;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-;;    GNU General Public License for more details.
-;; 
-;;    You should have received a copy of the GNU General Public License
-;;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 (ns cascalog.predicate
   (:use [cascalog.util :only (uuid multifn? substitute-if)]
         [jackknife.seq :only (transpose)]
@@ -24,7 +9,7 @@
            [cascading.operation Filter]
            [cascading.tuple Fields]
            [clojure.lang IFn]
-           [jcascalog PredicateMacro Subquery ClojureOp]
+           [jcascalog PredicateMacro Subquery ClojureOp PredicateMacroTemplate]
            [cascalog ClojureParallelAggregator ClojureBuffer
             ClojureBufferCombiner CombinerSpec CascalogFunction
             CascalogFunctionExecutor CascadingFilterToFunction
@@ -90,7 +75,8 @@
 (defpredicate aggregator :buffer? :parallel-agg :pregroup-assembly :serial-agg-assembly :post-assembly :infields :outfields)
 
 ;; automatically generates source pipes and attaches to sources
-(defpredicate generator :join-set-var :ground? :sourcemap :pipe :outfields :trapmap)
+(defpredicate generator
+  :join-set-var :ground? :sourcemap :pipe :outfields :trapmap)
 (defpredicate generator-filter :generator :outvar)
 (defpredicate outconstant-equal)
 
@@ -177,6 +163,7 @@
 (defn predicate-macro? [p]
   (or (var? p)
       (instance? PredicateMacro p)
+      (instance? PredicateMacroTemplate p)
       (instance? Subquery p)
       (instance? ClojureOp p)
       (and (map? p) (= :predicate-macro (:type p)))
