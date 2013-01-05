@@ -444,9 +444,6 @@ identity.  identity."
 (defn write-dot [^Flow flow ^String path]
   (.writeDOT flow path))
 
-(defn exec [^Flow flow]
-  (.complete flow))
-
 (defn fill-tap! [^Tap tap xs]
   (with-open [^TupleEntryCollector collector
               (-> (hadoop/job-conf (conf/project-conf))
