@@ -1,37 +1,23 @@
-;;    Copyright 2010 Nathan Marz
-;; 
-;;    This program is free software: you can redistribute it and/or modify
-;;    it under the terms of the GNU General Public License as published by
-;;    the Free Software Foundation, either version 3 of the License, or
-;;    (at your option) any later version.
-;; 
-;;    This program is distributed in the hope that it will be useful,
-;;    but WITHOUT ANY WARRANTY; without even the implied warranty of
-;;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-;;    GNU General Public License for more details.
-;; 
-;;    You should have received a copy of the GNU General Public License
-;;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 (ns cascalog.api
   (:use [cascalog.debug :only (debug-print)]
         [jackknife.core :only (safe-assert throw-runtime)]
         [jackknife.def :only (defalias)]
         [jackknife.seq :only (unweave collectify)])
   (:require [clojure.set :as set]
-            [cascalog.rules :as rules]
             [cascalog.vars :as v]
             [cascalog.tap :as tap]
             [cascalog.conf :as conf]
             [cascalog.workflow :as w]
             [cascalog.predicate :as p]
+            [cascalog.rules :as rules]
             [cascalog.io :as io]
             [cascalog.util :as u]
             [cascalog.inline :as inline]
             [hadoop-util.core :as hadoop])  
-  (:import [cascading.flow Flow FlowConnector]
+  (:import [cascading.flow Flow FlowDef]
+           [cascading.flow.hadoop HadoopFlowConnector]
            [cascading.tuple Fields]
-           [cascalog StdoutTap Util MemorySourceTap]
+           [com.twitter.maple.tap MemorySourceTap StdoutTap]
            [cascading.pipe Pipe]))
 
 ;; Functions for creating taps and tap helpers
@@ -194,15 +180,12 @@
         sourcemap (apply merge (map :sourcemap gens))
         trapmap   (apply merge (map :trapmap gens))
         tails     (map rules/connect-to-sink gens sinks)
-        sinkmap   (w/taps-map tails sinks)]
-    (.connect (FlowConnector.
-               (u/project-merge (conf/project-conf)
-                                {"cascading.flow.job.pollinginterval" 100}))
-              flow-name
-              sourcemap
-              sinkmap
-              trapmap
-              (into-array Pipe tails))))
+        sinkmap   (w/taps-map tails sinks)
+        flowdef   (w/flow-def flow-name sourcemap sinkmap trapmap tails)]
+    (-> (HadoopFlowConnector.
+         (u/project-merge (conf/project-conf)
+                          {"cascading.flow.job.pollinginterval" 100}))
+        (.connect flowdef))))
 
 (defn ?-
   "Executes 1 or more queries and emits the results of each query to
@@ -223,15 +206,18 @@
   "Executes one or more queries and returns a seq of seqs of tuples
    back, one for each subquery given.
   
-  Syntax: (??- sink1 query1 sink2 query2 ...)"
-  [& subqueries]
-  ;; TODO: should be checking for flow name here
-  (io/with-fs-tmp [fs tmp]
-    (hadoop/mkdirs fs tmp)
-    (let [outtaps (for [q subqueries] (hfs-seqfile (str tmp "/" (u/uuid))))
-          bindings (mapcat vector outtaps subqueries)]
-      (apply ?- bindings)
-      (doall (map rules/get-sink-tuples outtaps)))))
+  Syntax: (??- query1 query2 ...) or (??- query-name query1 query2 ...)
+
+  If the first argument is a string, that will be used as the name
+  for the query and will show up in the JobTracker UI."
+  [& args]
+  (let [[name [& subqueries]] (rules/parse-exec-args args)]
+   (io/with-fs-tmp [fs tmp]
+     (hadoop/mkdirs fs tmp)
+     (let [outtaps (for [q subqueries] (hfs-seqfile (str tmp "/" (u/uuid))))
+           bindings (mapcat vector outtaps subqueries)]
+       (apply ?- name bindings)
+       (doall (map rules/get-sink-tuples outtaps))))))
 
 (defmacro ?<-
   "Helper that both defines and executes a query in a single call.
@@ -303,7 +289,9 @@ as well."
   (let [sq-out-vars (map get-out-fields sqs)
         group-vars (apply set/intersection (map set sq-out-vars))
         num-vars (reduce + (map count sq-out-vars))
-        pipes (into-array Pipe (map :pipe sqs))]
+        pipes (w/pipes-array (map :pipe sqs))
+        args [declared-group-vars :fn> buffer-out-vars]
+        args (if hof-args (cons hof-args args) args)]
     (safe-assert (seq declared-group-vars)
                  "Cannot do global grouping with multigroup")
     (safe-assert (= (set group-vars) (set declared-group-vars))
@@ -311,7 +299,7 @@ as well."
     (p/predicate p/generator nil
                  true
                  (apply merge (map :sourcemap sqs))
-                 ((w/exec buffer-op declared-group-vars :fn> buffer-out-vars) pipes num-vars)
+                 ((apply buffer-op args) pipes num-vars)
                  (concat declared-group-vars buffer-out-vars)
                  (apply merge (map :trapmap sqs)))))
 

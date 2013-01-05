@@ -32,19 +32,16 @@ public class ClojureParallelAgg implements ParallelAgg {
         _spec = spec;
     }
     
-    @Override
     public void prepare(FlowProcess flowProcess, OperationCall operationCall) {
         _spec.prepare();
         _initFn = _spec.getInit();
         _combinerFn = _spec.getCombiner();
     }
 
-    @Override
     public List<Object> init(List<Object> input) {
         return Util.coerceToList(_initFn.applyTo(RT.seq(input)));
     }
 
-    @Override
     public List<Object> combine(List<Object> val1, List<Object> val2) {
         return Util.coerceToList(_combinerFn.applyTo(Util.cat(RT.seq(val1), RT.seq(val2))));
     }

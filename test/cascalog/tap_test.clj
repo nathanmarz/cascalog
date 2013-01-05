@@ -6,7 +6,8 @@
             [cascalog.api :as api]
             [cascalog.workflow :as w])
   (:import [cascading.tuple Fields]
-           [cascading.tap Hfs Lfs GlobHfs TemplateTap Tap]))
+           [cascading.tap Tap]
+           [cascading.tap.hadoop Hfs Lfs GlobHfs TemplateTap]))
 
 (defn tap-source [tap]
   (if (map? tap)
@@ -57,7 +58,7 @@
 (fact "SinkMode testing."
   (hfs-test-sink) => (memfn isKeep)
   (hfs-test-sink :sinkmode :keep) => (memfn isKeep)
-  (hfs-test-sink :sinkmode :append) => (memfn isAppend)
+  (hfs-test-sink :sinkmode :update) => (memfn isUpdate)
   (hfs-test-sink :sinkmode :replace) => (memfn isReplace))
 
 (tabular

@@ -4,14 +4,14 @@
 
 language: clojure
 lein: lein2
-script: lein2 compile, midje
+script: lein2 do compile, midje
 branches:
   only:
-    - feature/cascading2
     - develop
     - master
+jdk:
+  - openjdk6
 notifications:
   email:
     - nathanmarz@gmail.com
     - sritchie09@gmail.com
-
