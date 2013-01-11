@@ -8,7 +8,7 @@
  (is (.startsWith (with-fs-tmp [_ foo]
                     foo)
                   "/tmp/cascalog_reserved/"))
- (is (.startsWith (api/with-job-conf {"cascalog.tmpdir"
+ (is (.startsWith (api/with-job-conf {tmp-dir-property
                                       ;; deliberately using lein's build directory
                                       "target/bar"}
                     (with-fs-tmp [_ foo]

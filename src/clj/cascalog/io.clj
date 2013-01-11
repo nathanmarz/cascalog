@@ -98,15 +98,18 @@ Raise an exception if any deletion fails unless silently is true."
    (for [t paths]
      (.delete fs (hadoop/path t) true))))
 
+(def ^{:doc "Use this variable as key in JobConf if you want to override the root of temporary paths. See with-fs-tmp"}
+  tmp-dir-property "cascalog.tmpdir")
+
 (defmacro with-fs-tmp
   "Generates unique, temporary path names as subfolders of <root>/cascalog_reserved.
 
   <root> by default will be '/tmp', but you can configure it via the JobConf property
-  'cascalog.tmpdir'."
+  `cascalog.io/tmp-dir-property`."
   [[fs-sym & tmp-syms] & body]
   (let [tmp-root (gensym "tmp-root")]
    `(let [~fs-sym (hadoop/filesystem)
-          ~tmp-root (str (get (conf/project-conf) "cascalog.tmpdir" "/tmp")
+          ~tmp-root (str (get (conf/project-conf) tmp-dir-property "/tmp")
                          "/cascalog_reserved")
           ~@(mapcat (fn [t]
                       [t `(str ~tmp-root "/" (u/uuid))])
