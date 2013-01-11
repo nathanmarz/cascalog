@@ -25,7 +25,7 @@
            [cascading.operation Identity Debug]
            [cascading.operation.aggregator First Count Sum Min Max]
            [cascading.pipe Pipe Each Every GroupBy CoGroup]
-           [cascading.pipe.joiner InnerJoin OuterJoin LeftJoin RightJoin MixedJoin]
+           [cascading.pipe.joiner InnerJoin]
            [com.twitter.maple.tap MemorySourceTap]
            [cascalog ClojureFilter ClojureMapcat ClojureMap
             ClojureAggregator Util ClojureBuffer ClojureBufferIter
@@ -72,6 +72,10 @@
   [pipes]
   (into-array Pipe pipes))
 
+(defn taps-array
+  [taps]
+  (into-array Tap taps))
+
 (defn- fields-obj? [obj]
   "Returns true for a Fields instance, a string, or an array of strings."
   (or
@@ -81,7 +85,7 @@
 
 (defn parse-args
   "arr => func-spec in-fields? :fn> func-fields :> out-fields
-  
+
   returns [in-fields func-fields spec out-fields]"
   ([arr] (parse-args arr Fields/RESULTS))
   ([[func-args & varargs] defaultout]
@@ -114,9 +118,9 @@
 
 (defn- as-pipes
   [pipe-or-pipes]
-  (let [pipes (if (instance? Pipe pipe-or-pipes)
-                [pipe-or-pipes] pipe-or-pipes)]
-    (into-array Pipe pipes)))
+  (pipes-array (if (instance? Pipe pipe-or-pipes)
+                 [pipe-or-pipes]
+                 pipe-or-pipes)))
 
 ;; with a :fn> defined, turns into a function
 (defn filter [& args]
@@ -194,9 +198,7 @@
 (defn select [keep-fields]
   (fn [previous]
     (debug-print "select" keep-fields)
-    (let [ret (Each. previous (fields keep-fields) (Identity.))]
-      ret
-      )))
+    (Each. previous (fields keep-fields) (Identity.))))
 
 (defn identity [& args]
   (fn [previous]
@@ -273,16 +275,10 @@
   [fields-seq declared-fields joiner]
   (fn [& pipes-seq]
     (debug-print "cogroup" fields-seq declared-fields joiner)
-    (CoGroup.
-  	  (pipes-array pipes-seq)
-  	  (fields-array fields-seq)
-  	  (fields declared-fields)
-  	  joiner)))
-
-(defn mixed-joiner [bool-seq]
-  (MixedJoin. (boolean-array bool-seq)))
-
-(defn outer-joiner [] (OuterJoin.))
+    (CoGroup. (pipes-array pipes-seq)
+              (fields-array fields-seq)
+              (fields declared-fields)
+              joiner)))
 
 (defn- update-arglists
   "Scans the forms of a def* operation and adds an appropriate
@@ -320,7 +316,7 @@
   * `fname`: the function var.
   * `f-args`: static variable declaration vector.
   * `args`: dynamic variable declaration vector."
-  [type [spec & args]]  
+  [type [spec & args]]
   (let [[fname f-args] (if (sequential? spec)
                          [(clojure.core/first spec) (second spec)]
                          [spec nil])
@@ -364,7 +360,7 @@
                  (apply ~type ~func-form ~args-sym)))
              ~(meta fname))))))
 
-(defmacro defmapop  
+(defmacro defmapop
   {:arglists '([name doc-string? attr-map? [fn-args*] body])}
   [& args]
   (defop-helper 'cascalog.workflow/map args))
@@ -418,6 +414,19 @@
           (let ~bindings
             ~return)))))
 
+(defn taps-map [pipes taps]
+  (Cascades/tapsMap (pipes-array pipes)
+                    (taps-array taps)))
+
+(defn flow-def
+  [flow-name sourcemap sinkmap trapmap tails]
+  (doto (FlowDef.)
+    (.setName flow-name)
+    (.addSources sourcemap)
+    (.addSinks sinkmap)
+    (.addTraps trapmap)
+    (.addTails (pipes-array tails))))
+
 (defmacro defassembly
   ([name args return]
      `(defassembly ~name ~args [] ~return))
@@ -431,21 +440,6 @@
 (defn inner-join [fields-seq declared-fields]
   (join-assembly fields-seq declared-fields (InnerJoin.)))
 
-(defn outer-join [fields-seq declared-fields]
-  (join-assembly fields-seq declared-fields (OuterJoin.)))
-
-(defn taps-map [pipes taps]
-  (Cascades/tapsMap (into-array Pipe pipes) (into-array Tap taps)))
-
-(defn flow-def
-  [flow-name sourcemap sinkmap trapmap tails]
-  (doto (FlowDef.)
-    (.setName flow-name)
-    (.addSources sourcemap)
-    (.addSinks sinkmap)
-    (.addTraps trapmap)
-    (.addTails (into-array Pipe tails))))
-
 (defn mk-flow [sources sinks assembly]
   (let [sources (collectify sources)
         sinks   (collectify sinks)
@@ -458,7 +452,7 @@
     (.connect (HadoopFlowConnector.)
               (taps-map source-pipes sources)
               (taps-map tail-pipes sinks)
-              (into-array Pipe tail-pipes))))
+              (pipes-array tail-pipes))))
 
 (defn text-line
   ([]

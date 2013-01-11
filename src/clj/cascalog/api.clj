@@ -180,12 +180,7 @@
         trapmap   (apply merge (map :trapmap gens))
         tails     (map rules/connect-to-sink gens sinks)
         sinkmap   (w/taps-map tails sinks)
-        flowdef   (-> (FlowDef.)
-                      (.setName flow-name)
-                      (.addSources sourcemap)
-                      (.addSinks sinkmap)
-                      (.addTraps trapmap)
-                      (.addTails (into-array Pipe tails)))]
+        flowdef   (w/flow-def flow-name sourcemap sinkmap trapmap tails)]
     (-> (HadoopFlowConnector.
          (u/project-merge (conf/project-conf)
                           {"cascading.flow.job.pollinginterval" 100}))
@@ -294,7 +289,7 @@ as well."
         sq-out-vars (map get-out-fields sqs)
         group-vars (apply set/intersection (map set sq-out-vars))
         num-vars (reduce + (map count sq-out-vars))
-        pipes (into-array Pipe (map :pipe sqs))
+        pipes (w/pipes-array (map :pipe sqs))
         args [declared-group-vars :fn> buffer-out-vars]
         args (if hof-args (cons hof-args args) args)]
     (safe-assert (seq declared-group-vars)

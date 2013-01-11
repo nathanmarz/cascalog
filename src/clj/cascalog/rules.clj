@@ -20,7 +20,7 @@
            [cascalog CombinerSpec ClojureCombiner ClojureCombinedAggregator Util
             ClojureParallelAgg]
            [org.apache.hadoop.mapred JobConf]
-           [jcascalog Predicate Subquery PredicateMacro ClojureOp]
+           [jcascalog Predicate Subquery PredicateMacro ClojureOp PredicateMacroTemplate]
            [java.util ArrayList]))
 
 ;; infields for a join are the names of the join fields
@@ -253,8 +253,8 @@
     (throw-illegal "Cannot specify a sort when there are no aggregators"))
   (if (and (not (:distinct options))
            (empty? aggs))
-    prev-tail  
-    (let [aggs (or (not-empty aggs) [p/distinct-aggregator])      
+    prev-tail
+    (let [aggs (or (not-empty aggs) [p/distinct-aggregator])
           [grouping-fields inserter] (normalize-grouping grouping-fields)
           [prep-aggs postgroup-aggs] (build-agg-assemblies grouping-fields aggs)
           assem        (apply w/compose-straight-assemblies
@@ -395,7 +395,9 @@
     (debug-print "build gen:" my-needed project-fields pred)
     (if (and forceproject (not= project-fields needed-vars))
       (throw-runtime (str "Only able to build to " project-fields
-                          " but need " needed-vars))
+                          " but need " needed-vars
+                          ". Missing " (vec (clojure.set/difference (set needed-vars)
+                                                                    (set project-fields)))))
       (merge newgen
              {:pipe ((mk-projection-assembly forceproject
                                              project-fields
@@ -572,7 +574,8 @@
     new-name))
 
 (defn- pred-macro-updater [[replacements ret] [op vars]]
-  (let [newvars (postwalk #(if (v/cascalog-var? %)
+  (let [vars (vec vars) ; in case it's a java data structure
+        newvars (postwalk #(if (v/cascalog-var? %)
                              (new-var-name! replacements %)
                              %)
                           vars)]
@@ -615,15 +618,18 @@
   (let [{invars :<< outvars :>>} (p/parse-variables vars :<)]
     (cond (var? p)
           [[(var-get p) vars]]
-      
+
           (instance? Subquery p)
           [[(.getCompiledSubquery p) vars]]
-        
+
           (instance? ClojureOp p)
           [(.toRawCascalogPredicate p vars)]
-        
+
           (instance? PredicateMacro p)
           (.getPredicates p (to-jcascalog-fields invars) (to-jcascalog-fields outvars))
+
+          (instance? PredicateMacroTemplate p)
+          [[(.getCompiledPredMacro p) vars]]
 
           :else
           ((:pred-fn p) invars outvars))))

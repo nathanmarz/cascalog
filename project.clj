@@ -1,17 +1,17 @@
 (def shared
   '[[org.clojure/tools.macro "0.1.1"]
-    [cascading/cascading-hadoop "2.0.0"
+    [cascading/cascading-hadoop "2.0.3"
      :exclusions [org.codehaus.janino/janino
                   org.apache.hadoop/hadoop-core]]
     [org.clojure/tools.macro "0.1.1"]
-    [cascading.kryo "0.4.0"]
-    [cascalog/carbonite "1.3.0"]
+    [cascading.kryo "0.4.5"]
+    [com.twitter/carbonite "1.3.1"]
     [log4j/log4j "1.2.16"]
     [hadoop-util "0.2.8"]
-    [com.twitter/maple "0.2.0"]
+    [com.twitter/maple "0.2.2"]
     [jackknife "0.1.2"]])
 
-(defproject cascalog/cascalog "1.9.1-SNAPSHOT"
+(defproject cascalog/cascalog "1.10.1-SNAPSHOT"
   :description "Hadoop without the Hassle."
   :url "http://www.cascalog.org"
   :license {:name "Eclipse Public License"
@@ -23,6 +23,7 @@
   :jvm-opts ["-Xmx768m" "-server" "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n"]
   :source-path "src/clj"
   :java-source-path "src/jvm"
+  :javac-options {:target "1.6" :source "1.6"}
   :source-paths ["src/clj"]
   :java-source-paths ["src/jvm"]
   :codox {:include [cascalog.vars cascalog.ops cascalog.io cascalog.api]}
