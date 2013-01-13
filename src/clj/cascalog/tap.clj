@@ -37,7 +37,7 @@
   opened up on the supplied path or file object. Supported keyword
   options are:
 
-  `:sinkmode` - can be `:keep`, `:append` or `:replace`.
+  `:sinkmode` - can be `:keep`, `:update` or `:replace`.
 
   `:sinkparts` - used to constrain the segmentation of output files.
 
@@ -48,8 +48,10 @@
   used as a sink.
 
   `:templatefields` - When pattern is supplied via :sink-template, this option allows a
-  subset of output fields to be used in the naming scheme."
-  [scheme path-or-file & {:keys [sinkmode sinkparts sink-template
+  subset of output fields to be used in the naming scheme.
+
+  See f.ex. the http://docs.cascading.org/cascading/2.0/javadoc/cascading/scheme/local/TextDelimited.html scheme."
+  [^cascading.scheme.Scheme scheme path-or-file & {:keys [sinkmode sinkparts sink-template
                                  source-pattern templatefields]
                           :or {templatefields Fields/ALL}}]
   (-> scheme
@@ -62,7 +64,7 @@
   opened up on the supplied path or file object. Supported keyword
   options are:
 
-  `:sinkmode` - can be `:keep`, `:append` or `:replace`.
+  `:sinkmode` - can be `:keep`, `:update` or `:replace`.
 
   `:sinkparts` - used to constrain the segmentation of output files.
 

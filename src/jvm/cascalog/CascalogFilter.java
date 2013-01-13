@@ -7,7 +7,6 @@ import cascading.operation.FilterCall;
 
 public abstract class CascalogFilter extends BaseOperation implements Filter {
 
-    @Override
     public boolean isRemove(FlowProcess process, FilterCall filterCall) {
         return !isKeep(process, filterCall);
     }

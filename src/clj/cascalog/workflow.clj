@@ -1,18 +1,3 @@
-;;    Copyright 2010 Nathan Marz
-;; 
-;;    This program is free software: you can redistribute it and/or modify
-;;    it under the terms of the GNU General Public License as published by
-;;    the Free Software Foundation, either version 3 of the License, or
-;;    (at your option) any later version.
-;; 
-;;    This program is distributed in the hope that it will be useful,
-;;    but WITHOUT ANY WARRANTY; without even the implied warranty of
-;;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-;;    GNU General Public License for more details.
-;; 
-;;    You should have received a copy of the GNU General Public License
-;;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 (ns cascalog.workflow
   (:refer-clojure
    :exclude [group-by count first filter mapcat map identity min max])
@@ -29,19 +14,23 @@
            [java.io File]
            [java.util ArrayList]
            [cascading.tuple Tuple TupleEntry Fields]
-           [cascading.scheme Scheme TextLine SequenceFile]
-           [cascading.tap Hfs Lfs GlobHfs Tap TemplateTap SinkMode]
+           [cascading.scheme.hadoop TextLine SequenceFile TextDelimited]
+           [cascading.scheme Scheme]
+           [cascading.tap Tap SinkMode]
+           [cascading.tap.hadoop Hfs Lfs GlobHfs TemplateTap]
            [cascading.tuple TupleEntryCollector]
-           [cascading.flow Flow FlowConnector]
+           [cascading.flow Flow  FlowDef]
+           [cascading.flow.hadoop HadoopFlowProcess HadoopFlowConnector]
            [cascading.cascade Cascades]
            [cascalog.ops KryoInsert]
            [cascading.operation Identity Debug]
            [cascading.operation.aggregator First Count Sum Min Max]
            [cascading.pipe Pipe Each Every GroupBy CoGroup]
-           [cascading.pipe.cogroup InnerJoin OuterJoin LeftJoin RightJoin MixedJoin]
+           [cascading.pipe.joiner InnerJoin]
+           [com.twitter.maple.tap MemorySourceTap]
            [cascalog ClojureFilter ClojureMapcat ClojureMap
             ClojureAggregator Util ClojureBuffer ClojureBufferIter
-            FastFirst MemorySourceTap MultiGroupBy ClojureMultibuffer]))
+            FastFirst MultiGroupBy ClojureMultibuffer]))
 
 (defn fields
   {:tag Fields}
@@ -50,7 +39,7 @@
     obj
     (let [obj (collectify obj)]
       (if (empty? obj)
-        Fields/ALL ; this is a hack since cascading doesn't support selecting no fields
+        Fields/ALL ; TODO: add Fields/NONE support
         (Fields. (into-array String obj))))))
 
 (defn fields-array
@@ -60,6 +49,10 @@
 (defn pipes-array
   [pipes]
   (into-array Pipe pipes))
+
+(defn taps-array
+  [taps]
+  (into-array Tap taps))
 
 (defn- fields-obj? [obj]
   "Returns true for a Fields instance, a string, or an array of strings."
@@ -98,9 +91,9 @@
 
 (defn- as-pipes
   [pipe-or-pipes]
-  (let [pipes (if (instance? Pipe pipe-or-pipes)
-                [pipe-or-pipes] pipe-or-pipes)]
-    (into-array Pipe pipes)))
+  (pipes-array (if (instance? Pipe pipe-or-pipes)
+                 [pipe-or-pipes]
+                 pipe-or-pipes)))
 
 ;; with a :fn> defined, turns into a function
 (defn filter [& args]
@@ -178,9 +171,7 @@
 (defn select [keep-fields]
   (fn [previous]
     (debug-print "select" keep-fields)
-    (let [ret (Each. previous (fields keep-fields) (Identity.))]
-      ret
-      )))
+    (Each. previous (fields keep-fields) (Identity.))))
 
 (defn identity [& args]
   (fn [previous]
@@ -257,16 +248,10 @@
   [fields-seq declared-fields joiner]
   (fn [& pipes-seq]
     (debug-print "cogroup" fields-seq declared-fields joiner)
-    (CoGroup.
-  	  (pipes-array pipes-seq)
-  	  (fields-array fields-seq)
-  	  (fields declared-fields)
-  	  joiner)))
-
-(defn mixed-joiner [bool-seq]
-  (MixedJoin. (boolean-array bool-seq)))
-
-(defn outer-joiner [] (OuterJoin.))
+    (CoGroup. (pipes-array pipes-seq)
+              (fields-array fields-seq)
+              (fields declared-fields)
+              joiner)))
 
 (defn ophelper [type builder afn]
   (u/merge-meta afn {::op-builder builder :pred-type type}))
@@ -346,6 +331,19 @@
           (let ~bindings
             ~return)))))
 
+(defn taps-map [pipes taps]
+  (Cascades/tapsMap (pipes-array pipes)
+                    (taps-array taps)))
+
+(defn flow-def
+  [flow-name sourcemap sinkmap trapmap tails]
+  (doto (FlowDef.)
+    (.setName flow-name)
+    (.addSources sourcemap)
+    (.addSinks sinkmap)
+    (.addTraps trapmap)
+    (.addTails (pipes-array tails))))
+
 (defmacro defassembly
   ([name args return]
      `(defassembly ~name ~args [] ~return))
@@ -359,12 +357,6 @@
 (defn inner-join [fields-seq declared-fields]
   (join-assembly fields-seq declared-fields (InnerJoin.)))
 
-(defn outer-join [fields-seq declared-fields]
-  (join-assembly fields-seq declared-fields (OuterJoin.)))
-
-(defn taps-map [pipes taps]
-  (Cascades/tapsMap (into-array Pipe pipes) (into-array Tap taps)))
-
 (defn mk-flow [sources sinks assembly]
   (let [sources (collectify sources)
         sinks   (collectify sinks)
@@ -374,10 +366,10 @@
         tail-pipes (clojure.core/map #(Pipe. (str "tpipe" %2) %1)
                                      (collectify (apply assembly source-pipes))
                                      (iterate inc 0))]
-    (.connect (FlowConnector.)
+    (.connect (HadoopFlowConnector.)
               (taps-map source-pipes sources)
               (taps-map tail-pipes sinks)
-              (into-array Pipe tail-pipes))))
+              (pipes-array tail-pipes))))
 
 (defn text-line
   ([]
@@ -402,13 +394,13 @@
   [x]
   (if (string? x) x (.getAbsolutePath ^File x)))
 
-(def valid-sinkmode? #{:keep :append :replace})
+(def valid-sinkmode? #{:keep :update :replace})
 
 (defn- sink-mode [kwd]
   {:pre [(or (nil? kwd) (valid-sinkmode? kwd))]}
   (case kwd
-    :keep SinkMode/KEEP
-    :append SinkMode/APPEND
+    :keep    SinkMode/KEEP
+    :update  SinkMode/UPDATE
     :replace SinkMode/REPLACE
     SinkMode/KEEP))
 
@@ -452,9 +444,11 @@ identity.  identity."
 (defn write-dot [^Flow flow ^String path]
   (.writeDOT flow path))
 
-(defn fill-tap! [^Tap tap xs] 
-  (with-open [^TupleEntryCollector collector (.openForWrite tap (hadoop/job-conf
-                                                                 (conf/project-conf)))]
+(defn fill-tap! [^Tap tap xs]
+  (with-open [^TupleEntryCollector collector
+              (-> (hadoop/job-conf (conf/project-conf))
+                  (HadoopFlowProcess.)
+                  (.openTapForWrite tap))]
     (doseq [item xs]
       (.add collector (Util/coerceToTuple item)))))
 

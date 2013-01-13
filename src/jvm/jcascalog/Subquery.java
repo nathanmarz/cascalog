@@ -1,22 +1,54 @@
 package jcascalog;
 
 import cascalog.Util;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 public class Subquery {
-    Object _compiled;
+    List<Predicate> _preds = new ArrayList<Predicate>();
+    Fields _outFields;
+    Predicate _currPred = null;
     
-    public Subquery(Fields outFields, Predicate... preds) {
-        this(outFields, Arrays.asList(preds));
+    public Subquery(String... fields) {
+        this(Arrays.asList(fields));
     }
-
-    public Subquery(Fields outFields, List<Predicate> preds) {
-        _compiled = Util.bootSimpleFn("cascalog.rules", "build-rule")
-                        .invoke(outFields, preds);
+    
+    public Subquery(List<String> fields) {
+        _outFields = new Fields((List) fields);
     }
     
     public Object getCompiledSubquery() {
-        return _compiled;
+        return Util.bootSimpleFn("cascalog.rules", "build-rule")
+                        .invoke(_outFields, _preds);
+    }
+    
+    public Subquery predicate(Object op, Object... fields) {
+        return predicate(op, Arrays.asList(fields));
+    }
+    
+    public Subquery predicate(Object op, List<Object> fields) {
+        _currPred = new Predicate(op, fields);
+        _preds.add(_currPred);
+        return this;
+    }
+    
+    public Subquery predicate(Predicate p) {
+        _preds.add(p);
+        return this;
+    }
+    
+    public Subquery out(Object... fields) {
+        return out(Arrays.asList(fields));
+    }
+    
+    public Subquery out(List<Object> fields) {
+        if(_currPred==null) {
+            throw new RuntimeException("Cannot declare outfields for no predicate");
+        } else {
+            _currPred._outFields = fields;
+            _currPred = null;
+            return this;
+        }
     }
 }

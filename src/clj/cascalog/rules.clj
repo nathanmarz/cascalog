@@ -1,18 +1,3 @@
-;;    Copyright 2010 Nathan Marz
-;; 
-;;    This program is free software: you can redistribute it and/or modify
-;;    it under the terms of the GNU General Public License as published by
-;;    the Free Software Foundation, either version 3 of the License, or
-;;    (at your option) any later version.
-;; 
-;;    This program is distributed in the hope that it will be useful,
-;;    but WITHOUT ANY WARRANTY; without even the implied warranty of
-;;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-;;    GNU General Public License for more details.
-;; 
-;;    You should have received a copy of the GNU General Public License
-;;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 (ns cascalog.rules
   (:use [cascalog.debug :only (debug-print)]
         [clojure.set :only (intersection union difference subset?)]
@@ -30,11 +15,12 @@
            [cascading.tuple Fields Tuple TupleEntry]
            [cascading.flow Flow FlowConnector]
            [cascading.pipe Pipe]
-           [cascading.pipe.cogroup CascalogJoiner CascalogJoiner$JoinType]
+           [cascading.flow.hadoop HadoopFlowProcess]
+           [cascading.pipe.joiner CascalogJoiner CascalogJoiner$JoinType]
            [cascalog CombinerSpec ClojureCombiner ClojureCombinedAggregator Util
-                     ClojureParallelAgg]
+            ClojureParallelAgg]
            [org.apache.hadoop.mapred JobConf]
-           [jcascalog Predicate Subquery PredicateMacro ClojureOp]
+           [jcascalog Predicate Subquery PredicateMacro ClojureOp PredicateMacroTemplate]
            [java.util ArrayList]))
 
 ;; infields for a join are the names of the join fields
@@ -93,7 +79,8 @@
 (defn- fixed-point-operations
   "Adds operations to tail until can't anymore. Returns new tail"
   [tail]
-  (if-let [op (s/find-first (partial op-allowed? tail) (:operations tail))]
+  (if-let [op (s/find-first (partial op-allowed? tail)
+                            (:operations tail))]
     (recur (add-op tail op))
     tail))
 
@@ -266,8 +253,8 @@
     (throw-illegal "Cannot specify a sort when there are no aggregators"))
   (if (and (not (:distinct options))
            (empty? aggs))
-    prev-tail  
-    (let [aggs (or (not-empty aggs) [p/distinct-aggregator])      
+    prev-tail
+    (let [aggs (or (not-empty aggs) [p/distinct-aggregator])
           [grouping-fields inserter] (normalize-grouping grouping-fields)
           [prep-aggs postgroup-aggs] (build-agg-assemblies grouping-fields aggs)
           assem        (apply w/compose-straight-assemblies
@@ -409,7 +396,9 @@
     (debug-print "build gen:" my-needed project-fields pred)
     (if (and forceproject (not= project-fields needed-vars))
       (throw-runtime (str "Only able to build to " project-fields
-                          " but need " needed-vars))
+                          " but need " needed-vars
+                          ". Missing " (vec (clojure.set/difference (set needed-vars)
+                                                                    (set project-fields)))))
       (merge newgen
              {:pipe ((mk-projection-assembly forceproject
                                              project-fields
@@ -418,7 +407,7 @@
               :outfields project-fields}))))
 
 (def DEFAULT-OPTIONS
-  {:distinct true
+  {:distinct false
    :sort nil
    :reverse false
    :trap nil})
@@ -555,8 +544,7 @@
                                                  (mapcat split-outvar-constants)
                                                  (map rewrite-predicate)
                                                  (mapcat split-outvar-constants)
-                                                 (uniquify-query-vars out-vars)
-                                                 )
+                                                 (uniquify-query-vars out-vars))
         [raw-opts raw-predicates] (s/separate #(keyword? (first %)) raw-predicates)
         options                   (mk-options (map p/mk-option-predicate raw-opts))
         [gens ops aggs]           (->> raw-predicates
@@ -585,7 +573,8 @@
     new-name))
 
 (defn- pred-macro-updater [[replacements ret] [op vars]]
-  (let [newvars (postwalk #(if (v/cascalog-var? %)
+  (let [vars (vec vars) ; in case it's a java data structure
+        newvars (postwalk #(if (v/cascalog-var? %)
                              (new-var-name! replacements %)
                              %)
                           vars)]
@@ -628,15 +617,18 @@
   (let [{invars :<< outvars :>>} (p/parse-variables vars :<)]
     (cond (var? p)
           [[(var-get p) vars]]
-      
+
           (instance? Subquery p)
           [[(.getCompiledSubquery p) vars]]
-        
+
           (instance? ClojureOp p)
           [(.toRawCascalogPredicate p vars)]
-        
+
           (instance? PredicateMacro p)
           (.getPredicates p (to-jcascalog-fields invars) (to-jcascalog-fields outvars))
+
+          (instance? PredicateMacroTemplate p)
+          [[(.getCompiledPredMacro p) vars]]
 
           :else
           ((:pred-fn p) invars outvars))))
@@ -665,8 +657,9 @@
 (defn mk-raw-predicate [[op-sym & vars]]
   [op-sym (v/vars->str vars)])
 
-(defn- pluck-tuple [tap]
-  (with-open [it (.openForRead tap (hadoop/job-conf (conf/project-conf)))]
+(defn pluck-tuple [tap]
+  (with-open [it (-> (HadoopFlowProcess. (hadoop/job-conf (conf/project-conf)))
+                     (.openTapForRead tap))]
     (if-let [iter (iterator-seq it)]
       (-> iter first .getTuple Tuple. Util/coerceFromTuple vec)
       (throw-illegal "Cascading tap is empty -- tap must contain tuples."))))
@@ -682,21 +675,25 @@ cascading tap, returns a new generator with field-names."
         (or (instance? Tap g)
             (vector? g)
             (list? g))
-        (let [pluck (if (instance? Tap g) pluck-tuple first)
-              vars  (v/gen-nullable-vars (count (pluck g)))]
-          (->> [[g :>> vars] [:distinct false]]
-               (map mk-raw-predicate)
-               (build-rule vars)))
+        (let [pluck (if (instance? Tap g) pluck-tuple, first)
+              size  (count (pluck g))
+              vars  (v/gen-nullable-vars size)]
+          (if (zero? size)
+            (throw-illegal
+             "Data structure is empty -- memory sources must contain tuples.")
+            (->> [[g :>> vars] [:distinct false]]
+                 (map mk-raw-predicate)
+                 (build-rule vars))))
         :else g))
 
+;; TODO: Why does this not use gen?
 (defn connect-to-sink [gen sink]
   ((w/pipe-rename (u/uuid)) (:pipe gen)))
 
 (defn normalize-gen [gen]
   (if (instance? Subquery gen)
     (.getCompiledSubquery gen)
-    gen
-    ))
+    gen))
 
 (defn combine* [gens distinct?]
   ;; it would be nice if cascalog supported Fields/UNKNOWN as output of generator
@@ -739,9 +736,15 @@ cascading tap, returns a new generator with field-names."
     ["" args]))
 
 (defn get-sink-tuples [^Tap sink]
-  (if (map? sink)
-    (get-sink-tuples (:sink sink))
-    (with-open [it (.openForRead sink (hadoop/job-conf (conf/project-conf)))]
-      (doall
-       (for [^TupleEntry t (iterator-seq it)]
-         (vec (Util/coerceFromTuple (Tuple. (.getTuple t)))))))))
+  (let [conf (hadoop/job-conf (conf/project-conf))]
+    (cond (map? sink)
+          (get-sink-tuples (:sink sink))
+
+          (not (.resourceExists sink conf))
+          []
+
+          :else (with-open [it (-> (HadoopFlowProcess. conf)
+                                   (.openTapForRead sink))]
+                  (doall
+                   (for [^TupleEntry t (iterator-seq it)]
+                     (into [] (Tuple. (.getTuple t)))))))))

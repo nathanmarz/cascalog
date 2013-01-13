@@ -1,7 +1,8 @@
 (ns cascalog.conf
   (:use [cascalog.util :only (project-merge)]
         [clojure.java.io :only (resource)])
-  (:require [jackknife.core :as u]))
+  (:require [jackknife.core :as u])
+  (:import [cascading.flow FlowProps]))
 
 (defn read-settings [x]
   (try (binding [*ns* (create-ns (gensym "settings"))]
@@ -21,7 +22,8 @@
 (def ^:dynamic *JOB-CONF* {})
 
 (defn project-conf []
-  (project-merge (project-settings)
+  (project-merge {FlowProps/DEFAULT_ELEMENT_COMPARATOR "cascalog.hadoop.DefaultComparator"}
+                 (project-settings)
                  *JOB-CONF*
                  {"io.serializations"
                   "cascalog.hadoop.ClojureKryoSerialization"}))
