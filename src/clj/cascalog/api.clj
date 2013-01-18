@@ -370,13 +370,6 @@ as well."
 
 ;; Miscellaneous helpers
 
-(defn div
-  "Perform floating point division on the arguments. Use this instead
-   of / in Cascalog queries since / produces Ratio types which aren't
-   serializable by Hadoop."
-  [f & rest]
-  (apply / (double f) rest))
-
 (defmacro with-debug
   "Wrap queries in this macro to cause debug information for the query
    planner to be printed out."

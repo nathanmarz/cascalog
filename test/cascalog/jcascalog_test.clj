@@ -34,7 +34,13 @@
                 (.predicate (RangeOp.) ["?v"]) (.out ["?v2"])
                 (.predicate (MultiplyAgg.) ["?v2"]) (.out ["?result"])
                 (.predicate (Count.) ["?count"])
-                ))))
+                ))
+    
+    (test?- [["a" 4.5] ["b" 6.0] ["c" 1.5]]
+            (-> (Subquery. ["?letter" "?sumhalf"])
+              (.predicate value ["?letter" "?v"])
+              (.predicate (Sum.) ["?v"]) (.out ["?sum"])
+              (.predicate (Div.) ["?sum" 2]) (.out ["?sumhalf"])))))
 
 (def my-avg
   (reify PredicateMacro
