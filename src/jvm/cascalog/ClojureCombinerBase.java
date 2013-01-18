@@ -26,9 +26,6 @@ import cascading.operation.FunctionCall;
 import cascading.operation.OperationCall;
 import cascading.tuple.Fields;
 import cascading.tuple.Tuple;
-import clojure.lang.IFn;
-import clojure.lang.ISeq;
-import clojure.lang.RT;
 import org.apache.hadoop.mapred.JobConf;
 
 import java.util.*;

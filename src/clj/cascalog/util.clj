@@ -146,6 +146,9 @@
                 (name k)
                 (str k)) v])))
 
+(defn merge-meta [val ameta]
+  (with-meta val (merge (meta val) ameta)))
+
 (defn try-parse-num [^String s]
   (try
     (Long/parseLong s)

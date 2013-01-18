@@ -23,13 +23,14 @@ import cascading.operation.Function;
 import cascading.operation.FunctionCall;
 import cascading.tuple.Fields;
 import cascading.tuple.TupleEntryCollector;
+import clojure.lang.IFn;
 import clojure.lang.ISeq;
 import clojure.lang.RT;
 
 public class ClojureMapcat extends ClojureCascadingBase implements Function {
 
-    public ClojureMapcat(Fields out_fields, Object[] fn_spec, boolean stateful) {
-        super(out_fields, fn_spec, stateful);
+    public ClojureMapcat(Fields fields, IFn fn) {
+        super(fields, fn);
     }
 
     public void operate(FlowProcess flow_process, FunctionCall fn_call) {

@@ -12,6 +12,7 @@
             [cascalog.rules :as rules]
             [cascalog.io :as io]
             [cascalog.util :as u]
+            [cascalog.inline :as inline]
             [hadoop-util.core :as hadoop])  
   (:import [cascading.flow Flow FlowDef]
            [cascading.flow.hadoop HadoopFlowConnector]
@@ -284,14 +285,11 @@ as well."
   (rules/combine* gens false))
 
 (defn multigroup*
-  [declared-group-vars buffer-out-vars buffer-spec & sqs]
-  (let [[buffer-op hof-args] (if (sequential? buffer-spec) buffer-spec [buffer-spec nil])
-        sq-out-vars (map get-out-fields sqs)
+  [declared-group-vars buffer-out-vars buffer-op & sqs]
+  (let [sq-out-vars (map get-out-fields sqs)
         group-vars (apply set/intersection (map set sq-out-vars))
         num-vars (reduce + (map count sq-out-vars))
-        pipes (w/pipes-array (map :pipe sqs))
-        args [declared-group-vars :fn> buffer-out-vars]
-        args (if hof-args (cons hof-args args) args)]
+        pipes (w/pipes-array (map :pipe sqs))]
     (safe-assert (seq declared-group-vars)
                  "Cannot do global grouping with multigroup")
     (safe-assert (= (set group-vars) (set declared-group-vars))
@@ -299,7 +297,7 @@ as well."
     (p/predicate p/generator nil
                  true
                  (apply merge (map :sourcemap sqs))
-                 ((apply buffer-op args) pipes num-vars)
+                 ((w/exec buffer-op declared-group-vars :fn> buffer-out-vars) pipes num-vars)
                  (concat declared-group-vars buffer-out-vars)
                  (apply merge (map :trapmap sqs)))))
 
@@ -349,6 +347,39 @@ as well."
 
 ;; Defining custom operations
 
+(defalias mapop* w/mapop*)
+
+(defalias mapcatop* w/mapcatop*)
+
+(defalias bufferop* w/bufferop*)
+          
+(defalias multibufferop* w/multibufferop*)
+          
+(defalias bufferiterop* w/bufferiterop*)
+          
+(defalias aggregateop* w/aggregateop*)
+
+(defalias filterop* w/filterop*)
+
+
+(defalias mapop w/mapop)
+
+(defalias mapcatop w/mapcatop)
+
+(defalias bufferop w/bufferop)
+          
+(defalias multibufferop w/multibufferop)
+          
+(defalias bufferiterop w/bufferiterop)
+          
+(defalias aggregateop w/aggregateop)
+          
+(defalias filterop w/filterop)
+
+(defmacro mapop> [& body] (inline/inlineop-builder `mapop body))   
+(defmacro mapcatop> [& body] (inline/inlineop-builder `mapcatop body))
+(defmacro filterop> [& body] (inline/inlineop-builder `filterop body))        
+
 (defalias defmapop w/defmapop
   "Defines a custom operation that appends new fields to the input tuple.")
 
@@ -366,7 +397,23 @@ as well."
 
 (defalias defparallelagg p/defparallelagg)
 
-(defalias defparallelbuf p/defparallelbuf)
+(defalias parallelbuf p/parallelbuf)
+
+(defalias prepmapop w/prepmapop)
+(defalias prepmapcatop w/prepmapcatop)
+(defalias prepfilterop w/prepfilterop)
+(defalias prepaggregateop  w/prepaggregateop)
+(defalias prepbufferop w/prepbufferop)
+(defalias prepbufferiterop w/prepbufferiterop)
+(defalias prepmultibufferop w/prepmultibufferop)
+
+(defalias defprepmapop w/defprepmapop)
+(defalias defprepmapcatop w/defprepmapcatop)
+(defalias defprepfilterop w/defprepfilterop)
+(defalias defprepaggregateop w/defprepaggregateop)
+(defalias defprepbufferop w/defprepbufferop)
+(defalias defprepbufferiterop w/defprepbufferiterop)
+(defalias defprepmultibufferop w/defprepmultibufferop)
 
 ;; Miscellaneous helpers
 

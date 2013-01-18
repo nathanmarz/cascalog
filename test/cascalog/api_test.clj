@@ -158,8 +158,8 @@
              (* 2 ?s :> ?s2))))
 
 (defaggregateop evens-vs-odds
-  "Decrements state for odd inputs, increases for even. Returns final
-   state as a 1-tuple."
+"Decrements state for odd inputs, increases for even. Returns final
+ state as a 1-tuple."
   ([] 0)
   ([context val] (if (odd? val)
                    (dec context)
@@ -396,43 +396,41 @@
              (age-tokens ?p ?a2 !!t)
              (nil? !!t))))
 
-(defmapop [hof-add [a]]
-  "Adds the static variable `a` to dynamic input `n`."
-  [n]
-  (+ a n))
+(defn hof-add [a]
+  (mapop [n] (+ a n)))
 
-(defmapop [hof-arithmetic [a b]] [n]
-  (+ b (* a n)))
+(defn hof-arithmetic [a b]
+  (mapop [n] (+ b (* a n))))
 
-;; TODO: stateful operations should return a map containing :init,
-;; :op, :finish
-(defbufferop [sum-plus [a]]
-  {:stateful true}
-  ([] (* 3 a))
-  ([state tuples] [(apply + state (map first tuples))])
-  ([state] nil))
+(defn sum-plus [a]
+  (prepbufferop [process opcall]
+    (let [state (* 3 a)]
+    (fn [tuples]
+      [(apply + state (map first tuples))]
+      ))))
 
 (deftest test-hof-ops
   (let [integer [[1] [2] [6]]]
     (test?<- [[4] [5] [9]]
              [?n]
              (integer ?v)
-             (hof-add 3 ?v :> ?n))
+             ((hof-add 3) ?v :> ?n))
 
     (test?<- [[-5] [-4] [0]]
              [?n]
              (integer ?v)
-             (hof-add [-6] ?v :> ?n))
+             ((hof-add -6) ?v :> ?n))
 
     (test?<- [[3] [5] [13]]
              [?n]
              (integer ?v)
-             (hof-arithmetic [2 1] ?v :> ?n))
+             ((hof-arithmetic 2 1) ?v :> ?n))
 
     (test?<- [[72]]
              [?n]
              (integer ?v)
-             (sum-plus [21] ?v :> ?n))))
+             ((sum-plus 21) ?v :> ?n))
+             ))
 
 (defn lala-appended [source]
   (let [outvars ["?a"]]
@@ -469,54 +467,54 @@
              [?n2]
              (pair _ ?n)
              (:sort ?n)
-             (c/limit [2] ?n :> ?n2))
+             ((c/limit 2) ?n :> ?n2))
 
     (test?<- [[1 1] [2 2] [3 3]
               [4 4] [1 5]]
              [?n2 ?r]
              (pair ?l ?n)
              (:sort ?l ?n)
-             (c/limit-rank [5] ?n :> ?n2 ?r))
+             ((c/limit-rank 5) ?n :> ?n2 ?r))
 
     (test?<- [["c" 0] ["b" 7]]
              [?l2 ?n2]
              (pair ?l ?n)
              (:sort ?l ?n)
              (:reverse true)
-             (c/limit [2] ?l ?n :> ?l2 ?n2))
+             ((c/limit 2) ?l ?n :> ?l2 ?n2))
 
     (test?<- [[0] [1] [1]]
              [?n2]
              (pair _ ?n)
              (:sort ?n)
-             (c/limit [3] ?n :> ?n2))
+             ((c/limit 3) ?n :> ?n2))
 
     (test?<- [[0 1] [1 2] [1 3]]
              [?n2 ?r]
              (pair _ ?n)
              (:sort ?n)
-             (c/limit-rank [3] ?n :> ?n2 ?r))
+             ((c/limit-rank 3) ?n :> ?n2 ?r))
 
     (test?<- [[6] [7]]
              [?n2]
              (pair _ ?n)
              (:sort ?n)
              (:reverse true)
-             (c/limit [2] ?n :> ?n2))
+             ((c/limit 2) ?n :> ?n2))
 
     (test?<- [[6 2] [7 1]]
              [?n2 ?r]
              (pair _ ?n)
              (:sort ?n)
              (:reverse true)
-             (c/limit-rank [2] ?n :> ?n2 ?r))
+             ((c/limit-rank 2) ?n :> ?n2 ?r))
 
     (test?<- [["a" 1] ["a" 2] ["b" 1]
               ["b" 6] ["c" 0]]
              [?l ?n2]
              (pair ?l ?n)
              (:sort ?n)
-             (c/limit [2] ?n :> ?n2))))
+             ((c/limit 2) ?n :> ?n2))))
 
 (deftest test-outer-join-anon
   (let [person  [["a"] ["b"] ["c"]]
@@ -693,8 +691,8 @@
    (* v2 v4)])
 
 (defparallelagg multipagg
-  :init-var #'multipagg-init
-  :combine-var #'multipagg-combiner)
+  :init multipagg-init
+  :combine multipagg-combiner)
 
 (defaggregateop slow-count
   ([] 0)
@@ -868,10 +866,9 @@
              (src ?thing)
              (multi-test ?thing :> ?result))))
 
-(defmapop [var-apply [v]]
-  "Applies the supplied var v to the supplied `xs`."
-  [& xs]
-  (apply v xs))
+(defn var-apply [v]
+  (mapop [& xs]
+    (apply v xs)))
 
 (deftest test-var-constants
   (let [coll-src [[[3 2 4 1]]
@@ -889,13 +886,13 @@
             [[1 2 2] [3 4 12]]
             (<- [?x ?y ?z]
                 (num-src ?x ?y)
-                (var-apply [#'*] ?x ?y :> ?z))
+                ((var-apply #'*) ?x ?y :> ?z))
 
             "Regexes are serializable w/ Kryo."
             [["a" "b"]]
             (<- [?a ?b]
                 ([["a\tb"]] ?s)
-                (c/re-parse [#"[^\s]+"] :< ?s :> ?a ?b)))))
+                ((c/re-parse #"[^\s]+") :< ?s :> ?a ?b)))))
 
 (def bob-set #{"bob"})
 

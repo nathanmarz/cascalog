@@ -21,6 +21,7 @@ package cascalog;
 import cascading.tuple.Fields;
 import cascalog.MultiGroupBy.MultiBuffer;
 import cascalog.MultiGroupBy.MultiBufferContext;
+import clojure.lang.IFn;
 import clojure.lang.ISeq;
 import clojure.lang.IteratorSeq;
 import clojure.lang.RT;
@@ -30,8 +31,8 @@ import java.util.List;
 
 public class ClojureMultibuffer extends ClojureCascadingBase implements MultiBuffer {
 
-    public ClojureMultibuffer(Fields out_fields, Object[] fn_spec, boolean stateful) {
-        super(out_fields, fn_spec, stateful);
+    public ClojureMultibuffer(Fields fields, IFn fn) {
+        super(fields, fn);
     }
 
     public void operate(MultiBufferContext context) {

@@ -1,6 +1,8 @@
 package jcascalog;
 
 import cascalog.Util;
+import clojure.lang.RT;
+import clojure.lang.Var;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -21,10 +23,13 @@ public class ClojureOp {
     
     public List<Object> toRawCascalogPredicate(List<Object> fieldsDeclaration) {
         List<Object> pred = new ArrayList<Object>();
-        pred.add(Util.getVar(_namespace, _name)); // the op
-        List<Object> hofAndFields = new ArrayList<Object>(fieldsDeclaration);
-        if(_hofArgs!=null) hofAndFields.add(0, _hofArgs);
-        pred.add(hofAndFields);
+        Var v = Util.getVar(_namespace, _name);
+        Object op = v;
+        if(_hofArgs!=null) {
+           op = v.applyTo(RT.seq(_hofArgs));
+        }
+        pred.add(op);
+        pred.add(fieldsDeclaration);
         return pred;
     }  
 }

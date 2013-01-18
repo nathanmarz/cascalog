@@ -9,10 +9,11 @@
     [log4j/log4j "1.2.16"]
     [hadoop-util "0.2.8"]
     [com.twitter/maple "0.2.2"]
+    [cascalog/serializable-fn "0.0.3-SNAPSHOT"]
     [jackknife "0.1.2"]])
 
-(defproject cascalog/cascalog "1.10.1-SNAPSHOT"
-  :description "Hadoop without the Hassle."
+(defproject cascalog/cascalog "2.0.0-SNAPSHOT"
+  :description "Data processing on Hadoop without the hassle."
   :url "http://www.cascalog.org"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}

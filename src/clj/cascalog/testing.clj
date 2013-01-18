@@ -132,7 +132,7 @@
                                    sink-specs
                                    (unique-rooted-paths sink-path))
                flow           (w/mk-flow sources sinks assembly)
-               _              (w/exec flow)
+               _              (.complete flow)
                out-tuples     (doall (map rules/get-sink-tuples sinks))
                expected-data  (map :tuples sink-specs)]
            (is (= (map u/multi-set expected-data)

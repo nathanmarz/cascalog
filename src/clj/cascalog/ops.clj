@@ -151,15 +151,13 @@
 
 ;; Operations to use within queries
 
-(defmapop [re-parse [pattern]]
-  "Accepts a regex `pattern` and a string argument `str` and returns
-  the groups within `str` that match the supplied `pattern`."
-  [str]
-  (re-seq pattern str))
+(defn re-parse [pattern]
+  (mapop [str]
+    (re-seq pattern str)))
 
 (defparallelagg count
-  :init-var #'impl/one
-  :combine-var #'+)
+  :init impl/one
+  :combine +)
 
 (def sum (each impl/sum-parallel))
 
@@ -169,17 +167,17 @@
 
 (def !count (each impl/!count-parallel))
 
-(defparallelbuf limit
-  :hof? true
-  :init-hof-var #'impl/limit-init
-  :combine-hof-var #'impl/limit-combine
-  :extract-hof-var #'impl/limit-extract
-  :num-intermediate-vars-fn (fn [infields outfields]
-                              (clojure.core/count infields))
-  :buffer-hof-var #'impl/limit-buffer)
+(defn limit [amt]
+  (parallelbuf
+    :init-hof (fn [options] (impl/limit-init options amt))
+    :combine-hof (fn [options] (impl/limit-combine options amt))
+    :extract-hof (fn [options] (impl/limit-extract options amt))
+    :num-intermediate-vars-fn (fn [infields outfields]
+                                (clojure.core/count infields))
+    :buffer-hof (fn [options] (impl/limit-buffer options amt))))
 
-(def limit-rank
-  (merge limit {:buffer-hof-var #'impl/limit-rank-buffer}))
+(defn limit-rank [amt]
+  (merge (limit amt) {:buffer-hof (fn [options] (impl/limit-rank-buffer options amt))}))
 
 (def ^{:doc "Predicate operation that produces the average value of the
   supplied input variable. For example:
@@ -212,7 +210,7 @@
   (<- [:<< ?invars :>> ?outvars]
       ((cascalog.ops.RandLong.) :<< ?invars :> ?rand)
       (:sort ?rand)
-      (limit [amt] :<< ?invars :>> ?outvars)))
+      ((limit amt) :<< ?invars :>> ?outvars)))
 
 ;; Common patterns
 
@@ -269,7 +267,7 @@
         (gen :>> in-vars)
         (:sort :<< sort-vars)
         (:reverse reverse)
-        (limit [n] :<< in-vars :>> out-vars))))
+        ((limit n) :<< in-vars :>> out-vars))))
 
 (defn fixed-sample
   "Returns a subquery getting a random sample of n elements from the generator"

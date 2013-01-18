@@ -23,14 +23,15 @@ import cascading.operation.Buffer;
 import cascading.operation.BufferCall;
 import cascading.tuple.Fields;
 import cascading.tuple.TupleEntryCollector;
+import clojure.lang.IFn;
 import clojure.lang.ISeq;
 import clojure.lang.IteratorSeq;
 import clojure.lang.RT;
 
 public class ClojureBuffer extends ClojureCascadingBase implements Buffer {
 
-    public ClojureBuffer(Fields out_fields, Object[] fn_spec, boolean stateful) {
-        super(out_fields, fn_spec, stateful);
+    public ClojureBuffer(Fields fields, IFn fn) {
+        super(fields, fn);
     }
 
     public void operate(FlowProcess flow_process, BufferCall buff_call) {

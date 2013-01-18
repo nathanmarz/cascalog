@@ -24,49 +24,53 @@ import cascading.operation.OperationCall;
 import cascading.tuple.Fields;
 import clojure.lang.IFn;
 import clojure.lang.ISeq;
+import clojure.lang.Keyword;
+import java.util.Map;
 
 public class ClojureCascadingBase extends BaseOperation {
-    private byte[] serialized_spec;
-    private Object[] fn_spec;
-
-    private boolean stateful;
-    private Object state;
+    private byte[] serialized_fn;
     private IFn fn;
+    private IFn cleanupFn;
 
-    public void initialize(Object[] fn_spec, boolean stateful) {
-        serialized_spec = KryoService.serialize(fn_spec);
-        this.stateful = stateful;
+    private void init(IFn fn) {
+        serialized_fn = Util.serializeFn(fn); 
+        // test to make sure it's deserializable
+        Util.deserializeFn(serialized_fn);
     }
-
-    public ClojureCascadingBase(Object[] fn_spec, boolean stateful) {
-        initialize(fn_spec, stateful);
+    
+    public ClojureCascadingBase(IFn fn) {
+        init(fn);
     }
-
-    public ClojureCascadingBase(Fields fields, Object[] fn_spec, boolean stateful) {
+    
+    public ClojureCascadingBase(Fields fields, IFn fn) {
         super(fields);
-        initialize(fn_spec, stateful);
+        init(fn);
     }
 
     @Override
-    public void prepare(FlowProcess flow_process, OperationCall op_call) {
-        this.fn_spec = (Object[]) KryoService.deserialize(serialized_spec);
-        this.fn = Util.bootFn(fn_spec);
-        if (stateful) {
-            try {
-                state = this.fn.invoke();
-            } catch (Exception e) {
-                throw new RuntimeException(e);
+    public void prepare(FlowProcess flowProcess, OperationCall opCall) {
+        IFn fn = Util.deserializeFn(serialized_fn);
+        Boolean isPrepared = (Boolean) Util.bootSimpleFn("cascalog.workflow", "prepared?").invoke(fn);  
+        
+        if(isPrepared.booleanValue()) {
+            Object res = fn.invoke(flowProcess, opCall);
+            if(res instanceof Map) {
+                Map resmap = (Map) res;
+                this.fn = (IFn) resmap.get(Keyword.intern("operate"));
+                this.cleanupFn = (IFn) resmap.get(Keyword.intern("cleanup"));
+            } else {
+                this.fn = (IFn) res;
+                this.cleanupFn = null;
             }
+        } else {
+            this.fn = fn;
+            this.cleanupFn = null;
         }
     }
 
     protected Object applyFunction(ISeq seq) {
         try {
-            if (stateful) {
-                return this.fn.applyTo(seq.cons(state));
-            } else {
-                return this.fn.applyTo(seq);
-            }
+            return this.fn.applyTo(seq);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -74,11 +78,7 @@ public class ClojureCascadingBase extends BaseOperation {
 
     protected Object invokeFunction(Object arg) {
         try {
-            if (stateful) {
-                return this.fn.invoke(state, arg);
-            } else {
-                return this.fn.invoke(arg);
-            }
+            return this.fn.invoke(arg);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -87,11 +87,7 @@ public class ClojureCascadingBase extends BaseOperation {
 
     protected Object invokeFunction() {
         try {
-            if (stateful) {
-                return this.fn.invoke(state);
-            } else {
-                return this.fn.invoke();
-            }
+            return this.fn.invoke();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -99,13 +95,9 @@ public class ClojureCascadingBase extends BaseOperation {
 
 
     @Override
-    public void cleanup(FlowProcess flowProcess, OperationCall op_call) {
-        if (stateful) {
-            try {
-                this.fn.invoke(state);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
+    public void cleanup(FlowProcess flowProcess, OperationCall opCall) {
+        if(cleanupFn!=null) {
+            cleanupFn.invoke();
         }
     }
 }

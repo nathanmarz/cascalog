@@ -18,13 +18,15 @@
   {:great-meta "yes!"}
   [x] x)
 
-(defmapop [ident-stateful [y]]
+(defn ident-stateful
   "Identity operation."
-  {:stateful true
-   :great-meta "yes!"}
-  ([] 3)
-  ([state x] (+ x y state))
-  ([state] nil))
+  {:great-meta "yes!"}
+  [y]
+  (prepmapop [process opcall]
+    (let [state 3]
+      (fn [x]
+        (+ x y state)
+        ))))
 
 (deftest defops-arg-parsing-test
   (let [src      [[1] [2]]
@@ -36,7 +38,7 @@
     (fact?<- [[5] [6]]
              [?y]
              (src ?x)
-             (ident-stateful [1] ?x :> ?y))
+             ((ident-stateful 1) ?x :> ?y))
     (tabular
      (fact
        "Each function will be applied to `mk-query` in turn; all of
@@ -50,12 +52,10 @@
      ident-both)))
 
 (facts "Metadata testing."
-  "Both function and var should contain custom metadata."
-  (meta ident-stateful) => (contains {:great-meta "yes!"})
+  "Var should contain custom metadata."
   (meta #'ident-stateful) => (contains {:great-meta "yes!"})
 
-  "Both function and var should contain docstrings."
-  (meta ident-doc) => (contains {:doc "Identity operation."})
+  "Var should contain docstring."
   (meta #'ident-doc) => (contains {:doc "Identity operation."})
 
   "ident-meta shouldn't have a docstring in its metadata."
@@ -65,19 +65,19 @@
 (defn five->two [a b c d e]
   [(+ a b c) (+ d e)])
 
-(defn four->one [a b c d]
-  (+ a b c d))
+(defn four->two [a b c d]
+  [(+ a c) (+ b d)])
 
 (defparallelagg multi-combine
-  :init-var #'five->two
-  :combine-var #'four->one)
+  :init five->two
+  :combine four->two)
 
 (deftest agg-test
   (fact "Test of aggregators with multiple arguments."
    (let [src [[1 2 3 4 5] [5 6 7 8 9]]]
      "init-var takes n args, outputs x. combine-var takes 2*x args,
      outputs x."
-     (fact?<- [[50]]
-              [?sum]
+     (fact?<- [[24 26]]
+              [?sum1 ?sum2]
               (src ?a ?b ?c ?d ?e)
-              (multi-combine ?a ?b ?c ?d ?e :> ?sum)))))
+              (multi-combine ?a ?b ?c ?d ?e :> ?sum1 ?sum2)))))

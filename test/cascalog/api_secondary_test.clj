@@ -256,9 +256,11 @@
 (defmultibufferop count-sum [seq1 seq2]
   [[(count seq1) (reduce + (map second seq2))]])
 
-(defmultibufferop [count-arg [arg]] [seq1 seq2 seq3]
-  [[(count seq1) (count seq2) (count seq3)]
-   [arg arg arg]])
+
+(defn count-arg [arg]
+  (multibufferop [seq1 seq2 seq3]
+    [[(count seq1) (count seq2) (count seq3)]
+     [arg arg arg]]))
 
 (deftest test-multigroup
   (let [val1 [["a" 1] ["b" 2] ["a" 10]]
@@ -275,7 +277,17 @@
     (test?- [["a" 2 2 0] ["a" 9 9 9]
              ["b" 1 1 2] ["b" 9 9 9]
              ["c" 0 0 2] ["c" 9 9 9]]
-            (multigroup [?key]
-                        [?v1 ?v2 ?v3]
-                        [count-arg [9]]
+            (multigroup [?key] [?v1 ?v2 ?v3] (count-arg 9)
                         gen1 gen1 gen2))))
+
+(deftest test-inline
+  (let [age [["alice jackson" 25] ["bob" 26] ["bill" 31]]]
+    (test?<- [["alice"] ["jackson"] ["bob"] ["bill"]]
+             [?word]
+             (age ?name _)
+             ((mapcatop> (.split ?name " ")) :> ?word))
+    (test?<- [["bill"]]
+             [?name]
+             (age ?name ?age)
+             ((filterop> (and (> ?age 30) (.startsWith ?name "b")))))
+    ))

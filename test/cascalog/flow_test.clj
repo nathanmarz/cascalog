@@ -8,17 +8,17 @@
   (let [source-data {:fields ["a" "b"] :tuples [[2 1] [11 10]]}
         sink-data {:fields ["b" "c"] :tuples [[1 3] [10 12]]}]
     (test-assembly source-data sink-data
-                   (w/map #'inc "a" :fn> "c" :> ["b" "c"]))))
-
+                   (w/map inc "a" :fn> "c" :> ["b" "c"]))))
+ 
 (w/defmapop add-double
   [v1 v2]
   (* 2 (+ v1 v2)))
 
-(w/defmapop stateful-add
-  {:stateful true}
-  ([] 10)
-  ([state val] (+ state val))
-  ([state] nil))
+(w/defprepmapop stateful-add [process opcall]
+  (let [state 10]
+    (fn [val]
+      (+ state val)
+      )))
 
 (deftest test-statefulmapop
   (let [source-data {:fields ["n"]
@@ -26,7 +26,7 @@
         sink-data {:fields ["v"]
                    :tuples [[11] [12] [13]]}]
     (test-assembly source-data sink-data
-                   (stateful-add "n" :fn> "v" :> "v"))))
+                   (w/exec stateful-add "n" :fn> "v" :> "v"))))
 
 (deftest test-map-op
   (let [source-data {:fields ["n1" "n2"]
@@ -34,9 +34,10 @@
         sink-data {:fields ["v"]
                    :tuples [[2] [-2] [24]]}]
     (test-assembly source-data sink-data
-                   (add-double ["n1" "n2"] :fn> "v" :> "v"))))
+                   (w/exec add-double ["n1" "n2"] :fn> "v" :> "v")
+                   )))
 
-(w/defmapcatop keeper-dropper ["a"] [v]
+(w/defmapcatop keeper-dropper [v]
   (cond (= v 1)  [v]
         (odd? v) []
         :else    [v (inc v)]))
@@ -47,7 +48,7 @@
         sink-data {:fields ["a"]
                    :tuples [[1] [2] [3] [4] [5]]}]
     (test-assembly source-data sink-data
-                   (keeper-dropper "n" :> "a"))))
+                   (w/exec keeper-dropper "n" :fn> "a" :> "a"))))
 
 (deftest test-filter-filter)
 
@@ -57,7 +58,7 @@
 
 (deftest test-higher-order-op)
 
-(w/defbufferop emit-odd ["e"] [vals]
+(w/defbufferop emit-odd [vals]
   (filter (comp odd? first) vals))
 
 (deftest test-buffer
@@ -70,7 +71,7 @@
                             ["b" 3] ["c" 7]]}]
     (test-assembly source-data sink-data
                    (w/assembly [p] (p (w/group-by "f1")
-                                      (emit-odd "f2" :fn> "q"))))))
+                                      (w/exec emit-odd "f2" :fn> "q"))))))
 
 (w/defaggregateop sum-even-2out
   ([] 0)
@@ -88,7 +89,7 @@
                             ["c" 8] ["c" 9]]}]
     (test-assembly source-data sink-data
                    (w/assembly [p] (p (w/group-by "f1")
-                                      (sum-even-2out "f2" :fn> "t"))))))
+                                      (w/exec sum-even-2out "f2" :fn> "t"))))))
 
 ;; need to rename pipes coming from same source
 

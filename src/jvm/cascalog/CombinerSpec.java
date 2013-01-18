@@ -18,20 +18,45 @@
 
 package cascalog;
 
+import clojure.lang.IFn;
 import java.io.Serializable;
 
 public class CombinerSpec implements Serializable {
-    public Object[] init_spec;
-    public Object[] combiner_spec;
-    public Object[] extractor_spec;
+    private IFn init;
+    private IFn combiner;
+    private IFn extractor = null;
+    
+    private byte[] init_spec_ser;
+    private byte[] combiner_spec_ser;
+    private byte[] extractor_spec_ser = null;
 
-    public CombinerSpec(Object[] init_spec, Object[] combiner_spec) {
+    public CombinerSpec(IFn init_spec, IFn combiner_spec) {
         this(init_spec, combiner_spec, null);
     }
 
-    public CombinerSpec(Object[] init_spec, Object[] combiner_spec, Object[] extractor_spec) {
-        this.init_spec = init_spec;
-        this.combiner_spec = combiner_spec;
-        this.extractor_spec = extractor_spec;
+    public CombinerSpec(IFn init_spec, IFn combiner_spec, IFn extractor_spec) {
+        this.init_spec_ser = Util.serializeFn(init_spec);
+        this.combiner_spec_ser = Util.serializeFn(combiner_spec);
+        if(extractor_spec !=null)
+            this.extractor_spec_ser = Util.serializeFn(extractor_spec);
+    }
+    
+    public void prepare() {
+        this.init = Util.deserializeFn(init_spec_ser);
+        this.combiner = Util.deserializeFn(combiner_spec_ser);
+        if(extractor_spec_ser!=null)
+            this.extractor = Util.deserializeFn(extractor_spec_ser);
+    }
+    
+    public IFn getInit() {
+        return init;
+    }
+
+    public IFn getCombiner() {
+        return combiner;
+    }
+    
+    public IFn getExtractor() {
+        return extractor;
     }
 }

@@ -23,6 +23,7 @@ import cascading.operation.Aggregator;
 import cascading.operation.AggregatorCall;
 import cascading.tuple.Fields;
 import cascading.tuple.TupleEntryCollector;
+import clojure.lang.IFn;
 import clojure.lang.ISeq;
 import clojure.lang.RT;
 
@@ -30,8 +31,8 @@ import java.util.Collection;
 
 public class ClojureAggregator extends ClojureCascadingBase implements Aggregator {
 
-    public ClojureAggregator(Fields out_fields, Object[] fn_spec, boolean stateful) {
-        super(out_fields, fn_spec, stateful);
+    public ClojureAggregator(Fields fields, IFn fn) {
+        super(fields, fn);
     }
 
     public void start(FlowProcess flow_process, AggregatorCall ag_call) {
