@@ -191,7 +191,7 @@
   (<- [!v :> !avg]
       (count !c)
       (sum !v :> !s)
-      (div !s !c :> !avg)))
+      (/ !s !c :> !avg)))
 
 (def ^{:doc "Predicate operation that produces a count of all distinct
   values of the supplied input variable. For example:
