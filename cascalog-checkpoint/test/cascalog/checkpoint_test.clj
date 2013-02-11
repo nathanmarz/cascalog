@@ -1,5 +1,6 @@
 (ns cascalog.checkpoint-test
-  (:use cascalog.checkpoint))
+  (:use cascalog.checkpoint
+        midje.sweet))
 
 (def sprint identity)
 
