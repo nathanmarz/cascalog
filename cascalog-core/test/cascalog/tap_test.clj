@@ -36,12 +36,12 @@
 (def lfs-test-sink (test-tap-builder lfs-tap tap-sink))
 
 (tabular
- (fact "api outfields testing."
+ (facts "api outfields testing."
    (-> (apply api/hfs-textline "path" ?opts)
        (tap-sink)
        (.getSinkFields)) => ?fields)
  ?fields                ?opts
- Fields/ALL             []
+ (w/fields Fields/ALL)  []
  (w/fields ["?a"])      [:outfields ["?a"]]
  (w/fields ["?a" "!b"]) [:outfields ["?a" "!b"]])
 
