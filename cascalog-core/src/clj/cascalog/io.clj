@@ -4,7 +4,8 @@
             [hadoop-util.core :as hadoop])
   (:import [java.io File PrintWriter]
            [java.util UUID]
-           [org.apache.log4j Logger Level]
+           [org.slf4j LoggerFactory]
+           [ch.qos.logback.classic Logger Level]
            [org.apache.hadoop.io BytesWritable]))
 
 ;; While a BytesWritable object wraps a byte array, not all of the
@@ -76,15 +77,16 @@ Raise an exception if any deletion fails unless silently is true."
       (io/file (.getAbsolutePath root) filename) lines)))
 
 (def log-levels
-  {:fatal Level/FATAL
+  {:error Level/ERROR
    :warn  Level/WARN
+   :all  Level/ALL
    :info  Level/INFO
    :debug Level/DEBUG
    :off   Level/OFF})
 
 (defmacro with-log-level [level & body]
   `(let [with-lev#  (log-levels ~level)
-         logger#    (Logger/getRootLogger)
+         logger#    (LoggerFactory/getLogger Logger/ROOT_LOGGER_NAME)
          prev-lev#  (.getLevel logger#)]
      (try
        (.setLevel logger# with-lev#)
