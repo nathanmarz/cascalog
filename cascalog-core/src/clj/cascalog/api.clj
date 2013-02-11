@@ -12,7 +12,7 @@
             [cascalog.rules :as rules]
             [cascalog.io :as io]
             [cascalog.util :as u]
-            [hadoop-util.core :as hadoop])  
+            [hadoop-util.core :as hadoop])
   (:import [cascading.flow Flow FlowDef]
            [cascading.flow.hadoop HadoopFlowConnector]
            [cascading.tuple Fields]
@@ -34,7 +34,7 @@
 
   Supports keyword option for `:outfields`. See `cascalog.tap/hfs-tap`
   for more keyword arguments.
-   
+
    See http://www.cascading.org/javadoc/cascading/tap/Hfs.html and
    http://www.cascading.org/javadoc/cascading/scheme/TextLine.html"
   [path & opts]
@@ -75,7 +75,7 @@
 
   Supports keyword option for `:outfields`. See `cascalog.tap/lfs-tap`
   for more keyword arguments.
-   
+
    See http://www.cascading.org/javadoc/cascading/tap/Lfs.html and
    http://www.cascading.org/javadoc/cascading/scheme/SequenceFile.html"
   [path & opts]
@@ -91,7 +91,7 @@
 ;; Query introspection
 
 (defmulti get-out-fields
-  "Get the fields of a generator."  
+  "Get the fields of a generator."
   rules/generator-selector)
 
 (defmethod get-out-fields :tap [tap]
@@ -140,7 +140,7 @@
   and unique with serializations currently specified by other calls to
   `with-serializations` or `with-job-conf`."
   [serial-vec & forms]
-  `(with-job-conf 
+  `(with-job-conf
      {"io.serializations" (u/serialization-entry ~serial-vec)}
      ~@forms))
 
@@ -165,7 +165,7 @@
 
   Syntax: (compile-flow sink1 query1 sink2 query2 ...)
   or (compile-flow flow-name sink1 query1 sink2 query2)
-   
+
    If the first argument is a string, that will be used as the name
   for the query and will show up in the JobTracker UI."
   [& args]
@@ -192,7 +192,7 @@
 
   Syntax: (?- sink1 query1 sink2 query2 ...)  or (?- query-name sink1
   query1 sink2 query2)
-   
+
    If the first argument is a string, that will be used as the name
   for the query and will show up in the JobTracker UI."
   [& bindings]
@@ -204,7 +204,7 @@
 (defn ??-
   "Executes one or more queries and returns a seq of seqs of tuples
    back, one for each subquery given.
-  
+
   Syntax: (??- query1 query2 ...) or (??- query-name query1 query2 ...)
 
   If the first argument is a string, that will be used as the name
@@ -220,7 +220,7 @@
 
 (defmacro ?<-
   "Helper that both defines and executes a query in a single call.
-  
+
   Syntax: (?<- out-tap out-vars & predicates) or (?<- \"myflow\"
   out-tap out-vars & predicates) ; flow name must be a static string
   within the ?<- form."
@@ -253,7 +253,7 @@
    create intermediate variables with gen-nullable-var(s). This is
    because unlike the (<- [?a :> ?b] ...) way of doing pred macros,
    Cascalog doesn't have a declaration for the inputs/outputs.
-   
+
    See https://github.com/nathanmarz/cascalog/wiki/Predicate-macros
   "
   [& body]
@@ -310,7 +310,7 @@ as well."
                 ~buffer-spec
                 ~@sqs))
 
-(defmulti select-fields 
+(defmulti select-fields
 "
   Select fields of a named generator.
 

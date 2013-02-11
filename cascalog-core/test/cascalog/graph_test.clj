@@ -2,8 +2,6 @@
   (:use cascalog.graph
         midje.sweet))
 
-(set! *print-level* 3)
-
 (defn just-nodevals [vals]
   (let [check (just vals :in-any-order)]
     (chatty-checker
