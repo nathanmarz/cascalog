@@ -15,7 +15,7 @@
                  [org.clojure/tools.macro "0.1.1"]
                  [log4j "1.2.16"]
                  [org.slf4j/slf4j-log4j12 "1.6.6"]
-                 [cascading/cascading-hadoop "2.0.6"
+                 [cascading/cascading-hadoop "2.0.8"
                   :exclusions [org.codehaus.janino/janino
                                org.apache.hadoop/hadoop-core]]
                  [cascading.kryo "0.4.6"]
