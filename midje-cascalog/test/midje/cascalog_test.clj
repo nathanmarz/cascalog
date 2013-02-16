@@ -6,6 +6,8 @@
         [clojure.math.combinatorics :only [permutations]])
   (:require [cascalog.ops :as c]))
 
+; TODO failing, update tests
+
 ;; ## Testing Battery
 
 (defn whoop [x] [[x]])

@@ -1,10 +1,10 @@
 (ns cascalog.checkpoint-test
   (:use cascalog.checkpoint
-        midje.sweet))
+        clojure.test))
 
 (def sprint identity)
 
-(defn run-test! []
+(deftest workflow-test
   (workflow ["/tmp/lalala"]
             aaa ([] (sprint "aaa")
                    (sprint "aaa")
