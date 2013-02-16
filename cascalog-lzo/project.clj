@@ -4,7 +4,7 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :repositories {"bird" "https://raw.github.com/kevinweil/elephant-bird/master/repo"
                  "conjars.org" "http://conjars.org/repo"}
-  :dependencies [[cascalog "1.10.1-SNAPSHOT"]
+  :dependencies [[cascalog/cascalog-core "1.10.1-SNAPSHOT"]
                  [cascalog/elephant-bird "2.2.3-SNAPSHOT"]
                  [hadoop-lzo "0.4.15"]]
   :exclusions [yamlbeans
