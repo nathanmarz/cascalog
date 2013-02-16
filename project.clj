@@ -11,7 +11,8 @@
   :plugins [[lein-sub "0.2.1"]
             [codox "0.6.4"]]
   :sub ["cascalog-core"
-        "cascalog-checkpoint"]
+        "cascalog-checkpoint"
+        "cascalog-more-taps"]
   :codox {:src-dir-uri "http://github.com/nathanmarz/cascalog/blob/master"
           :src-linenum-anchor-prefix "L"
           :sources ["cascalog-core/src"
