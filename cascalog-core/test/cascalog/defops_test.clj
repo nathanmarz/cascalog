@@ -49,17 +49,18 @@
      ident-meta
      ident-both)))
 
-(facts "Metadata testing."
-  "Both function and var should contain custom metadata."
-  (meta ident-stateful) => (contains {:great-meta "yes!"})
-  (meta #'ident-stateful) => (contains {:great-meta "yes!"})
+(deftest metadata-test
+  (facts "Metadata testing."
+    "Both function and var should contain custom metadata."
+    (meta ident-stateful) => (contains {:great-meta "yes!"})
+    (meta #'ident-stateful) => (contains {:great-meta "yes!"})
 
-  "Both function and var should contain docstrings."
-  (meta ident-doc) => (contains {:doc "Identity operation."})
-  (meta #'ident-doc) => (contains {:doc "Identity operation."})
+    "Both function and var should contain docstrings."
+    (meta ident-doc) => (contains {:doc "Identity operation."})
+    (meta #'ident-doc) => (contains {:doc "Identity operation."})
 
-  "ident-meta shouldn't have a docstring in its metadata."
-  (meta #'ident-meta) =not=> (contains {:doc anything}))
+    "ident-meta shouldn't have a docstring in its metadata."
+    (meta #'ident-meta) =not=> (contains {:doc anything}))) 
 
 
 (defn five->two [a b c d e]

@@ -1,5 +1,6 @@
 (ns cascalog.graph-test
   (:use cascalog.graph
+        clojure.test
         midje.sweet))
 
 (defn just-nodevals [vals]
@@ -8,7 +9,7 @@
      [n]
      (check (map get-value (get-outbound-nodes n))))))
 
-(fact "Test adding nodes and edges."
+(deftest nodes-edges-test
   (let [g (mk-graph)
         n1 (create-node g "AAA")
         n2 (create-node g "BBB")
@@ -24,9 +25,9 @@
       n1 => (just-nodevals ["BBB" "CCC"])
       n2 => (just-nodevals [])
       n3 => (just-nodevals ["DDD"])
-      n4 => (just-nodevals []))))
+      n4 => (just-nodevals [])))) 
 
-(fact "test extra data"
+(deftest extra-data-test
   (let [g  (mk-graph)
         n1 (create-node g "n1")
         n2 (create-node g "n2")
@@ -46,4 +47,4 @@
     (facts "More checks."
       (get-extra-data n2 :b) => 4
       (-> (first (get-outbound-edges n1))
-          (get-extra-data :a)) => 101)))
+          (get-extra-data :a)) => 101))) 
