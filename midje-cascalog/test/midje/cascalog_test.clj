@@ -7,8 +7,6 @@
         [clojure.math.combinatorics :only [permutations]])
   (:require [cascalog.ops :as c]))
 
-; TODO failing, update tests
-
 ;; ## Testing Battery
 
 (defn whoop [x] [[x]])
@@ -31,20 +29,19 @@
                       (fact (whoop :a) => 10)))
 
 ;; Similar to clojure.test's "are".
-(deftest tabular-test
-  (tabular
+(deftest tabular?-test
+  (tabular?-
     (fact?- ?res (apply ?func ?args))
     ?res    ?func    ?args
     [[3 5]] my-query [3 3 5]
     [[1]]   a-query  [[1]]))
 
 (deftest fact?<-test
-  (let [some-seq [[10]]]
-    "Use fact?<- to tests and define a function at the same time."
-    (fact?<- some-seq
-             [?a]
-             ((whoop :a) ?a)
-             (provided (whoop :a) => [[10]]))))
+  "Use fact?<- to tests and define a function at the same time."
+  (fact?<- [[10]]
+           [?a]
+           ((whoop :a) ?a)
+           (provided (whoop :a) => [[10]])))
 
 (deftest background-fact<-test
   (let [result-seq [[3 5]]]
@@ -85,7 +82,7 @@
            [[10 11]]
            [?a ?b]
            ((whoop) ?a ?b)
-           ((bang) ?b :> true)
+           ((bang) ?b)
            (against-background
              (whoop) => [[10 11] [12 13]]
              (bang)  => [[11]]))) 
@@ -98,11 +95,11 @@
     tests."
     (a-query [[10]]) => (produces [[10]])
     (<- [?a ?b]
-        ((bang .a. .b.) ?a ?b)
-        ((whoop .c.) ?b :> true)) => (produces [[10 11]])
+        ((whoop) ?a ?b)
+        ((bang) ?b :> true)) => (produces [[10 11]])
     (against-background
-      (bang .a. .b.) => [[10 11] [12 13]]
-      (whoop .c.)  => [[11]])) 
+      (whoop) => [[10 11] [12 13]]
+      (bang)  => [[11]])) 
   (let [some-seq [[10]]]
     (fact
       "use `produces` to check that the supplied query, when executed,
