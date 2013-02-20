@@ -125,3 +125,6 @@
 (defmirror incipient-facts)
 (defmirror antiterminologicaldisintactitudinarian-fact)
 (defmirror antiterminologicaldisintactitudinarian-facts)
+
+(defmacro tabular?- [fact-form & table]
+  `(midje.sweet/tabular ~(macroexpand-1 fact-form) ~@table))
