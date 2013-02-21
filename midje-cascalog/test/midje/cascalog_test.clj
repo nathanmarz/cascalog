@@ -34,6 +34,12 @@
     (fact?- ?res (apply ?func ?args))
     ?res    ?func    ?args
     [[3 5]] my-query [3 3 5]
+    [[1]]   a-query  [[1]])
+  (tabular
+    (fact
+      (apply ?func ?args) => (produces ?res)) 
+    ?res    ?func    ?args 
+    [[3 5]] my-query [3 3 5] 
     [[1]]   a-query  [[1]]))
 
 (deftest fact?<-test
