@@ -97,6 +97,7 @@
   (wrap-checker has))
 
 ;; ## Cascalog-Style Checkers
+;; ### DEPRECATED
 
 (defmacro defmirror
   {:private true}
@@ -105,11 +106,15 @@
         sym-a     (symbol (str alias "?-"))
         sym-b     (symbol (str alias "?<-"))]
     `(do (defmacro ~sym-a
-           {:arglists '([log-level? tupleseq-or-fn query & pairs])}
+           {:deprecated "1.10.1"
+            :doc "DEPRECATED. Use 'produces'."
+            :arglists '([log-level? tupleseq-or-fn query & pairs])}
            [& bindings#]
            (build-fact?- bindings# '~midje-sym))
          (defmacro ~sym-b
-           {:arglists '([log-level? tupleseq-or-fn result-vec & predicates])}
+           {:deprecated "1.10.1"
+            :doc "DEPRECATED. Use 'produces'."
+            :arglists '([log-level? tupleseq-or-fn result-vec & predicates])}
            [& args#]
            (build-fact?<- args# '~(symbol (str *ns*)
                                           (str sym-a))))
