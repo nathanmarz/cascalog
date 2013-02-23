@@ -104,7 +104,6 @@
  
 (defmacro cascalog-check [_ignored_just_here_for_error_output_]
   `(fn [actual#]
-     (prn actual# (data-laden-falsehood-hidden-from-midje? actual#) (meta actual#))
      (if (data-laden-falsehood-hidden-from-midje? actual#)
        (checking/as-data-laden-falsehood actual#)
        actual#)))
@@ -129,14 +128,14 @@
    ;=> (fact <results-of-query> => (just [[1]] :in-any-order)"
   [bindings factor]
   (let [[ll bindings] (pop-log-level bindings)]
-    `(~factor
-      ~@(loop [[x y & more :as forms] bindings, res []]
-          (cond (not x) res
-                (or (string? x)
-                    (mocking-form? x)) (recur (rest forms) (conj (vec res) x))
-                :else (->> (#'fact-line x y ll)
-                           (concat res)
-                           (recur more)))))))
+    `(~factor 
+           ~@(loop [[x y & more :as forms] bindings, res []]
+               (cond (not x) res
+                     (or (string? x)
+                         (mocking-form? x)) (recur (rest forms) (conj (vec res) x))
+                     :else (->> (#'fact-line x y ll)
+                                (concat res)
+                                (recur more)))))))
 
 (defn build-fact?<-
   "Similar to `build-fact?-`; args must contain a result sequence, a
