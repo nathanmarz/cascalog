@@ -17,7 +17,7 @@ The best way to get started with Cascalog is experiment with the toy datasets th
 1. Install [leiningen](http://github.com/technomancy/leiningen)
 2. Make sure you have Java 1.6 (run `java -version`)
 3. checkout the Cascalog project using Git
-4. `lein deps, compile, repl`
+4. `lein do deps, compile, repl`
 5. Work through the examples in the [introductory](http://nathanmarz.com/blog/introducing-cascalog-a-clojure-based-query-language-for-hado.html) [tutorials](http://nathanmarz.com/blog/new-cascalog-features-outer-joins-combiners-sorting-and-more.html)
 
 # Using Cascalog within a project
