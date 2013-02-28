@@ -1,11 +1,9 @@
 (ns cascalog.elephantdb.keyval
-  (:use cascalog.api)
+  (:use cascalog.api
+        cascalog.elephantdb.conf)
   (:require [cascalog.workflow :as w]
-            [cascalog.elephantdb.core :as core]
-            [elephantdb.common.config :as c])
-  (:import [elephantdb.index Indexer]
-           [elephantdb.cascading KeyValGateway]
-           [cascalog.elephantdb KeyValIndexer]
+            [cascalog.elephantdb.core :as core])
+  (:import [elephantdb.cascading KeyValGateway]
            [cascalog.ops IdentityBuffer]
            [org.apache.hadoop.conf Configuration]
            [elephantdb Utils]
@@ -43,43 +41,14 @@
         (:sort !sort-key)
         ((IdentityBuffer.) !keyraw !valueraw :> !key !value))))
 
-(defmulti kv-indexer
-  "Accepts a var OR a vector of a var and arguments. If this occurs,
-  the var will be applied to the other arguments before returning a
-  function. For example, given:
-
-  (defn make-adder [x]
-      (fn [y] (+ x y)))
-
-  Either of these are valid:
-
-  (kv-indexer [#'make-adder 1])
-  (kv-indexer #'inc)
-
-  The supplied function will receive
-
-     [KeyValPersistence, key, value]
-
-  as arguments."
-  type)
-
-(defmethod kv-indexer Indexer
-  [indexer] indexer)
-
-(defmethod kv-indexer :default
-  [spec]
-  (when spec
-    (KeyValIndexer. (w/fn-spec spec))))
-
 (defn keyval-tap
   "Returns a tap that can be used to source and sink key-value pairs
   to ElephantDB."
-  [root-path & {:keys [indexer] :as args}]
+  [root-path & {:keys [] :as args}]
   (let [args (merge {:gateway (KeyValGateway.)
                      :source-fields ["key" "value"]}
                     args
-                    {:sink-fn elephant<-
-                     :indexer (kv-indexer indexer)})]
+                    {:sink-fn elephant<-})]
     (apply core/elephant-tap
            root-path
            (apply concat args))))
@@ -90,7 +59,7 @@
   itself, pass the same path in for source and target.)"
   [source-dir target-dir shard-count]
   (let [fs (Utils/getFS source-dir (Configuration.))
-        spec (c/read-domain-spec fs source-dir)
+        spec (read-domain-spec fs source-dir)
         new-spec (assoc spec :num-shards shard-count)]
     (?- (keyval-tap target-dir :spec new-spec)
         (keyval-tap source-dir))))
