@@ -4,18 +4,19 @@
             [cascalog.vars :as v]
             [cascalog.workflow :as w])
   (:import [cascading.scheme.hadoop TextDelimited WritableSequenceFile]
+           cascading.scheme.hadoop.TextLine$Compress
            [cascading.tuple Fields]))
 
 (defn- delimited
-  [field-seq delim & {:keys [classes skip-header? quote]}]
-  (let [skip-header? (boolean skip-header?)
+  [field-seq delim & {:keys [classes skip-header? quote write-header? strict? safe?]}]
+  (let [to-bool       (fn [x] (when x (boolean x)))
+        [skip-header? write-header? strict? safe?] (map to-bool [skip-header? write-header? strict? safe?])
         field-seq    (w/fields field-seq)
         field-seq    (if (and classes (not (.isDefined field-seq)))
                        (w/fields (v/gen-nullable-vars (count classes)))
                        field-seq)]
-    (if classes
-      (TextDelimited. field-seq skip-header? delim quote (into-array classes))
-      (TextDelimited. field-seq skip-header? delim quote))))
+    (TextDelimited. field-seq TextLine$Compress/DEFAULT skip-header? write-header?
+                    delim strict? quote (when classes (into-array classes)) safe?)))
 
 (defn hfs-delimited
   "
