@@ -24,10 +24,9 @@
                  [jackknife "0.1.2"]
                  [hadoop-util "0.2.9"]]
   :profiles {:1.3 {:dependencies [[org.clojure/clojure "1.3.0"]]}
-             :1.5 {:dependencies [[org.clojure/clojure "1.5.0-RC1"]]}
+             :1.5 {:dependencies [[org.clojure/clojure "1.5.0"]]}
              :dev {:resource-paths ["dev"]
-                   :plugins [[lein-midje "3.0-alpha4"]]
+                   :plugins [[lein-midje "3.0-RC1"]]
                    :dependencies
-                   [[midje "1.5-alpha10"]
-                    [midje-cascalog "0.4.0" :exclusions [org.clojure/clojure]]]}
+                   [[cascalog/midje-cascalog "1.10.1-SNAPSHOT" :exclusions [org.clojure/clojure]]]}
              :provided {:dependencies [[org.apache.hadoop/hadoop-core "1.0.3"]]}})
