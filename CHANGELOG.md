@@ -1,3 +1,9 @@
+### 1.10.1
+* Upgrade to Cascading 2.0.8
+* Incorporate cascalog-contrib libraries
+* Midje 1.5, elephant-bird-cascading2 3.0.7, elephantdb 0.4.0-RC1
+* Kryo 2.17 (via `cascading.kryo`)
+
 ### 1.10.0
 
 * Upgraded Kryo to 2.16 (via `cascading.kryo` and `carbonite` upgrades)
