@@ -1,15 +1,52 @@
 (ns cascalog.elephantdb.keyval-test
   (:use cascalog.elephantdb.keyval
         cascalog.elephantdb.core
+        cascalog.elephantdb.conf
         cascalog.api
         clojure.test
         [midje sweet cascalog])
   (:require [hadoop-util.test :as test]
             [cascalog.ops :as c]
-            [cascalog.elephantdb.example :as e]
-            [elephantdb.common.config :as config])
+            [cascalog.elephantdb.example :as e])
   (:import [elephantdb.persistence JavaBerkDB]
            [elephantdb.partition HashModScheme]))
+
+;; ## Byte Array Testing
+
+(defn str->barr [str]
+  (.getBytes str "UTF-8"))
+
+(defn barr->str [^bytes bs]
+  (String. bs))
+
+(defn barr [& xs]
+  (when xs
+    (byte-array (map byte xs))))
+
+(defn barr=
+  ([x] true)
+  ([^bytes x ^bytes y] (java.util.Arrays/equals x y))
+  ([x y & more]
+     (if (barr= x y)
+       (if (next more)
+         (recur y (first more) (next more))
+         (barr= y (first more)))
+       false)))
+
+(defn count= [& colls]
+  (apply = (map count colls)))
+
+(defn barrs=
+  [& barr-seqs]
+  (and (apply count= barr-seqs)
+       (every? true? (apply map barr= barr-seqs))))
+
+(defn barrs-checker [expected-ds]
+  (chatty-checker [actual-ds]
+                  (barrs= (first expected-ds)
+                          (first actual-ds))))
+
+(def produces-barrs (wrap-checker barrs-checker))
 
 (defn mk-spec [num-shards]
   {:num-shards  num-shards
@@ -51,97 +88,19 @@
      (?- e-tap ?tuples)
 
      "Do we get the same tuples back out?"
-     e-tap => (produces ?tuples)))
+     e-tap => (produces-barrs ?tuples)))
  ?tuples
- [[1 2] [3 4]]
- [["key" "val"] ["ham" "burger"]])
-
-(facts
-  "When incremental is set to false, ElephantDB should generate a new
-   domain completely independent of the old domain."
-  (with-kv-tap [sink 4 :incremental false]
-    (let [data (vec {0 "zero"
-                     1 "one"
-                     2 "two"
-                     3 "three"
-                     4 "four"
-                     5 "five"
-                     6 "six"
-                     7 "seven"
-                     8 "eight"})
-          data2 (vec {0 "zero!!"
-                      10 "ten"})]
-      (fact "Populating the sink with `data` produces `data`."
-        (?- sink data)
-        sink => (produces data))
-
-      (fact "Sinking data2 on top of data should knock out all old
-      values, leaving only data2."
-        (?- sink data2)
-        sink => (produces data2)))))
-
-(facts
-  "Incremental defaults to `true`, bringing an updater into
-  play. For a key-value store, the default behavior on an incremental
-  update is for new kv-pairs to knock out existing kv-pairs."
-  (with-kv-tap [sink 2]
-    (let [data  (vec {0 "zero"
-                      1 "one"
-                      2 "two"})
-          data2 (vec {0 "ZERO!"
-                      3 "THREE!"})]
-      (fact "Populating the sink with `data` produces `data`."
-        (?- sink data)
-        sink => (produces data))
-
-      (fact "Sinking `data2` on top of `data` produces the same set
-        of tuples as merging two clojure maps"
-        (?- sink data2)
-        sink => (produces (vec-merge data data2))))))
-
-(tabular
- (fact
-   "Explicitly set an indexer to customize the incremental update
-  behavior. This test checks that the StringAppendIndexer merges by
-  appending the new value onto the old value instead of knocking out
-  the old value completely."
-   (with-kv-tap [sink 2 :indexer ?indexer]
-     (let [data   (vec {0 "zero"
-                        1 "one"
-                        2 "two"})
-           data2  (vec {0 "ZERO!"
-                        2 "TWO!"
-                        3 "THREE!"})
-           merged (vec {0 "zeroZERO!"
-                        1 "one"
-                        2 "twoTWO!"
-                        3 "THREE!"})]
-       (fact "Populating the sink with `data` produces `data`."
-         (?- sink data)
-         sink => (produces data))
-       
-       (fact "Sinking `data2` on top of `data` causes clashing values
-        to merge with a string-append."
-         (?- sink data2)
-         sink => (produces merged)
-
-         "Note that `merged` can be created with clojure's `merge-with`."
-         (merge-with str
-                     (into {} data)
-                     (into {} data2)) => (into {} merged)))))
- ?indexer
- (mk-indexer #'e/str-indexer)
- #'e/str-kv-indexer)
+ [[(.getBytes "key") (.getBytes "val")]])
 
 (defn spec-has [m]
   (chatty-checker
    [[fs path]]
-   ((contains m) (config/read-domain-spec fs path))))
+   ((contains m) (read-domain-spec fs path))))
 
-(fact "Resharding shouldn't affect the data at all."
+(future-fact "Resharding shouldn't affect the data at all."
   (test/with-fs-tmp [fs base-path tmp-a tmp-b]
     (let [tap   (keyval-tap base-path :spec (mk-spec 3))
-          pairs (vec {0 1, 1 2, 2 3, 3 0, 4 0, 5 1})]
+          pairs (vec {(barr 0) (barr 1), (barr 1) (barr 2), (barr 2) (barr 3), (barr 3) (barr 0), (barr 4) (barr 0), (barr 5) (barr 1)})]
 
       "Send the pairs into the initial tap."
       (?- tap pairs)
@@ -150,7 +109,7 @@
       [fs base-path] => (spec-has {:num-shards 3})
 
       "And the original path should produce pairs."
-      (keyval-tap base-path) => (produces pairs)
+      (keyval-tap base-path) => (produces-barrs pairs)
 
       "Reshard the domain into a single shard;"
       (reshard! base-path tmp-a 1)
@@ -159,9 +118,9 @@
       [fs tmp-a] => (spec-has {:num-shards 1})
 
       "while producing the same pairs."
-      (keyval-tap tmp-a) => (produces pairs)
+      (keyval-tap tmp-a) => (produces-barrs pairs)
 
       "One more iteration should work just fine."
       (reshard! tmp-a tmp-b 5)
       [fs tmp-b] => (spec-has {:num-shards 5})
-      (keyval-tap tmp-b) => (produces pairs))))
+      (keyval-tap tmp-b) => (produces-barrs pairs))))
