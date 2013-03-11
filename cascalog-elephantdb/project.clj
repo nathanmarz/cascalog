@@ -8,7 +8,7 @@
   :javac-options ["-source" "1.6" "-target" "1.6"]
   :jvm-opts ["-server" "-Xmx768m"]
   :dependencies [[elephantdb/elephantdb-cascading "0.3.5"]]
-  :plugins [[lein-midje "3.0-RC1"]]
+  :plugins [[lein-midje "3.0.0"]]
   :profiles {:1.3 {:dependencies [[org.clojure/clojure "1.3.0"]]}
              :1.5 {:dependencies [[org.clojure/clojure "1.5.0"]]}
              :provided {:dependencies [[cascalog/cascalog-core "1.10.1-SNAPSHOT"]]}
