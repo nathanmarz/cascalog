@@ -8,15 +8,21 @@
            [cascading.tuple Fields]))
 
 (defn- delimited
-  [field-seq delim & {:keys [classes skip-header? quote write-header? strict? safe?]}]
-  (let [to-bool       (fn [x] (when x (boolean x)))
-        [skip-header? write-header? strict? safe?] (map to-bool [skip-header? write-header? strict? safe?])
+  [field-seq delim & {:keys [classes skip-header? quote write-header? strict? safe?]
+                      :or {skip-header? false
+                           quote "\""
+                           write-header? false
+                           strict? true
+                           safe? true}}]
+  (let [[skip-header? write-header? strict? safe?] (map boolean [skip-header? write-header? strict? safe?])
         field-seq    (w/fields field-seq)
         field-seq    (if (and classes (not (.isDefined field-seq)))
                        (w/fields (v/gen-nullable-vars (count classes)))
                        field-seq)]
-    (TextDelimited. field-seq TextLine$Compress/DEFAULT skip-header? write-header?
-                    delim strict? quote (when classes (into-array classes)) safe?)))
+    (if classes
+      (TextDelimited. field-seq TextLine$Compress/DEFAULT skip-header? write-header?
+                      delim strict? quote (into-array classes) safe?)
+      (TextDelimited. field-seq skip-header? write-header? delim quote))))
 
 (defn hfs-delimited
   "
@@ -25,7 +31,8 @@
   prefixes for `path`.
 
   Supports TextDelimited keyword option for `:outfields`, `:classes`,
-  `:skip-header?`, `:delimiter`, and `:quote`.
+  `:skip-header?`, `:delimiter`, `:write-header?`, `:strict?`, `safe?`,
+  and `:quote`.
   See `cascalog.tap/hfs-tap` for more keyword arguments.
 
   See http://www.cascading.org/javadoc/cascading/tap/Hfs.html and
@@ -46,7 +53,8 @@
   using different prefixes for `path`.
 
   Supports TextDelimited keyword option for `:outfields`, `:classes`,
-  `:skip-header?`, `:delimiter`, and `:quote`.
+  `:skip-header?`, `:delimiter`, `:write-header?`, `:strict?`, `safe?`,
+  and `:quote`.
   See `cascalog.tap/hfs-tap` for more keyword arguments.
 
   See http://www.cascading.org/javadoc/cascading/tap/Hfs.html and
