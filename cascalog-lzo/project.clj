@@ -5,7 +5,7 @@
   :repositories {"conjars.org" "http://conjars.org/repo"}
   :dependencies [[com.twitter.elephantbird/elephant-bird-cascading2 "3.0.7" :exclusions [cascading/cascading-hadoop]]
                  [hadoop-lzo "0.4.15"]]
-  :plugins [[lein-midje "3.0-RC1"]]
+  :plugins [[lein-midje "3.0.0"]]
   :profiles {:1.3 {:dependencies [[org.clojure/clojure "1.3.0"]]}
              :1.5 {:dependencies [[org.clojure/clojure "1.5.0"]]}
              :provided {:dependencies [[cascalog/cascalog-core "1.10.1-SNAPSHOT"]
