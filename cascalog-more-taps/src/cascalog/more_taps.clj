@@ -9,11 +9,7 @@
 
 (defn- delimited
   [field-seq delim & {:keys [classes skip-header? quote write-header? strict? safe?]
-                      :or {skip-header? false
-                           quote "\""
-                           write-header? false
-                           strict? true
-                           safe? true}}]
+                      :or {quote "\"", strict? true, safe? true}}]
   (let [[skip-header? write-header? strict? safe?] (map boolean [skip-header? write-header? strict? safe?])
         field-seq    (w/fields field-seq)
         field-seq    (if (and classes (not (.isDefined field-seq)))
