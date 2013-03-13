@@ -9,7 +9,7 @@
   :dependencies [[cascalog/cascalog-core "1.10.1-SNAPSHOT"]
                  [cascalog/cascalog-checkpoint "1.10.1-SNAPSHOT"]
                  [cascalog/cascalog-more-taps "1.10.1-SNAPSHOT"]
-                 [cascalog/cascalog-checkpoint "1.10.1-SNAPSHOT"]
+                 [cascalog/cascalog-elephantdb "1.10.1-SNAPSHOT"]
                  [cascalog/cascalog-lzo "1.10.1-SNAPSHOT"]
                  [cascalog/cascalog-math "1.10.1-SNAPSHOT"]
                  [cascalog/midje-cascalog "1.10.1-SNAPSHOT"]]
