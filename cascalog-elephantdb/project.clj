@@ -14,5 +14,5 @@
              :dev {:dependencies
                    [[elephantdb/elephantdb-bdb "0.4.0-RC1"]
                     [midje "1.5.0"]
-                    [midje-cascalog "1.10.1-SNAPSHOT"]]
+                    [cascalog/midje-cascalog "1.10.1-SNAPSHOT"]]
                    :plugins [[lein-midje "3.0.0"]]}})
