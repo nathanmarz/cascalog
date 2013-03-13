@@ -4,18 +4,21 @@
             [cascalog.vars :as v]
             [cascalog.workflow :as w])
   (:import [cascading.scheme.hadoop TextDelimited WritableSequenceFile]
+           cascading.scheme.hadoop.TextLine$Compress
            [cascading.tuple Fields]))
 
 (defn- delimited
-  [field-seq delim & {:keys [classes skip-header? quote]}]
-  (let [skip-header? (boolean skip-header?)
+  [field-seq delim & {:keys [classes skip-header? quote write-header? strict? safe?]
+                      :or {quote "\"", strict? true, safe? true}}]
+  (let [[skip-header? write-header? strict? safe?] (map boolean [skip-header? write-header? strict? safe?])
         field-seq    (w/fields field-seq)
         field-seq    (if (and classes (not (.isDefined field-seq)))
                        (w/fields (v/gen-nullable-vars (count classes)))
                        field-seq)]
     (if classes
-      (TextDelimited. field-seq skip-header? delim quote (into-array classes))
-      (TextDelimited. field-seq skip-header? delim quote))))
+      (TextDelimited. field-seq TextLine$Compress/DEFAULT skip-header? write-header?
+                      delim strict? quote (into-array classes) safe?)
+      (TextDelimited. field-seq skip-header? write-header? delim quote))))
 
 (defn hfs-delimited
   "
@@ -24,7 +27,8 @@
   prefixes for `path`.
 
   Supports TextDelimited keyword option for `:outfields`, `:classes`,
-  `:skip-header?`, `:delimiter`, and `:quote`.
+  `:skip-header?`, `:delimiter`, `:write-header?`, `:strict?`, `safe?`,
+  and `:quote`.
   See `cascalog.tap/hfs-tap` for more keyword arguments.
 
   See http://www.cascading.org/javadoc/cascading/tap/Hfs.html and
@@ -45,7 +49,8 @@
   using different prefixes for `path`.
 
   Supports TextDelimited keyword option for `:outfields`, `:classes`,
-  `:skip-header?`, `:delimiter`, and `:quote`.
+  `:skip-header?`, `:delimiter`, `:write-header?`, `:strict?`, `safe?`,
+  and `:quote`.
   See `cascalog.tap/hfs-tap` for more keyword arguments.
 
   See http://www.cascading.org/javadoc/cascading/tap/Hfs.html and
