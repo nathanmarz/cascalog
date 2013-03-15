@@ -13,6 +13,11 @@
                                        [org.apache.hadoop/hadoop-core "1.0.3"]]}
              :dev {:dependencies
                    [[elephantdb/elephantdb-bdb "0.4.0-RC1"]
-                    [midje "1.5.0"]
+                    [org.apache.hadoop/hadoop-core "0.20.2"]
                     [cascalog/midje-cascalog "1.10.1-SNAPSHOT"]]
-                   :plugins [[lein-midje "3.0.0"]]}})
+                   :plugins [[lein-midje "3.0.0"]]}
+             :ci-dev {:dependencies
+                      [[elephantdb/elephantdb-bdb "0.4.0-RC1"]
+                       [org.apache.hadoop/hadoop-core "1.0.3"]
+                       [cascalog/midje-cascalog "1.10.1-SNAPSHOT"]]
+                      :plugins [[lein-midje "3.0.0"]]}})

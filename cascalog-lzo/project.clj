@@ -11,6 +11,7 @@
              :provided {:dependencies [[cascalog/cascalog-core "1.10.1-SNAPSHOT"]
                                        [org.apache.hadoop/hadoop-core "1.0.3"]
                                        [org.apache.httpcomponents/httpclient "4.2.3"]]}
-             :dev {:dependencies
-                   [[cascalog/midje-cascalog "1.10.1-SNAPSHOT"
-                     :exclusions [org.clojure/clojure]]]}})
+             :dev {:dependencies [[org.apache.hadoop/hadoop-core "0.20.2"]
+                                  [cascalog/midje-cascalog "1.10.1-SNAPSHOT"]]}
+             :ci-dev {:dependencies [[org.apache.hadoop/hadoop-core "1.0.3"]
+                                     [cascalog/midje-cascalog "1.10.1-SNAPSHOT"]]}})
