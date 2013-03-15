@@ -4,7 +4,7 @@
 
 language: clojure
 lein: lein2
-script: lein2 sub do test, midje
+script: lein2 sub with-profile ci-dev,provided test
 branches:
   only:
     - develop
@@ -15,3 +15,4 @@ notifications:
   email:
     - nathanmarz@gmail.com
     - sritchie09@gmail.com
+    - paul@quantisan.com

@@ -28,5 +28,8 @@
              :dev {:resource-paths ["dev"]
                    :plugins [[lein-midje "3.0.0"]]
                    :dependencies
-                   [[cascalog/midje-cascalog "1.10.1-SNAPSHOT" :exclusions [org.clojure/clojure]]]}
+                   [[cascalog/midje-cascalog "1.10.1-SNAPSHOT"]
+                    [org.apache.hadoop/hadoop-core "0.20.2"]]}
+             :ci-dev [:dev {:dependencies [[cascalog/midje-cascalog "1.10.1-SNAPSHOT"]
+                                           [org.apache.hadoop/hadoop-core "1.0.3"]]}]
              :provided {:dependencies [[org.apache.hadoop/hadoop-core "1.0.3"]]}})
