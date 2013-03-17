@@ -37,9 +37,9 @@
     [[1]]   a-query  [[1]])
   (tabular
     (fact
-      (apply ?func ?args) => (produces ?res)) 
-    ?res    ?func    ?args 
-    [[3 5]] my-query [3 3 5] 
+      (apply ?func ?args) => (produces ?res))
+    ?res    ?func    ?args
+    [[3 5]] my-query [3 3 5]
     [[1]]   a-query  [[1]]))
 
 (deftest fact?<-test
@@ -82,7 +82,7 @@
            [[10]]
            [?a]
            ((whoop) ?a)
-           (provided (whoop) => [[10]])) 
+           (provided (whoop) => [[10]]))
 (fact?<- "the provided and background clauses work at the end of
          fact?<- as well."
          [[10 11]]
@@ -91,7 +91,7 @@
          ((bang) ?b)
          (against-background
            (whoop) => [[10 11] [12 13]]
-           (bang)  => [[11]])) 
+           (bang)  => [[11]]))
 
 ;; ## Standard Checker Tests
 
@@ -101,8 +101,8 @@
     tests."
     (a-query [[10]]) => (produces [[10]])
     (<- [?a ?b]
-        ((whoop) ?a ?b)
-        ((bang) ?b :> true)) => (produces [[10 11]])
+        ([[10 11] [12 13]] ?a ?b)
+        ([[11]] ?b :> true)) => (produces [[10 11]])
     (against-background
       (whoop) => [[10 11] [12 13]]
       (bang)  => [[11]]))
@@ -112,7 +112,7 @@
       produces exactly the supplied set of tuples -- no more, no less --
       in any order."
       (<- [?a] ((whoop :a) ?a)) => (produces some-seq)
-      (provided (whoop :a) => [[10]])))) 
+      (provided (whoop :a) => [[10]]))))
 
 ;; The following facts demonstrate the power of midje-cascalog's
 ;; chatty checkers. Note that each of the forms (`produces`,
@@ -153,7 +153,7 @@
       query => (produces-prefix [[1 5] [3 10]])
 
       "`produce-suffix` mimics the `has-suffix` collection checker."
-      query => (produces-suffix [[5 11]])))) 
+      query => (produces-suffix [[5 11]]))))
 
 (defn- mk-query [src]
   (<- [?a] (src ?a)))
@@ -170,7 +170,7 @@
       "Internal calls to provide will override the background."
       (mk-query (whoop :a)) => (produces [["STRING!"]])
       (provided
-        (whoop :a) => [["STRING!"]])))) 
+        (whoop :a) => [["STRING!"]]))))
 
 (deftest log-level-test
   (doseq [?options (permutations [:in-order :no-gaps :info ])]
@@ -178,4 +178,4 @@
           regardless of location in options order"
       ((apply produces-some ..query.. ?options) ..query..) => true
       (provided
-        (execute ..query.. :log-level :info) => ..query..)))) 
+        (execute ..query.. :log-level :info) => ..query..))))
