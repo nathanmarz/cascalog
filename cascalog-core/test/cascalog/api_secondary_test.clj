@@ -158,12 +158,17 @@
 
 (deftest test-memory-returns
   (let [nums [[1] [2] [3]]
+        more-nums [[1 2] [4 5]]
         people [["alice"] ["bob"]]]
     (is (= (set [[1] [3]])
            (set (??<- [?num]
                       (nums ?num)
                       (odd? ?num)
                       (:distinct false)))))
+    (is (= (set [[1 2]])
+           (set (first (??- (<- [?a ?b]
+                         (nums ?b :> true)
+                         (more-nums ?a ?b)))))))
     (let [res (??- (<- [?val]
                        (nums ?num)
                        (inc ?num :> ?val)
