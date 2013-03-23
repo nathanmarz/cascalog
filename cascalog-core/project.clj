@@ -1,4 +1,4 @@
-(defproject cascalog/cascalog-core "1.10.1"
+(defproject cascalog/cascalog-core "1.10.2-SNAPSHOT"
   :description "Cascalog core libraries."
   :url "http://www.cascalog.org"
   :license {:name "Eclipse Public License"
