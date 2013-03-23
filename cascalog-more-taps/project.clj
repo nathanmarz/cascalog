@@ -5,7 +5,7 @@
   :repositories {"conjars.org" "http://conjars.org/repo"}
   :plugins [[lein-midje "3.0.0"]]
   :profiles {:1.3 {:dependencies [[org.clojure/clojure "1.3.0"]]}
-             :1.5 {:dependencies [[org.clojure/clojure "1.5.0"]]}
+             :1.4 {:dependencies [[org.clojure/clojure "1.4.0"]]}
              :provided {:dependencies [[cascalog/cascalog-core "1.10.1-SNAPSHOT"]]}
              :ci-dev {:dependencies [[org.apache.hadoop/hadoop-core "1.0.3"]
                                      [cascalog/midje-cascalog "1.10.1-SNAPSHOT"]]}

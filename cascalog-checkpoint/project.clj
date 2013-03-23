@@ -6,7 +6,7 @@
   :dependencies [[jackknife "0.1.2"]
                  [hadoop-util "0.2.8"]]
   :profiles {:1.3 {:dependencies [[org.clojure/clojure "1.3.0"]]}
-             :1.5 {:dependencies [[org.clojure/clojure "1.5.0"]]}
+             :1.4 {:dependencies [[org.clojure/clojure "1.4.0"]]}
              :provided {:dependencies [[cascalog/cascalog-core "1.10.1-SNAPSHOT"]]}
              :dev {:dependencies
                    [[org.apache.hadoop/hadoop-core "0.20.2"]]}

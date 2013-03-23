@@ -11,7 +11,7 @@
   :java-source-paths ["src/java"]
   :repositories {"conjars" "http://conjars.org/repo/"}
   :exclusions [log4j/log4j org.slf4j/slf4j-log4j12]
-  :dependencies [[org.clojure/clojure "1.4.0"]
+  :dependencies [[org.clojure/clojure "1.5.1"]
                  [org.clojure/tools.macro "0.1.1"]
                  [log4j "1.2.16"]
                  [org.slf4j/slf4j-log4j12 "1.6.6"]
@@ -24,12 +24,11 @@
                  [jackknife "0.1.2"]
                  [hadoop-util "0.2.9"]]
   :profiles {:1.3 {:dependencies [[org.clojure/clojure "1.3.0"]]}
-             :1.5 {:dependencies [[org.clojure/clojure "1.5.0"]]}
+             :1.4 {:dependencies [[org.clojure/clojure "1.4.0"]]}
              :dev {:resource-paths ["dev"]
                    :plugins [[lein-midje "3.0.0"]]
                    :dependencies
                    [[cascalog/midje-cascalog "1.10.1-SNAPSHOT"]
                     [org.apache.hadoop/hadoop-core "0.20.2"]]}
              :ci-dev [:dev {:dependencies [[cascalog/midje-cascalog "1.10.1-SNAPSHOT"]
-                                           [org.apache.hadoop/hadoop-core "1.0.3"]]}]
-             :provided {:dependencies [[org.apache.hadoop/hadoop-core "1.0.3"]]}})
+                                           [org.apache.hadoop/hadoop-core "1.0.3"]]}]})
