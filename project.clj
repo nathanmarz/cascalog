@@ -1,4 +1,4 @@
-(defproject cascalog "1.10.1-SNAPSHOT"
+(defproject cascalog "1.10.1"
   :description "Hadoop without the Hassle."
   :url "http://www.cascalog.org"
   :license {:name "Eclipse Public License"
@@ -7,12 +7,12 @@
                  :archive "https://groups.google.com/d/forum/cascalog-user"
                  :post "cascalog-user@googlegroups.com"}
   :profiles {:build {:dependencies
-                     [[cascalog/cascalog-core "1.10.1-SNAPSHOT"]
-                      [cascalog/cascalog-checkpoint "1.10.1-SNAPSHOT"]
-                      [cascalog/cascalog-more-taps "1.10.1-SNAPSHOT"]
-                      [cascalog/cascalog-elephantdb "1.10.1-SNAPSHOT"]
-                      [cascalog/cascalog-math "1.10.1-SNAPSHOT"]
-                      [cascalog/midje-cascalog "1.10.1-SNAPSHOT"]]}}
+                     [[cascalog/cascalog-core "1.10.1"]
+                      [cascalog/cascalog-checkpoint "1.10.1"]
+                      [cascalog/cascalog-more-taps "1.10.1"]
+                      [cascalog/cascalog-elephantdb "1.10.1"]
+                      [cascalog/cascalog-math "1.10.1"]
+                      [cascalog/midje-cascalog "1.10.1"]]}}
   :plugins [[lein-sub "0.2.1"]
             [codox "0.6.4"]]
   :sub ["cascalog-core"

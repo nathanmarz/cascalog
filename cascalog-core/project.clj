@@ -1,4 +1,4 @@
-(defproject cascalog/cascalog-core "1.10.1-SNAPSHOT"
+(defproject cascalog/cascalog-core "1.10.1"
   :description "Cascalog core libraries."
   :url "http://www.cascalog.org"
   :license {:name "Eclipse Public License"
@@ -28,7 +28,7 @@
              :dev {:resource-paths ["dev"]
                    :plugins [[lein-midje "3.0.0"]]
                    :dependencies
-                   [[cascalog/midje-cascalog "1.10.1-SNAPSHOT"]
+                   [[cascalog/midje-cascalog "1.10.1"]
                     [org.apache.hadoop/hadoop-core "0.20.2"]]}
-             :ci-dev [:dev {:dependencies [[cascalog/midje-cascalog "1.10.1-SNAPSHOT"]
+             :ci-dev [:dev {:dependencies [[cascalog/midje-cascalog "1.10.1"]
                                            [org.apache.hadoop/hadoop-core "1.0.3"]]}]})
