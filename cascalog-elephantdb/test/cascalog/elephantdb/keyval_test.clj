@@ -77,50 +77,52 @@
                             ~@opts)]
        ~@body)))
 
-(tabular
- (fact
-   "Tuples sunk into an ElephantDB tap and read back out should
+(deftest test-tuple-in-out
+  (tabular
+   (fact
+    "Tuples sunk into an ElephantDB tap and read back out should
     match. (A map acts as a sequence of 2-tuples, perfect for
     ElephantDB key-val tests.)"
-   (with-kv-tap [e-tap 4]
+    (with-kv-tap [e-tap 4]
 
-     "Execute tuples into the keyval-tap"
-     (?- e-tap ?tuples)
+      "Execute tuples into the keyval-tap"
+      (?- e-tap ?tuples)
 
-     "Do we get the same tuples back out?"
-     e-tap => (produces-barrs ?tuples)))
- ?tuples
- [[(.getBytes "key") (.getBytes "val")]])
+      "Do we get the same tuples back out?"
+      e-tap => (produces-barrs ?tuples)))
+   ?tuples
+   [[(.getBytes "key") (.getBytes "val")]]))
 
 (defn spec-has [m]
   (chatty-checker
    [[fs path]]
    ((contains m) (read-domain-spec fs path))))
 
-(future-fact "Resharding shouldn't affect the data at all."
-  (test/with-fs-tmp [fs base-path tmp-a tmp-b]
-    (let [tap   (keyval-tap base-path :spec (mk-spec 3))
-          pairs (vec {(barr 0) (barr 1), (barr 1) (barr 2), (barr 2) (barr 3), (barr 3) (barr 0), (barr 4) (barr 0), (barr 5) (barr 1)})]
+(deftest test-resharding
+  (future-fact "Resharding shouldn't affect the data at all."
+               (test/with-fs-tmp [fs base-path tmp-a tmp-b]
+                 (let [tap   (keyval-tap base-path :spec (mk-spec 3))
+                       pairs (vec {(barr 0) (barr 1), (barr 1) (barr 2), (barr 2) (barr 3), (barr 3) (barr 0), (barr 4) (barr 0), (barr 5) (barr 1)})]
+                   
+                   "Send the pairs into the initial tap."
+                   (?- tap pairs)
+                   
+                   "The spec should have the proper number of shards,"
+                   [fs base-path] => (spec-has {:num-shards 3})
 
-      "Send the pairs into the initial tap."
-      (?- tap pairs)
+                   "And the original path should produce pairs."
+                   (keyval-tap base-path) => (produces-barrs pairs)
 
-      "The spec should have the proper number of shards,"
-      [fs base-path] => (spec-has {:num-shards 3})
+                   "Reshard the domain into a single shard;"
+                   (reshard! base-path tmp-a 1)
 
-      "And the original path should produce pairs."
-      (keyval-tap base-path) => (produces-barrs pairs)
+                   "the spec at tmp-a should now have only 1 shard,"
+                   [fs tmp-a] => (spec-has {:num-shards 1})
 
-      "Reshard the domain into a single shard;"
-      (reshard! base-path tmp-a 1)
+                   "while producing the same pairs."
+                   (keyval-tap tmp-a) => (produces-barrs pairs)
 
-      "the spec at tmp-a should now have only 1 shard,"
-      [fs tmp-a] => (spec-has {:num-shards 1})
-
-      "while producing the same pairs."
-      (keyval-tap tmp-a) => (produces-barrs pairs)
-
-      "One more iteration should work just fine."
-      (reshard! tmp-a tmp-b 5)
-      [fs tmp-b] => (spec-has {:num-shards 5})
-      (keyval-tap tmp-b) => (produces-barrs pairs))))
+                   "One more iteration should work just fine."
+                   (reshard! tmp-a tmp-b 5)
+                   [fs tmp-b] => (spec-has {:num-shards 5})
+                   (keyval-tap tmp-b) => (produces-barrs pairs)))))
