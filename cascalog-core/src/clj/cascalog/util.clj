@@ -166,7 +166,7 @@
        (map ns-map)
        (mapcat identity)
        (map second)
-       (filter #(and (var? %) (= (var-get %) val)))
+       (filter #(and (var? %) (identical? (var-get %) val))) ;; using identical? for issue #117
        (filter (complement recent-eval?))
        (sort-by (fn [v] (if (-> v meta :dynamic) 1 0)))
        first ))
