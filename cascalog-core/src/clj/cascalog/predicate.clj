@@ -180,7 +180,7 @@
 
 (defn- init-trap-map [options]
   (if-let [trap (:trap options)]
-    (loop [tap (:tap trap)]  
+    (loop [tap (:tap trap)]
       (if (map? tap)
         (recur (:sink tap))
         {(:name trap) tap}))

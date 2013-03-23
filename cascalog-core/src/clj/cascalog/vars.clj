@@ -38,7 +38,7 @@
     (?<- (hfs-textline out-path)
          var-seq
          (in :>> var-seq)))
-"  
+"
   [amt]
   (vec (take amt (repeatedly gen-non-nullable-var))))
 
@@ -50,25 +50,25 @@
 
 (def cascalog-keyword? #{:> :< :<< :>> :fn> :#> :?})
 
-(defn cascalog-var? 
+(defn cascalog-var?
 "
   A predicate on 'obj' to check is it a cascalog variable.
-"  
+"
   [obj]
   (if (or (symbol? obj) (string? obj))
     (let [obj (extract-varname obj)]
       ((complement nil?) (some #(.startsWith obj %) ["?" "!" "!!"])))
     false))
 
-(defn uniquify-var 
-  "Return a modified variable name which is unique."  
+(defn uniquify-var
+  "Return a modified variable name which is unique."
   [v]
   (str v (gen-unique-suffix)))
 
-(defn non-nullable-var? 
+(defn non-nullable-var?
 "
   ? vars that is non-nullable
-"  
+"
   [sym-or-str]
   (try (.startsWith (extract-varname sym-or-str) "?")
        (catch Exception e nil)))

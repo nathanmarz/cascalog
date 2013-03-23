@@ -128,7 +128,6 @@
   (->> (map resolve-collections vals)
        (apply merge-serialization-strings)))
 
-
 (defn conf-merge [& ms]
   (->> ms
        (map #(update-vals % (fn [_ v] (resolve-collections v))))
@@ -157,7 +156,7 @@
         ^String name (-> m :name str)]
     (and (= "clojure.core" (:ns m))
          (.startsWith name "*")
-         (try-parse-num (.substring name 1))         
+         (try-parse-num (.substring name 1))
          )))
 
 (defn search-for-var [val]

@@ -10,7 +10,7 @@
 (defn mk-cascalog-tap
   "Defines a cascalog tap which can be used to add additional
   abstraction over cascading taps.
-  
+
    'source' can be a cascading tap, subquery, or a cascalog tap.
    'sink' can be a cascading tap, sink function, or a cascalog tap."
   [source sink]
@@ -76,7 +76,7 @@
 
   `:templatefields` - When pattern is supplied via :sink-template, this option allows a
   subset of output fields to be used in the naming scheme."
-  
+
   [scheme path-or-file & {:keys [sinkmode sinkparts sink-template
                                  source-pattern templatefields]
                           :or {templatefields Fields/ALL}}]

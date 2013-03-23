@@ -135,7 +135,7 @@
   (require '[cascalog.ops :as c])
   (defmapop plus [x y] (+ x y))
 
-  The following two forms are equivalent: 
+  The following two forms are equivalent:
 
   (let [plus-10 (c/partial plus 10)]
      (<- [?y] (src ?x) (plus-10 ?x :> ?y)))
@@ -207,7 +207,7 @@
   (<- [:<< !invars :> !c]
       (:sort :<< !invars)
       (impl/distinct-count-agg :<< !invars :> !c)))
-      
+
 (defn fixed-sample-agg [amt]
   (<- [:<< ?invars :>> ?outvars]
       ((cascalog.ops.RandLong.) :<< ?invars :> ?rand)
@@ -248,7 +248,7 @@
   :reverse -- If true, sorts items in reverse order. (false by default).
 
   For example:
- 
+
   (def src [[1] [3] [2]]) ;; produces 3 tuples
 
   ;; produces ([1 2] [3 4] [2 3]) when executed
