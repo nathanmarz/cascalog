@@ -1,5 +1,5 @@
 ### 1.10.1
-* Upgrade to Cascading 2.0.8
+* Upgrade to Cascading 2.0.8, Clojure 1.5.1
 * Incorporate cascalog-contrib libraries
 * Midje 1.5, elephant-bird-cascading2 3.0.7, elephantdb 0.4.0-RC1
 * Kryo 2.17 (via `cascading.kryo`)
