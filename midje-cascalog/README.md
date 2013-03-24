@@ -2,18 +2,18 @@
 
 Midje-Cascalog is a thin layer over [midje](https://github.com/marick/Midje) that makes it easy and fun to test [Cascalog](https://github.com/nathanmarz/cascalog) queries! Scroll down for an in-depth example.
 
-[Testing Cascalog with Midje](http://sritchie.github.com/2011/09/30/testing-cascalog-with-midje.html) gives a long discussion on various midje-cascalog idioms.
+[Cascalog Testing 2.0](http://sritchie.github.com/2012/01/22/cascalog-testing-20.html) gives a long discussion on various midje-cascalog idioms.
 
 ## Usage Instructions
 
 To use midje-cascalog in your own project, add the following two entries to `:dev-dependencies` inside  of your `project.cj` file:
 
-    [lein-midje "1.0.7"]
-    [midje-cascalog "0.4.0"]
+    [lein-midje "3.0.1"]
+    [cascalog/midje-cascalog "1.10.1"]
 
-Midje-Cascalog supports Clojure 1.2 and 1.3 and Cascalog 1.8 and 1.9. Add `(:use [midje sweet cascalog])` to your testing namespace to get started.
+Midje-Cascalog supports Clojure 1.3+ and Cascalog 1.8+. Add `(:use [midje sweet cascalog])` to your testing namespace to get started.
 
-When you're all finished writing tests, `lein run` at the command line will run all Midje tests and generate a summary.
+When you're all finished writing tests, `lein midje` at the command line will run all Midje tests and generate a summary.
 
 ## Example Query Test
 
@@ -39,28 +39,18 @@ At a high level, the subquery returned by =max-followers-query= is responsible f
 
 A correct test of `max-followers-query` will test this piece of logic in isolation.
 
-    (fact?- "Query should return a single tuple containing
-            [most-popular-user, follower-count]."
-            [["richhickey" 2961]]
-            (max-followers-query :path)
-            (provided
-              (complex-subquery :path) => [["sritchie09" 180]
-                                           ["richhickey" 2961]]))
+```clj
+    (fact "Query should return a single tuple containing
+           [most-popular-user, follower-count]."
+          (max-followers-query :path) => (produces [["richhickey" 2961]])
+          (provided
+            (complex-subquery :path) => [["sritchie09" 180]
+                                         ["richhickey" 2961]]))
+```
 
 Midje circumvents all extra complexity by mocking out the result of `(complex-subquery datastore-path)` and forcing it to return a specific Clojure sequence of `[?user ?follower-count]` tuples.
 
-The following form is a Midje test, or "fact":
-
-
-    (fact?- "Query should return a single tuple containing
-            [most-popular-user, follower-count]."
-            [["richhickey" 2961]]
-            (max-followers-query :path)
-            (provided
-              (complex-subquery :path) => [["sritchie09" 180]
-                                           ["richhickey" 2961]]))
-
-Facts make statements about queries. The fact passes if these statements are true and fails otherwise. The above fact states that
+`produces` checks result from queries. The fact passes if these statements are true and fails otherwise. The above fact states that
 
 * when `max-followers-query` is called with the argument `:path`,
 * it will produce `[[ richhickey" 2961]]`,
