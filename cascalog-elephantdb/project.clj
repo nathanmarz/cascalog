@@ -2,7 +2,6 @@
   :description "ElephantDB Integration for Cascalog."
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
-  :min-lein-version "2.0.0"
   :source-paths ["src/clj"]
   :javac-options ["-source" "1.6" "-target" "1.6"]
   :jvm-opts ["-server" "-Xmx1024m"]
