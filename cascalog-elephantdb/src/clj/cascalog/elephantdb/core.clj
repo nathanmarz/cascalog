@@ -3,7 +3,7 @@
         [cascalog.elephantdb conf])
   (:require [cascalog.workflow :as w])
   (:import [elephantdb Utils]
-           [elephantdb.cascading ElephantDBTap]
+           [elephantdb.cascading ElephantDBTap ElephantDBTap$TapMode]
            [org.apache.hadoop.conf Configuration]))
 
 (defn elephant-tap
@@ -11,9 +11,10 @@
   (let [args (convert-args args)
         spec (when spec
                (convert-clj-domain-spec spec))
-        tap  (ElephantDBTap. root-path spec args)]
-    (cascalog-tap tap
+        source-tap (ElephantDBTap. root-path spec args ElephantDBTap$TapMode/SOURCE)
+        sink-tap (ElephantDBTap. root-path spec args ElephantDBTap$TapMode/SINK)]
+    (cascalog-tap source-tap
                   (if sink-fn
                     (fn [tuple-src]
-                      [tap (sink-fn tap tuple-src)])
-                    tap))))
+                      [sink-tap (sink-fn sink-tap tuple-src)])
+                    sink-tap))))
