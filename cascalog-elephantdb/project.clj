@@ -4,7 +4,7 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :source-paths ["src/clj"]
   :javac-options ["-source" "1.6" "-target" "1.6"]
-  :jvm-opts ["-server" "-Xmx1024m"]
+  :jvm-opts ["-server" "-Xmx768m"]
   :dependencies [[elephantdb/elephantdb-cascading "0.4.0-RC1"]]
   :profiles {:1.3 {:dependencies [[org.clojure/clojure "1.3.0"]]}
              :1.4 {:dependencies [[org.clojure/clojure "1.4.0"]]}
