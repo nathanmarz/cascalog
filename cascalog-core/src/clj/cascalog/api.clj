@@ -186,6 +186,23 @@
                           {"cascading.flow.job.pollinginterval" 100}))
         (.connect flowdef))))
 
+(defn explain
+  "Explains a query (by outputting a DOT file).
+
+  outfile  - String location for DOT file output.
+  sink-tap - Sink tap for query. Shows on query explanation. Defaults to stdout if omitted.
+  query    - Query to be explained.
+
+  Syntax: (explain outfile query)  or (explain outfile sink query)
+
+  Ex: (explain \"outfile.dot\" (<- [?a ?b] ([[1 2]] ?a ?b)))
+  "
+  ([^String outfile query]
+     (explain outfile (stdout) query))
+  ([^String outfile sink-tap query]
+      (let [^Flow flow (compile-flow sink-tap query)]
+        (w/write-dot flow outfile))))
+
 (defn ?-
   "Executes 1 or more queries and emits the results of each query to
   the associated tap.
