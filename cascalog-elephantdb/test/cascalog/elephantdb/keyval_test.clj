@@ -6,8 +6,7 @@
         clojure.test
         [midje sweet cascalog])
   (:require [hadoop-util.test :as test]
-            [cascalog.ops :as c]
-            [cascalog.elephantdb.example :as e])
+            [cascalog.ops :as c])
   (:import [elephantdb.persistence JavaBerkDB]
            [elephantdb.partition HashModScheme]))
 
@@ -41,12 +40,28 @@
   (and (apply count= barr-seqs)
        (every? true? (apply map barr= barr-seqs))))
 
-(defn barrs-checker [expected-ds]
-  (chatty-checker [actual-ds]
-                  (barrs= (first expected-ds)
-                          (first actual-ds))))
+(defn barrs-checker [expected]
+  (chatty-checker [actual]
+                  (barrs= expected
+                          actual)))
 
 (def produces-barrs (wrap-checker barrs-checker))
+
+(defmapop strs->barrs [& strs]
+  (map str->barr strs))
+
+(defmapop barrs->strs [& bs]
+  (map barr->str bs))
+
+(defn serialize-str [tap]
+  (<- [!k !v]
+      (tap !ks !vs)
+      (strs->barrs !ks !vs :> !k !v)))
+
+(defn deserialize-str [tap]
+  (<- [!ks !vs]
+      (tap !k !v)
+      (barrs->strs !k !v :> !ks !vs)))
 
 (defn mk-spec [num-shards]
   {:num-shards  num-shards
@@ -86,12 +101,12 @@
     (with-kv-tap [e-tap 4]
 
       "Execute tuples into the keyval-tap"
-      (?- e-tap ?tuples)
+      (?- e-tap (serialize-str ?tuples))
 
       "Do we get the same tuples back out?"
-      e-tap => (produces-barrs ?tuples)))
+      (deserialize-str e-tap) => (produces ?tuples)))
    ?tuples
-   [[(.getBytes "key") (.getBytes "val")]]))
+   [["key" "val"]]))
 
 (defn spec-has [m]
   (chatty-checker
@@ -99,19 +114,19 @@
    ((contains m) (read-domain-spec fs path))))
 
 (deftest test-resharding
-  (future-fact "Resharding shouldn't affect the data at all."
+  (fact "Resharding shouldn't affect the data at all."
                (test/with-fs-tmp [fs base-path tmp-a tmp-b]
                  (let [tap   (keyval-tap base-path :spec (mk-spec 3))
-                       pairs (vec {(barr 0) (barr 1), (barr 1) (barr 2), (barr 2) (barr 3), (barr 3) (barr 0), (barr 4) (barr 0), (barr 5) (barr 1)})]
+                       pairs (vec {"foo" "bar", "hot" "dog", "biggie" "tupac", "snoop" "dogg", "grumpy" "cat", "ping" "pong"})]
                    
                    "Send the pairs into the initial tap."
-                   (?- tap pairs)
+                   (?- tap (serialize-str pairs))
                    
                    "The spec should have the proper number of shards,"
                    [fs base-path] => (spec-has {:num-shards 3})
 
                    "And the original path should produce pairs."
-                   (keyval-tap base-path) => (produces-barrs pairs)
+                   (deserialize-str (keyval-tap base-path)) => (produces pairs)
 
                    "Reshard the domain into a single shard;"
                    (reshard! base-path tmp-a 1)
@@ -120,9 +135,9 @@
                    [fs tmp-a] => (spec-has {:num-shards 1})
 
                    "while producing the same pairs."
-                   (keyval-tap tmp-a) => (produces-barrs pairs)
+                   (deserialize-str (keyval-tap tmp-a)) => (produces pairs)
 
                    "One more iteration should work just fine."
                    (reshard! tmp-a tmp-b 5)
                    [fs tmp-b] => (spec-has {:num-shards 5})
-                   (keyval-tap tmp-b) => (produces-barrs pairs)))))
+                   (deserialize-str (keyval-tap tmp-b)) => (produces pairs)))))

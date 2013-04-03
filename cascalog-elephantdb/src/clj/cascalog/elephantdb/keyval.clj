@@ -3,8 +3,7 @@
         cascalog.elephantdb.conf)
   (:require [cascalog.workflow :as w]
             [cascalog.elephantdb.core :as core])
-  (:import [elephantdb.cascading KeyValGateway]
-           [cascalog.ops IdentityBuffer]
+  (:import [cascalog.ops IdentityBuffer]
            [org.apache.hadoop.conf Configuration]
            [elephantdb Utils]
            [elephantdb.partition ShardingScheme]
@@ -45,8 +44,7 @@
   "Returns a tap that can be used to source and sink key-value pairs
   to ElephantDB."
   [root-path & {:keys [] :as args}]
-  (let [args (merge {:gateway (KeyValGateway.)
-                     :source-fields ["key" "value"]}
+  (let [args (merge {:source-fields ["key" "value"]}
                     args
                     {:sink-fn elephant<-})]
     (apply core/elephant-tap

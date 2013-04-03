@@ -23,14 +23,12 @@
 
 (defn convert-args
   [{:keys [tmp-dirs source-fields
-           timeout-ms version gateway]}]
+           timeout-ms version]}]
   (let [mk-list (fn [xs] (when xs (ArrayList. xs)))
         ret      (ElephantDBTap$Args.)]
     (when source-fields
       (set! (.sourceFields ret) (w/fields source-fields)))
     (set! (.tmpDirs ret) (mk-list tmp-dirs))
-    (when gateway
-      (set! (.gateway ret) gateway))
     (when timeout-ms
       (set! (.timeoutMs ret) timeout-ms))
     (set! (.version ret) version)
