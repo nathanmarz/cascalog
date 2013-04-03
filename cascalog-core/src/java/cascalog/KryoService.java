@@ -23,19 +23,28 @@ import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import org.apache.log4j.Logger;
 
+import java.io.ByteArrayOutputStream;
+
 public class KryoService {
-
-    /**
-     * Initial capacity of the Kryo object buffer.
-     */
-    private static final int INIT_CAPACITY = 2000;
-
-    /**
-     * Maximum capacity of the Kryo object buffer.
-     */
-    private static final int FINAL_CAPACITY = 2000000000;
+    
+    private static final ThreadLocal<Kryo> kryo = new ThreadLocal<Kryo>();
+    private static final ThreadLocal<ByteArrayOutputStream> byteStream = new ThreadLocal<ByteArrayOutputStream>();
 
     public static final Logger LOG = Logger.getLogger(KryoService.class);
+
+    public static Kryo getKryo() {
+        if (kryo.get() == null)
+            kryo.set(freshKryo());
+
+        return kryo.get();
+    }
+    
+    public static ByteArrayOutputStream getByteStream() {
+        if (byteStream.get() == null)
+            byteStream.set(new ByteArrayOutputStream());
+
+        return byteStream.get();
+    }
 
     private static Kryo freshKryo() {
         Kryo k = new ClojureKryoSerialization().populatedKryo();
@@ -45,13 +54,17 @@ public class KryoService {
 
     public static byte[] serialize(Object obj) {
         LOG.debug("Serializing " + obj);
-        Output output = new Output(INIT_CAPACITY, FINAL_CAPACITY);
-        freshKryo().writeClassAndObject(output, obj);
-        return output.toBytes();
+        getByteStream().reset();
+        Output ko = new Output(getByteStream());
+        getKryo().writeClassAndObject(ko, obj);
+        ko.flush();
+        byte[] bytes = getByteStream().toByteArray();
+
+        return bytes;
     }
 
     public static Object deserialize(byte[] serialized) {
-        Object o = freshKryo().readClassAndObject(new Input(serialized));
+        Object o = getKryo().readClassAndObject(new Input(serialized));
         LOG.debug("Deserialized " + o);
         return o;
     }
