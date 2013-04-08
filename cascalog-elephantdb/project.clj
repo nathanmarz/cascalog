@@ -1,4 +1,5 @@
 (defproject cascalog/cascalog-elephantdb "1.10.2-SNAPSHOT"
+  :min-lein-version "2.0.0"
   :description "ElephantDB Integration for Cascalog."
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
