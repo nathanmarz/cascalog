@@ -35,11 +35,12 @@
   http://www.cascading.org/javadoc/cascading/scheme/TextDelimited.html
   "
   [path & opts]
-  (let [{:keys [outfields delimiter]} (apply array-map opts)
+  (let [{:keys [outfields delimiter compress]} (apply array-map opts)
         scheme (apply delimited
                       (or outfields Fields/ALL)
                       (or delimiter "\t")
                       opts)]
+    (if compress (.setSinkCompression scheme TextLine$Compress/ENABLE))
     (apply tap/hfs-tap scheme path opts)))
 
 (defn lfs-delimited
