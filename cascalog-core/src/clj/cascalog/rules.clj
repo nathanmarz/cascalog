@@ -663,6 +663,7 @@
 ;;
 ;; 1. Normalize all predicates
 ;; 2. Expand predicate macros
+;; 3. Desugar all of the argument selectors (remember positional!)
 
 (defn normalize
   "Returns a predicate of the form [op [infields, link,

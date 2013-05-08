@@ -127,7 +127,6 @@
 
 (defn vectorify-pos-selector
   [arg-m]
-  (prn arg-m)
   (if-let [[amt selector-map] (arg-m :#>)]
     (let [all-post-map (reduce (fn [m i]
                                  (assoc m i (if-let [v (selector-map i)]
