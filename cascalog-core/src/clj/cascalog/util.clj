@@ -5,6 +5,13 @@
   (:require [clojure.string :as s])
   (:import [java.util UUID]))
 
+(defn any-list?
+  "Returns true if the supplied value is a type of list, false
+  otherwise."
+  [val]
+  (or (list? val)
+      (instance? java.util.List val)))
+
 (defn flatten
   "Flattens out a nested sequence. unlike clojure.core/flatten, also
   flattens maps."
