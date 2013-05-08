@@ -684,7 +684,9 @@
 ;; This is the main entry point from api.clj. What's the significance
 ;; of a query vs a predicate macro? The main thing in the current API
 ;; is that a query triggers an actual grouping, and compiles down to
-;; another generator with a pipe, etc, while a
+;; another generator with a pipe, etc, while a predicate macro is just
+;; a collection of predicates that expands out within another
+;; subquery.
 
 (defn build-rule
   "This is the entry point into the rules of the system. output
@@ -701,12 +703,6 @@
                              (parsed :>>)
                              predicates))))
 
-(defn mk-raw-predicate
-  "Receives a cascalog predicate of the form [op <any other vars>] and
-  sanitizes the reserved cascalog variables by converting symbols into
-  strings."
-  [[op-sym & vars]]
-  [op-sym (v/sanitize vars)])
 (defn mk-raw-predicate
   "Receives a cascalog predicate of the form [op <any other vars>] and
   sanitizes the reserved cascalog variables by converting symbols into
