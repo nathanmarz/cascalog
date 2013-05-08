@@ -1,5 +1,6 @@
 (ns cascalog.predicate
-  (:use [cascalog.util :only (uuid multifn? substitute-if search-for-var)]
+  (:use [cascalog.util :only (uuid multifn? substitute-if search-for-var
+                                   any-list?)]
         [jackknife.seq :only (transpose)]
         [clojure.tools.macro :only (name-with-attributes)])
   (:require [jackknife.core :as u]
@@ -17,8 +18,8 @@
             CascalogAggregatorExecutor ClojureParallelAgg ParallelAgg]))
 
 ;; doing it this way b/c pain to put metadata directly on a function
-;; assembly-maker is a function that takes in infields & outfields and returns
-;; [preassembly postassembly]
+;; assembly-maker is a function that takes in infields & outfields and
+;; returns [preassembly postassembly]
 (defstruct parallel-aggregator
   :type :init-var :combine-var)
 
@@ -68,6 +69,7 @@
          :type ::parallel-buffer ~@body))))
 
 ;; ids are so they can be used in sets safely
+
 (defmacro defpredicate [name & attrs]
   `(defstruct ~name :type :id ~@attrs))
 
@@ -95,22 +97,20 @@
 
 (defstruct predicate-variables :in :out)
 
-(defn- implicit-var-flag [vars selector-default]
-  (if (some v/cascalog-keyword? vars)
-    :<
-    selector-default))
+;; ## Variable Parsing
+;;
+;; The following functions deal with parsing of logic variables out of
+;; predicates.
 
-(defn- mk-args-map [normed-vars]
-  (let [partitioned (partition-by v/cascalog-keyword?
-                                  normed-vars)
-        keys (map first (take-nth 2 partitioned))
-        vals (take-nth 2 (rest partitioned))]
-    (zipmap keys vals)))
-
-(defn- vectorify-arg [argsmap sugararg outarg]
-  (cond (not (or (contains? argsmap sugararg) (contains? argsmap outarg)))
+(defn- vectorify-arg
+  [argsmap sugararg outarg]
+  (cond (not (or (contains? argsmap sugararg)
+                 (contains? argsmap outarg)))
         argsmap
-        (contains? argsmap outarg) (assoc argsmap outarg (first (argsmap outarg)))
+
+        (contains? argsmap outarg)
+        (assoc argsmap outarg (first (argsmap outarg)))
+
         :else (assoc argsmap outarg (argsmap sugararg))))
 
 (defn vectorify-pos-selector [argsmap]
@@ -123,16 +123,57 @@
       (assoc argsmap :>> (map second (sort-by first (seq all-post-map)))))
     argsmap))
 
+;; This function is called from cascalog.rules, notably during
+;; predicate macro expansion.
+
+(defn- implicit-var-flag [vars selector-default]
+  (if (some v/cascalog-keyword? vars)
+    :<
+    selector-default))
+
+
+
+;; TODO: Remove the pre assertion on jackknife, move this over and
+;; republish.
+(defn unweave
+  "[1 2 3 4 5 6] -> [[1 3 5] [2 4 6]]"
+  [coll]
+  [(take-nth 2 coll) (take-nth 2 (rest coll))])
+
+#_(defn parse-predicate-vars
+  "Accepts a normalized cascalog predicate vector of normalized
+  vars (without the ops) and returns a map of cascalog reserved
+  keyword to the logic variables immediately following."
+  [vars]
+  {:pre [(keyword? (first vars))]}
+  (let [[keywords vars] (->> vars
+                             (partition-by v/cascalog-keyword?)
+                             (unweave))]
+    (zipmap (map first keywords)
+            vars)))
+
+(defn- parse-predicate-vars [normed-vars]
+  (let [partitioned (partition-by v/cascalog-keyword?
+                                  normed-vars)
+        keys (map first (take-nth 2 partitioned))
+        vals (take-nth 2 (rest partitioned))]
+    (zipmap keys vals)))
+
 (defn parse-variables
-  "parses variables of the form ['?a' '?b' :> '!!c']
-   If there is no :>, defaults to flag-default"
+  "parses variables of the form ['?a' '?b' :> '!!c'] and returns a map
+   of input variables, output variables, If there is no :>, defaults
+   to selector-default."
   [vars selector-default]
-  (let [vars (if (contains? v/cascalog-keywords (first vars))
+  ;; First, if we start with a cascalog keyword, don't worry about
+  ;; it. If we don't, we proably need to append something; if we're
+  ;; dealing with a predicate macro, then add <: on the front of the
+  ;; thing, otherwise just tag the supplied selector-default onto the
+  ;; front.
+  (let [vars (if (v/cascalog-keyword? (first vars))
                vars
-               (cons (implicit-var-flag vars selector-default)
-                     vars))
+               (cons (implicit-var-flag vars selector-default) vars))
         argsmap (-> vars
-                    (mk-args-map)
+                    (parse-predicate-vars)
                     (vectorify-arg :> :>>)
                     (vectorify-arg :< :<<)
                     (vectorify-pos-selector))
@@ -140,6 +181,8 @@
     (if-not (#{:< :>} selector-default)
       (assoc ret selector-default (argsmap selector-default))
       ret)))
+
+;; Here ends variable parsing.
 
 (defn- predicate-dispatcher
   [op & _]
