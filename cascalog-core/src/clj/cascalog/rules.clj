@@ -34,8 +34,8 @@
           (= :generator (:type pred)) (if-let [v (:join-set-var pred)] [v])
           :else (do
                   (if-not (= 1 (count inbound-nodes))
-                    (throw-runtime (str "Planner exception: Unexpected number of "
-                                        "inbound nodes to non-generator predicate."))
+                    (throw-runtime "Planner exception: Unexpected number of "
+                                   "inbound nodes to non-generator predicate.")
                     (recur (first inbound-nodes)))))))
 
 (defn- split-predicates
@@ -395,10 +395,11 @@
         project-fields (projection-fields needed-vars (:outfields newgen)) ]
     (debug-print "build gen:" my-needed project-fields pred)
     (if (and forceproject (not= project-fields needed-vars))
-      (throw-runtime (str "Only able to build to " project-fields
-                          " but need " needed-vars
-                          ". Missing " (vec (clojure.set/difference (set needed-vars)
-                                                                    (set project-fields)))))
+      (throw-runtime (format "Only able to build to %s but need %s. Missing %s"
+                             project-fields
+                             needed-vars
+                             (vec (clojure.set/difference (set needed-vars)
+                                                          (set project-fields)))))
       (merge newgen
              {:pipe ((mk-projection-assembly forceproject
                                              project-fields
@@ -572,7 +573,7 @@
         agg-tail                  (build-agg-tail options joined grouping-fields aggs)
         {:keys [operations node]} (add-ops-fixed-point agg-tail)]
     (if (not-empty operations)
-      (throw-runtime (str "Could not apply all operations " (pr-str operations)))
+      (throw-runtime "Could not apply all operations: " (pr-str operations))
       (build-generator true out-vars node))))
 
 (defn- new-var-name! [replacements v]
@@ -617,10 +618,11 @@
                (build-predicate-macro-fn invars outvars raw-predicates)))
 
 (defn- to-jcascalog-fields [fields]
-  (if fields
-    (jcascalog.Fields. fields)
-    (jcascalog.Fields. [])
-    ))
+  (jcascalog.Fields. (or fields [])))
+
+;; ## Predicate Macro Expansion
+;;
+;; This section deals with predicate macro expansion.
 
 (defn- expand-predicate-macro
   [p vars]
@@ -694,6 +696,7 @@ cascading tap, returns a new generator with field-names."
         :else g))
 
 ;; TODO: Why does this not use gen?
+
 (defn connect-to-sink [gen sink]
   ((w/pipe-rename (u/uuid)) (:pipe gen)))
 
@@ -704,11 +707,15 @@ cascading tap, returns a new generator with field-names."
 
 (defn combine* [gens distinct?]
   ;; it would be nice if cascalog supported Fields/UNKNOWN as output of generator
-  (let [gens (->> gens (map normalize-gen) (map enforce-gen-schema))
+  (let [gens (map (comp enforce-gen-schema normalize-gen) gens)
         outfields (:outfields (first gens))
         pipes (map :pipe gens)
         pipes (for [p pipes]
-                (w/assemble p (w/identity Fields/ALL :fn> outfields :> Fields/RESULTS)))
+                (w/assemble p (w/identity Fields/ALL
+                                          :fn>
+                                          outfields
+                                          :>
+                                          Fields/RESULTS)))
         outpipe (if-not distinct?
                   (w/assemble pipes (w/group-by Fields/ALL))
                   (w/assemble pipes (w/group-by Fields/ALL) (w/first)))]
