@@ -141,10 +141,6 @@
       (assoc ret selector-default (argsmap selector-default))
       ret)))
 
-(defn any-list? [val]
-  (or (list? val)
-      (instance? java.util.List val)))
-
 (defn- predicate-dispatcher
   [op & _]
   (let [ret (cond

@@ -452,7 +452,7 @@
   (let [[raw-predicates vmap] (reduce (mk-var-uniquer-reducer true) [[] {}] raw-predicates)
         [raw-predicates vmap] (reduce (mk-var-uniquer-reducer false) [[] vmap] raw-predicates)
         [out-vars vmap]       (v/uniquify-vars out-vars vmap)
-        drift-map             (v/mk-drift-map vmap)]
+        drift-map             (mk-drift-map vmap)]
     [out-vars raw-predicates drift-map]))
 
 (defn split-outvar-constants
