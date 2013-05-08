@@ -25,11 +25,12 @@
   :init-var #'existence-int
   :combine-var #'+)
 
-(defn limit-init [options limit]
+(defn limit-init [options _]
   (fn [sort-tuple & tuple]
-    ;; this is b/c CombinerBase does coerceToSeq on everything and applies when combining,
-    ;; since this returns a seq we need an extra level of nesting
-    ;; should have a different combiner base for buffer combiners
+    ;; this is b/c CombinerBase does coerceToSeq on everything and
+    ;; applies when combining, since this returns a seq we need an
+    ;; extra level of nesting should have a different combiner base
+    ;; for buffer combiners
     [[[(vec sort-tuple) (vec tuple)]]]))
 
 (defn- mk-limit-comparator [options]
@@ -82,4 +83,3 @@
      (conj
       (map (fn [o v] [o :<< "!invars" :> v]) ops outvars)
       [logic-fn-var :<< outvars :> "!true?"]))))
-

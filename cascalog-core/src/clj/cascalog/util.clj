@@ -1,8 +1,15 @@
 (ns cascalog.util
   (:use [jackknife.core :only (update-vals)]
         [jackknife.seq :only (unweave merge-to-vec collectify)])
+  (:refer-clojure :exclude [flatten])
   (:require [clojure.string :as s])
   (:import [java.util UUID]))
+
+(defn flatten
+  "Flattens out a nested sequence. unlike clojure.core/flatten, also
+  flattens maps."
+  [vars]
+  (clojure.core/flatten (map #(if (map? %) (seq %) %) vars)))
 
 (defn multifn? [x]
   (instance? clojure.lang.MultiFn x))

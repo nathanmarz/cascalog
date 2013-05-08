@@ -88,7 +88,7 @@
    output. Useful for experimentation in the REPL."
   [] (StdoutTap.))
 
-;; Query introspection
+;; ## Query introspection
 
 (defmulti get-out-fields
   "Get the fields of a generator."
@@ -116,7 +116,7 @@
     ;; TODO: should pluck from Tap if it doesn't define out-fields
     (count (get-out-fields gen))))
 
-;; Knobs for Hadoop
+;; ## Knobs for Hadoop
 
 (defmacro with-job-conf
   "Modifies the job conf for queries executed within the form. Nested
@@ -144,16 +144,26 @@
      {"io.serializations" (u/serialization-entry ~serial-vec)}
      ~@forms))
 
-;; Query creation and execution
+;; ## Query creation and execution
+
+(defn construct
+  "Construct a query or predicate macro functionally. When
+constructing queries this way, operations should either be vars for
+operations or values defined using one of Cascalog's def macros. Vars
+must be stringified when passed to construct. If you're using
+destructuring in a predicate macro, the & symbol must be stringified
+as well."
+  [outvars preds]
+  (rules/build-rule (v/sanitize outvars)
+                    (map rules/mk-raw-predicate preds)))
 
 (defmacro <-
   "Constructs a query or predicate macro from a list of
   predicates. Predicate macros support destructuring of the input and
   output variables."
   [outvars & predicates]
-  (let [predicate-builders (vec (map rules/mk-raw-predicate predicates))
-        outvars-str (if (vector? outvars) (v/vars->str outvars) outvars)]
-    `(rules/build-rule ~outvars-str ~predicate-builders)))
+  `(v/with-logic-vars
+     (construct ~outvars [~@(map vec predicates)])))
 
 (def cross-join
   (<- [:>] (identity 1 :> _)))
@@ -228,12 +238,12 @@
   for the query and will show up in the JobTracker UI."
   [& args]
   (let [[name [& subqueries]] (rules/parse-exec-args args)]
-   (io/with-fs-tmp [fs tmp]
-     (hadoop/mkdirs fs tmp)
-     (let [outtaps (for [q subqueries] (hfs-seqfile (str tmp "/" (u/uuid))))
-           bindings (mapcat vector outtaps subqueries)]
-       (apply ?- name bindings)
-       (doall (map rules/get-sink-tuples outtaps))))))
+    (io/with-fs-tmp [fs tmp]
+      (hadoop/mkdirs fs tmp)
+      (let [outtaps (for [q subqueries] (hfs-seqfile (str tmp "/" (u/uuid))))
+            bindings (mapcat vector outtaps subqueries)]
+        (apply ?- name bindings)
+        (doall (map rules/get-sink-tuples outtaps))))))
 
 (defmacro ?<-
   "Helper that both defines and executes a query in a single call.
@@ -242,17 +252,15 @@
   out-tap out-vars & predicates) ; flow name must be a static string
   within the ?<- form."
   [& args]
-  ;; This is the best we can do... if want non-static name should just use ?-
+  ;; This is the best we can do... if want non-static name should just
+  ;; use ?-
   (let [[name [output & body]] (rules/parse-exec-args args)]
     `(?- ~name ~output (<- ~@body))))
 
 (defmacro ??<-
   "Like ??-, but for ?<-. Returns a seq of tuples."
   [& args]
-  `(io/with-fs-tmp [fs# tmp1#]
-     (let [outtap# (hfs-seqfile tmp1#)]
-       (?<- outtap# ~@args)
-       (rules/get-sink-tuples outtap#))))
+  `(first (??- (<- ~@args))))
 
 (defn predmacro*
   "Functional version of predmacro. See predmacro for details."
@@ -275,18 +283,6 @@
   "
   [& body]
   `(predmacro* (fn ~@body)))
-
-(defn construct
-  "Construct a query or predicate macro functionally. When
-constructing queries this way, operations should either be vars for
-operations or values defined using one of Cascalog's def macros. Vars
-must be stringified when passed to construct. If you're using
-destructuring in a predicate macro, the & symbol must be stringified
-as well."
-  [outvars preds]
-  (let [outvars (v/vars->str outvars)
-        preds (for [[p & vars] preds] [p (v/vars->str vars)])]
-    (rules/build-rule outvars preds)))
 
 (defn union
   "Merge the tuples from the subqueries together into a single
@@ -322,27 +318,26 @@ as well."
 
 (defmacro multigroup
   [group-vars out-vars buffer-spec & sqs]
-  `(multigroup* ~(v/vars->str group-vars)
-                ~(v/vars->str out-vars)
+  `(multigroup* ~(v/sanitize group-vars)
+                ~(v/sanitize out-vars)
                 ~buffer-spec
                 ~@sqs))
 
 (defmulti select-fields
-"
-  Select fields of a named generator.
+  "Select fields of a named generator.
 
   Example:
   (<- [?a ?b ?sum]
       (+ ?a ?b :> ?sum)
-      ((select-fields generator [\"?a\" \"?b\"]) ?a ?b))
-"
+      ((select-fields generator [\"?a\" \"?b\"]) ?a ?b))"
   rules/generator-selector)
 
 (defmethod select-fields :tap [tap fields]
   (let [fields (collectify fields)
         pname (u/uuid)
         outfields (v/gen-nullable-vars (count fields))
-        pipe (w/assemble (w/pipe pname) (w/identity fields :fn> outfields :> outfields))]
+        pipe (w/assemble (w/pipe pname)
+                         (w/identity fields :fn> outfields :> outfields))]
     (p/predicate p/generator nil true {pname tap} pipe outfields {})))
 
 (defmethod select-fields :generator [query select-fields]
@@ -362,9 +357,11 @@ as well."
 
 (defn name-vars [gen vars]
   (let [vars (collectify vars)]
-    (<- vars (gen :>> vars) (:distinct false))))
+    (<- vars
+        (gen :>> vars)
+        (:distinct false))))
 
-;; Defining custom operations
+;; ## Defining custom operations
 
 (defalias defmapop w/defmapop
   "Defines a custom operation that appends new fields to the input tuple.")
@@ -385,7 +382,7 @@ as well."
 
 (defalias defparallelbuf p/defparallelbuf)
 
-;; Miscellaneous helpers
+;; ## Miscellaneous helpers
 
 (defn div
   "Perform floating point division on the arguments. Use this instead
@@ -401,7 +398,7 @@ as well."
   `(binding [cascalog.debug/*DEBUG* true]
      ~@body))
 
-;; Class Creation
+;; ## Class Creation
 
 (defmacro defmain
   "Defines an AOT-compiled function with the supplied

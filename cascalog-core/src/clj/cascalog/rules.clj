@@ -194,7 +194,8 @@
                            rest-tails))))))
 
 (defn- agg-available-fields [grouping-fields aggs]
-  (vec (union (set grouping-fields) (apply union (map #(set (:outfields %)) aggs)))))
+  (vec (union (set grouping-fields)
+              (apply union (map #(set (:outfields %)) aggs)))))
 
 (defn- agg-infields [sort-fields aggs]
   (vec (apply union (set sort-fields) (map #(set (:infields %)) aggs))))
@@ -294,7 +295,7 @@
     identity
     (w/select projection-fields)))
 
-(defmulti node->generator (fn [pred & rest] (:type pred)))
+(defmulti node->generator (fn [pred & _] (:type pred)))
 
 (defmethod node->generator :generator [pred prevgens]
   (when (not-empty prevgens)
@@ -429,11 +430,19 @@
 
 (defn- mk-var-uniquer-reducer [out?]
   (fn [[preds vmap] [op hof-args invars outvars]]
-    (let [[updatevars vmap] (v/uniquify-vars (if out? outvars invars) out? vmap)
-          [invars outvars] (if out? [invars updatevars] [updatevars outvars])]
+    (let [[updatevars vmap] (v/uniquify-vars (if out? outvars invars)
+                                             vmap
+                                             :force-unique? out?)
+          [invars outvars] (if out?
+                             [invars updatevars]
+                             [updatevars outvars])]
       [(conj preds [op hof-args invars outvars]) vmap])))
 
-;; TODO: Move mk-drift-map to graph?
+(defn mk-drift-map [vmap]
+  (let [update-fn (fn [m [_ vals]]
+                    (let [target (first vals)]
+                      (reduce #(assoc %1 %2 target) m (rest vals))))]
+    (reduce update-fn {} (seq vmap))))
 
 (defn- uniquify-query-vars
   "TODO: this won't handle drift for generator filter outvars should
@@ -442,7 +451,7 @@
   [out-vars raw-predicates]
   (let [[raw-predicates vmap] (reduce (mk-var-uniquer-reducer true) [[] {}] raw-predicates)
         [raw-predicates vmap] (reduce (mk-var-uniquer-reducer false) [[] vmap] raw-predicates)
-        [out-vars vmap]       (v/uniquify-vars out-vars false vmap)
+        [out-vars vmap]       (v/uniquify-vars out-vars vmap)
         drift-map             (v/mk-drift-map vmap)]
     [out-vars raw-predicates drift-map]))
 
@@ -616,38 +625,31 @@
 (defn- expand-predicate-macro
   [p vars]
   (let [{invars :<< outvars :>>} (p/parse-variables vars :<)]
-    (cond (var? p)
-          [[(var-get p) vars]]
-
-          (instance? Subquery p)
-          [[(.getCompiledSubquery p) vars]]
-
-          (instance? ClojureOp p)
-          [(.toRawCascalogPredicate p vars)]
-
-          (instance? PredicateMacro p)
-          (.getPredicates p (to-jcascalog-fields invars) (to-jcascalog-fields outvars))
-
-          (instance? PredicateMacroTemplate p)
-          [[(.getCompiledPredMacro p) vars]]
-
-          :else
-          ((:pred-fn p) invars outvars))))
+    (cond (var? p) [[(var-get p) vars]]
+          (instance? Subquery p) [[(.getCompiledSubquery p) vars]]
+          (instance? ClojureOp p) [(.toRawCascalogPredicate p vars)]
+          (instance? PredicateMacro p) (.getPredicates p
+                                                       (to-jcascalog-fields invars)
+                                                       (to-jcascalog-fields outvars))
+          (instance? PredicateMacroTemplate p) [[(.getCompiledPredMacro p) vars]]
+          :else ((:pred-fn p) invars outvars))))
 
 (defn- expand-predicate-macros [raw-predicates]
   (mapcat (fn [raw-predicate]
             (let [[p vars :as raw-predicate]
-                             (if (instance? Predicate raw-predicate)
-                                (.toRawCascalogPredicate raw-predicate)
-                                raw-predicate )]
+                  (if (instance? Predicate raw-predicate)
+                    (.toRawCascalogPredicate raw-predicate)
+                    raw-predicate)]
               (if (p/predicate-macro? p)
                 (expand-predicate-macros (expand-predicate-macro p vars))
                 [raw-predicate])))
           raw-predicates))
 
-(defn build-rule [out-vars raw-predicates]
-  (let [raw-predicates (-> raw-predicates
-                           expand-predicate-macros)
+;; This is the entry point from "construct".
+
+(defn build-rule
+  [out-vars raw-predicates]
+  (let [raw-predicates (expand-predicate-macros raw-predicates)
         parsed (p/parse-variables out-vars :?)]
     (if (seq (parsed :?))
       (build-query out-vars raw-predicates)
@@ -655,8 +657,12 @@
                              (parsed :>>)
                              raw-predicates))))
 
-(defn mk-raw-predicate [[op-sym & vars]]
-  [op-sym (v/vars->str vars)])
+(defn mk-raw-predicate
+  "Receives a cascalog predicate of the form [op <any other vars>] and
+  sanitizes the reserved cascalog variables by converting symbols into
+  strings."
+  [[op-sym & vars]]
+  [op-sym (v/sanitize vars)])
 
 (defn pluck-tuple [tap]
   (with-open [it (-> (HadoopFlowProcess. (hadoop/job-conf (conf/project-conf)))
@@ -721,7 +727,7 @@ cascading tap, returns a new generator with field-names."
       (.isSwap cfields)
       (.isReplace cfields)))
 
-(defn generator-selector [gen & args]
+(defn generator-selector [gen & _]
   (cond (instance? Tap gen) :tap
         (instance? Subquery gen) :java-subquery
         :else (:type gen)))

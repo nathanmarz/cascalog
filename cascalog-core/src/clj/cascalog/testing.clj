@@ -93,9 +93,6 @@
 (defn unique-rooted-paths [root]
   (map str (cycle [(str root "/")]) (repeatedly u/uuid)))
 
-(defn- gen-fake-fields [amt]
-  (take amt (map str (iterate inc 1))))
-
 (defn- mapify-spec [spec]
   (if (map? spec)
     spec

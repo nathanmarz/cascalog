@@ -174,7 +174,7 @@
   :init-hof-var #'impl/limit-init
   :combine-hof-var #'impl/limit-combine
   :extract-hof-var #'impl/limit-extract
-  :num-intermediate-vars-fn (fn [infields outfields]
+  :num-intermediate-vars-fn (fn [infields _]
                               (clojure.core/count infields))
   :buffer-hof-var #'impl/limit-buffer)
 

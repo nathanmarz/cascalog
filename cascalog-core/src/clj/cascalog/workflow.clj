@@ -35,13 +35,14 @@
   (let [m (meta v)]
     [(str (:ns m)) (str (:name m))]))
 
-(defn fn-spec [v-or-coll]
+(defn fn-spec
   "v-or-coll => var or [var & params]
    Returns an Object array that is used to represent a Clojure function.
    If the argument is a var, the array represents that function.
    If the argument is a coll, the array represents the function returned
    by applying the first element, which should be a var, to the rest of the
    elements."
+  [v-or-coll]
   (cond
    (var? v-or-coll)
    (into-array Object (ns-fn-name-pair v-or-coll))
@@ -75,13 +76,6 @@
 (defn taps-array
   [taps]
   (into-array Tap taps))
-
-(defn- fields-obj? [obj]
-  "Returns true for a Fields instance, a string, or an array of strings."
-  (or
-   (instance? Fields obj)
-   (string? obj)
-   (and (sequential? obj) (every? string? obj))))
 
 (defn parse-args
   "arr => func-spec in-fields? :fn> func-fields :> out-fields
