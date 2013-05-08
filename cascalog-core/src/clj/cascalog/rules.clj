@@ -679,23 +679,34 @@
   true if the return vector is from a subquery, false otherwise. (A
   predicate macro would trigger false, for example.)"
   [vars]
-  (complement (some v/cascalog-keyword? vars)))
+  (not (some v/cascalog-keyword? vars)))
 
 ;; This is the main entry point from api.clj. What's the significance
 ;; of a query vs a predicate macro? The main thing in the current API
 ;; is that a query triggers an actual grouping, and compiles down to
 ;; another generator with a pipe, etc, while a
 
-(defn build-rule [out-vars raw-predicates]
-  (let [raw-predicates (-> raw-predicates
-                           expand-predicate-macros)
+(defn build-rule
+  "This is the entry point into the rules of the system. output
+  variables and raw predicates come in, predicate macros are expanded,
+  and the query (or another predicate macro) is compiled."
+  [out-vars raw-predicates]
+  (let [predicates (->> raw-predicates
+                        (map normalize)
+                        expand-predicate-macros)
         parsed (p/parse-variables out-vars :?)]
-    (if (seq (parsed :?))
-      (build-query out-vars raw-predicates)
+    (if (query-signature? out-vars)
+      (build-query out-vars predicates)
       (build-predicate-macro (parsed :<<)
                              (parsed :>>)
-                             raw-predicates))))
+                             predicates))))
 
+(defn mk-raw-predicate
+  "Receives a cascalog predicate of the form [op <any other vars>] and
+  sanitizes the reserved cascalog variables by converting symbols into
+  strings."
+  [[op-sym & vars]]
+  [op-sym (v/sanitize vars)])
 (defn mk-raw-predicate
   "Receives a cascalog predicate of the form [op <any other vars>] and
   sanitizes the reserved cascalog variables by converting symbols into
