@@ -594,24 +594,29 @@
 (defn collectify-nil-as-seq [v]
   (if v (s/collectify v)))
 
-(defn- build-predicate-macro-fn [invars-decl outvars-decl raw-predicates]
+(defn- build-predicate-macro-fn
+  [invars-decl outvars-decl raw-predicates]
   (when (seq (intersection (set (collectify-nil-as-seq invars-decl))
                            (set (collectify-nil-as-seq outvars-decl))))
-    (throw
-     (RuntimeException.
-      (str "Cannot declare the same var as an input and output to predicate macro: "
-            invars-decl " " outvars-decl))))
-    (fn [invars outvars]
-      (let [outvars (if (and (empty? outvars)
-                             (sequential? outvars-decl)
-                             (= 1 (count outvars-decl)))
-                      [true]
-                      outvars) ; kind of a hack, simulate using pred macros like filters
-            replacements (atom (u/mk-destructured-seq-map invars-decl
-                                                          invars
-                                                          outvars-decl
-                                                          outvars))]
-        (second (reduce pred-macro-updater [replacements []] raw-predicates)))))
+    (throw-runtime
+     "Cannot declare the same var as an input and output to predicate macro: "
+     invars-decl
+     " "
+     outvars-decl))
+  (fn [invars outvars]
+    (let [outvars (if (and (empty? outvars)
+                           (sequential? outvars-decl)
+                           (= 1 (count outvars-decl)))
+                    [true]
+                    outvars)
+          ;; kind of a hack, simulate using pred macros like filters
+          replacements (atom (u/mk-destructured-seq-map invars-decl
+                                                        invars
+                                                        outvars-decl
+                                                        outvars))]
+      (second (reduce pred-macro-updater
+                      [replacements []]
+                      raw-predicates)))))
 
 (defn- build-predicate-macro [invars outvars raw-predicates]
   (p/predicate p/predicate-macro
@@ -630,28 +635,60 @@
     (cond (var? p) [[(var-get p) vars]]
           (instance? Subquery p) [[(.getCompiledSubquery p) vars]]
           (instance? ClojureOp p) [(.toRawCascalogPredicate p vars)]
-          (instance? PredicateMacro p) (.getPredicates p
-                                                       (to-jcascalog-fields invars)
-                                                       (to-jcascalog-fields outvars))
+          (instance? PredicateMacro p) (-> p (.getPredicates
+                                              (to-jcascalog-fields invars)
+                                              (to-jcascalog-fields outvars)))
           (instance? PredicateMacroTemplate p) [[(.getCompiledPredMacro p) vars]]
           :else ((:pred-fn p) invars outvars))))
 
-(defn- expand-predicate-macros [raw-predicates]
-  (mapcat (fn [raw-predicate]
-            (let [[p vars :as raw-predicate]
-                  (if (instance? Predicate raw-predicate)
-                    (.toRawCascalogPredicate raw-predicate)
-                    raw-predicate)]
-              (if (p/predicate-macro? p)
-                (expand-predicate-macros (expand-predicate-macro p vars))
-                [raw-predicate])))
+(defn- expand-predicate-macros
+  "Returns a sequence of predicates with all internal predicate macros
+  expanded."
+  [raw-predicates]
+  (mapcat (fn [[p vars :as raw-pred]]
+            (if (p/predicate-macro? p)
+              (expand-predicate-macros (expand-predicate-macro p vars))
+              [raw-pred]))
           raw-predicates))
 
+;; ## Query Compilation
+;;
 ;; This is the entry point from "construct".
+;;
+;; Before compilation, all predicates are normalized down to clojrue
+;; predicates. I'm not sure I agree with this, as we lose type
+;; information that would be valuable on the Java side.
+;;
+;; Query compilation steps are as follows:
+;;
+;; 1. Normalize all predicates
+;; 2. Expand predicate macros
 
-(defn build-rule
-  [out-vars raw-predicates]
-  (let [raw-predicates (expand-predicate-macros raw-predicates)
+(defn normalize
+  "Returns a predicate of the form [op [infields, link,
+  outfields]]. For example,
+
+   [* [\"?x\" \"?x\" :> \"?y\"]]"
+  [pred]
+  (if (instance? Predicate pred)
+    (.toRawCascalogPredicate pred)
+    pred))
+
+(defn query-signature?
+  "Accepts the normalized return vector of a Cascalog form and returns
+  true if the return vector is from a subquery, false otherwise. (A
+  predicate macro would trigger false, for example.)"
+  [vars]
+  (complement (some v/cascalog-keyword? vars)))
+
+;; This is the main entry point from api.clj. What's the significance
+;; of a query vs a predicate macro? The main thing in the current API
+;; is that a query triggers an actual grouping, and compiles down to
+;; another generator with a pipe, etc, while a
+
+(defn build-rule [out-vars raw-predicates]
+  (let [raw-predicates (-> raw-predicates
+                           expand-predicate-macros)
         parsed (p/parse-variables out-vars :?)]
     (if (seq (parsed :?))
       (build-query out-vars raw-predicates)
