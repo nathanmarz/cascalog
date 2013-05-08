@@ -17,7 +17,7 @@ The best way to get started with Cascalog is experiment with the toy datasets th
 1. Install [leiningen](http://github.com/technomancy/leiningen)
 2. Make sure you have Java 1.6 (run `java -version`)
 3. checkout the Cascalog project using Git
-4. `lein deps, compile, repl`
+4. `lein do sub install, deps, compile, repl`
 5. Work through the examples in the [introductory](http://nathanmarz.com/blog/introducing-cascalog-a-clojure-based-query-language-for-hado.html) [tutorials](http://nathanmarz.com/blog/new-cascalog-features-outer-joins-combiners-sorting-and-more.html)
 
 # Using Cascalog within a project
@@ -28,20 +28,21 @@ To include Cascalog in your leiningen or cake project, add the following to your
 
 General
 
-    [cascalog "1.10.0"] ;; under :dependencies
+    [cascalog "1.10.1"] ;; under :dependencies
     [org.apache.hadoop/hadoop-core "0.20.2-dev"] ;; under :dev-dependencies
 
 Leiningen 2.0
 
-    :dependencies [cascalog "1.10.0"]
+    :dependencies [cascalog "1.10.1"]
     :profiles { :dev {:dependencies [[org.apache.hadoop/hadoop-core "0.20.2-dev"]]}}
 
 Leiningen < 2.0
 
-    :dependencies [cascalog "1.10.0"] 
+    :dependencies [cascalog "1.10.1"] 
     :dev-dependencies [[org.apache.hadoop/hadoop-core "0.20.2-dev"]]
 
-Note that Cascalog is compatible with Clojure 1.2.0, 1.2.1, 1.3.0, and 1.4.0. 
+Note that Cascalog is compatible with Clojure 1.2.0, 1.2.1, 1.3.0,
+1.4.0, and 1.5.1. 
     
 # Documentation and Issue Tracker
 
