@@ -140,7 +140,7 @@
   [coll]
   [(take-nth 2 coll) (take-nth 2 (rest coll))])
 
-#_(defn parse-predicate-vars
+(defn parse-predicate-vars
   "Accepts a normalized cascalog predicate vector of normalized
   vars (without the ops) and returns a map of cascalog reserved
   keyword to the logic variables immediately following."
@@ -152,20 +152,13 @@
     (zipmap (map first keywords)
             vars)))
 
-(defn- parse-predicate-vars [normed-vars]
-  (let [partitioned (partition-by v/cascalog-keyword?
-                                  normed-vars)
-        keys (map first (take-nth 2 partitioned))
-        vals (take-nth 2 (rest partitioned))]
-    (zipmap keys vals)))
-
 (defn parse-variables
   "parses variables of the form ['?a' '?b' :> '!!c'] and returns a map
    of input variables, output variables, If there is no :>, defaults
    to selector-default."
   [vars selector-default]
   ;; First, if we start with a cascalog keyword, don't worry about
-  ;; it. If we don't, we proably need to append something; if we're
+  ;; it. If we don't, we probably need to append something; if we're
   ;; dealing with a predicate macro, then add <: on the front of the
   ;; thing, otherwise just tag the supplied selector-default onto the
   ;; front.
