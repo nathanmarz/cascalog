@@ -102,26 +102,40 @@
 ;; The following functions deal with parsing of logic variables out of
 ;; predicates.
 
-(defn- vectorify-arg
-  [argsmap sugararg outarg]
-  (cond (not (or (contains? argsmap sugararg)
-                 (contains? argsmap outarg)))
-        argsmap
+;; TODO: validation on the arg-m. We shouldn't ever have the sugar arg
+;; and the non-sugar arg. Move the examples out to tests.
 
-        (contains? argsmap outarg)
-        (assoc argsmap outarg (first (argsmap outarg)))
+(defn desugar-arg
+  "Accepts a map of arguments, a sugary input or output selector and a
+  full vector input or output selector and either destructures the
+  non-sugary input or moves the sugary input into its proper
+  place. For example:
 
-        :else (assoc argsmap outarg (argsmap sugararg))))
+ (desugar-args {:>> ([\"?a\"])} :> :>>)
+ ;=> {:>> [\"?a\"]}
 
-(defn vectorify-pos-selector [argsmap]
-  (if-let [[amt selector-map] (argsmap :#>)]
+ (desugar-args {:> [\"?a\"]} :> :>>)
+ ;=> {:>> [\"?a\"], :> [\"?a\"]}
+
+ Note that the original sugared args aren't removed."
+  [arg-m sugar-key full-key]
+  (if-not (some arg-m #{sugar-key full-key})
+    arg-m
+    (assoc arg-m full-key
+           (or (first (arg-m full-key))
+               (arg-m sugar-key)))))
+
+(defn vectorify-pos-selector
+  [arg-m]
+  (prn arg-m)
+  (if-let [[amt selector-map] (arg-m :#>)]
     (let [all-post-map (reduce (fn [m i]
                                  (assoc m i (if-let [v (selector-map i)]
                                               v (v/gen-nullable-var))))
                                {}
                                (range amt))]
-      (assoc argsmap :>> (map second (sort-by first (seq all-post-map)))))
-    argsmap))
+      (assoc arg-m :>> (map second (sort-by first (seq all-post-map)))))
+    arg-m))
 
 ;; This function is called from cascalog.rules, notably during
 ;; predicate macro expansion.
@@ -131,10 +145,9 @@
     :<
     selector-default))
 
+;; TODO: Remove the pre assertion on jackknife.seq/unweave, move this
+;; over and republish.
 
-
-;; TODO: Remove the pre assertion on jackknife, move this over and
-;; republish.
 (defn unweave
   "[1 2 3 4 5 6] -> [[1 3 5] [2 4 6]]"
   [coll]
@@ -167,8 +180,8 @@
                (cons (implicit-var-flag vars selector-default) vars))
         argsmap (-> vars
                     (parse-predicate-vars)
-                    (vectorify-arg :> :>>)
-                    (vectorify-arg :< :<<)
+                    (desugar-args :> :>>)
+                    (desugar-args :< :<<)
                     (vectorify-pos-selector))
         ret (select-keys argsmap [:<< :>>])]
     (if-not (#{:< :>} selector-default)
