@@ -8,17 +8,18 @@
            [cascading.tuple Fields]))
 
 (defn- delimited
-  [field-seq delim & {:keys [classes skip-header? quote write-header? strict? safe?]
+  [field-seq delim & {:keys [classes compress skip-header? quote write-header? strict? safe?]
                       :or {quote "\"", strict? true, safe? true}}]
   (let [[skip-header? write-header? strict? safe?] (map boolean [skip-header? write-header? strict? safe?])
         field-seq    (w/fields field-seq)
         field-seq    (if (and classes (not (.isDefined field-seq)))
                        (w/fields (v/gen-nullable-vars (count classes)))
-                       field-seq)]
+                       field-seq)
+        compression (if compress TextLine$Compress/ENABLE TextLine$Compress/DEFAULT)]
     (if classes
-      (TextDelimited. field-seq TextLine$Compress/DEFAULT skip-header? write-header?
+      (TextDelimited. field-seq compression skip-header? write-header?
                       delim strict? quote (into-array classes) safe?)
-      (TextDelimited. field-seq skip-header? write-header? delim quote))))
+      (TextDelimited. field-seq compression skip-header? write-header? delim quote))))
 
 (defn hfs-delimited
   "
@@ -35,12 +36,11 @@
   http://www.cascading.org/javadoc/cascading/scheme/TextDelimited.html
   "
   [path & opts]
-  (let [{:keys [outfields delimiter compress]} (apply array-map opts)
+  (let [{:keys [outfields delimiter]} (apply array-map opts)
         scheme (apply delimited
                       (or outfields Fields/ALL)
                       (or delimiter "\t")
                       opts)]
-    (if compress (.setSinkCompression scheme TextLine$Compress/ENABLE))
     (apply tap/hfs-tap scheme path opts)))
 
 (defn lfs-delimited
