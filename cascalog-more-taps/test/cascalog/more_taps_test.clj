@@ -23,9 +23,9 @@
 
 (fact
   (io/with-fs-tmp [_ tmp]
-    (?- (hfs-delimited tmp :delimiter "," :compress true)   ;; write line
+    (?- (hfs-delimited tmp :delimiter "," :compress? true)   ;; write line
         [["Proin" false 3]])
     (fact "Compression"
       (<- [?a ?b ?c]
-          ((hfs-delimited tmp :delimiter "," :compress true) ?a ?b ?c)) =>
+          ((hfs-delimited tmp :delimiter "," :compress? true) ?a ?b ?c)) =>
       (produces [["Proin" "false" "3"]]))))

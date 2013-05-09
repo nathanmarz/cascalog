@@ -8,14 +8,14 @@
            [cascading.tuple Fields]))
 
 (defn- delimited
-  [field-seq delim & {:keys [classes compress skip-header? quote write-header? strict? safe?]
+  [field-seq delim & {:keys [classes compress? skip-header? quote write-header? strict? safe?]
                       :or {quote "\"", strict? true, safe? true}}]
   (let [[skip-header? write-header? strict? safe?] (map boolean [skip-header? write-header? strict? safe?])
         field-seq    (w/fields field-seq)
         field-seq    (if (and classes (not (.isDefined field-seq)))
                        (w/fields (v/gen-nullable-vars (count classes)))
                        field-seq)
-        compression (if compress TextLine$Compress/ENABLE TextLine$Compress/DEFAULT)]
+        compression (if compress? TextLine$Compress/ENABLE TextLine$Compress/DEFAULT)]
     (if classes
       (TextDelimited. field-seq compression skip-header? write-header?
                       delim strict? quote (into-array classes) safe?)
@@ -28,8 +28,8 @@
   prefixes for `path`.
 
   Supports TextDelimited keyword option for `:outfields`, `:classes`,
-  `:skip-header?`, `:delimiter`, `:write-header?`, `:strict?`, `safe?`,
-  and `:quote`.
+  `:compress?`, `:skip-header?`, `:delimiter`, `:write-header?`, `:strict?`,
+  `safe?`, and `:quote`.
   See `cascalog.tap/hfs-tap` for more keyword arguments.
 
   See http://www.cascading.org/javadoc/cascading/tap/Hfs.html and
@@ -50,8 +50,8 @@
   using different prefixes for `path`.
 
   Supports TextDelimited keyword option for `:outfields`, `:classes`,
-  `:skip-header?`, `:delimiter`, `:write-header?`, `:strict?`, `safe?`,
-  and `:quote`.
+  `:compress?`, `:skip-header?`, `:delimiter`, `:write-header?`, `:strict?`,
+  `safe?`, and `:quote`.
   See `cascalog.tap/hfs-tap` for more keyword arguments.
 
   See http://www.cascading.org/javadoc/cascading/tap/Hfs.html and
