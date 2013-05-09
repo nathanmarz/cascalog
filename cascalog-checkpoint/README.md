@@ -7,7 +7,7 @@ Workflow checkpointing for Cascalog.
    Add the following to `project.clj`:
 
 ```clojure
-[cascalog/cascalog-checkpoint "0.2.0"]
+[cascalog/cascalog-checkpoint "1.10.1"]
 ```
 
 ** Tutorial
