@@ -704,7 +704,7 @@ cascading tap, returns a new generator with field-names."
         pipes (for [p pipes]
                 (w/assemble p (w/identity Fields/ALL :fn> outfields :> Fields/RESULTS)))
         outpipe (if-not distinct?
-                  (w/assemble pipes (w/group-by Fields/ALL))
+                  (w/assemble pipes (w/merge-pipes))
                   (w/assemble pipes (w/group-by Fields/ALL) (w/first)))]
     (p/predicate p/generator
                  nil

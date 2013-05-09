@@ -24,7 +24,7 @@
            [cascalog.ops KryoInsert]
            [cascading.operation Identity Debug]
            [cascading.operation.aggregator First Count Sum Min Max]
-           [cascading.pipe Pipe Each Every GroupBy CoGroup]
+           [cascading.pipe Pipe Each Every GroupBy CoGroup Merge]
            [cascading.pipe.joiner InnerJoin]
            [com.twitter.maple.tap MemorySourceTap]
            [cascalog ClojureFilter ClojureMapcat ClojureMap
@@ -164,6 +164,12 @@
      (fn [& previous]
        (debug-print "groupby" group-fields sort-fields reverse-order)
        (GroupBy. (as-pipes previous) (fields group-fields) (fields sort-fields) reverse-order))))
+
+(defn merge-pipes
+  []
+  (fn [& previous]
+    (debug-print "merge")
+    (Merge. (as-pipes previous))))
 
 (defn count [^String count-field]
   (fn [previous]
