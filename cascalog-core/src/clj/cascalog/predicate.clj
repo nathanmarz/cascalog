@@ -17,16 +17,20 @@
             CascalogBuffer CascalogBufferExecutor CascalogAggregator
             CascalogAggregatorExecutor ClojureParallelAgg ParallelAgg]))
 
-;; doing it this way b/c pain to put metadata directly on a function
-;; assembly-maker is a function that takes in infields & outfields and
-;; returns [preassembly postassembly]
 (defstruct parallel-aggregator
-  :type :init-var :combine-var)
+  :type
+  :init-var
+  :combine-var)
 
 ;; :num-intermediate-vars-fn takes as input infields, outfields
 (defstruct parallel-buffer
-  :type :hof? :init-hof-var :combine-hof-var
-  :extract-hof-var :num-intermediate-vars-fn :buffer-hof-var)
+  :type
+  :hof?
+  :init-hof-var
+  :combine-hof-var
+  :extract-hof-var
+  :num-intermediate-vars-fn
+  :buffer-hof-var)
 
 (defmacro defparallelagg
   "Binds an efficient aggregator to the supplied symbol. A parallel
@@ -77,15 +81,35 @@
   `(struct ~aname ~(keyword (name aname)) (uuid) ~@attrs))
 
 ;; for map, mapcat, and filter
-(defpredicate operation :assembly :infields :outfields :allow-on-genfilter?)
+(defpredicate operation
+  :assembly
+  :infields
+  :outfields
+  :allow-on-genfilter?)
 
 ;; return a :post-assembly, a :parallel-agg, and a :serial-agg-assembly
-(defpredicate aggregator :buffer? :parallel-agg :pregroup-assembly :serial-agg-assembly :post-assembly :infields :outfields)
+(defpredicate aggregator
+  :buffer?
+  :parallel-agg
+  :pregroup-assembly
+  :serial-agg-assembly
+  :post-assembly
+  :infields
+  :outfields)
 
 ;; automatically generates source pipes and attaches to sources
 (defpredicate generator
-  :join-set-var :ground? :sourcemap :pipe :outfields :trapmap)
-(defpredicate generator-filter :generator :outvar)
+  :join-set-var
+  :ground?
+  :sourcemap
+  :pipe
+  :outfields
+  :trapmap)
+
+(defpredicate generator-filter
+  :generator
+  :outvar)
+
 (defpredicate outconstant-equal)
 
 (defpredicate option :key :val)
@@ -183,22 +207,20 @@
    of input variables, output variables, If there is no :>, defaults
    to selector-default."
   [vars selector-default]
+  {:pre (contains? #{:< :>} selector-default)}
   ;; First, if we start with a cascalog keyword, don't worry about
   ;; it. If we don't, we probably need to append something; if we're
   ;; dealing with a predicate macro, don't do anything, otherwise just
   ;; tag the supplied selector-default onto the front.
   (let [vars (if (v/cascalog-keyword? (first vars))
                vars
-               (cons (implicit-var-flag vars selector-default) vars))
-        argsmap (-> vars
-                    (parse-predicate-vars)
-                    (desugar-selectors :> :>>
-                                       :< :<<)
-                    (expand-positional-selector))
-        ret (select-keys argsmap [:<< :>>])]
-    (if-not (#{:< :>} selector-default)
-      (assoc ret selector-default (argsmap selector-default))
-      ret)))
+               (cons (implicit-var-flag vars selector-default) vars))]
+    (-> vars
+        (parse-predicate-vars)
+        (desugar-selectors :> :>>
+                           :< :<<)
+        (expand-positional-selector)
+        (select-keys #{:<< :>>}))))
 
 ;; Here ends variable parsing.
 
@@ -275,13 +297,12 @@
 
 (defmulti predicate-default-var predicate-dispatcher)
 (defmulti hof-predicate? predicate-dispatcher)
+(defmethod hof-predicate? :default [_] false)
 (defmulti build-predicate-specific predicate-dispatcher)
 
 (defmethod predicate-default-var ::option [& _] :<)
-(defmethod hof-predicate? ::option [& _] false)
 
 (defmethod predicate-default-var ::tap [& _] :>)
-(defmethod hof-predicate? ::tap [& _] false)
 (defmethod build-predicate-specific ::tap
   [tap _ infields outfields options]
   (let [sourcename (uuid)
@@ -299,7 +320,6 @@
                (init-trap-map options))))
 
 (defmethod predicate-default-var :generator [& _] :>)
-(defmethod hof-predicate? :generator [& _] false)
 (defmethod build-predicate-specific :generator
   [gen _ _ outfields options]
   (let [pname (init-pipe-name options)
@@ -317,7 +337,6 @@
                trapmap)))
 
 (defmethod predicate-default-var ::java-parallel-agg [& _] :>)
-(defmethod hof-predicate? ::java-parallel-agg [& _] false)
 (defmethod build-predicate-specific ::java-parallel-agg
   [java-pagg _ infields outfields _]
   (let [cascading-agg (ClojureParallelAggregator. (w/fields outfields)
@@ -338,7 +357,6 @@
                outfields)))
 
 (defmethod predicate-default-var ::parallel-aggregator [& _] :>)
-(defmethod hof-predicate? ::parallel-aggregator [& _] false)
 (defmethod build-predicate-specific ::parallel-aggregator
   [pagg _ infields outfields options]
   (let [init-spec (w/fn-spec (:init-var pagg))
@@ -385,7 +403,6 @@
                outfields)))
 
 (defmethod predicate-default-var ::vanilla-function [& _] :<)
-(defmethod hof-predicate? ::vanilla-function [& _] false)
 (defmethod build-predicate-specific ::vanilla-function
   [afn _ infields outfields _]
   (let [opvar (search-for-var afn)
@@ -432,7 +449,6 @@
                false)))
 
 (defmethod predicate-default-var ::cascalog-function [& _] :>)
-(defmethod hof-predicate? ::cascalog-function [op & _] false)
 (defmethod build-predicate-specific ::cascalog-function
   [op _ infields outfields _]
   (predicate operation
@@ -444,7 +460,6 @@
              false))
 
 (defmethod predicate-default-var ::cascading-filter [& _] :<)
-(defmethod hof-predicate? ::cascading-filter [op & _] false)
 (defmethod build-predicate-specific ::cascading-filter
   [op _ infields outfields _]
   (u/safe-assert (#{0 1} (count outfields))
@@ -458,7 +473,6 @@
     (predicate operation assem infields outfields false)))
 
 (defmethod predicate-default-var ::cascalog-buffer [& _] :>)
-(defmethod hof-predicate? ::cascalog-buffer [op & _] false)
 (defmethod build-predicate-specific ::cascalog-buffer
   [op _ infields outfields options]
   (predicate aggregator
@@ -473,7 +487,6 @@
              outfields))
 
 (defmethod predicate-default-var ::cascalog-aggregator [& _] :>)
-(defmethod hof-predicate? ::cascalog-aggregator [op & _] false)
 (defmethod build-predicate-specific ::cascalog-aggregator
   [op _ infields outfields _]
   (predicate aggregator
@@ -488,7 +501,6 @@
              outfields))
 
 (defmethod predicate-default-var :cascalog-tap [& _] :>)
-(defmethod hof-predicate? :cascalog-tap [op & _] false)
 (defmethod build-predicate-specific :cascalog-tap
   [gen _ infields outfields options]
   (build-predicate-specific (:source gen)
@@ -498,7 +510,6 @@
                             options))
 
 (defmethod predicate-default-var ::data-structure [& _] :>)
-(defmethod hof-predicate? ::data-structure [op & _] false)
 (defmethod build-predicate-specific ::data-structure
   [tuples _ infields outfields options]
   (build-predicate-specific (w/memory-source-tap tuples)
@@ -583,8 +594,8 @@
                :outfields outfields}))
 
 (defn- fix-duplicate-infields
-  "Workaround to Cascading not allowing same field multiple times as input to an operation.
-   Copies values as a workaround"
+  "Workaround to Cascading not allowing same field multiple times as
+  input to an operation. Copies values as a workaround"
   [infields]
   (letfn [(update [[newfields dupvars assem] f]
             (if ((set newfields) f)

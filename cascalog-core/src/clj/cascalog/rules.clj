@@ -25,7 +25,10 @@
 
 ;; infields for a join are the names of the join fields
 (p/defpredicate join :infields)
-(p/defpredicate group :assembly :infields :totaloutfields)
+(p/defpredicate group
+  :assembly
+  :infields
+  :totaloutfields)
 
 (defn- find-generator-join-set-vars [node]
   (let [pred (g/get-value node)
@@ -50,7 +53,12 @@
       (throw-illegal "Cannot use both aggregators and buffers in same grouping"))
     [gens ops aggs]))
 
-(defstruct tailstruct :ground? :operations :drift-map :available-fields :node)
+(defstruct tailstruct
+  :ground?
+  :operations
+  :drift-map
+  :available-fields
+  :node)
 
 (defn- connect-op [tail op]
   (let [new-node (g/connect-value (:node tail) op)
@@ -85,7 +93,8 @@
     tail))
 
 ;; TODO: refactor and simplify drift algorithm
-(defn- add-drift-op [tail equality-sets rename-map new-drift-map]
+(defn- add-drift-op
+  [tail equality-sets rename-map new-drift-map]
   (let [eq-assemblies (map w/equal equality-sets)
         outfields (vec (keys rename-map))
         rename-in (vec (vals rename-map))
@@ -95,11 +104,18 @@
         assembly   (apply w/compose-straight-assemblies
                           (concat eq-assemblies [rename-assembly]))
         infields (vec (apply concat rename-in equality-sets))
-        tail (connect-op tail (p/predicate p/operation assembly infields outfields false))
-        newout (difference (set (:available-fields tail)) (set rename-in))]
-    (merge tail {:drift-map new-drift-map :available-fields newout} )))
+        tail (connect-op tail (p/predicate p/operation
+                                           assembly
+                                           infields
+                                           outfields
+                                           false))
+        newout (difference (set (:available-fields tail))
+                           (set rename-in))]
+    (merge tail {:drift-map new-drift-map
+                 :available-fields newout} )))
 
-(defn- determine-drift [drift-map available-fields]
+(defn- determine-drift
+  [drift-map available-fields]
   (let [available-set (set available-fields)
         rename-map (reduce (fn [m f]
                              (let [drift (drift-map f)]
@@ -119,7 +135,8 @@
   "Adds operations to tail until can't anymore. Returns new tail"
   [tail]
   (let [{:keys [drift-map available-fields] :as tail} (fixed-point-operations tail)
-        [new-drift-map equality-sets rename-map] (determine-drift drift-map available-fields)]
+        [new-drift-map equality-sets rename-map]
+        (determine-drift drift-map available-fields)]
     (if (and (empty? equality-sets)
              (empty? rename-map))
       tail
@@ -157,7 +174,8 @@
       (cons (vec max-join)
             (s/separate (partial joinable? max-join) tails)))))
 
-(defn- intersect-drift-maps [drift-maps]
+(defn- intersect-drift-maps
+  [drift-maps]
   (let [tokeep (->> drift-maps
                     (map #(set (seq %)))
                     (apply intersection))]
@@ -166,10 +184,12 @@
 (defn- select-selector [seq1 selector]
   (mapcat (fn [o b] (if b [o])) seq1 selector))
 
-(defn- merge-tails [graph tails]
+(defn- merge-tails
+  [graph tails]
   (let [tails (map add-ops-fixed-point tails)]
     (if (= 1 (count tails))
-      (add-ops-fixed-point (merge (first tails) {:ground? true})) ; if still unground, allow operations to be applied
+      ;; if still unground, allow operations to be applied
+      (add-ops-fixed-point (merge (first tails) {:ground? true}))
       (let [[join-fields join-set rest-tails] (select-join tails)
             join-node             (g/create-node graph (p/predicate join join-fields))
             join-set-vars    (map find-generator-join-set-vars (map :node join-set))
@@ -177,9 +197,8 @@
                                               (cons (apply concat join-set-vars)
                                                     (select-selector
                                                      (map :available-fields join-set)
-                                                     (map not join-set-vars))
-                                                    ))))
-            new-ops          (vec (apply intersection (map #(set (:operations %)) join-set)))
+                                                     (map not join-set-vars))))))
+            new-ops (vec (apply intersection (map #(set (:operations %)) join-set)))
             new-drift-map    (intersect-drift-maps (map :drift-map join-set))]
         (debug-print "Selected join" join-fields join-set)
         (debug-print "Join-set-vars" join-set-vars)
@@ -210,8 +229,7 @@
 
 (defn- mk-combined-aggregator [pagg argfields outfields]
   (w/raw-every (w/fields argfields)
-               (ClojureCombinedAggregator. (w/fields outfields)
-                                           pagg)
+               (ClojureCombinedAggregator. (w/fields outfields) pagg)
                Fields/ALL))
 
 (defn mk-agg-arg-fields [fields]
@@ -238,9 +256,12 @@
   [grouping-fields aggs]
   (cond (and (= 1 (count aggs))
              (:parallel-agg (first aggs))
-             (:buffer? (first aggs)))     (mk-parallel-buffer-agg grouping-fields (first aggs))
-             (every? :parallel-agg aggs)  (mk-parallel-aggregator grouping-fields aggs)
-             :else                        [[identity] (map :serial-agg-assembly aggs)]))
+             (:buffer? (first aggs)))
+        (mk-parallel-buffer-agg grouping-fields (first aggs))
+
+        (every? :parallel-agg aggs) (mk-parallel-aggregator grouping-fields aggs)
+
+        :else [[identity] (map :serial-agg-assembly aggs)]))
 
 (defn- mk-group-by [grouping-fields options]
   (let [{s :sort rev :reverse} options]
@@ -252,25 +273,24 @@
   (debug-print "Adding aggregators to tail" options prev-tail grouping-fields aggs)
   (when (and (empty? aggs) (:sort options))
     (throw-illegal "Cannot specify a sort when there are no aggregators"))
-  (if (and (not (:distinct options))
-           (empty? aggs))
+  (if (and (not (:distinct options)) (empty? aggs))
     prev-tail
     (let [aggs (or (not-empty aggs) [p/distinct-aggregator])
           [grouping-fields inserter] (normalize-grouping grouping-fields)
           [prep-aggs postgroup-aggs] (build-agg-assemblies grouping-fields aggs)
-          assem        (apply w/compose-straight-assemblies
-                              (concat [inserter]
-                                      (map :pregroup-assembly aggs)
-                                      prep-aggs
-                                      [(mk-group-by grouping-fields options)]
-                                      postgroup-aggs
-                                      (map :post-assembly aggs)))
+          assem (apply w/compose-straight-assemblies
+                       (concat [inserter]
+                               (map :pregroup-assembly aggs)
+                               prep-aggs
+                               [(mk-group-by grouping-fields options)]
+                               postgroup-aggs
+                               (map :post-assembly aggs)))
           total-fields (agg-available-fields grouping-fields aggs)
           all-agg-infields  (agg-infields (:sort options) aggs)
-          prev-node    (:node prev-tail)
-          node         (g/create-node (g/get-graph prev-node)
-                                      (p/predicate group assem
-                                                   all-agg-infields total-fields))]
+          prev-node (:node prev-tail)
+          node (g/create-node (g/get-graph prev-node)
+                              (p/predicate group assem
+                                           all-agg-infields total-fields))]
       (g/create-edge prev-node node)
       (struct tailstruct (:ground? prev-tail) (:operations prev-tail)
               (:drift-map prev-tail) total-fields node))))
@@ -591,13 +611,10 @@
                           vars)]
     [replacements (conj ret [op newvars])]))
 
-(defn collectify-nil-as-seq [v]
-  (if v (s/collectify v)))
-
 (defn- build-predicate-macro-fn
   [invars-decl outvars-decl raw-predicates]
-  (when (seq (intersection (set (collectify-nil-as-seq invars-decl))
-                           (set (collectify-nil-as-seq outvars-decl))))
+  (when (seq (intersection (set invars-decl)
+                           (set outvars-decl)))
     (throw-runtime
      "Cannot declare the same var as an input and output to predicate macro: "
      invars-decl
@@ -619,8 +636,8 @@
                       raw-predicates)))))
 
 (defn- build-predicate-macro [invars outvars raw-predicates]
-  (p/predicate p/predicate-macro
-               (build-predicate-macro-fn invars outvars raw-predicates)))
+  (->> (build-predicate-macro-fn invars outvars raw-predicates)
+       (p/predicate p/predicate-macro)))
 
 (defn- to-jcascalog-fields [fields]
   (jcascalog.Fields. (or fields [])))
@@ -696,13 +713,13 @@
   [out-vars raw-predicates]
   (let [predicates (->> raw-predicates
                         (map normalize)
-                        expand-predicate-macros)
-        parsed (p/parse-variables out-vars :?)]
+                        expand-predicate-macros)]
     (if (query-signature? out-vars)
       (build-query out-vars predicates)
-      (build-predicate-macro (parsed :<<)
-                             (parsed :>>)
-                             predicates))))
+      (let [parsed (p/parse-variables out-vars :<)]
+        (build-predicate-macro (parsed :<<)
+                               (parsed :>>)
+                               predicates)))))
 
 (defn mk-raw-predicate
   "Receives a cascalog predicate of the form [op <any other vars>] and
@@ -796,12 +813,8 @@ cascading tap, returns a new generator with field-names."
 
 (defn get-sink-tuples [^Tap sink]
   (let [conf (hadoop/job-conf (conf/project-conf))]
-    (cond (map? sink)
-          (get-sink-tuples (:sink sink))
-
-          (not (.resourceExists sink conf))
-          []
-
+    (cond (map? sink) (get-sink-tuples (:sink sink))
+          (not (.resourceExists sink conf)) []
           :else (with-open [it (-> (HadoopFlowProcess. conf)
                                    (.openTapForRead sink))]
                   (doall
