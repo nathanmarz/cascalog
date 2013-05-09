@@ -2,7 +2,8 @@
   (:use [jackknife.core :only (update-vals)]
         [jackknife.seq :only (unweave merge-to-vec collectify)])
   (:refer-clojure :exclude [flatten])
-  (:require [clojure.string :as s])
+  (:require [clojure.string :as s]
+            [clojure.walk :refer (postwalk)])
   (:import [java.util UUID]))
 
 (defn any-list?
@@ -16,7 +17,9 @@
   "Flattens out a nested sequence. unlike clojure.core/flatten, also
   flattens maps."
   [vars]
-  (clojure.core/flatten (map #(if (map? %) (seq %) %) vars)))
+  (->> vars
+       (postwalk #(if (map? %) (seq %) %))
+       (clojure.core/flatten)))
 
 (defn multifn? [x]
   (instance? clojure.lang.MultiFn x))

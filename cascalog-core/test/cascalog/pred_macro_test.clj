@@ -122,7 +122,7 @@
     (test?<- [[1 2]] [!a !b]
              (nums !a !b)
              ((c/any #'odd-sum? #'large-total?) !a !b !a :> false))
-    
+
     (test?<- [[1 2]] [!a !b]
              (nums !a !b)
              ((c/all #'odd-sum? #'large-total? #'mult-3-sum?) !a !b !b !b !b !b !b !b))
@@ -130,7 +130,7 @@
     (test?<- [[3 3]] [!a !b]
              (nums !a !b)
              ((c/all #'odd-sum? #'mult-3-sum?) !a))
-    
+
     (test?<- [[2] [6]]
              [!a]
              (nums _ !a)
@@ -140,7 +140,7 @@
              [!a]
              (nums !a !b)
              ((c/negate #'<) !a !b))
-    
+
     (test?<- [[true] [false] [false]]
              [!c]
              (nums !a !b)

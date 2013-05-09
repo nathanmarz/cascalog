@@ -132,8 +132,8 @@ interpreted as a logic variable."
 
 (def logic-sym?
   "Returns true if the supplied symbol is a Cascalog logic variable,
-  false otherwise."
-  (every-pred symbol? cascalog-var?))
+  false otherwise. & and _ are also munged."
+  (every-pred symbol? (some-fn cascalog-var? #{'&})))
 
 (defmacro with-logic-vars
   "Binds all logic variables within the body of `with-logic-vars` to

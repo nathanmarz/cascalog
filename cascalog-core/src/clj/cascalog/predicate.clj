@@ -105,35 +105,44 @@
 ;; TODO: validation on the arg-m. We shouldn't ever have the sugar arg
 ;; and the non-sugar arg. Move the examples out to tests.
 
-(defn desugar-arg
-  "Accepts a map of arguments, a sugary input or output selector and a
-  full vector input or output selector and either destructures the
+(defn desugar-selectors
+  "Accepts a map of cascalog input or output symbol (:< or :>, for
+  example) to var sequence, a <sugary input or output selector> and a
+  <full vector input or output selector> and either destructures the
   non-sugary input or moves the sugary input into its proper
   place. For example:
 
- (desugar-args {:>> ([\"?a\"])} :> :>>)
+ (desugar-selectors {:>> ([\"?a\"])} :> :>>)
  ;=> {:>> [\"?a\"]}
 
- (desugar-args {:> [\"?a\"]} :> :>>)
- ;=> {:>> [\"?a\"], :> [\"?a\"]}
+ (desugar-selectors {:> [\"?a\"] :<< [[\"?b\"]]} :> :>> :< :<<)
+ ;=>  {:>> [\"?a\"], :<< [\"?b\"]}"
+  [arg-m & sugar-full-pairs]
+  (letfn [(desugar [m [sugar-k full-k]]
+            (if-not (some m #{sugar-k full-k})
+              m
+              (-> m
+                  (dissoc sugar-k)
+                  (assoc full-k
+                    (or (first (m full-k))
+                        (m sugar-k))))))]
+    (reduce desugar arg-m
+            (partition 2 sugar-full-pairs))))
 
- Note that the original sugared args aren't removed."
-  [arg-m sugar-key full-key]
-  (if-not (some arg-m #{sugar-key full-key})
-    arg-m
-    (assoc arg-m full-key
-           (or (first (arg-m full-key))
-               (arg-m sugar-key)))))
-
-(defn vectorify-pos-selector
+(defn expand-positional-selector
+  "Accepts a map of cascalog selector to var sequence and, if the map
+  contains an entry for Cascalog's positional selector, expands out
+  the proper number of logic vars and replaces each entry specified
+  within the positional map. This function returns the updated map."
   [arg-m]
   (if-let [[amt selector-map] (arg-m :#>)]
-    (let [all-post-map (reduce (fn [m i]
-                                 (assoc m i (if-let [v (selector-map i)]
-                                              v (v/gen-nullable-var))))
-                               {}
-                               (range amt))]
-      (assoc arg-m :>> (map second (sort-by first (seq all-post-map)))))
+    (let [expanded-vars (reduce (fn [v [pos var]]
+                                  (assoc v pos var))
+                                (vec (v/gen-nullable-vars amt))
+                                selector-map)]
+      (-> arg-m
+          (dissoc :#>)
+          (assoc :>> expanded-vars)))
     arg-m))
 
 ;; This function is called from cascalog.rules, notably during
@@ -164,6 +173,11 @@
     (zipmap (map first keywords)
             vars)))
 
+;; TODO: Note that this is the spot where we'd go ahead and add new
+;; selectors to Cascalog. For example, say we wanted the ability to
+;; pour the results of a query into a vector directly; :>> ?a. This is
+;; the place.
+
 (defn parse-variables
   "parses variables of the form ['?a' '?b' :> '!!c'] and returns a map
    of input variables, output variables, If there is no :>, defaults
@@ -171,17 +185,16 @@
   [vars selector-default]
   ;; First, if we start with a cascalog keyword, don't worry about
   ;; it. If we don't, we probably need to append something; if we're
-  ;; dealing with a predicate macro, then add <: on the front of the
-  ;; thing, otherwise just tag the supplied selector-default onto the
-  ;; front.
+  ;; dealing with a predicate macro, don't do anything, otherwise just
+  ;; tag the supplied selector-default onto the front.
   (let [vars (if (v/cascalog-keyword? (first vars))
                vars
                (cons (implicit-var-flag vars selector-default) vars))
         argsmap (-> vars
                     (parse-predicate-vars)
-                    (desugar-args :> :>>)
-                    (desugar-args :< :<<)
-                    (vectorify-pos-selector))
+                    (desugar-selectors :> :>>
+                                       :< :<<)
+                    (expand-positional-selector))
         ret (select-keys argsmap [:<< :>>])]
     (if-not (#{:< :>} selector-default)
       (assoc ret selector-default (argsmap selector-default))
