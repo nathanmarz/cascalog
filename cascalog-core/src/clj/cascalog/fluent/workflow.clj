@@ -301,13 +301,41 @@
 
 ;; Source
 
-(defalias defmapop d/defmapop)
-(defalias defmapcatop d/defmapcatop)
-(defalias deffilterop d/deffilterop)
-(defalias defaggregateop d/defaggregateop)
-(defalias defbufferop d/defbufferop)
-(defalias defmultibufferop d/defmultibufferop)
-(defalias defbufferiterop d/defbufferiterop)
+(defmacro defmapop
+  {:arglists '([name doc-string? attr-map? [fn-args*] body])}
+  [& args]
+  (defop-helper 'cascalog.fluent.workflow/map args))
+
+(defmacro defmapcatop
+  {:arglists '([name doc-string? attr-map? [fn-args*] body])}
+  [& args]
+  (defop-helper 'cascalog.fluent.workflow/mapcat args))
+
+(defmacro deffilterop
+  {:arglists '([name doc-string? attr-map? [fn-args*] body])}
+  [& args]
+  (defop-helper 'cascalog.fluent.workflow/filter args))
+
+(defmacro defaggregateop
+  {:arglists '([name doc-string? attr-map? [fn-args*] body])}
+  [& args]
+  (defop-helper 'cascalog.fluent.workflow/aggregate args))
+
+(defmacro defbufferop
+  {:arglists '([name doc-string? attr-map? [fn-args*] body])}
+  [& args]
+  (defop-helper 'cascalog.fluent.workflow/buffer args))
+
+(defmacro defmultibufferop
+  {:arglists '([name doc-string? attr-map? [fn-args*] body])}
+  [& args]
+  (defop-helper 'cascalog.fluent.workflow/multibuffer args))
+
+(defmacro defbufferiterop
+  {:arglists '([name doc-string? attr-map? [fn-args*] body])}
+  [& args]
+  (defop-helper 'cascalog.fluent.workflow/bufferiter args))
+
 (defalias path u/path)
 (defalias flow-def cascalog.fluent.flow/flow-def)
 (defalias sequence-file tap/sequence-file)

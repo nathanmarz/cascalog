@@ -83,38 +83,3 @@
                (let [~assembly-args ~args-sym-all]
                  (apply ~type ~func-form ~args-sym)))
              ~(meta fname))))))
-
-(defmacro defmapop
-  {:arglists '([name doc-string? attr-map? [fn-args*] body])}
-  [& args]
-  (defop-helper 'cascalog.fluent.workflow/map args))
-
-(defmacro defmapcatop
-  {:arglists '([name doc-string? attr-map? [fn-args*] body])}
-  [& args]
-  (defop-helper 'cascalog.fluent.workflow/mapcat args))
-
-(defmacro deffilterop
-  {:arglists '([name doc-string? attr-map? [fn-args*] body])}
-  [& args]
-  (defop-helper 'cascalog.fluent.workflow/filter args))
-
-(defmacro defaggregateop
-  {:arglists '([name doc-string? attr-map? [fn-args*] body])}
-  [& args]
-  (defop-helper 'cascalog.fluent.workflow/aggregate args))
-
-(defmacro defbufferop
-  {:arglists '([name doc-string? attr-map? [fn-args*] body])}
-  [& args]
-  (defop-helper 'cascalog.fluent.workflow/buffer args))
-
-(defmacro defmultibufferop
-  {:arglists '([name doc-string? attr-map? [fn-args*] body])}
-  [& args]
-  (defop-helper 'cascalog.fluent.workflow/multibuffer args))
-
-(defmacro defbufferiterop
-  {:arglists '([name doc-string? attr-map? [fn-args*] body])}
-  [& args]
-  (defop-helper 'cascalog.fluent.workflow/bufferiter args))
