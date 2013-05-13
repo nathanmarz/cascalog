@@ -9,11 +9,12 @@
             [cascalog.fluent.conf :as conf]
             [hadoop-util.core :as hadoop]
             [jackknife.seq :refer (unweave collectify)])
-  (:import [cascalog Util]
+  (:import [cascalog Util KryoService]
            [clojure.lang IPersistentCollection]
            [java.io File]
            [cascading.tuple Fields Tuple TupleEntry TupleEntryCollector]
-           [cascading.operation ConcreteCall]
+           [cascading.operation BaseOperation
+            FunctionCall ConcreteCall Function Filter OperationCall Aggregator]
            [cascading.flow FlowProcess]
            [cascading.flow.hadoop HadoopFlowProcess]
            [cascading.flow.hadoop.util HadoopUtil]))
@@ -32,12 +33,42 @@
 ;; The following functions create proxies for dealing with various
 ;; output collectors.
 
+(defn cascalog-map
+  [op-var output-fields & {:keys [stateful?]}]
+  (let [ser (KryoService/serialize (ops/fn-spec op-var))]
+    (proxy [BaseOperation Function] [^Fields output-fields]
+      (prepare [^FlowProcess flow-process ^OperationCall op-call]
+        (let [op (Util/bootFn (KryoService/deserialize ser))]
+          (-> op-call
+              (.setContext [op (if stateful? (op))]))))
+      (operate [^FlowProcess flow-process ^FunctionCall fn-call]
+        (let [[op] (.getContext fn-call)
+              collector (-> fn-call .getOutputCollector)
+              ^Tuple tuple (-> fn-call .getArguments .getTuple)]
+          (->> (Util/coerceFromTuple tuple)
+               (apply op)
+               (Util/coerceToTuple)
+               (.add collector))))
+      (cleanup [flow-process ^OperationCall op-call]
+        (if stateful?
+          (let [[op state] (.getContext op-call)]
+            (op state)))))))
+
+(comment
+  ;; Java and Clojure versions:
+  (def java-m
+    (ClojureMap. (cascalog.fluent.cascading/fields "num")
+                 (ops/fn-spec #'inc)
+                 false))
+  (def clj-m
+    (cascalog-map #'inc (cascalog.fluent.cascading/fields "num"))))
+
 (defn- output-collector [out-atom]
   (proxy [TupleEntryCollector] []
-    (add [tuple]
+    (add [^Tuple tuple]
       (swap! out-atom conj (Util/coerceFromTuple tuple)))))
 
-(defn- op-call []
+(defn- mk-op-call []
   (let [args-atom    (atom nil)
         out-atom     (atom [])
         context-atom (atom nil)]
@@ -59,7 +90,7 @@
   "Invokes the supplied Cascading filter with some tuple. The filter
   will return true or false."
   [fil coll]
-  (let [fil (roundtrip fil)
+  (let [^Filter fil (roundtrip fil)
         op-call (ConcreteCall.)
         fp-null FlowProcess/NULL]
     (.setArguments op-call (TupleEntry. (Util/coerceToTuple coll)))
@@ -71,8 +102,8 @@
 (defn invoke-function
   "Invokes the supplied Cascading Function."
   [m coll]
-  (let [m (roundtrip m)
-        func-call (op-call)
+  (let [^Function m (roundtrip m)
+        ^ConcreteCall func-call (mk-op-call)
         fp-null   FlowProcess/NULL]
     (.setArguments func-call (TupleEntry. (Util/coerceToTuple coll)))
     (.prepare m fp-null func-call)
@@ -80,9 +111,22 @@
     (.cleanup m fp-null func-call)
     (seq func-call)))
 
+(defn bench-op
+  "Invokes the supplied Cascading Function."
+  [m coll]
+  (let [^Function m (roundtrip m)
+        ^ConcreteCall func-call (mk-op-call)
+        fp-null FlowProcess/NULL]
+    (.setArguments func-call (TupleEntry. (Util/coerceToTuple coll)))
+    (.prepare m fp-null func-call)
+    (time (dotimes [_ 1000000]
+            (.operate m fp-null func-call)))
+    (.cleanup m fp-null func-call)
+    #_(seq func-call)))
+
 (defn invoke-aggregator [a colls]
-  (let [a (roundtrip a)
-        ag-call (op-call)
+  (let [^Aggregator a (roundtrip a)
+        ^ConcreteCall ag-call (mk-op-call)
         fp-null FlowProcess/NULL]
     (.prepare a fp-null ag-call)
     (.start a fp-null ag-call)
@@ -134,7 +178,7 @@
                sinks          (map mk-test-sink
                                    sink-specs
                                    (u/unique-rooted-paths sink-path))
-               flow           (w/mk-flow sources sinks assembly)
+               flow           (mk-flow sources sinks assembly)
                _              (.complete flow)
                out-tuples     (doall (map tap/get-sink-tuples sinks))
                expected-data  (map :tuples sink-specs)]

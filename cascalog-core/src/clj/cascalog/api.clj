@@ -20,7 +20,7 @@
   (:import [cascading.flow Flow FlowDef]
            [cascading.flow.hadoop HadoopFlowConnector]
            [cascading.tuple Fields]
-           [cascading.pipe ]
+           [cascading.pipe Pipe]
            [com.twitter.maple.tap StdoutTap]))
 
 ;; Functions for creating taps and tap helpers

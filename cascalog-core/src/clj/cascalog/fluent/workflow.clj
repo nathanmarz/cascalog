@@ -10,6 +10,7 @@
             [cascalog.fluent.tap :as tap]
             [cascalog.fluent.cascading :as cascading]
             [cascalog.fluent.def :as d]
+            [cascalog.fluent.operations :as ops]
             [cascalog.fluent.flow :as flow]
             [cascalog.util :as u]
             [hadoop-util.core :as hadoop])
@@ -46,7 +47,7 @@
   returns [in-fields func-fields spec out-fields]"
   ([arr] (parse-args arr Fields/RESULTS))
   ([[func-args & varargs] defaultout]
-     (let [spec      (fn-spec func-args)
+     (let [spec      (ops/fn-spec func-args)
            func-var  (if (var? func-args)
                        func-args
                        (clojure.core/first func-args))

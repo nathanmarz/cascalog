@@ -5,7 +5,8 @@
         [clojure.tools.macro :only (name-with-attributes)])
   (:require [jackknife.core :as u]
             [cascalog.vars :as v]
-            [cascalog.fluent.workflow :as w])
+            [cascalog.fluent.workflow :as w]
+            [cascalog.fluent.operations :as ops])
   (:import [cascading.tap Tap]
            [cascading.operation Filter]
            [cascading.tuple Fields]
@@ -282,7 +283,7 @@
              false))
 
 (defn- mk-hof-fn-spec [avar args]
-  (w/fn-spec (cons avar args)))
+  (ops/fn-spec (cons avar args)))
 
 (defn- simpleagg-build-predicate
   [buffer? op hof-args infields outfields _]
@@ -362,8 +363,8 @@
 (defmethod predicate-default-var ::parallel-aggregator [& _] :>)
 (defmethod build-predicate-specific ::parallel-aggregator
   [pagg _ infields outfields options]
-  (let [init-spec (w/fn-spec (:init-var pagg))
-        combine-spec (w/fn-spec (:combine-var pagg))
+  (let [init-spec (ops/fn-spec (:init-var pagg))
+        combine-spec (ops/fn-spec (:combine-var pagg))
         java-pagg (ClojureParallelAgg. (CombinerSpec. init-spec combine-spec))]
     (build-predicate-specific java-pagg nil infields outfields options)
     ))
