@@ -81,7 +81,7 @@
   "Returns an infinite* sequence of unique subpaths of the supplied
   root path."
   [root]
-  (repeatedly (str root "/" (uuid))))
+  (repeatedly #(str root "/" (uuid))))
 
 (defn all-pairs
   "[1 2 3] -> [[1 2] [1 3] [2 3]]"

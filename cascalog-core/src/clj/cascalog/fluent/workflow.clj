@@ -10,6 +10,7 @@
             [cascalog.fluent.tap :as tap]
             [cascalog.fluent.cascading :as cascading]
             [cascalog.fluent.def :as d]
+            [cascalog.fluent.flow :as flow]
             [cascalog.util :as u]
             [hadoop-util.core :as hadoop])
   (:import [cascalog Util]
@@ -33,30 +34,6 @@
            [cascalog ClojureFilter ClojureMapcat ClojureMap
             ClojureAggregator Util ClojureBuffer ClojureBufferIter
             FastFirst MultiGroupBy ClojureMultibuffer]))
-
-(defn ns-fn-name-pair [v]
-  (let [m (meta v)]
-    [(str (:ns m)) (str (:name m))]))
-
-(defn fn-spec
-  "v-or-coll => var or [var & params]
-   Returns an Object array that is used to represent a Clojure function.
-   If the argument is a var, the array represents that function.
-   If the argument is a coll, the array represents the function returned
-   by applying the first element, which should be a var, to the rest of the
-   elements."
-  [v-or-coll]
-  (cond
-   (var? v-or-coll)
-   (into-array Object (ns-fn-name-pair v-or-coll))
-
-   (coll? v-or-coll)
-   (into-array Object
-               (concat
-                (ns-fn-name-pair (clojure.core/first v-or-coll))
-                (next v-or-coll)))
-
-   :else (throw (IllegalArgumentException. (str v-or-coll)))))
 
 (defalias fields-array cascading/fields-array)
 (defalias fields cascading/fields)
@@ -301,43 +278,15 @@
 
 ;; Source
 
-(defmacro defmapop
-  {:arglists '([name doc-string? attr-map? [fn-args*] body])}
-  [& args]
-  (defop-helper 'cascalog.fluent.workflow/map args))
-
-(defmacro defmapcatop
-  {:arglists '([name doc-string? attr-map? [fn-args*] body])}
-  [& args]
-  (defop-helper 'cascalog.fluent.workflow/mapcat args))
-
-(defmacro deffilterop
-  {:arglists '([name doc-string? attr-map? [fn-args*] body])}
-  [& args]
-  (defop-helper 'cascalog.fluent.workflow/filter args))
-
-(defmacro defaggregateop
-  {:arglists '([name doc-string? attr-map? [fn-args*] body])}
-  [& args]
-  (defop-helper 'cascalog.fluent.workflow/aggregate args))
-
-(defmacro defbufferop
-  {:arglists '([name doc-string? attr-map? [fn-args*] body])}
-  [& args]
-  (defop-helper 'cascalog.fluent.workflow/buffer args))
-
-(defmacro defmultibufferop
-  {:arglists '([name doc-string? attr-map? [fn-args*] body])}
-  [& args]
-  (defop-helper 'cascalog.fluent.workflow/multibuffer args))
-
-(defmacro defbufferiterop
-  {:arglists '([name doc-string? attr-map? [fn-args*] body])}
-  [& args]
-  (defop-helper 'cascalog.fluent.workflow/bufferiter args))
-
+(defalias defmapop d/defmapop)
+(defalias defmapcatop d/defmapcatop)
+(defalias deffilterop d/deffilterop)
+(defalias defaggregateop d/defaggregateop)
+(defalias defbufferop d/defbufferop)
+(defalias defmultibufferop d/defmultibufferop)
+(defalias defbufferiterop d/defbufferiterop)
 (defalias path u/path)
-(defalias flow-def cascalog.fluent.flow/flow-def)
+(defalias flow-def flow/flow-def)
 (defalias sequence-file tap/sequence-file)
 (defalias text-line tap/text-line)
 (defalias fill-tap! tap/fill-tap!)

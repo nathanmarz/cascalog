@@ -5,8 +5,7 @@
             [cascalog.fluent.cascading :refer (fields default-output)]
             [cascalog.fluent.algebra :refer (plus)]
             [cascalog.util :as u]
-            [cascalog.fluent.workflow :as w]
-            [cascalog.fluent.flow :as flow]
+            [cascalog.fluent.source :as src]
             [hadoop-util.core :as hadoop]
             [jackknife.seq :refer (unweave)])
   (:import [java.io File]
@@ -21,6 +20,33 @@
            [cascalog ClojureFilter ClojureMapcat ClojureMap
             ClojureAggregator ClojureBuffer ClojureBufferIter
             FastFirst MultiGroupBy ClojureMultibuffer]))
+
+;; ## Cascalog Function Representation
+
+(defn ns-fn-name-pair [v]
+  (let [m (meta v)]
+    [(str (:ns m)) (str (:name m))]))
+
+(defn fn-spec
+  "v-or-coll => var or [var & params]
+
+   Returns an Object array that is used to represent a Clojure
+   function. If the argument is a var, the array represents that
+   function. If the argument is a coll, the array represents the
+   function returned by applying the first element, which should be a
+   var, to the rest of the elements."
+  [v-or-coll]
+  (cond
+   (var? v-or-coll)
+   (into-array Object (ns-fn-name-pair v-or-coll))
+
+   (coll? v-or-coll)
+   (into-array Object
+               (concat
+                (ns-fn-name-pair (clojure.core/first v-or-coll))
+                (next v-or-coll)))
+
+   :else (throw (IllegalArgumentException. (str v-or-coll)))))
 
 ;; ## Operations
 ;;
@@ -105,16 +131,16 @@
                             (fields new-fields)))))
 
 (defop filter* [op-var in-fields]
-  #(->> (ClojureFilter. (w/fn-spec op-var) false)
+  #(->> (ClojureFilter. (fn-spec op-var) false)
         (Each. % (fields in-fields))))
 
 (defn map* [flow op-var in-fields out-fields]
-  (each flow #(ClojureMap. % (w/fn-spec op-var) false)
+  (each flow #(ClojureMap. % (fn-spec op-var) false)
         in-fields
         out-fields))
 
 (defn mapcat* [flow op-var in-fields out-fields]
-  (each flow #(ClojureMapcat. % (w/fn-spec op-var) false)
+  (each flow #(ClojureMapcat. % (fn-spec op-var) false)
         in-fields
         out-fields))
 
@@ -156,7 +182,7 @@
   "Accepts a temporary name and a function from flow => flow and
   performs the operation within a renamed branch."
   ([flow f]
-     (in-branch* flow (u/uuid) f))
+     (in-branch flow (u/uuid) f))
   ([flow name f]
      (-> flow
          (rename-pipe name)
@@ -164,7 +190,7 @@
          (rename-pipe))))
 
 (defn write* [flow sink]
-  (let [sink (flow/to-sink sink)]
+  (let [sink (src/to-sink sink)]
     (-> flow
         (in-branch (.getIdentifier sink)
                    (fn [subflow name]
@@ -175,7 +201,7 @@
 (defn trap*
   "Applies a trap to the current branch of the supplied flow."
   [flow trap]
-  (let [trap (flow/to-sink trap)
+  (let [trap (src/to-sink trap)
         id   (.getIdentifier trap)]
     (-> flow
         (rename-pipe id)
