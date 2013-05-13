@@ -3,8 +3,7 @@
             [hadoop-util.core :as hadoop]
             [cascalog.util :refer (path)]
             [cascalog.fluent.cascading :refer (fields)]
-            [cascalog.fluent.conf :as conf]
-            [cascalog.fluent.workflow :as w])
+            [cascalog.fluent.conf :as conf])
   (:import [java.util ArrayList]
            [cascalog Util]
            [cascading.tap Tap SinkMode]
@@ -99,13 +98,13 @@ identity.  identity."
   and a `GlobHfs` tap when used as a source. Otherwise, acts as
   identity."
   [scheme type path-or-file sinkmode sink-template source-pattern templatefields]
-  (let [tap-maker ({:hfs w/hfs :lfs w/lfs} type)
+  (let [tap-maker ({:hfs hfs :lfs lfs} type)
         parent (tap-maker scheme path-or-file sinkmode)
         source (if source-pattern
-                 (w/glob-hfs scheme path-or-file source-pattern)
+                 (glob-hfs scheme path-or-file source-pattern)
                  parent)
         sink (if sink-template
-               (w/template-tap parent sink-template templatefields)
+               (template-tap parent sink-template templatefields)
                parent)]
     (mk-cascalog-tap source sink)))
 
@@ -134,7 +133,7 @@ identity.  identity."
   [sinkmode sinkparts sink-template source-pattern templatefields]
                           :or {templatefields Fields/ALL}}]
   (-> scheme
-      (w/set-sinkparts! sinkparts)
+      (set-sinkparts! sinkparts)
       (patternize :hfs path-or-file sinkmode
                   sink-template source-pattern templatefields)))
 
@@ -161,7 +160,7 @@ identity.  identity."
                                  source-pattern templatefields]
                           :or {templatefields Fields/ALL}}]
   (-> scheme
-      (w/set-sinkparts! sinkparts)
+      (set-sinkparts! sinkparts)
       (patternize :lfs path-or-file sinkmode
                   sink-template source-pattern templatefields)))
 
@@ -176,7 +175,7 @@ identity.  identity."
    http://www.cascading.org/javadoc/cascading/scheme/TextLine.html"
   [path & opts]
   (let [scheme (->> (:outfields (apply array-map opts) Fields/ALL)
-                    (w/text-line ["line"]))]
+                    (text-line ["line"]))]
     (apply hfs-tap scheme path opts)))
 
 (defn lfs-textline
