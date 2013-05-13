@@ -24,27 +24,27 @@ import cascading.tuple.Fields;
 import cascading.tuple.TupleEntry;
 
 public class FilterFunctionCall implements FilterCall {
-    FunctionCall func;
+  FunctionCall func;
 
-    public FilterFunctionCall(FunctionCall func) {
-        this.func = func;
-    }
+  public FilterFunctionCall(FunctionCall func) {
+    this.func = func;
+  }
 
-    public Object getContext() {
-        return func.getContext();
-    }
+  public Object getContext() {
+    return func.getContext();
+  }
 
-    public void setContext(Object o) {
-        func.setContext(o);
-    }
+  public void setContext(Object o) {
+    func.setContext(o);
+  }
 
-    public Fields getArgumentFields() {
-        return func.getArgumentFields();
-    }
+  public Fields getArgumentFields() {
+    return func.getArgumentFields();
+  }
 
-    public TupleEntry getArguments() {
-        return func.getArguments();
-    }
+  public TupleEntry getArguments() {
+    return func.getArguments();
+  }
 
 
 }

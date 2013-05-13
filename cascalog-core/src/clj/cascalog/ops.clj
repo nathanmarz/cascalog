@@ -3,8 +3,8 @@
   (:use cascalog.api
         [jackknife.def :only (defnk)]
         [jackknife.seq :only (collectify)]
-        [cascalog.workflow :only (fill-tap!)]
-        [cascalog.io :only (with-fs-tmp)])
+        [cascalog.fluent.workflow :only (fill-tap!)]
+        [cascalog.fluent.io :only (with-fs-tmp)])
   (:require [cascalog.util :as u]
             [cascalog.ops-impl :as impl]
             [cascalog.vars :as v]))
@@ -280,26 +280,3 @@
     (<- out-vars
         (gen :>> in-vars)
         ((fixed-sample-agg n) :<< in-vars :>> out-vars))))
-
-;; Helpers to use within ops
-
-(defmacro with-timeout
-  "Accepts a vector with a timeout (in ms) and any number of forms and
-  executes those forms sequentially. returns the result of the last
-  form or nil (if the timeout is reached.) For example:
-
-  (with-timeout [100]
-    (Thread/sleep 50)
-    \"done!\")
-  ;;=> \"done!\"
-
-  (with-timeout [100]
-    (Thread/sleep 200)
-    \"done!\")
-  ;;=> nil"
-  [[ms] & body]
-  `(let [^java.util.concurrent.Future f# (future ~@body)]
-     (try (.get f# ~ms java.util.concurrent.TimeUnit/MILLISECONDS)
-          (catch java.util.concurrent.TimeoutException e#
-            (.cancel f# true)
-            nil))))

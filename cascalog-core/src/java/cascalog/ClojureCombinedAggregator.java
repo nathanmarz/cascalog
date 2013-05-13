@@ -18,51 +18,51 @@
 
 package cascalog;
 
+import java.util.List;
+
 import cascading.flow.FlowProcess;
 import cascading.operation.Aggregator;
 import cascading.operation.AggregatorCall;
 import cascading.operation.BaseOperation;
 import cascading.operation.OperationCall;
 import cascading.tuple.Fields;
-import clojure.lang.ISeq;
-import java.util.List;
 
 public class ClojureCombinedAggregator extends BaseOperation<Object> implements Aggregator<Object> {
-    private ParallelAgg _agg;
+  private ParallelAgg _agg;
 
-    public ClojureCombinedAggregator(Fields outfields, ParallelAgg agg) {
-        super(outfields);
-        _agg = agg;
-    }
+  public ClojureCombinedAggregator(Fields outfields, ParallelAgg agg) {
+    super(outfields);
+    _agg = agg;
+  }
 
-    @Override
-    public void prepare(FlowProcess flowProcess, OperationCall<Object> opCall) {
-        _agg.prepare(flowProcess, opCall);
-    }
+  @Override
+  public void prepare(FlowProcess flowProcess, OperationCall<Object> opCall) {
+    _agg.prepare(flowProcess, opCall);
+  }
 
-    public void start(FlowProcess flowProcess, AggregatorCall<Object> aggCall) {
-        aggCall.setContext(null);
-    }
+  public void start(FlowProcess flowProcess, AggregatorCall<Object> aggCall) {
+    aggCall.setContext(null);
+  }
 
-    public void aggregate(FlowProcess flowProcess, AggregatorCall<Object> aggCall) {
-        try {
-            List<Object> args = Util.tupleToList(aggCall.getArguments());
-            List<Object> currContext = (List<Object>) aggCall.getContext();
-            if (currContext == null) {
-                aggCall.setContext(args);
-            } else {
-                aggCall.setContext(_agg.combine(currContext, args));
-            }
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+  public void aggregate(FlowProcess flowProcess, AggregatorCall<Object> aggCall) {
+    try {
+      List<Object> args = Util.tupleToList(aggCall.getArguments());
+      List<Object> currContext = (List<Object>) aggCall.getContext();
+      if (currContext == null) {
+        aggCall.setContext(args);
+      } else {
+        aggCall.setContext(_agg.combine(currContext, args));
+      }
+    } catch (Exception e) {
+      throw new RuntimeException(e);
     }
+  }
 
-    public void complete(FlowProcess flowProcess, AggregatorCall<Object> aggCall) {
-        try {
-            aggCall.getOutputCollector().add(Util.coerceToTuple(aggCall.getContext()));
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+  public void complete(FlowProcess flowProcess, AggregatorCall<Object> aggCall) {
+    try {
+      aggCall.getOutputCollector().add(Util.coerceToTuple(aggCall.getContext()));
+    } catch (Exception e) {
+      throw new RuntimeException(e);
     }
+  }
 }

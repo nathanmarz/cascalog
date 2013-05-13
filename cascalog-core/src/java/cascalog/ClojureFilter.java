@@ -24,12 +24,12 @@ import cascading.operation.FilterCall;
 import clojure.lang.ISeq;
 
 public class ClojureFilter extends ClojureCascadingBase implements Filter {
-    public ClojureFilter(Object[] fn_spec, boolean stateful) {
-        super(fn_spec, stateful);
-    }
+  public ClojureFilter(Object[] fn_spec, boolean stateful) {
+    super(fn_spec, stateful);
+  }
 
-    public boolean isRemove(FlowProcess flow_process, FilterCall filter_call) {
-        ISeq fn_args_seq = Util.coerceFromTuple(filter_call.getArguments().getTuple());
-        return !Util.truthy(applyFunction(fn_args_seq));
-    }
+  public boolean isRemove(FlowProcess flow_process, FilterCall filter_call) {
+    ISeq fn_args_seq = Util.coerceFromTuple(filter_call.getArguments().getTuple());
+    return !Util.truthy(applyFunction(fn_args_seq));
+  }
 }

@@ -1,7 +1,7 @@
 (ns cascalog.bridge-test
   (:use midje.sweet
         clojure.test)
-  (:require [cascalog.workflow :as w]
+  (:require [cascalog.fluent.workflow :as w]
             [cascalog.testing :as t]
             [cascalog.util :as u])
   (:import [cascading.tuple Fields]
@@ -11,7 +11,7 @@
 
 (deftest ns-fn-name-pair-test
   (fact "ns-fn-name-pair should produce a pair of strings."
-    (w/ns-fn-name-pair #'str) => ["clojure.core" "str"])) 
+    (w/ns-fn-name-pair #'str) => ["clojure.core" "str"]))
 
 (def obj-array-class
   (Class/forName "[Ljava.lang.Object;"))
@@ -48,7 +48,7 @@
         (seq spec) => ?result-vec))
     ?input       ?result-vec
     #'plus-one   ["cascalog.bridge-test" "plus-one"]
-    [#'plus-n 3] ["cascalog.bridge-test" "plus-n" 3])) 
+    [#'plus-n 3] ["cascalog.bridge-test" "plus-n" 3]))
 
 (deftest bootFn-test
   (tabular
@@ -58,7 +58,7 @@
         (f 1) => ?result))
     ?spec                               ?result
     ["cascalog.bridge-test" "plus-one"] [2]
-    ["cascalog.bridge-test" "plus-n" 3] [4])) 
+    ["cascalog.bridge-test" "plus-n" 3] [4]))
 
 (deftest Fields-test
   (facts "Fields tests."
@@ -70,22 +70,22 @@
 
       (facts "Double fields should resolve properly."
         f2       => #(instance? Fields %)
-        (seq f2) => ["foo" "bar"])))) 
+        (seq f2) => ["foo" "bar"]))))
 
 (deftest pipe-test
-  (tabular 
+  (tabular
     (fact "Pipe testing."
       ?pipe => #(instance? Pipe %)
       (.getName ?pipe) => ?check)
     ?pipe           ?check
     (w/pipe)        #(= 36 (.length %))
-    (w/pipe "name") "name")) 
+    (w/pipe "name") "name"))
 
 (deftest ClojureFilter-test
   (fact "Clojure Filter test."
     (let [fil (ClojureFilter. (w/fn-spec #'odd?) false)]
       (t/invoke-filter fil [1]) => false
-      (t/invoke-filter fil [2]) => true))) 
+      (t/invoke-filter fil [2]) => true)))
 
 (deftest ClojureMap-single-field-test
   (tabular
@@ -97,14 +97,14 @@
                  false)
     (ClojureMap. (w/fields "num")
                  (w/fn-spec #'inc)
-                 false))) 
+                 false)))
 
 (deftest ClojureMap-multiple-fields-test
   (facts "ClojureMap test, multiple fields."
     (let [m (ClojureMap. (w/fields ["num1" "num2"])
                          (w/fn-spec #'inc-both)
                          false)]
-      (t/invoke-function m [1 2]) => [[2 3]]))) 
+      (t/invoke-function m [1 2]) => [[2 3]])))
 
 (defn iterate-inc-wrapped [num]
   (list [(+ num 1)]
@@ -126,7 +126,7 @@
                     false)
     (ClojureMapcat. (w/fields "num")
                     (w/fn-spec #'iterate-inc)
-                    false))) 
+                    false)))
 
 (defn sum
   ([] 0)
@@ -138,4 +138,4 @@
     (let [a (ClojureAggregator. (w/fields "sum")
                                 (w/fn-spec #'sum)
                                 false)]
-      (t/invoke-aggregator a [[1] [2] [3]]) => [[6]]))) 
+      (t/invoke-aggregator a [[1] [2] [3]]) => [[6]])))

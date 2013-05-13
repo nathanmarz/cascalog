@@ -18,6 +18,9 @@
 
 package cascalog;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import cascading.tuple.Fields;
 import cascalog.MultiGroupBy.MultiBuffer;
 import cascalog.MultiGroupBy.MultiBufferContext;
@@ -25,26 +28,24 @@ import clojure.lang.ISeq;
 import clojure.lang.IteratorSeq;
 import clojure.lang.RT;
 
-import java.util.ArrayList;
-import java.util.List;
-
 public class ClojureMultibuffer extends ClojureCascadingBase implements MultiBuffer {
 
-    public ClojureMultibuffer(Fields out_fields, Object[] fn_spec, boolean stateful) {
-        super(out_fields, fn_spec, stateful);
+  public ClojureMultibuffer(Fields out_fields, Object[] fn_spec, boolean stateful) {
+    super(out_fields, fn_spec, stateful);
+  }
+
+  public void operate(MultiBufferContext context) {
+    List inputTuples = new ArrayList();
+    for (int i = 0; i < context.size(); i++) {
+      inputTuples
+          .add(IteratorSeq.create(new RegularTupleSeqConverter(context.getArgumentsIterator(i))));
     }
 
-    public void operate(MultiBufferContext context) {
-        List inputTuples = new ArrayList();
-        for (int i = 0; i < context.size(); i++) {
-            inputTuples.add(IteratorSeq.create(new RegularTupleSeqConverter(context.getArgumentsIterator(i))));
-        }
-
-        ISeq result_seq = RT.seq(applyFunction(RT.seq(inputTuples)));
-        while (result_seq != null) {
-            Object obj = result_seq.first();
-            context.emit(Util.coerceToTuple(obj));
-            result_seq = result_seq.next();
-        }
+    ISeq result_seq = RT.seq(applyFunction(RT.seq(inputTuples)));
+    while (result_seq != null) {
+      Object obj = result_seq.first();
+      context.emit(Util.coerceToTuple(obj));
+      result_seq = result_seq.next();
     }
+  }
 }

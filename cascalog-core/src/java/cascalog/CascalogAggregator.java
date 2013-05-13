@@ -17,20 +17,23 @@
 
 package cascalog;
 
+import java.io.Serializable;
+
 import cascading.flow.FlowProcess;
 import cascading.operation.AggregatorCall;
 import cascading.operation.OperationCall;
-import java.io.Serializable;
 
 public abstract class CascalogAggregator implements Serializable {
 
-    public void prepare(FlowProcess flowProcess, OperationCall operationCall) {
-    }
+  public void prepare(FlowProcess flowProcess, OperationCall operationCall) {
+  }
 
-    public void cleanup(FlowProcess flowProcess, OperationCall operationCall) {
-    }
+  public void cleanup(FlowProcess flowProcess, OperationCall operationCall) {
+  }
 
-    public abstract void start(FlowProcess flowProcess, AggregatorCall aggregatorCall);
-    public abstract void aggregate(FlowProcess fp, AggregatorCall ac);
-    public abstract void complete(FlowProcess flowProcess, AggregatorCall aggregatorCall);
+  public abstract void start(FlowProcess flowProcess, AggregatorCall aggregatorCall);
+
+  public abstract void aggregate(FlowProcess fp, AggregatorCall ac);
+
+  public abstract void complete(FlowProcess flowProcess, AggregatorCall aggregatorCall);
 }

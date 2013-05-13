@@ -29,18 +29,18 @@ import clojure.lang.RT;
 
 public class ClojureBuffer extends ClojureCascadingBase implements Buffer {
 
-    public ClojureBuffer(Fields out_fields, Object[] fn_spec, boolean stateful) {
-        super(out_fields, fn_spec, stateful);
-    }
+  public ClojureBuffer(Fields out_fields, Object[] fn_spec, boolean stateful) {
+    super(out_fields, fn_spec, stateful);
+  }
 
-    public void operate(FlowProcess flow_process, BufferCall buff_call) {
-        ISeq result_seq = RT.seq(invokeFunction(IteratorSeq
-            .create(new TupleSeqConverter(buff_call.getArgumentsIterator()))));
-        TupleEntryCollector collector = buff_call.getOutputCollector();
-        while (result_seq != null) {
-            Object obj = result_seq.first();
-            collector.add(Util.coerceToTuple(obj));
-            result_seq = result_seq.next();
-        }
+  public void operate(FlowProcess flow_process, BufferCall buff_call) {
+    ISeq result_seq = RT.seq(invokeFunction(IteratorSeq
+        .create(new TupleSeqConverter(buff_call.getArgumentsIterator()))));
+    TupleEntryCollector collector = buff_call.getOutputCollector();
+    while (result_seq != null) {
+      Object obj = result_seq.first();
+      collector.add(Util.coerceToTuple(obj));
+      result_seq = result_seq.next();
     }
+  }
 }

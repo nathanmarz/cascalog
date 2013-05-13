@@ -5,7 +5,7 @@
         [clojure.tools.macro :only (name-with-attributes)])
   (:require [jackknife.core :as u]
             [cascalog.vars :as v]
-            [cascalog.workflow :as w])
+            [cascalog.fluent.workflow :as w])
   (:import [cascading.tap Tap]
            [cascading.operation Filter]
            [cascading.tuple Fields]
@@ -251,8 +251,7 @@
       (instance? PredicateMacroTemplate p)
       (instance? Subquery p)
       (instance? ClojureOp p)
-      (and (map? p) (= :predicate-macro (:type p)))
-      ))
+      (and (map? p) (= :predicate-macro (:type p)))))
 
 (defn- ground-fields? [outfields]
   (every? v/ground-var? outfields))
@@ -302,10 +301,14 @@
 
 (defmethod predicate-default-var ::option [& _] :<)
 
+;; taps, by default, only produce.
 (defmethod predicate-default-var ::tap [& _] :>)
+
+;; The general logic is, create a name, attach a pipe to this bad boy
+;; and build up a trap map.
 (defmethod build-predicate-specific ::tap
   [tap _ infields outfields options]
-  (let [sourcename (uuid)
+  (let [sourcename (uuid) ;; Create a name,
         pname (init-pipe-name options)
         pipe (w/assemble (w/pipe sourcename)
                          (w/pipe-rename pname)
@@ -552,12 +555,6 @@
 (defn- replace-ignored-vars [vars]
   (map #(if (= "_" %) (v/gen-nullable-var) %) vars))
 
-(defn- mk-null-check [fields]
-  (let [non-null-fields (filter v/non-nullable-var? fields)]
-    (if (not-empty non-null-fields)
-      (non-null? non-null-fields)
-      identity)))
-
 (defmulti enhance-predicate (fn [pred & _] (:type pred)))
 
 (defmethod enhance-predicate :operation
@@ -593,6 +590,10 @@
   (merge pred {:pipe (outassem (:pipe pred))
                :outfields outfields}))
 
+;; TODO: Cascading won't allow multiple in-fields -- what we can do
+;; instead, and it might be happening here, is add a new field,
+;; perform the operation, then remove the field after the fact.
+
 (defn- fix-duplicate-infields
   "Workaround to Cascading not allowing same field multiple times as
   input to an operation. Copies values as a workaround"
@@ -609,6 +610,12 @@
 
 (defn mk-option-predicate [[op _ infields _]]
   (predicate option op infields))
+
+(defn- mk-null-check [fields]
+  (let [non-null-fields (filter v/non-nullable-var? fields)]
+    (if (not-empty non-null-fields)
+      (non-null? non-null-fields)
+      identity)))
 
 (defn build-predicate
   "Build a predicate. Calls down to build-predicate-specific for

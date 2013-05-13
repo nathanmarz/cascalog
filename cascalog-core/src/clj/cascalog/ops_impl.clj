@@ -1,7 +1,7 @@
 (ns cascalog.ops-impl
   (:use cascalog.api)
   (:require [cascalog.vars :as v]
-            [cascalog.workflow :as w]))
+            [cascalog.fluent.workflow :as w]))
 
 (defn one [] 1)
 

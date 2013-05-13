@@ -24,22 +24,22 @@ import cascalog.CascalogAggregator;
 
 public class SumAgg extends CascalogAggregator {
 
-    @Override
-    public void start(FlowProcess flowProcess, AggregatorCall aggregatorCall) {
-        aggregatorCall.setContext(0);
-    }
+  @Override
+  public void start(FlowProcess flowProcess, AggregatorCall aggregatorCall) {
+    aggregatorCall.setContext(0);
+  }
 
-    @Override
-    public void aggregate(FlowProcess flowProcess, AggregatorCall aggregatorCall) {
-        int sum = (Integer) aggregatorCall.getContext();
-        sum += aggregatorCall.getArguments().getInteger(0);
-        aggregatorCall.setContext(sum);
-    }
+  @Override
+  public void aggregate(FlowProcess flowProcess, AggregatorCall aggregatorCall) {
+    int sum = (Integer) aggregatorCall.getContext();
+    sum += aggregatorCall.getArguments().getInteger(0);
+    aggregatorCall.setContext(sum);
+  }
 
-    @Override
-    public void complete(FlowProcess flowProcess, AggregatorCall aggregatorCall) {
-        int sum = (Integer) aggregatorCall.getContext();
-        aggregatorCall.getOutputCollector().add(new Tuple(sum));
-    }
-    
+  @Override
+  public void complete(FlowProcess flowProcess, AggregatorCall aggregatorCall) {
+    int sum = (Integer) aggregatorCall.getContext();
+    aggregatorCall.getOutputCollector().add(new Tuple(sum));
+  }
+
 }

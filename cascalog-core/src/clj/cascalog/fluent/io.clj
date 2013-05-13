@@ -1,9 +1,8 @@
-(ns cascalog.io
+(ns cascalog.fluent.io
   (:require [cascalog.util :as u]
             [clojure.java.io :as io]
             [hadoop-util.core :as hadoop])
-  (:import [java.io File PrintWriter]
-           [java.util UUID]
+  (:import [java.io PrintWriter]
            [org.apache.log4j Logger Level]
            [org.apache.hadoop.io BytesWritable]))
 
@@ -68,13 +67,6 @@ Raise an exception if any deletion fails unless silently is true."
      (try ~@body
           (finally (delete-all ~bindings)))))
 
-(defn write-lines-in
-  ([root lines]
-     (write-lines-in root (str (u/uuid) ".data") lines))
-  ([root filename lines]
-     (write-lines
-      (io/file (.getAbsolutePath root) filename) lines)))
-
 (def log-levels
   {:fatal Level/FATAL
    :warn  Level/WARN
@@ -107,4 +99,4 @@ Raise an exception if any deletion fails unless silently is true."
        (try
          ~@body
          (finally
-          (delete-all-fs ~fs-sym ~(vec tmp-syms)))))))
+           (delete-all-fs ~fs-sym ~(vec tmp-syms)))))))

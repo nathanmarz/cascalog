@@ -5,19 +5,23 @@
         [jackknife.seq :only (unweave collectify)])
   (:require [clojure.set :as set]
             [cascalog.vars :as v]
-            [cascalog.tap :as tap]
-            [cascalog.conf :as conf]
-            [cascalog.workflow :as w]
             [cascalog.predicate :as p]
             [cascalog.rules :as rules]
-            [cascalog.io :as io]
             [cascalog.util :as u]
+            [cascalog.fluent.tap :as tap]
+            [cascalog.fluent.conf :as conf]
+            [cascalog.fluent.workflow :as w]
+            [cascalog.fluent.flow :as flow]
+            [cascalog.fluent.def :as d]
+            [cascalog.fluent.operations :as ops]
+            [cascalog.fluent.io :as io]
+            [cascalog.fluent.cascading :refer (generic-cascading-fields?)]
             [hadoop-util.core :as hadoop])
   (:import [cascading.flow Flow FlowDef]
            [cascading.flow.hadoop HadoopFlowConnector]
            [cascading.tuple Fields]
-           [com.twitter.maple.tap MemorySourceTap StdoutTap]
-           [cascading.pipe Pipe]))
+           [cascading.pipe ]
+           [com.twitter.maple.tap StdoutTap]))
 
 ;; Functions for creating taps and tap helpers
 
@@ -27,66 +31,11 @@
 (defalias lfs-tap tap/lfs-tap)
 (defalias sequence-file w/sequence-file)
 (defalias text-line w/text-line)
-
-(defn hfs-textline
-  "Creates a tap on HDFS using textline format. Different filesystems
-   can be selected by using different prefixes for `path`.
-
-  Supports keyword option for `:outfields`. See `cascalog.tap/hfs-tap`
-  for more keyword arguments.
-
-   See http://www.cascading.org/javadoc/cascading/tap/Hfs.html and
-   http://www.cascading.org/javadoc/cascading/scheme/TextLine.html"
-  [path & opts]
-  (let [scheme (->> (:outfields (apply array-map opts) Fields/ALL)
-                    (w/text-line ["line"]))]
-    (apply tap/hfs-tap scheme path opts)))
-
-(defn lfs-textline
-  "Creates a tap on the local filesystem using textline format.
-
-  Supports keyword option for `:outfields`. See `cascalog.tap/lfs-tap`
-  for more keyword arguments.
-
-   See http://www.cascading.org/javadoc/cascading/tap/Lfs.html and
-   http://www.cascading.org/javadoc/cascading/scheme/TextLine.html"
-  [path & opts]
-  (let [scheme (->> (:outfields (apply array-map opts) Fields/ALL)
-                    (w/text-line ["line"]))]
-    (apply tap/lfs-tap scheme path opts)))
-
-(defn hfs-seqfile
-  "Creates a tap on HDFS using sequence file format. Different
-   filesystems can be selected by using different prefixes for `path`.
-
-  Supports keyword option for `:outfields`. See `cascalog.tap/hfs-tap`
-  for more keyword arguments.
-
-   See http://www.cascading.org/javadoc/cascading/tap/Hfs.html and
-   http://www.cascading.org/javadoc/cascading/scheme/SequenceFile.html"
-  [path & opts]
-  (let [scheme (-> (:outfields (apply array-map opts) Fields/ALL)
-                   (w/sequence-file))]
-    (apply tap/hfs-tap scheme path opts)))
-
-(defn lfs-seqfile
-  "Creates a tap that reads data off of the local filesystem in
-   sequence file format.
-
-  Supports keyword option for `:outfields`. See `cascalog.tap/lfs-tap`
-  for more keyword arguments.
-
-   See http://www.cascading.org/javadoc/cascading/tap/Lfs.html and
-   http://www.cascading.org/javadoc/cascading/scheme/SequenceFile.html"
-  [path & opts]
-  (let [scheme (-> (:outfields (apply array-map opts) Fields/ALL)
-                   (w/sequence-file))]
-    (apply tap/lfs-tap scheme path opts)))
-
-(defn stdout
-  "Creates a tap that prints tuples sunk to it to standard
-   output. Useful for experimentation in the REPL."
-  [] (StdoutTap.))
+(defalias hfs-textline tap/hfs-textline)
+(defalias lfs-textline tap/lfs-textline)
+(defalias hfs-seqfile tap/lfs-seqfile)
+(defalias lfs-seqfile tap/lfs-seqfile)
+(defalias stdout tap/stdout)
 
 ;; ## Query introspection
 
@@ -96,7 +45,7 @@
 
 (defmethod get-out-fields :tap [tap]
   (let [cfields (.getSourceFields tap)]
-    (safe-assert (not (rules/generic-cascading-fields? cfields))
+    (safe-assert (not (generic-cascading-fields? cfields))
                  (str "Cannot get specific out-fields from tap. Tap source fields: "
                       cfields))
     (vec (seq cfields))))
@@ -118,31 +67,8 @@
 
 ;; ## Knobs for Hadoop
 
-(defmacro with-job-conf
-  "Modifies the job conf for queries executed within the form. Nested
-   with-job-conf calls will merge configuration maps together, with
-   innermost calls taking precedence on conflicting keys."
-  [conf & body]
-  `(binding [conf/*JOB-CONF*
-             (u/conf-merge conf/*JOB-CONF* ~conf)]
-     ~@body))
-
-(defmacro with-serializations
-  "Enables the supplied serializations for queries executed within the
-  form. Serializations should be provided as a vector of strings or
-  classes, like so:
-
-  (import 'org.apache.hadoop.io.serializer.JavaSerialization)
-  (with-serializations [JavaSerialization]
-     (?<- ...))
-
-  Serializations nest; nested calls to with-serializations will merge
-  and unique with serializations currently specified by other calls to
-  `with-serializations` or `with-job-conf`."
-  [serial-vec & forms]
-  `(with-job-conf
-     {"io.serializations" (u/serialization-entry ~serial-vec)}
-     ~@forms))
+(defalias with-job-conf conf/with-job-conf)
+(defalias with-serializations conf/with-serializations)
 
 ;; ## Query creation and execution
 
@@ -179,7 +105,7 @@ as well."
    If the first argument is a string, that will be used as the name
   for the query and will show up in the JobTracker UI."
   [& args]
-  (let [[flow-name bindings] (rules/parse-exec-args args)
+  (let [[flow-name bindings] (flow/parse-exec-args args)
         [sinks gens] (->> bindings
                           (map rules/normalize-gen)
                           (partition 2)
@@ -189,12 +115,13 @@ as well."
         sourcemap (apply merge (map :sourcemap gens))
         trapmap   (apply merge (map :trapmap gens))
         tails     (map rules/connect-to-sink gens sinks)
-        sinkmap   (w/taps-map tails sinks)
-        flowdef   (w/flow-def flow-name sourcemap sinkmap trapmap tails)]
-    (-> (HadoopFlowConnector.
-         (u/project-merge (conf/project-conf)
-                          {"cascading.flow.job.pollinginterval" 100}))
-        (.connect flowdef))))
+        sinkmap   (w/taps-map tails sinks)]
+    (flow/run! (doto (FlowDef.)
+                 (.setName flow-name)
+                 (.addSources sourcemap)
+                 (.addSinks sinkmap)
+                 (.addTraps trapmap)
+                 (.addTails (into-array Pipe tails))))))
 
 (defn explain
   "Explains a query (by outputting a DOT file).
@@ -210,8 +137,8 @@ as well."
   ([^String outfile query]
      (explain outfile (stdout) query))
   ([^String outfile sink-tap query]
-      (let [^Flow flow (compile-flow sink-tap query)]
-        (w/write-dot flow outfile))))
+     (let [^Flow flow (compile-flow sink-tap query)]
+       (.writeDOT flow outfile))))
 
 (defn ?-
   "Executes 1 or more queries and emits the results of each query to
@@ -237,13 +164,13 @@ as well."
   If the first argument is a string, that will be used as the name
   for the query and will show up in the JobTracker UI."
   [& args]
-  (let [[name [& subqueries]] (rules/parse-exec-args args)]
+  (let [[name [& subqueries]] (flow/parse-exec-args args)]
     (io/with-fs-tmp [fs tmp]
       (hadoop/mkdirs fs tmp)
       (let [outtaps (for [q subqueries] (hfs-seqfile (str tmp "/" (u/uuid))))
             bindings (mapcat vector outtaps subqueries)]
         (apply ?- name bindings)
-        (doall (map rules/get-sink-tuples outtaps))))))
+        (doall (map tap/get-sink-tuples outtaps))))))
 
 (defmacro ?<-
   "Helper that both defines and executes a query in a single call.
@@ -254,7 +181,7 @@ as well."
   [& args]
   ;; This is the best we can do... if want non-static name should just
   ;; use ?-
-  (let [[name [output & body]] (rules/parse-exec-args args)]
+  (let [[name [output & body]] (flow/parse-exec-args args)]
     `(?- ~name ~output (<- ~@body))))
 
 (defmacro ??<-
@@ -367,19 +294,12 @@ as well."
   "Defines a custom operation that appends new fields to the input tuple.")
 
 (defalias defmapcatop w/defmapcatop)
-
 (defalias defbufferop w/defbufferop)
-
 (defalias defmultibufferop w/defmultibufferop)
-
 (defalias defbufferiterop w/defbufferiterop)
-
 (defalias defaggregateop w/defaggregateop)
-
 (defalias deffilterop w/deffilterop)
-
 (defalias defparallelagg p/defparallelagg)
-
 (defalias defparallelbuf p/defparallelbuf)
 
 ;; ## Miscellaneous helpers

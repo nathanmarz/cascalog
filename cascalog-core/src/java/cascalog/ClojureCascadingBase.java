@@ -26,86 +26,86 @@ import clojure.lang.IFn;
 import clojure.lang.ISeq;
 
 public class ClojureCascadingBase extends BaseOperation {
-    private byte[] serialized_spec;
-    private Object[] fn_spec;
+  private byte[] serialized_spec;
+  private Object[] fn_spec;
 
-    private boolean stateful;
-    private Object state;
-    private IFn fn;
+  private boolean stateful;
+  private Object state;
+  private IFn fn;
 
-    public void initialize(Object[] fn_spec, boolean stateful) {
-        serialized_spec = KryoService.serialize(fn_spec);
-        this.stateful = stateful;
+  public void initialize(Object[] fn_spec, boolean stateful) {
+    serialized_spec = KryoService.serialize(fn_spec);
+    this.stateful = stateful;
+  }
+
+  public ClojureCascadingBase(Object[] fn_spec, boolean stateful) {
+    initialize(fn_spec, stateful);
+  }
+
+  public ClojureCascadingBase(Fields fields, Object[] fn_spec, boolean stateful) {
+    super(fields);
+    initialize(fn_spec, stateful);
+  }
+
+  @Override
+  public void prepare(FlowProcess flow_process, OperationCall op_call) {
+    this.fn_spec = (Object[]) KryoService.deserialize(serialized_spec);
+    this.fn = Util.bootFn(fn_spec);
+    if (stateful) {
+      try {
+        state = this.fn.invoke();
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
     }
+  }
 
-    public ClojureCascadingBase(Object[] fn_spec, boolean stateful) {
-        initialize(fn_spec, stateful);
+  protected Object applyFunction(ISeq seq) {
+    try {
+      if (stateful) {
+        return this.fn.applyTo(seq.cons(state));
+      } else {
+        return this.fn.applyTo(seq);
+      }
+    } catch (Exception e) {
+      throw new RuntimeException(e);
     }
+  }
 
-    public ClojureCascadingBase(Fields fields, Object[] fn_spec, boolean stateful) {
-        super(fields);
-        initialize(fn_spec, stateful);
+  protected Object invokeFunction(Object arg) {
+    try {
+      if (stateful) {
+        return this.fn.invoke(state, arg);
+      } else {
+        return this.fn.invoke(arg);
+      }
+    } catch (Exception e) {
+      throw new RuntimeException(e);
     }
+  }
 
-    @Override
-    public void prepare(FlowProcess flow_process, OperationCall op_call) {
-        this.fn_spec = (Object[]) KryoService.deserialize(serialized_spec);
-        this.fn = Util.bootFn(fn_spec);
-        if (stateful) {
-            try {
-                state = this.fn.invoke();
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        }
+
+  protected Object invokeFunction() {
+    try {
+      if (stateful) {
+        return this.fn.invoke(state);
+      } else {
+        return this.fn.invoke();
+      }
+    } catch (Exception e) {
+      throw new RuntimeException(e);
     }
+  }
 
-    protected Object applyFunction(ISeq seq) {
-        try {
-            if (stateful) {
-                return this.fn.applyTo(seq.cons(state));
-            } else {
-                return this.fn.applyTo(seq);
-            }
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+
+  @Override
+  public void cleanup(FlowProcess flowProcess, OperationCall op_call) {
+    if (stateful) {
+      try {
+        this.fn.invoke(state);
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
     }
-
-    protected Object invokeFunction(Object arg) {
-        try {
-            if (stateful) {
-                return this.fn.invoke(state, arg);
-            } else {
-                return this.fn.invoke(arg);
-            }
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-
-    protected Object invokeFunction() {
-        try {
-            if (stateful) {
-                return this.fn.invoke(state);
-            } else {
-                return this.fn.invoke();
-            }
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-
-    @Override
-    public void cleanup(FlowProcess flowProcess, OperationCall op_call) {
-        if (stateful) {
-            try {
-                this.fn.invoke(state);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        }
-    }
+  }
 }

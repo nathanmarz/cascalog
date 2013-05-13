@@ -28,18 +28,18 @@ import clojure.lang.RT;
 
 public class ClojureMapcat extends ClojureCascadingBase implements Function {
 
-    public ClojureMapcat(Fields out_fields, Object[] fn_spec, boolean stateful) {
-        super(out_fields, fn_spec, stateful);
-    }
+  public ClojureMapcat(Fields out_fields, Object[] fn_spec, boolean stateful) {
+    super(out_fields, fn_spec, stateful);
+  }
 
-    public void operate(FlowProcess flow_process, FunctionCall fn_call) {
-        ISeq fn_args_seq = Util.coerceFromTuple(fn_call.getArguments().getTuple());
-        ISeq result_seq = RT.seq(applyFunction(fn_args_seq));
-        TupleEntryCollector collector = fn_call.getOutputCollector();
-        while (result_seq != null) {
-            Object obj = result_seq.first();
-            collector.add(Util.coerceToTuple(obj));
-            result_seq = result_seq.next();
-        }
+  public void operate(FlowProcess flow_process, FunctionCall fn_call) {
+    ISeq fn_args_seq = Util.coerceFromTuple(fn_call.getArguments().getTuple());
+    ISeq result_seq = RT.seq(applyFunction(fn_args_seq));
+    TupleEntryCollector collector = fn_call.getOutputCollector();
+    while (result_seq != null) {
+      Object obj = result_seq.first();
+      collector.add(Util.coerceToTuple(obj));
+      result_seq = result_seq.next();
     }
+  }
 }

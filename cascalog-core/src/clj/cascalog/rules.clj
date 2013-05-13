@@ -3,14 +3,15 @@
         [clojure.set :only (intersection union difference subset?)]
         [clojure.walk :only (postwalk)]
         [jackknife.core :only (throw-illegal throw-runtime)])
-  (:require [cascalog.workflow :as w]
-            [jackknife.seq :as s]
+  (:require [jackknife.seq :as s]
             [cascalog.vars :as v]
             [cascalog.util :as u]
             [cascalog.graph :as g]
             [cascalog.predicate :as p]
             [hadoop-util.core :as hadoop]
-            [cascalog.conf :as conf])
+            [cascalog.fluent.conf :as conf]
+            [cascalog.fluent.tap :as tap]
+            [cascalog.fluent.workflow :as w])
   (:import [cascading.tap Tap]
            [cascading.tuple Fields Tuple TupleEntry]
            [cascading.flow Flow FlowConnector]
@@ -20,7 +21,8 @@
            [cascalog CombinerSpec ClojureCombiner ClojureCombinedAggregator Util
             ClojureParallelAgg]
            [org.apache.hadoop.mapred JobConf]
-           [jcascalog Predicate Subquery PredicateMacro ClojureOp PredicateMacroTemplate]
+           [jcascalog Predicate Subquery PredicateMacro ClojureOp
+            PredicateMacroTemplate]
            [java.util ArrayList]))
 
 ;; infields for a join are the names of the join fields
@@ -47,7 +49,7 @@
   (let [{ops :operation
          aggs :aggregator
          gens :generator} (merge {:operation [] :aggregator [] :generator []}
-                                 (group-by :type predicates))]
+         (group-by :type predicates))]
     (when (and (> (count aggs) 1)
                (some :buffer? aggs))
       (throw-illegal "Cannot use both aggregators and buffers in same grouping"))
@@ -220,7 +222,9 @@
   (vec (apply union (set sort-fields) (map #(set (:infields %)) aggs))))
 
 (defn- normalize-grouping
-  "Returns [new-grouping-fields inserter-assembly]"
+  "Returns [new-grouping-fields inserter-assembly]. If no grouping
+  fields are supplied, ths function groups on 1, which forces a global
+  grouping."
   [grouping-fields]
   (if (seq grouping-fields)
     [grouping-fields identity]
@@ -263,7 +267,10 @@
 
         :else [[identity] (map :serial-agg-assembly aggs)]))
 
-(defn- mk-group-by [grouping-fields options]
+(defn- mk-group-by
+  "Create a groupby operation, respecting grouping and sorting
+  options."
+  [grouping-fields options]
   (let [{s :sort rev :reverse} options]
     (if (seq s)
       (w/group-by grouping-fields s rev)
@@ -365,7 +372,7 @@
         infields    (map :outfields prevgens)
         inpipes     (map (fn [p f] (w/assemble p (w/select f) (w/pipe-rename (u/uuid))))
                          (map :pipe prevgens)
-                         infields) ; is this necessary?
+                         infields)      ; is this necessary?
         join-renames (generate-join-fields num-join-fields (count prevgens))
         rename-fields (flatten (map (partial replace-join-fields join-fields) join-renames infields))
         keep-fields (vec (set (apply concat
@@ -384,8 +391,7 @@
                                (if-let [join-set-var (:join-set-var gen)]
                                  [(truthy? (take 1 joinfields) :fn> [join-set-var] :> Fields/ALL)]))
                              prevgens join-renames)
-                            [(join-fields-selector [num-join-fields]
-                                                   (flatten join-renames) :fn> join-fields :> Fields/SWAP)
+                            [(join-fields-selector [num-join-fields] (flatten join-renames) :fn> join-fields :> Fields/SWAP)
                              (w/select keep-fields)
                              ;; maintain the pipe name (important for setting traps on subqueries)
                              (w/pipe-rename (new-pipe-name prevgens))]))]
@@ -728,13 +734,6 @@
   [[op-sym & vars]]
   [op-sym (v/sanitize vars)])
 
-(defn pluck-tuple [tap]
-  (with-open [it (-> (HadoopFlowProcess. (hadoop/job-conf (conf/project-conf)))
-                     (.openTapForRead tap))]
-    (if-let [iter (iterator-seq it)]
-      (-> iter first .getTuple Tuple. Util/coerceFromTuple vec)
-      (throw-illegal "Cascading tap is empty -- tap must contain tuples."))))
-
 (defn enforce-gen-schema
   "Accepts a cascalog generator; if `g` is well-formed, acts as
 `identity`. If the supplied generator is a vector, list, or a straight
@@ -746,7 +745,7 @@ cascading tap, returns a new generator with field-names."
         (or (instance? Tap g)
             (vector? g)
             (list? g))
-        (let [pluck (if (instance? Tap g) pluck-tuple, first)
+        (let [pluck (if (instance? Tap g) tap/pluck-tuple, first)
               size  (count (pluck g))
               vars  (v/gen-nullable-vars size)]
           (if (zero? size)
@@ -757,9 +756,8 @@ cascading tap, returns a new generator with field-names."
                  (build-rule vars))))
         :else g))
 
-;; TODO: Why does this not use gen?
-
-(defn connect-to-sink [gen sink]
+(defn connect-to-sink
+  [gen sink]
   ((w/pipe-rename (u/uuid)) (:pipe gen)))
 
 (defn normalize-gen [gen]
@@ -789,13 +787,6 @@ cascading tap, returns a new generator with field-names."
                  outfields
                  (apply merge (map :trapmap gens)))))
 
-(defn generic-cascading-fields? [cfields]
-  (or (.isSubstitution cfields)
-      (.isUnknown cfields)
-      (.isResults cfields)
-      (.isSwap cfields)
-      (.isReplace cfields)))
-
 (defn generator-selector [gen & _]
   (cond (instance? Tap gen) :tap
         (instance? Subquery gen) :java-subquery
@@ -805,18 +796,3 @@ cascading tap, returns a new generator with field-names."
   (cond (fn? sink)  (sink subquery)
         (map? sink) (normalize-sink-connection (:sink sink) subquery)
         :else       [sink subquery]))
-
-(defn parse-exec-args [[f & rest :as args]]
-  (if (string? f)
-    [f rest]
-    ["" args]))
-
-(defn get-sink-tuples [^Tap sink]
-  (let [conf (hadoop/job-conf (conf/project-conf))]
-    (cond (map? sink) (get-sink-tuples (:sink sink))
-          (not (.resourceExists sink conf)) []
-          :else (with-open [it (-> (HadoopFlowProcess. conf)
-                                   (.openTapForRead sink))]
-                  (doall
-                   (for [^TupleEntry t (iterator-seq it)]
-                     (into [] (Tuple. (.getTuple t)))))))))

@@ -17,13 +17,16 @@
 
 package cascalog;
 
-import cascading.flow.FlowProcess;
-import cascading.operation.OperationCall;
 import java.io.Serializable;
 import java.util.List;
 
+import cascading.flow.FlowProcess;
+import cascading.operation.OperationCall;
+
 public interface ParallelAgg extends Serializable {
-    void prepare(FlowProcess flowProcess, OperationCall operationCall);
-    List<Object> init(List<Object> input);
-    List<Object> combine(List<Object> val1, List<Object> val2);
+  void prepare(FlowProcess flowProcess, OperationCall operationCall);
+
+  List<Object> init(List<Object> input);
+
+  List<Object> combine(List<Object> val1, List<Object> val2);
 }

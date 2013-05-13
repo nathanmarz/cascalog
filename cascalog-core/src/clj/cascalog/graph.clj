@@ -56,4 +56,3 @@
 
 (defn get-inbound-nodes [node]
   (map :source (get-inbound-edges node)))
-
