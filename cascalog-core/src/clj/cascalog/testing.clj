@@ -33,10 +33,19 @@
 ;; The following functions create proxies for dealing with various
 ;; output collectors.
 
+;(set! *warn-on-reflection* true)
+
+(defn collect-to
+  [^TupleEntryCollector collector v]
+  (let [^Tuple t (if (coll? v)
+                   (Tuple. (to-array v))
+                   (doto (Tuple.) (.add v)))]
+    (.add collector t)))
+
 (defn cascalog-map
-  [op-var output-fields & {:keys [stateful?]}]
+  [op-var ^Fields output-fields & {:keys [stateful?]}]
   (let [ser (KryoService/serialize (ops/fn-spec op-var))]
-    (proxy [BaseOperation Function] [^Fields output-fields]
+    (proxy [BaseOperation Function] [output-fields]
       (prepare [^FlowProcess flow-process ^OperationCall op-call]
         (let [op (Util/bootFn (KryoService/deserialize ser))]
           (-> op-call
@@ -45,11 +54,30 @@
         (let [[op state] (.getContext fn-call)
               op (if stateful? (partial op state) op)
               collector (.getOutputCollector fn-call)
-              ^Tuple tuple (.. fn-call (getArguments) (getTuple))]
-          (->> (Util/coerceFromTuple tuple)
-               (apply op)
-               (Util/coerceToTuple)
-               (.add collector))))
+              ^Tuple args (.. fn-call (getArguments) (getTuple))
+              res (apply op args)]
+        (collect-to collector res)))
+      (cleanup [flow-process ^OperationCall op-call]
+        (if stateful?
+          (let [[op state] (.getContext op-call)]
+            (op state)))))))
+
+(defn cascalog-mapcat
+  [op-var ^Fields output-fields & {:keys [stateful?]}]
+  (let [ser (KryoService/serialize (ops/fn-spec op-var))]
+    (proxy [BaseOperation Function] [output-fields]
+      (prepare [^FlowProcess flow-process ^OperationCall op-call]
+        (let [op (Util/bootFn (KryoService/deserialize ser))]
+          (-> op-call
+              (.setContext [op (if stateful? (op))]))))
+      (operate [^FlowProcess flow-process ^FunctionCall fn-call]
+        (let [[op state] (.getContext fn-call)
+              op (if stateful? (partial op state) op)
+              collector (.getOutputCollector fn-call)
+              ^Tuple args (.. fn-call (getArguments) (getTuple))
+              res (apply op args)]
+          (doseq [r res]
+            (collect-to collector r))))
       (cleanup [flow-process ^OperationCall op-call]
         (if stateful?
           (let [[op state] (.getContext op-call)]
