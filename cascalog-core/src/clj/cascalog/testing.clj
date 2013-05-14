@@ -42,9 +42,10 @@
           (-> op-call
               (.setContext [op (if stateful? (op))]))))
       (operate [^FlowProcess flow-process ^FunctionCall fn-call]
-        (let [[op] (.getContext fn-call)
-              collector (-> fn-call .getOutputCollector)
-              ^Tuple tuple (-> fn-call .getArguments .getTuple)]
+        (let [[op state] (.getContext fn-call)
+              op (if stateful? (partial op state) op)
+              collector (.getOutputCollector fn-call)
+              ^Tuple tuple (.. fn-call (getArguments) (getTuple))]
           (->> (Util/coerceFromTuple tuple)
                (apply op)
                (Util/coerceToTuple)
