@@ -62,6 +62,7 @@
          args-sym        (gensym "args")
          args-sym-all    (gensym "argsall")
          runner-name     (symbol (str fname "__"))
+         _ (prn runner-name)
          func-form       (if func-args
                            `[(var ~runner-name) ~@func-args]
                            `(var ~runner-name))
@@ -71,6 +72,17 @@
          assembly-args   (if func-args
                            `[~func-args & ~args-sym]
                            `[ & ~args-sym])]
+    (prn `(do (defn ~runner-name
+           ~(assoc (meta fname)
+              :no-doc true
+              :skip-wiki true)
+           ~@runner-body)
+         (def ~fname
+           (with-meta
+             (fn [& ~args-sym-all]
+               (let [~assembly-args ~args-sym-all]
+                 (apply ~type ~func-form ~args-sym)))
+             ~(meta fname)))))
     `(do (defn ~runner-name
            ~(assoc (meta fname)
               :no-doc true

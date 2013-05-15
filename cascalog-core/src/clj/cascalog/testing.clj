@@ -33,23 +33,30 @@
 ;; The following functions create proxies for dealing with various
 ;; output collectors.
 
+;; ipostelnik: the interface to kryo is super slow because of config
+;; object creation
+;;
+;; [1:22pm] ipostelnik: you should try to get conf from flow-process
+;; and pass to KryoService
+
 (defn cascalog-map
   [op-var output-fields & {:keys [stateful?]}]
   (let [ser (KryoService/serialize (ops/fn-spec op-var))]
     (proxy [BaseOperation Function] [^Fields output-fields]
-      (prepare [^FlowProcess flow-process ^OperationCall op-call]
+      (prepare [fp ^OperationCall op-call]
         (let [op (Util/bootFn (KryoService/deserialize ser))]
           (-> op-call
               (.setContext [op (if stateful? (op))]))))
-      (operate [^FlowProcess flow-process ^FunctionCall fn-call]
+
+      (operate [fp ^FunctionCall fn-call]
         (let [[op] (.getContext fn-call)
-              collector (-> fn-call .getOutputCollector)
+              collector    (-> fn-call .getOutputCollector)
               ^Tuple tuple (-> fn-call .getArguments .getTuple)]
-          (->> (Util/coerceFromTuple tuple)
-               (apply op)
-               (Util/coerceToTuple)
-               (.add collector))))
-      (cleanup [flow-process ^OperationCall op-call]
+          (.add collector (->> (Util/coerceFromTuple tuple)
+                               (apply op)
+                               (Util/coerceToTuple)))))
+
+      (cleanup [fp ^OperationCall op-call]
         (if stateful?
           (let [[op state] (.getContext op-call)]
             (op state)))))))

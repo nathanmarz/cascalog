@@ -2,6 +2,7 @@
   "This namespace deals with all Cascalog variable
   transformations."
   (:require [cascalog.util :as u]
+            [cascalog.fluent.cascading :refer (gen-var-fn gen-unique-suffix)]
             [clojure.walk :refer (postwalk)]))
 
 ;; # Var Generation
@@ -10,20 +11,6 @@
 ;; generate logic variables. There are three types of logic variables;
 ;; nullable (prefixed by !), non-nullable (prefixed by ?), and
 ;; ungrounding (prefixed by !!).
-
-(let [i (atom 0)]
-  ;; TODO: Is it better to use UUIDs to avoid name collisions with
-  ;; client code?  Are the size of fields an issue in the actual flow
-  ;; execution perf-wise?
-  (defn gen-unique-suffix []
-    (str "__gen" (swap! i inc))))
-
-(defn- gen-var-fn
-  "Accepts a logic variable prefix and returns a function of no
-  arguments that, when called, produces a unique string with the
-  supplied prefix."
-  [prefix]
-  (fn [] (str prefix (gen-unique-suffix))))
 
 (def gen-non-nullable-var
   "Returns a unique non-nullable var with a optional suffix."

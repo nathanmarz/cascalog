@@ -1,13 +1,13 @@
 (ns cascalog.fluent.operations
   (:require [clojure.tools.macro :refer (name-with-attributes)]
-            [clojure.set :refer (subset?)]
+            [clojure.set :refer (subset? difference)]
             [cascalog.fluent.conf :as conf]
-            [cascalog.fluent.cascading :refer (fields default-output)]
+            [cascalog.fluent.cascading :as casc :refer (fields default-output)]
             [cascalog.fluent.algebra :refer (plus)]
             [cascalog.util :as u]
             [cascalog.fluent.source :as src]
             [hadoop-util.core :as hadoop]
-            [jackknife.seq :refer (unweave)])
+            [jackknife.seq :refer (unweave collectify)])
   (:import [java.io File]
            [cascading.tuple Tuple Fields]
            [cascalog.ops KryoInsert]
@@ -94,10 +94,51 @@
   #(Each. % (fields keep-fields)
           (Identity. keep-fields)))
 
+(defn identity*
+  "Mirrors the supplied set of input fields into the output fields."
+  [flow input output]
+  (each flow #(Identity. %) input output))
+
 (defop discard*
   "Discard the supplied fields."
   [drop-fields]
   #(Each. % drop-fields (NoOp.) Fields/SWAP))
+
+(defn replace-dups
+  "Accepts a sequence and a (probably stateful) generator and returns
+  a new sequence with all duplicates replaced by a call to `gen`."
+  [coll gen]
+  (second
+   (reduce (fn [[seen-set acc] elem]
+             (if (contains? seen-set elem)
+               [seen-set (conj acc (gen))]
+               [(conj seen-set elem) (conj acc elem)]))
+           [#{} []]
+           (into [] coll))))
+
+(defn with-dups
+  "Accepts a flow, some fields, and a function from (flow,
+  unique-fields, new-fields) => flow and appropriately handles
+  duplicate entries inside of the fields.
+
+  The fields passed to the supplied function will be guaranteed
+  unique. New fields are passed as a third option to the supplying
+  function, which may decide to call (discard* delta) if the fields
+  are still around."
+  [flow from-fields f]
+  (let [from-fields (collectify from-fields)]
+    (if (apply distinct? from-fields)
+      (f flow from-fields [])
+      (let [cleaned-fields (replace-dups from-fields casc/gen-unique-var)
+            delta (seq (difference (set cleaned-fields)
+                                   (set from-fields)))]
+        (-> (reduce (fn [subflow [field gen]]
+                      (if (= field gen)
+                        subflow
+                        (identity* subflow field gen)))
+                    flow
+                    (map vector from-fields cleaned-fields))
+            (f cleaned-fields delta))))))
 
 (defop debug*
   "Prints all tuples that pass through the StdOut."
@@ -133,6 +174,25 @@
 (defop filter* [op-var in-fields]
   #(->> (ClojureFilter. (fn-spec op-var) false)
         (Each. % (fields in-fields))))
+
+(defmacro defmapop
+  "Defines a flow operation."
+  [name & body]
+  (let [[name body] (name-with-attributes name body)
+        runner-name (symbol (str name "__"))]
+    `(do (defn ~runner-name
+           ~(assoc (meta name)
+              :no-doc true
+              :skip-wiki true)
+           ~@body)
+         (def ~name
+           (with-meta
+             (fn [flow# ]
+               (let [~assembly-args ~args-sym-all]
+                 (map* flow#  ~type ~func-form ~args-sym)))
+             ~(meta name))))))
+
+(defmapop square [x] (* x x))
 
 (defn map* [flow op-var in-fields out-fields]
   (each flow #(ClojureMap. % (fn-spec op-var) false)
@@ -171,8 +231,7 @@
       (let [newvar (v/gen-nullable-var)]
         [[newvar] (w/insert newvar 1)]))))
 
-(defrecord GroupBuilder
-    [flow reducers sort-fields group-fields reverse?])
+(defrecord GroupBuilder [flow reducers sort-fields group-fields reverse?])
 
 ;; ## Output Operations
 ;;
