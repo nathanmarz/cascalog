@@ -37,7 +37,7 @@
 
 (defn collect-to
   [^TupleEntryCollector collector v]
-  (let [^Tuple t (if (coll? v)
+  (let [^Tuple t (if (instance? java.util.List v)
                    (Tuple. (to-array v))
                    (doto (Tuple.) (.add v)))]
     (.add collector t)))
