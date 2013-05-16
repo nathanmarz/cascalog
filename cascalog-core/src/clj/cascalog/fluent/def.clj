@@ -33,11 +33,12 @@
              ~(meta name))))))
 
 (defmacro defdefop
-  [sym delegate type-kwd]
-  `(defmacro ~sym
-     {:arglists '~'([name doc-string? attr-map? [fn-args*] body])}
-     [sym# & body#]
-     (defop-body ~delegate ~type-kwd sym# body#)))
+  [sym & body]
+  (let [[sym [delegate type-kwd]] (name-with-attributes sym body)]
+    `(defmacro ~sym
+       {:arglists '~'([name doc-string? attr-map? [fn-args*] body])}
+       [sym# & body#]
+       (defop-body ~delegate ~type-kwd sym# body#))))
 
 ;;
 (defdefop defmapop #'ops/mapop :map)

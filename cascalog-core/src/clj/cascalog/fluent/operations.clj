@@ -239,12 +239,12 @@
 
 (defn agg
   [agg-fn in-fields out-fields]
-  (let [in-fields (fields in-fields)
+  (let [in-fields  (fields in-fields)
         out-fields (fields out-fields)]
-    (reify
-      AggregatorBuilder
+    (reify AggregatorBuilder
       (gen-agg [_]
-        (ClojureAggregator. out-fields (fn-spec agg-fn) false)))))
+        {:input in-fields
+         :op (ClojureAggregator. out-fields (fn-spec agg-fn) false)}))))
 
 (defn par-agg
   [agg-fn in-fields out-fields]
@@ -257,63 +257,64 @@
         (ClojureMonoidFunctor. out-fields spec false))
       AggregatorBuilder
       (gen-agg [_]
-        (ClojureMonoidAggregator. out-fields spec false)))))
+        {:input in-fields
+         :op (ClojureMonoidAggregator. out-fields spec false)}))))
 
 
 (defn bufferiter
   [buffer-fn in-fields out-fields]
-  (let [in-fields (fields in-fields)
+  (let [in-fields  (fields in-fields)
         out-fields (fields out-fields)]
-    (reify
-      BufferBuilder
+    (reify BufferBuilder
       (gen-buffer [_]
-        (ClojureBufferIter. out-fields (fn-spec agg-fn) false)))))
+        {:input in-fields
+         :op (ClojureBufferIter. out-fields (fn-spec buffer-fn) false)}))))
 
 (defn buffer
   [buffer-fn in-fields out-fields]
-  (let [in-fields (fields in-fields)
+  (let [in-fields  (fields in-fields)
         out-fields (fields out-fields)]
-    (reify
-      BufferBuilder
+    (reify BufferBuilder
       (gen-buffer [_]
-        (ClojureBuffer. out-fields (fn-spec agg-fn) false)))))
+        {:input in-fields
+         :op (ClojureBuffer. out-fields (fn-spec buffer-fn) false)}))))
 
 (defn is-agg?
   [agg-type]
   (partial satisfies? agg-type))
 
-(defn group-by
+(defn group-by*
   [flow group-fields & aggs]
   ;; TODO: add options
   (let [group-fields (fields group-fields)]
     (add-op flow
-      (cond
-        (some (is-agg? BufferBuilder) aggs)
-        ;; emit buffer
-        (do
-          (when (> (count aggs) 1)
-            (throw (IllegalArgumentException. "Buffer must be specified on its own")))
-          (fn [pipe]
-            (-> pipe
-              (GroupBy. group-fields)
-              (Every. in-fields (gen-buffer (first aggs))))))
+            (fn [pipe]
+              (cond
+               (some (is-agg? BufferBuilder) aggs)
+               ;; emit buffer
+               (do (when (> (count aggs) 1)
+                     (throw (IllegalArgumentException. "Buffer must be specified on its own")))
+                   (let [{:keys [input op]} (gen-buffer (first aggs))]
+                     (-> pipe
+                         (GroupBy. group-fields)
+                         (Every. input op))))
 
-        (every? (is-agg? ParallelAggregatorBuilder) aggs)
-        ;; emit AggregateBy
-        (fn [pipe]
-          (let [aggs (for [agg-pred aggs]
-                       (AggregateBy. in-fields
-                         (gen-functor agg-pred)
-                         (gen-agg agg-pred)))]
-            (AggregateBy. pipe group-fields (into-array AggregateBy aggs))))
+               (every? (is-agg? ParallelAggregatorBuilder) aggs)
+               ;; emit AggregateBy
+               (let [aggs (for [agg-pred aggs
+                                :let [{:keys [input op]} (gen-agg agg-pred)]]
+                            (AggregateBy. input
+                                          (gen-functor agg-pred)
+                                          op))]
+                 (AggregateBy. pipe group-fields (into-array AggregateBy aggs)))
 
-        :else
-        ;; simple aggregation
-        (fn [pipe]
-          (let [pipe (GroupBy. pipe group-fields)]
-            (reduce (fn [pipe agg]
-                      (Every. pipe (gen-agg agg))) pipe aggs)))))))
-
+               :else
+               ;; simple aggregation
+               (let [pipe (GroupBy. pipe group-fields)]
+                 (reduce (fn [p agg]
+                           (let [{:keys [op input]} (gen-agg agg)]
+                             (Every. p input op)))
+                         pipe aggs)))))))
 
 ;; ## Output Operations
 ;;
