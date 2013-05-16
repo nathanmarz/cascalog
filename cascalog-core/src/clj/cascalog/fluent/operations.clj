@@ -1,4 +1,5 @@
 (ns cascalog.fluent.operations
+  (:import [cascalog ClojureMonoidFunctor])
   (:require [clojure.tools.macro :refer (name-with-attributes)]
             [clojure.set :refer (subset? difference)]
             [cascalog.fluent.conf :as conf]
@@ -14,12 +15,13 @@
            [cascading.operation Identity Debug NoOp]
            [cascading.operation.filter Sample]
            [cascading.operation.aggregator First Count Sum Min Max]
-           [cascading.pipe Pipe Each Every GroupBy CoGroup Merge]
+           [cascading.pipe Pipe Each Every GroupBy CoGroup Merge ]
            [cascading.pipe.joiner InnerJoin]
-           [cascading.pipe.assembly Rename]
+           [cascading.pipe.assembly Rename AggregateBy]
            [cascalog ClojureFilter ClojureMapcat ClojureMap
             ClojureAggregator ClojureBuffer ClojureBufferIter
-            FastFirst MultiGroupBy ClojureMultibuffer]))
+            FastFirst MultiGroupBy ClojureMultibuffer ClojureMonoidAggregator
+            ClojureMonoidAggregator ClojureMonoidFunctor]))
 
 ;; ## Cascalog Function Representation
 
@@ -225,6 +227,93 @@
         [[newvar] (w/insert newvar 1)]))))
 
 (defrecord GroupBuilder [flow reducers sort-fields group-fields reverse?])
+
+(defprotocol AggregatorBuilder
+  (gen-agg [_]))
+
+(defprotocol ParallelAggregatorBuilder
+  (gen-functor [_]))
+
+(defprotocol BufferBuilder
+  (gen-buffer [_]))
+
+(defn agg
+  [agg-fn in-fields out-fields]
+  (let [in-fields (fields in-fields)
+        out-fields (fields out-fields)]
+    (reify
+      AggregatorBuilder
+      (gen-agg [_]
+        (ClojureAggregator. out-fields (fn-spec agg-fn) false)))))
+
+(defn par-agg
+  [agg-fn in-fields out-fields]
+  (let [in-fields (fields in-fields)
+        out-fields (fields out-fields)
+        spec (fn-spec agg-fn)]
+    (reify
+      ParallelAggregatorBuilder
+      (gen-functor [_]
+        (ClojureMonoidFunctor. out-fields spec false))
+      AggregatorBuilder
+      (gen-agg [_]
+        (ClojureMonoidAggregator. out-fields spec false)))))
+
+
+(defn bufferiter
+  [buffer-fn in-fields out-fields]
+  (let [in-fields (fields in-fields)
+        out-fields (fields out-fields)]
+    (reify
+      BufferBuilder
+      (gen-buffer [_]
+        (ClojureBufferIter. out-fields (fn-spec agg-fn) false)))))
+
+(defn buffer
+  [buffer-fn in-fields out-fields]
+  (let [in-fields (fields in-fields)
+        out-fields (fields out-fields)]
+    (reify
+      BufferBuilder
+      (gen-buffer [_]
+        (ClojureBuffer. out-fields (fn-spec agg-fn) false)))))
+
+(defn is-agg?
+  [agg-type]
+  (partial satisfies? agg-type))
+
+(defn group-by
+  [flow group-fields & aggs]
+  ;; TODO: add options
+  (let [group-fields (fields group-fields)]
+    (add-op flow
+      (cond
+        (some (is-agg? BufferBuilder) aggs)
+        ;; emit buffer
+        (do
+          (when (> (count aggs) 1)
+            (throw (IllegalArgumentException. "Buffer must be specified on its own")))
+          (fn [pipe]
+            (-> pipe
+              (GroupBy. group-fields)
+              (Every. in-fields (gen-buffer (first aggs))))))
+
+        (every? (is-agg? ParallelAggregatorBuilder) aggs)
+        ;; emit AggregateBy
+        (fn [pipe]
+          (let [aggs (for [agg-pred aggs]
+                       (AggregateBy. in-fields
+                         (gen-functor agg-pred)
+                         (gen-agg agg-pred)))]
+            (AggregateBy. pipe group-fields (into-array AggregateBy aggs))))
+
+        :else
+        ;; simple aggregation
+        (fn [pipe]
+          (let [pipe (GroupBy. pipe group-fields)]
+            (reduce (fn [pipe agg]
+                      (Every. pipe (gen-agg agg))) pipe aggs)))))))
+
 
 ;; ## Output Operations
 ;;

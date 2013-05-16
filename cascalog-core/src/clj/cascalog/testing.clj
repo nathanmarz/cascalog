@@ -33,30 +33,52 @@
 ;; The following functions create proxies for dealing with various
 ;; output collectors.
 
-;; ipostelnik: the interface to kryo is super slow because of config
-;; object creation
-;;
-;; [1:22pm] ipostelnik: you should try to get conf from flow-process
-;; and pass to KryoService
+;(set! *warn-on-reflection* true)
+
+(defn collect-to
+  [^TupleEntryCollector collector v]
+  (let [^Tuple t (if (instance? java.util.List v)
+                   (Tuple. (to-array v))
+                   (doto (Tuple.) (.add v)))]
+    (.add collector t)))
 
 (defn cascalog-map
-  [op-var output-fields & {:keys [stateful?]}]
+  [op-var ^Fields output-fields & {:keys [stateful?]}]
   (let [ser (KryoService/serialize (ops/fn-spec op-var))]
-    (proxy [BaseOperation Function] [^Fields output-fields]
-      (prepare [fp ^OperationCall op-call]
+    (proxy [BaseOperation Function] [output-fields]
+      (prepare [^FlowProcess flow-process ^OperationCall op-call]
         (let [op (Util/bootFn (KryoService/deserialize ser))]
           (-> op-call
               (.setContext [op (if stateful? (op))]))))
+      (operate [^FlowProcess flow-process ^FunctionCall fn-call]
+        (let [[op state] (.getContext fn-call)
+              op (if stateful? (partial op state) op)
+              collector (.getOutputCollector fn-call)
+              ^Tuple args (.. fn-call (getArguments) (getTuple))
+              res (apply op args)]
+        (collect-to collector res)))
+      (cleanup [flow-process ^OperationCall op-call]
+        (if stateful?
+          (let [[op state] (.getContext op-call)]
+            (op state)))))))
 
-      (operate [fp ^FunctionCall fn-call]
-        (let [[op] (.getContext fn-call)
-              collector    (-> fn-call .getOutputCollector)
-              ^Tuple tuple (-> fn-call .getArguments .getTuple)]
-          (.add collector (->> (Util/coerceFromTuple tuple)
-                               (apply op)
-                               (Util/coerceToTuple)))))
-
-      (cleanup [fp ^OperationCall op-call]
+(defn cascalog-mapcat
+  [op-var ^Fields output-fields & {:keys [stateful?]}]
+  (let [ser (KryoService/serialize (ops/fn-spec op-var))]
+    (proxy [BaseOperation Function] [output-fields]
+      (prepare [^FlowProcess flow-process ^OperationCall op-call]
+        (let [op (Util/bootFn (KryoService/deserialize ser))]
+          (-> op-call
+              (.setContext [op (if stateful? (op))]))))
+      (operate [^FlowProcess flow-process ^FunctionCall fn-call]
+        (let [[op state] (.getContext fn-call)
+              op (if stateful? (partial op state) op)
+              collector (.getOutputCollector fn-call)
+              ^Tuple args (.. fn-call (getArguments) (getTuple))
+              res (apply op args)]
+          (doseq [r res]
+            (collect-to collector r))))
+      (cleanup [flow-process ^OperationCall op-call]
         (if stateful?
           (let [[op state] (.getContext op-call)]
             (op state)))))))
