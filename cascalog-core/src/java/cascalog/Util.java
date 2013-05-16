@@ -60,7 +60,7 @@ public class Util {
   public static synchronized void initializeFn() {
     if(!initialized) {
       tryRequire("cascalog.fluent.fn");
-      deserializeFn = RT.var("cascalog.fluent.fn". "deserialize");
+      deserializeFn = RT.var("cascalog.fluent.fn", "deserialize");
       initialized = true;
     }
   }
