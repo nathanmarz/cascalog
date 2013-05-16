@@ -35,8 +35,11 @@ import clojure.lang.RT;
 import clojure.lang.Var;
 
 public class Util {
-  static Var require = RT.var("clojure.core", "require");
-  static Var symbol = RT.var("clojure.core", "symbol");
+  static final Var require = RT.var("clojure.core", "require");
+  static final Var symbol = RT.var("clojure.core", "symbol");
+  
+  static Var deserializeFn;
+  static boolean initialized = false;
 
   public static ISeq cat(ISeq s1, ISeq s2) {
     if (s1 == null || RT.seq(s1) == null) { return s2; }
@@ -54,8 +57,16 @@ public class Util {
     return rootCause;
   }
 
+  public static synchronized void initializeFn() {
+    if(!initialized) {
+      tryRequire("cascalog.fluent.fn");
+      deserializeFn = RT.var("cascalog.fluent.fn". "deserialize");
+      initialized = true;
+    }
+  }
+
   @SuppressWarnings("ThrowableResultOfMethodCallIgnored")
-  public static void tryRequire(String ns_name) {
+  public static synchronized void tryRequire(String ns_name) {
     try {
       require.invoke(symbol.invoke(ns_name));
     } catch (Exception e) {
@@ -70,22 +81,21 @@ public class Util {
     }
   }
 
-  public static Var getVar(String ns_name, String fn_name) {
+  public static synchronized Var getVar(String ns_name, String fn_name) {
     tryRequire(ns_name);
     return RT.var(ns_name, fn_name);
   }
 
-  public static IFn bootSimpleFn(String ns_name, String fn_name) {
+  public static synchronized IFn bootSimpleFn(String ns_name, String fn_name) {
     return (IFn) getVar(ns_name, fn_name).deref();
   }
 
-  public static MultiFn bootSimpleMultifn(String ns_name, String fn_name) {
+  public static synchronized MultiFn bootSimpleMultifn(String ns_name, String fn_name) {
     return (MultiFn) getVar(ns_name, fn_name).deref();
   }
 
-  public static IFn bootFn(byte[] fn_spec) {
-    tryRequire("cascalog.fluent.fn");
-    Var deserializeFn = RT.var("cascalog.fluent.fn", "deserialize");
+  public static synchronized IFn bootFn(byte[] fn_spec) {
+    initializeFn();
     return (IFn) deserializeFn.invoke(fn_spec);
   }
     
