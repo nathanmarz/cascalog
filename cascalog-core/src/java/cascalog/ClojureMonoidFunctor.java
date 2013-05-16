@@ -12,7 +12,7 @@ import cascading.tuple.TupleEntry;
 public class ClojureMonoidFunctor extends ClojureCascadingBase implements AggregateBy.Functor {
     transient boolean inited  = false;
 
-    public ClojureMonoidFunctor(Fields fields, Object[] fn_spec, boolean stateful) {
+    public ClojureMonoidFunctor(Fields fields, byte[] fn_spec, boolean stateful) {
         super(fields, fn_spec, stateful);
     }
 

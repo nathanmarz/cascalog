@@ -25,7 +25,7 @@ import cascading.tuple.Fields;
 import clojure.lang.ISeq;
 
 public class ClojureMap extends ClojureCascadingBase implements Function {
-  public ClojureMap(Fields out_fields, Object[] fn_spec, boolean stateful) {
+  public ClojureMap(Fields out_fields, byte[] fn_spec, boolean stateful) {
     super(out_fields, fn_spec, stateful);
   }
 

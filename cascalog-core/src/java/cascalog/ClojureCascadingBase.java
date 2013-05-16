@@ -27,30 +27,27 @@ import clojure.lang.ISeq;
 
 public class ClojureCascadingBase extends BaseOperation {
   private byte[] serialized_spec;
-  private Object[] fn_spec;
-
   private boolean stateful;
   private Object state;
   private IFn fn;
 
-  public void initialize(Object[] fn_spec, boolean stateful) {
-    serialized_spec = KryoService.serialize(fn_spec);
+  public void initialize(byte[] fn_spec, boolean stateful) {
+    serialized_spec = fn_spec;
     this.stateful = stateful;
   }
 
-  public ClojureCascadingBase(Object[] fn_spec, boolean stateful) {
+  public ClojureCascadingBase(byte[] fn_spec, boolean stateful) {
     initialize(fn_spec, stateful);
   }
 
-  public ClojureCascadingBase(Fields fields, Object[] fn_spec, boolean stateful) {
+  public ClojureCascadingBase(Fields fields, byte[] fn_spec, boolean stateful) {
     super(fields);
     initialize(fn_spec, stateful);
   }
 
   @Override
   public void prepare(FlowProcess flow_process, OperationCall op_call) {
-    this.fn_spec = (Object[]) KryoService.deserialize(serialized_spec);
-    this.fn = Util.bootFn(fn_spec);
+    this.fn = Util.bootFn(serialized_spec);
     if (stateful) {
       try {
         state = this.fn.invoke();

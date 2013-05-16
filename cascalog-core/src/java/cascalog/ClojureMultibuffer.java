@@ -30,7 +30,7 @@ import clojure.lang.RT;
 
 public class ClojureMultibuffer extends ClojureCascadingBase implements MultiBuffer {
 
-  public ClojureMultibuffer(Fields out_fields, Object[] fn_spec, boolean stateful) {
+  public ClojureMultibuffer(Fields out_fields, byte[] fn_spec, boolean stateful) {
     super(out_fields, fn_spec, stateful);
   }
 

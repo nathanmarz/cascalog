@@ -30,7 +30,7 @@ import clojure.lang.RT;
 
 public class ClojureAggregator extends ClojureCascadingBase implements Aggregator {
 
-  public ClojureAggregator(Fields out_fields, Object[] fn_spec, boolean stateful) {
+  public ClojureAggregator(Fields out_fields, byte[] fn_spec, boolean stateful) {
     super(out_fields, fn_spec, stateful);
   }
 

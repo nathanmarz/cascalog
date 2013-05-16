@@ -28,6 +28,7 @@ import cascading.tuple.Tuple;
 import cascading.tuple.TupleEntry;
 import clojure.lang.ArraySeq;
 import clojure.lang.IFn;
+import clojure.lang.MultiFn;
 import clojure.lang.ISeq;
 import clojure.lang.IteratorSeq;
 import clojure.lang.RT;
@@ -75,25 +76,19 @@ public class Util {
   }
 
   public static IFn bootSimpleFn(String ns_name, String fn_name) {
-    return getVar(ns_name, fn_name);
+    return (IFn) getVar(ns_name, fn_name).deref();
   }
 
-  public static IFn bootFn(Object[] fn_spec) {
-    String ns_name = (String) fn_spec[0];
-    String fn_name = (String) fn_spec[1];
-    IFn simple_fn = bootSimpleFn(ns_name, fn_name);
-    if (fn_spec.length == 2) {
-      return simple_fn;
-    } else {
-      ISeq hof_args = ArraySeq.create(fn_spec).next().next();
-      try {
-        return (IFn) simple_fn.applyTo(hof_args);
-      } catch (Exception e) {
-        throw new RuntimeException(e);
-      }
-    }
+  public static MultiFn bootSimpleMultifn(String ns_name, String fn_name) {
+    return (MultiFn) getVar(ns_name, fn_name).deref();
   }
 
+  public static IFn bootFn(byte[] fn_spec) {
+    tryRequire("cascalog.fluent.fn");
+    Var deserializeFn = RT.var("cascalog.fluent.fn", "deserialize");
+    return (IFn) deserializeFn.invoke(fn_spec);
+  }
+    
   public static ISeq coerceToSeq(Object o) {
     if (o instanceof List) {
       return RT.seq(o);

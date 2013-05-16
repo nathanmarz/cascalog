@@ -24,7 +24,7 @@ import cascading.operation.FilterCall;
 import clojure.lang.ISeq;
 
 public class ClojureFilter extends ClojureCascadingBase implements Filter {
-  public ClojureFilter(Object[] fn_spec, boolean stateful) {
+  public ClojureFilter(byte[] fn_spec, boolean stateful) {
     super(fn_spec, stateful);
   }
 
