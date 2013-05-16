@@ -54,7 +54,7 @@
 (deftest metadata-test
   (facts "Metadata testing."
     "Both function and var should contain custom metadata."
-    (meta (ident-stateful 1)) => (contains {:great-meta "yes!"})
+    (meta ident-stateful) => (contains {:great-meta "yes!"})
     (meta #'ident-stateful) => (contains {:great-meta "yes!"})
 
     "Both function and var should contain docstrings."

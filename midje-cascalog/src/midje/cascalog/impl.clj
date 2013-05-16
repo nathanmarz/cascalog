@@ -2,8 +2,10 @@
   (:use midje.sweet
         [clojure.set :only (difference)]
         [cascalog.api :only (with-job-conf <- ??-)])
-  (:require [cascalog.io :as io]
-            [midje.checking.core :as checking]))
+  (:require [cascalog.fluent.io :as io]
+            [cascalog.fluent.flow :as flow]
+            [midje.checking.core :as checking])
+  (:import [cascalog.fluent.flow ClojureFlow]))
 
 (defn- multifn? [x]
   (instance? clojure.lang.MultiFn x))
@@ -38,10 +40,12 @@
 (defn execute
   "Executes the supplied query and returns the sequence of tuples it
   generates. Optionally accepts a log-level key."
-  [query & {:keys [log-level] :or {log-level default-log-level }}]
+  [query & {:keys [log-level] :or {log-level default-log-level}}]
   (io/with-log-level log-level
     (with-job-conf {"io.sort.mb" 10}
-      (first (??- query)))))
+      (if (instance? ClojureFlow query)
+        (flow/to-memory query)
+        (first (??- query))))))
 
 ;; ## Midje-Style Checker Helpers
 
@@ -96,11 +100,11 @@
 
                :else
                ( (just ~expected-form :in-any-order) ~tuple-seq-maker))]
-    ;; Strip chatty failures of their chattiness so that
-    ;; they can escape another layer of Midje => checking.
-    (if (#'checking/data-laden-falsehood? actual-result-of-check#)
-      (as-data-laden-falsehood-hidden-from-midje actual-result-of-check#)
-      actual-result-of-check#)))
+     ;; Strip chatty failures of their chattiness so that
+     ;; they can escape another layer of Midje => checking.
+     (if (#'checking/data-laden-falsehood? actual-result-of-check#)
+       (as-data-laden-falsehood-hidden-from-midje actual-result-of-check#)
+       actual-result-of-check#)))
 
 (defmacro cascalog-check [_ignored_just_here_for_error_output_]
   `(fn [actual#]
@@ -129,13 +133,13 @@
   [bindings factor]
   (let [[ll bindings] (pop-log-level bindings)]
     `(~factor
-           ~@(loop [[x y & more :as forms] bindings, res []]
-               (cond (not x) res
-                     (or (string? x)
-                         (mocking-form? x)) (recur (rest forms) (conj (vec res) x))
-                     :else (->> (#'fact-line x y ll)
-                                (concat res)
-                                (recur more)))))))
+      ~@(loop [[x y & more :as forms] bindings, res []]
+          (cond (not x) res
+                (or (string? x)
+                    (mocking-form? x)) (recur (rest forms) (conj (vec res) x))
+                    :else (->> (#'fact-line x y ll)
+                               (concat res)
+                               (recur more)))))))
 
 (defn build-fact?<-
   "Similar to `build-fact?-`; args must contain a result sequence, a

@@ -17,34 +17,42 @@
 
 (defn defop-body
   [delegate type-kwd name body]
-  (let [[name body] (name-with-attributes name body)
+  (let [runner-name (symbol (str name "__"))
+        runner-var `(var ~runner-name)
+        [name body] (name-with-attributes name body)
         name        (-> name
                         (update-arglists body)
-                        (u/meta-conj {:pred-type type-kwd}))
+                        (u/meta-conj {:pred-type type-kwd
+                                      :runner runner-var}))
         params (:params (meta name))
-        name   (u/meta-update name #(dissoc % :params))
-        runner-name (symbol (str name "__"))
-        runner-var `(var ~runner-name)]
+        name (u/meta-update name #(dissoc % :params))
+        runner-meta (-> (meta name)
+                        (dissoc :runner)
+                        (assoc :no-doc true
+                               :skip-wiki true))]
     `(do (defn ~runner-name
-           ~(assoc (meta name)
-              :no-doc true
-              :skip-wiki true)
+           ~runner-meta
            ~@(if params
                `[~params (serfn/fn ~@body)]
                body))
-         ~(if params
-            `(defn ~name
-               {:arglists '(~params)}
-               [& args#]
-               (with-meta
-                 (~delegate (apply ~runner-var args#))
-                 ~(meta name)))
-            `(def ~name
-               (with-meta
-                 ~(list delegate runner-var)
-                 ~(meta name)))))))
+         (def ~name
+           (with-meta
+             ~(if params
+                `(fn [& args#]
+                   (with-meta
+                     (~delegate (apply ~runner-var args#))
+                     ~(meta name)))
+                (list delegate runner-var))
+             ~(meta name))))))
+
+(defn runner
+  "Returns the backing operation for a function defined with one of
+  the def*op macros."
+  [op]
+  (-> op meta :runner))
 
 (defmacro defdefop
+  "Helper macro to define the def*op macros."
   [sym & body]
   (let [[sym [delegate type-kwd]] (name-with-attributes sym body)]
     `(defmacro ~sym
