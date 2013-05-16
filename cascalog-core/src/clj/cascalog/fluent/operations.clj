@@ -4,6 +4,7 @@
             [cascalog.fluent.conf :as conf]
             [cascalog.fluent.cascading :refer (fields default-output)]
             [cascalog.fluent.algebra :refer (plus)]
+            [cascalog.fluent.fn :as serfn]
             [cascalog.util :as u]
             [cascalog.fluent.source :as src]
             [hadoop-util.core :as hadoop]
@@ -23,30 +24,7 @@
 
 ;; ## Cascalog Function Representation
 
-(defn ns-fn-name-pair [v]
-  (let [m (meta v)]
-    [(str (:ns m)) (str (:name m))]))
-
-(defn fn-spec
-  "v-or-coll => var or [var & params]
-
-   Returns an Object array that is used to represent a Clojure
-   function. If the argument is a var, the array represents that
-   function. If the argument is a coll, the array represents the
-   function returned by applying the first element, which should be a
-   var, to the rest of the elements."
-  [v-or-coll]
-  (cond
-   (var? v-or-coll)
-   (into-array Object (ns-fn-name-pair v-or-coll))
-
-   (coll? v-or-coll)
-   (into-array Object
-               (concat
-                (ns-fn-name-pair (clojure.core/first v-or-coll))
-                (next v-or-coll)))
-
-   :else (throw (IllegalArgumentException. (str v-or-coll)))))
+(defn fn-spec [var] (serfn/serialize var))
 
 ;; ## Operations
 ;;

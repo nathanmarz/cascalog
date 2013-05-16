@@ -28,7 +28,7 @@ import clojure.lang.RT;
 
 public class ClojureMapcat extends ClojureCascadingBase implements Function {
 
-  public ClojureMapcat(Fields out_fields, Object[] fn_spec, boolean stateful) {
+  public ClojureMapcat(Fields out_fields, byte[] fn_spec, boolean stateful) {
     super(out_fields, fn_spec, stateful);
   }
 

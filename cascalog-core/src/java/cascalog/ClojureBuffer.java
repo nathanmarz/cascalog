@@ -29,7 +29,7 @@ import clojure.lang.RT;
 
 public class ClojureBuffer extends ClojureCascadingBase implements Buffer {
 
-  public ClojureBuffer(Fields out_fields, Object[] fn_spec, boolean stateful) {
+  public ClojureBuffer(Fields out_fields, byte[] fn_spec, boolean stateful) {
     super(out_fields, fn_spec, stateful);
   }
 

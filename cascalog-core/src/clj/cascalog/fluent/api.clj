@@ -14,10 +14,10 @@
       begin-flow
       (rename* ["a" "b"])
       (write* (hfs-textline "/tmp/output" :sinkmode :replace))
-      (map* #'inc "a" "inc")
-      (filter* #'odd? "a")
-      (map* #'square "inc" "squared")
-      (map* #'dec "squared" "decreased")
+      (map* inc "a" "inc")
+      (filter* odd? "a")
+      (map* square "inc" "squared")
+      (map* dec "squared" "decreased")
       (write* (hfs-textline "/tmp/output4" :sinkmode :replace))
       (to-memory))
 
@@ -25,12 +25,12 @@
         source (-> (begin-flow [[1 2] [2 3] [3 4] [4 5]])
                    (rename* ["a" "b"]))
         a      (-> source
-                   (map* #'square "a" "squared")
-                   (map* #'dec "b" "decreased")
+                   (map* square "a" "squared")
+                   (map* dec "b" "decreased")
                    (write* (mk-sink "/tmp/output")))
         b      (-> source
-                   (map* #'inc "a" "squared")
-                   (map* #'inc "b" "decreased")
+                   (map* inc "a" "squared")
+                   (map* inc "b" "decreased")
                    (write* (mk-sink "/tmp/output2")))]
     (-> (merge* a b)
         (write* (mk-sink "/tmp/outputmerged"))
@@ -41,11 +41,11 @@
         source (-> (begin-flow [[1 2] [2 3] [3 4] [4 5]])
                    (rename* ["a" "b"]))
         a      (-> source
-                   (map* #'square "a" "squared")
-                   (map* #'dec "b" "decreased")
+                   (map* square "a" "squared")
+                   (map* dec "b" "decreased")
                    (write* (mk-sink "/tmp/output")))
         b      (-> source
-                   (map* #'inc "a" "squared")
-                   (map* #'inc "b" "decreased")
+                   (map* inc "a" "squared")
+                   (map* inc "b" "decreased")
                    (write* (mk-sink "/tmp/output2")))]
     (all-to-memory a b)))
