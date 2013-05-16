@@ -75,7 +75,14 @@
                   [2 4 20]
                   [3 9 30]
                   [4 16 40]
-                  [5 25 50]])))
+                  [5 25 50]])
+
+    "Any function defined with def*op can be used directly in the
+     flow:"
+    (-> (begin-flow [1 2 3 4 5])
+        (rename* "a")
+        (plus-two "a" "b"))
+    => (produces [[1 3] [2 4] [3 5] [4 6] [5 7]])))
 
 (future-fact
  "Check that intermediates actually write out to their sequencefiles.")
