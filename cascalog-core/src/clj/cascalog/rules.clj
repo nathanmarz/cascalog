@@ -329,7 +329,9 @@
     (throw (RuntimeException. "Planner exception: Generator has inbound nodes")))
   pred)
 
-(w/defmapop [join-fields-selector [num-fields]] [& args]
+(w/defmapop join-fields-selector
+  {:params [num-fields]}
+  [& args]
   (let [joins (partition num-fields args)]
     (or (s/find-first (partial s/some? (complement nil?)) joins)
         (repeat num-fields nil))))

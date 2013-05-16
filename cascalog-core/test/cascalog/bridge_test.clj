@@ -2,16 +2,14 @@
   (:use midje.sweet
         clojure.test)
   (:require [cascalog.fluent.workflow :as w]
+            [cascalog.fluent.cascading :refer (fields)]
+            [cascalog.fluent.operations :as ops]
             [cascalog.testing :as t]
             [cascalog.util :as u])
   (:import [cascading.tuple Fields]
            [cascading.pipe Pipe]
            [cascalog ClojureFilter ClojureMap ClojureMapcat
             ClojureAggregator Util]))
-
-(deftest ns-fn-name-pair-test
-  (fact "ns-fn-name-pair should produce a pair of strings."
-    (w/ns-fn-name-pair #'str) => ["clojure.core" "str"]))
 
 (def obj-array-class
   (Class/forName "[Ljava.lang.Object;"))
@@ -37,33 +35,10 @@
     [actual]
     (instance? expected actual)))
 
-(deftest fn-spec-test
-  (tabular
-    (fact
-      "fn-spec should propery resolve a var (or vector of var and
-      arguments) into an object array of namespace, function name
-      and (optionally) arguments."
-      (let [spec (w/fn-spec ?input)]
-        spec       => (is-type obj-array-class)
-        (seq spec) => ?result-vec))
-    ?input       ?result-vec
-    #'plus-one   ["cascalog.bridge-test" "plus-one"]
-    [#'plus-n 3] ["cascalog.bridge-test" "plus-n" 3]))
-
-(deftest bootFn-test
-  (tabular
-    (fact "bootFn tests, simple and higher order."
-      (let [spec (into-array Object ?spec)
-            f    (Util/bootFn spec)]
-        (f 1) => ?result))
-    ?spec                               ?result
-    ["cascalog.bridge-test" "plus-one"] [2]
-    ["cascalog.bridge-test" "plus-n" 3] [4]))
-
 (deftest Fields-test
   (facts "Fields tests."
-    (let [f1 (w/fields "foo")
-          f2 (w/fields ["foo" "bar"])]
+    (let [f1 (fields "foo")
+          f2 (fields ["foo" "bar"])]
       (facts "Single fields should resolve properly."
         f1       => #(instance? Fields %)
         (seq f1) => ["foo"])
@@ -83,7 +58,7 @@
 
 (deftest ClojureFilter-test
   (fact "Clojure Filter test."
-    (let [fil (ClojureFilter. (w/fn-spec #'odd?) false)]
+    (let [fil (ClojureFilter. (ops/fn-spec #'odd?) false)]
       (t/invoke-filter fil [1]) => false
       (t/invoke-filter fil [2]) => true)))
 
@@ -92,17 +67,17 @@
     (fact "ClojureMap test, single field."
       (t/invoke-function ?clj-map [1]) => [[2]])
     ?clj-map
-    (ClojureMap. (w/fields "num")
-                 (w/fn-spec #'inc-wrapped)
+    (ClojureMap. (fields "num")
+                 (ops/fn-spec #'inc-wrapped)
                  false)
-    (ClojureMap. (w/fields "num")
-                 (w/fn-spec #'inc)
+    (ClojureMap. (fields "num")
+                 (ops/fn-spec #'inc)
                  false)))
 
 (deftest ClojureMap-multiple-fields-test
   (facts "ClojureMap test, multiple fields."
-    (let [m (ClojureMap. (w/fields ["num1" "num2"])
-                         (w/fn-spec #'inc-both)
+    (let [m (ClojureMap. (fields ["num1" "num2"])
+                         (ops/fn-spec #'inc-both)
                          false)]
       (t/invoke-function m [1 2]) => [[2 3]])))
 
@@ -121,11 +96,11 @@
     (fact "ClojureMapCat test, single field."
       (t/invoke-function ?clj-mapcat [1]) => [[2] [3] [4]])
     ?clj-mapcat
-    (ClojureMapcat. (w/fields "num")
-                    (w/fn-spec #'iterate-inc-wrapped)
+    (ClojureMapcat. (fields "num")
+                    (ops/fn-spec #'iterate-inc-wrapped)
                     false)
-    (ClojureMapcat. (w/fields "num")
-                    (w/fn-spec #'iterate-inc)
+    (ClojureMapcat. (fields "num")
+                    (ops/fn-spec #'iterate-inc)
                     false)))
 
 (defn sum
@@ -135,7 +110,7 @@
 
 (deftest ClojureAggregator-test
   (fact "ClojureAggregator test."
-    (let [a (ClojureAggregator. (w/fields "sum")
-                                (w/fn-spec #'sum)
+    (let [a (ClojureAggregator. (fields "sum")
+                                (ops/fn-spec #'sum)
                                 false)]
       (t/invoke-aggregator a [[1] [2] [3]]) => [[6]])))

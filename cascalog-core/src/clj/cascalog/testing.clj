@@ -277,7 +277,7 @@
         tmptaps (mapcat (fn [n t s]
                           [n `(cascalog.testing/mk-test-sink ~s ~t)])
                         names tmpfiles specs)]
-    `(cascalog.io/with-tmp-files ~tmpforms
+    `(cascalog.fluent.io/with-tmp-files ~tmpforms
        (let [~@tmptaps]
          ~@body
          (dorun (map ~checker ~names ~specs))))))

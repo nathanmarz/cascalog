@@ -151,9 +151,10 @@
 
 ;; Operations to use within queries
 
-(defmapop [re-parse [pattern]]
+(defmapop re-parse
   "Accepts a regex `pattern` and a string argument `str` and returns
   the groups within `str` that match the supplied `pattern`."
+  {:params [pattern]}
   [str]
   (re-seq pattern str))
 
@@ -195,7 +196,8 @@
       (sum !v :> !s)
       (div !s !c :> !avg)))
 
-(def ^{:doc "Predicate operation that produces a count of all distinct
+(comment
+  (def ^{:doc "Predicate operation that produces a count of all distinct
   values of the supplied input variable. For example:
 
   (let [src [[1] [2] [2]]]
@@ -203,10 +205,10 @@
       (src ?x)
       (distinct-count ?x :> ?count)))
   ;;=> ([2])"}
-  distinct-count
-  (<- [:<< !invars :> !c]
-      (:sort :<< !invars)
-      (impl/distinct-count-agg :<< !invars :> !c)))
+    distinct-count
+    (<- [:<< !invars :> !c]
+        (:sort :<< !invars)
+        (impl/distinct-count-agg :<< !invars :> !c))))
 
 (defn fixed-sample-agg [amt]
   (<- [:<< ?invars :>> ?outvars]
@@ -223,7 +225,7 @@
   a tap for the data in that directory.
 
   It's recommended to wrap queries that use this tap with
-  `cascalog.io/with-fs-tmp`; for example,
+  `cascalog.fluent.io/with-fs-tmp`; for example,
 
     (with-fs-tmp [_ tmp-dir]
       (let [lazy-tap (lazy-generator tmp-dir lazy-seq)]
