@@ -29,6 +29,7 @@
              :dev {:resource-paths ["dev"]
                    :plugins [[lein-midje "3.0.0"]]
                    :dependencies
-                   [[cascalog/midje-cascalog "1.10.2-SNAPSHOT"]]}
+                   [[cascalog/midje-cascalog "1.10.2-SNAPSHOT"]
+                    [org.apache.hadoop/hadoop-core "0.20.2"]]}
              :ci-dev [:dev {:dependencies [[cascalog/midje-cascalog "1.10.1"]
                                            [org.apache.hadoop/hadoop-core "1.0.3"]]}]})

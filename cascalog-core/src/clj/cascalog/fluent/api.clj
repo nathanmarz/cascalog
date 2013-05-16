@@ -11,15 +11,30 @@
   "TODO: Move to tests."
 
   (defn square [x] (* x x))
-  (defmapop plus-one [x] (inc x))
+
+  (defmapop times
+    {:params [x]}
+    [y]
+    (* x y))
+
+  (defmapcatop twice [x] [x x])
   (defmapop plus-two [x y z] (inc x))
-  (defn add [& xs] (reduce + xs))
+
+  (defn add [& xs]
+    (reduce + xs))
 
   (-> [1 2 3 4 5]
       begin-flow
       (rename* "a")
-      ((mapop #'square) "a" "squared")
-      (plus-one "a" "b")
+      ((mapop square) "a" "squared")
+      (twice "a" "b")
+      to-memory)
+
+  (-> [1 2 3 4 5]
+      begin-flow
+      (rename* "a")
+      ((mapop square) "a" "squared")
+      ((times 10) "a" "b")
       to-memory)
 
   (-> [[1 2] [2 3] [3 4] [4 5]] ;; or a tap, or anything that can generate.

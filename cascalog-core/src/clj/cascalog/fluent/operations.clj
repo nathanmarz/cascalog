@@ -9,6 +9,7 @@
             [cascalog.util :as u]
             [cascalog.fluent.source :as src]
             [hadoop-util.core :as hadoop]
+            [jackknife.core :refer (throw-illegal)]
             [jackknife.seq :refer (unweave collectify)])
   (:import [java.io File]
            [cascading.tuple Tuple Fields]
@@ -261,9 +262,9 @@
   [agg-type]
   (partial satisfies? agg-type))
 
+;; TODO: add options
 (defn group-by*
   [flow group-fields & aggs]
-  ;; TODO: add options
   (let [group-fields (fields group-fields)]
     (add-op flow
             (fn [pipe]
@@ -271,7 +272,7 @@
                (some (is-agg? BufferBuilder) aggs)
                ;; emit buffer
                (do (when (> (count aggs) 1)
-                     (throw (IllegalArgumentException. "Buffer must be specified on its own")))
+                     (throw-illegal "Buffer must be specified on its own"))
                    (let [{:keys [input op]} (gen-buffer (first aggs))]
                      (-> pipe
                          (GroupBy. group-fields)
