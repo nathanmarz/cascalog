@@ -234,7 +234,8 @@ as well."
         args (if hof-args (cons hof-args args) args)]
     (safe-assert (seq declared-group-vars)
                  "Cannot do global grouping with multigroup")
-    (safe-assert (= (set group-vars) (set declared-group-vars))
+    (safe-assert (= (set group-vars)
+                    (set declared-group-vars))
                  "Declared group vars must be same as intersection of vars of all subqueries")
     (p/predicate p/generator nil
                  true
