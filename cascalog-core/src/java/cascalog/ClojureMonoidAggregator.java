@@ -27,7 +27,7 @@ import clojure.lang.RT;
 
 @SuppressWarnings("unchecked")
 public class ClojureMonoidAggregator extends ClojureCascadingBase implements Aggregator {
-    public ClojureMonoidAggregator(Fields out_fields, Object[] fn_spec, boolean stateful) {
+    public ClojureMonoidAggregator(Fields out_fields, byte[] fn_spec, boolean stateful) {
         super(out_fields, fn_spec, stateful);
     }
 
