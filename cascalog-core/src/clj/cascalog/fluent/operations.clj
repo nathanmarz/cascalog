@@ -175,34 +175,27 @@
   #(->> (ClojureFilter. (fn-spec op-var) false)
         (Each. % (fields in-fields))))
 
-(defmacro defmapop
-  "Defines a flow operation."
-  [name & body]
-  (let [[name body] (name-with-attributes name body)
-        runner-name (symbol (str name "__"))]
-    `(do (defn ~runner-name
-           ~(assoc (meta name)
-              :no-doc true
-              :skip-wiki true)
-           ~@body)
-         (def ~name
-           (with-meta
-             (fn [flow# ]
-               (let [~assembly-args ~args-sym-all]
-                 (map* flow#  ~type ~func-form ~args-sym)))
-             ~(meta name))))))
-
-(defmapop square [x] (* x x))
+(defn filterop [op]
+  (fn [flow & more]
+    (apply filter* flow op more)))
 
 (defn map* [flow op-var in-fields out-fields]
   (each flow #(ClojureMap. % (fn-spec op-var) false)
         in-fields
         out-fields))
 
+(defn mapop [op]
+  (fn [flow & more]
+    (apply map* flow op more)))
+
 (defn mapcat* [flow op-var in-fields out-fields]
   (each flow #(ClojureMapcat. % (fn-spec op-var) false)
         in-fields
         out-fields))
+
+(defn mapcatop [op]
+  (fn [flow & more]
+    (apply mapcat* flow op more)))
 
 (defn merge*
   "Merges the supplied flows."

@@ -3,7 +3,7 @@
         cascalog.fluent.flow
         cascalog.fluent.tap
         cascalog.fluent.cascading
-        ))
+        cascalog.fluent.def))
 
 ;; ## Execution Helpers
 
@@ -11,7 +11,27 @@
   "TODO: Move to tests."
 
   (defn square [x] (* x x))
+  (defmapop plus-one [x] (inc x))
+  (defmapop plus-two [x y z] (inc x))
   (defn add [& xs] (reduce + xs))
+
+  (-> [1 2 3 4 5]
+      begin-flow
+      (rename* "a")
+      ((mapop #'square) "a" "squared")
+      (plus-one "a" "b")
+      to-memory)
+
+  (-> [[1 2] [2 3] [3 4] [4 5]] ;; or a tap, or anything that can generate.
+      begin-flow
+      (rename* ["a" "b"])
+      (write* (hfs-textline "/tmp/output" :sinkmode :replace))
+      (map* #'inc "a" "inc")
+      (filter* #'odd? "a")
+      (map* #'square "inc" "squared")
+      (map* #'dec "squared" "decreased")
+      (write* (hfs-textline "/tmp/output4" :sinkmode :replace))
+      (to-memory))
 
   (-> [[1 2] [2 3] [3 4] [4 5]] ;; or a tap, or anything that can generate.
       begin-flow
