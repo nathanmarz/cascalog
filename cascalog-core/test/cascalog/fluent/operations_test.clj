@@ -10,12 +10,39 @@
 
 (defn square [x] (* x x))
 
-(defmapop plus-two
-  [x y z]
-  (inc x))
-
 (defn sum [& xs]
   (reduce + xs))
+
+(defmapop plus-two [x]
+  (+ 2 x))
+
+(defmapop times
+  {:params [x]}
+  [y]
+  (* x y))
+
+(deftest runner-tests
+  (facts "Runner retrieves backing operations from defops."
+
+    "When passed a non-defop declared function, runner returns its
+  input."
+    ((runner sum) 1 2 3) => 6
+
+    "runner extracts a backing function from a defop fn."
+    ((runner plus-two) 2) => 4
+
+    "runner extracts a backing function from a defop var."
+    ((runner #'plus-two) 2) => 4
+
+    "Runner returns the backing higher order function from a defop
+  defined var or fn:"
+    (tabular
+     (let [backing-hof (runner ?input)
+           times-ten   (backing-hof 10)]
+       (times-ten 2) => 20)
+     ?input
+     times
+     #'times)))
 
 (deftest map-test
   (let [src (-> (begin-flow [["jenna" 10]
@@ -36,11 +63,6 @@
                     ["sam" 2 4]
                     ["oscar" 3 9]]))))
 
-(defmapop times
-  {:params [x]}
-  [y]
-  (* x y))
-
 (deftest op-wrapper-test
   (fact
     "Higher order functions and vanilla functions
@@ -54,6 +76,9 @@
                   [3 9 30]
                   [4 16 40]
                   [5 25 50]])))
+
+(future-fact
+ "Check that intermediates actually write out to their sequencefiles.")
 
 (deftest check-intermediate-write
   (io/with-fs-tmp [_ tmp-a tmp-b]

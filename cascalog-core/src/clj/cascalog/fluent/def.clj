@@ -49,7 +49,7 @@
   "Returns the backing operation for a function defined with one of
   the def*op macros."
   [op]
-  (-> op meta :runner))
+  (or (-> op meta :runner) op))
 
 (defmacro defdefop
   "Helper macro to define the def*op macros."
