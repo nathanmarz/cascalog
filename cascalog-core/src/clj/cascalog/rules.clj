@@ -1,5 +1,6 @@
 (ns cascalog.rules
-  (:use [cascalog.debug :only (debug-print)]
+    (:import [cascalog.aggregator CombinerSpec])
+    (:use [cascalog.debug :only (debug-print)]
         [clojure.set :only (intersection union difference subset?)]
         [clojure.walk :only (postwalk)]
         [jackknife.core :only (throw-illegal throw-runtime)])

@@ -1,5 +1,6 @@
 (ns cascalog.fluent.workflow
-  (:refer-clojure
+    (:import [cascalog.aggregator ClojureAggregator])
+    (:refer-clojure
    :exclude [group-by count first filter mapcat map identity min max])
   (:use [cascalog.debug :only (debug-print)]
         [clojure.tools.macro :only (name-with-attributes)]

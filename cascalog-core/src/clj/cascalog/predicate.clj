@@ -1,5 +1,6 @@
 (ns cascalog.predicate
-  (:use [cascalog.util :only (uuid multifn? substitute-if search-for-var
+    (:import [cascalog.aggregator CombinerSpec])
+    (:use [cascalog.util :only (uuid multifn? substitute-if search-for-var
                                    any-list?)]
         [jackknife.seq :only (transpose)]
         [clojure.tools.macro :only (name-with-attributes)])

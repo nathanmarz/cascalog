@@ -8,7 +8,8 @@
         cascalog.fluent.def)
   (:require [cascalog.fluent.io :as io]))
 
-(defn square [x] (* x x))
+(defn square [x]
+  (* x x))
 
 (defn sum [& xs]
   (reduce + xs))
@@ -25,7 +26,7 @@
   (facts "Runner retrieves backing operations from defops."
 
     "When passed a non-defop declared function, runner returns its
-  input."
+     input."
     ((runner sum) 1 2 3) => 6
 
     "runner extracts a backing function from a defop fn."
@@ -52,7 +53,8 @@
     (facts
       "Naming input and output the same replaces the input variable in
       the flow."
-      (-> src (map* square "tweet-count" "tweet-count"))
+      (-> src
+          (map* square "tweet-count" "tweet-count"))
       => (produces [["jenna" 100]
                     ["sam" 4]
                     ["oscar" 9]])
@@ -62,6 +64,7 @@
       => (produces [["jenna" 10 100]
                     ["sam" 2 4]
                     ["oscar" 3 9]]))))
+
 
 (deftest op-wrapper-test
   (fact

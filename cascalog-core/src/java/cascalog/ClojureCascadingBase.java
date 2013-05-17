@@ -29,7 +29,7 @@ public class ClojureCascadingBase extends BaseOperation {
   private byte[] serialized_spec;
   private boolean stateful;
   private Object state;
-  private IFn fn;
+  protected IFn fn;
 
   public void initialize(byte[] fn_spec, boolean stateful) {
     serialized_spec = fn_spec;

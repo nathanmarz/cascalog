@@ -1,5 +1,4 @@
 (ns cascalog.fluent.operations
-  (:import [cascalog ClojureMonoidFunctor])
   (:require [clojure.tools.macro :refer (name-with-attributes)]
             [clojure.set :refer (subset? difference)]
             [cascalog.fluent.conf :as conf]
@@ -22,8 +21,9 @@
            [cascading.pipe.assembly Rename AggregateBy]
            [cascalog ClojureFilter ClojureMapcat ClojureMap
             ClojureAggregator ClojureBuffer ClojureBufferIter
-            FastFirst MultiGroupBy ClojureMultibuffer ClojureMonoidAggregator
-            ClojureMonoidAggregator ClojureMonoidFunctor]))
+            FastFirst MultiGroupBy ClojureMultibuffer]
+           [cascalog.aggregator ClojureMonoidAggregator ClojureMonoidFunctor
+            ClojureAggregateBy CombinerSpec]))
 
 ;; ## Cascalog Function Representation
 
@@ -205,16 +205,30 @@
       (let [newvar (v/gen-nullable-var)]
         [[newvar] (w/insert newvar 1)]))))
 
-(defrecord GroupBuilder [flow reducers sort-fields group-fields reverse?])
+(defprotocol ParallelAggregatorBuilder
+  (gen-functor [_]))
 
 (defprotocol AggregatorBuilder
   (gen-agg [_]))
 
-(defprotocol ParallelAggregatorBuilder
-  (gen-functor [_]))
-
 (defprotocol BufferBuilder
   (gen-buffer [_]))
+
+(defn par-agg
+  "Creates a parallel aggregation operation. TODO: Take a prepare and
+  present var."
+  [agg-fn in-fields out-fields]
+  (let [in-fields  (fields in-fields)
+        out-fields (fields out-fields)
+        spec (CombinerSpec. (fn-spec agg-fn))]
+    (reify
+      ParallelAggregatorBuilder
+      (gen-functor [_]
+        (ClojureMonoidFunctor. out-fields spec))
+      AggregatorBuilder
+      (gen-agg [_]
+        {:input in-fields
+         :op (ClojureMonoidAggregator. out-fields spec)}))))
 
 (defn agg
   [agg-fn in-fields out-fields]
@@ -224,21 +238,6 @@
       (gen-agg [_]
         {:input in-fields
          :op (ClojureAggregator. out-fields (fn-spec agg-fn) false)}))))
-
-(defn par-agg
-  [agg-fn in-fields out-fields]
-  (let [in-fields (fields in-fields)
-        out-fields (fields out-fields)
-        spec (fn-spec agg-fn)]
-    (reify
-      ParallelAggregatorBuilder
-      (gen-functor [_]
-        (ClojureMonoidFunctor. out-fields spec false))
-      AggregatorBuilder
-      (gen-agg [_]
-        {:input in-fields
-         :op (ClojureMonoidAggregator. out-fields spec false)}))))
-
 
 (defn bufferiter
   [buffer-fn in-fields out-fields]
@@ -282,9 +281,9 @@
                ;; emit AggregateBy
                (let [aggs (for [agg-pred aggs
                                 :let [{:keys [input op]} (gen-agg agg-pred)]]
-                            (AggregateBy. input
-                                          (gen-functor agg-pred)
-                                          op))]
+                            (ClojureAggregateBy. input
+                                                 (gen-functor agg-pred)
+                                                 op))]
                  (AggregateBy. pipe group-fields (into-array AggregateBy aggs)))
 
                :else
@@ -332,6 +331,8 @@
 ;; trap options. Do this by testing the traps with a few throws inside
 ;; and one after. Make sure the throw after causes a failure, but not
 ;; inside.
+;;
+;; TODO: Add "checkpoint" function, injecting a checkpoint pipe.
 
 (defn with-trap*
   "Applies a trap to everything that occurs within the supplied

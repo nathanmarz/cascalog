@@ -27,6 +27,7 @@ import cascading.operation.OperationCall;
 import cascading.tuple.Fields;
 import cascading.tuple.Tuple;
 import cascading.tuple.TupleEntryCollector;
+import cascalog.aggregator.CombinerSpec;
 import clojure.lang.IFn;
 import clojure.lang.ISeq;
 import clojure.lang.RT;
@@ -47,7 +48,7 @@ public class ClojureBufferCombiner extends ClojureCombinerBase {
   @Override
   public void prepare(FlowProcess flowProcess, OperationCall operationCall) {
     super.prepare(flowProcess, operationCall);
-    extract_fn = Util.bootFn(spec.extractor_spec);
+    extract_fn = Util.bootFn(spec.presentFn);
   }
 
   @Override

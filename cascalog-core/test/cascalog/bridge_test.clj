@@ -1,5 +1,6 @@
 (ns cascalog.bridge-test
-  (:use midje.sweet
+    (:import [cascalog.aggregator ClojureAggregator])
+    (:use midje.sweet
         clojure.test)
   (:require [cascalog.fluent.workflow :as w]
             [cascalog.fluent.cascading :refer (fields)]
