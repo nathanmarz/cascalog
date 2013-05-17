@@ -112,14 +112,6 @@
   (let [pairs (partition 2 bindings)]
     (mapcat identity (filter #(first %) pairs))))
 
-(defn meta-conj
-  "Returns the supplied symbol with the supplied `attr` map conj-ed
-  onto the symbol's current metadata."
-  [sym attr]
-  (with-meta sym (if (meta sym)
-                   (conj (meta sym) attr)
-                   attr)))
-
 (defn meta-update
   "Returns the supplied symbol with the supplied `attr` map conj-ed
   onto the symbol's current metadata."
