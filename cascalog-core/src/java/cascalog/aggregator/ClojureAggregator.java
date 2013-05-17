@@ -17,7 +17,7 @@
     limitations under the License.
 */
 
-package cascalog;
+package cascalog.aggregator;
 
 import java.util.Collection;
 
@@ -26,6 +26,8 @@ import cascading.operation.Aggregator;
 import cascading.operation.AggregatorCall;
 import cascading.tuple.Fields;
 import cascading.tuple.TupleEntryCollector;
+import cascalog.ClojureCascadingBase;
+import cascalog.Util;
 import clojure.lang.ISeq;
 import clojure.lang.RT;
 

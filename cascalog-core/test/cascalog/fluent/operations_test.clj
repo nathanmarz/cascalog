@@ -65,13 +65,13 @@
                     ["sam" 2 4]
                     ["oscar" 3 9]]))))
 
-
 (deftest op-wrapper-test
   (fact
     "Higher order functions and vanilla functions
     lifted to mapops!"
     (-> (begin-flow [1 2 3 4 5])
         (rename* "a")
+        (map* square "a" "squared")
         ((mapop square) "a" "squared")
         ((times 10) "a" "b"))
     => (produces [[1 1 10]

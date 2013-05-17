@@ -20,9 +20,10 @@
            [cascading.pipe.joiner InnerJoin]
            [cascading.pipe.assembly Rename AggregateBy]
            [cascalog ClojureFilter ClojureMapcat ClojureMap
-            ClojureAggregator ClojureBuffer ClojureBufferIter
-            FastFirst MultiGroupBy ClojureMultibuffer]
-           [cascalog.aggregator ClojureMonoidAggregator ClojureMonoidFunctor
+            ClojureBuffer ClojureBufferIter FastFirst
+            MultiGroupBy ClojureMultibuffer]
+           [cascalog.aggregator ClojureAggregator
+            ClojureMonoidAggregator ClojureMonoidFunctor
             ClojureAggregateBy CombinerSpec]))
 
 ;; ## Cascalog Function Representation
