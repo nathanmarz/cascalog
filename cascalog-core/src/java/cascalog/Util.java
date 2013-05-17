@@ -26,17 +26,18 @@ import java.util.List;
 
 import cascading.tuple.Tuple;
 import cascading.tuple.TupleEntry;
-import clojure.lang.ArraySeq;
 import clojure.lang.IFn;
-import clojure.lang.MultiFn;
 import clojure.lang.ISeq;
 import clojure.lang.IteratorSeq;
+import clojure.lang.MultiFn;
 import clojure.lang.RT;
 import clojure.lang.Var;
 
 public class Util {
   static Var require = RT.var("clojure.core", "require");
   static Var symbol = RT.var("clojure.core", "symbol");
+  static IFn serializeFn = bootSimpleFn("cascalog.fluent.fn", "serialize");
+  static IFn deserializeFn = bootSimpleFn("cascalog.fluent.fn", "deserialize");
 
   public static ISeq cat(ISeq s1, ISeq s2) {
     if (s1 == null || RT.seq(s1) == null) { return s2; }
@@ -83,10 +84,12 @@ public class Util {
     return (MultiFn) getVar(ns_name, fn_name).deref();
   }
 
-  public static IFn bootFn(byte[] fn_spec) {
-    tryRequire("cascalog.fluent.fn");
-    Var deserializeFn = RT.var("cascalog.fluent.fn", "deserialize");
-    return (IFn) deserializeFn.invoke(fn_spec);
+  public static IFn deserializeFn(byte[] fnSpec) {
+    return (IFn)  deserializeFn.invoke(fnSpec);
+  }
+
+  public static byte[] serializeFn(IFn fn) {
+    return (byte[]) serializeFn.invoke(fn);
   }
     
   public static ISeq coerceToSeq(Object o) {

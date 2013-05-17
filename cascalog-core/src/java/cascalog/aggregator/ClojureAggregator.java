@@ -28,13 +28,14 @@ import cascading.tuple.Fields;
 import cascading.tuple.TupleEntryCollector;
 import cascalog.ClojureCascadingBase;
 import cascalog.Util;
+import clojure.lang.IFn;
 import clojure.lang.ISeq;
 import clojure.lang.RT;
 
 public class ClojureAggregator extends ClojureCascadingBase implements Aggregator {
 
-  public ClojureAggregator(Fields out_fields, byte[] fn_spec, boolean stateful) {
-    super(out_fields, fn_spec, stateful);
+  public ClojureAggregator(Fields outputFields, IFn fn) {
+    super(outputFields, fn);
   }
 
   public void start(FlowProcess flow_process, AggregatorCall ag_call) {

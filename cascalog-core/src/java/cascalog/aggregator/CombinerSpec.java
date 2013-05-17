@@ -28,17 +28,17 @@ public class CombinerSpec implements Serializable {
   public final byte[] combineFn;
   public byte[] presentFn;
 
-  public CombinerSpec(byte[] combineFn) {
-    this.combineFn = combineFn;
+  public CombinerSpec(IFn combineFn) {
+    this.combineFn = Util.serializeFn(combineFn);
   }
 
-  public CombinerSpec setPrepareFn(byte[] prepareFn) {
-    this.prepareFn = prepareFn;
+  public CombinerSpec setPrepareFn(IFn prepareFn) {
+    this.prepareFn = Util.serializeFn(prepareFn);
     return this;
   }
 
-  public CombinerSpec setPresentFn(byte[] presentFn) {
-    this.presentFn = presentFn;
+  public CombinerSpec setPresentFn(IFn presentFn) {
+    this.presentFn = Util.serializeFn(presentFn);
     return this;
   }
 
@@ -46,16 +46,16 @@ public class CombinerSpec implements Serializable {
     if (null == prepareFn)
       return null;
     else
-      return Util.bootFn(prepareFn);
+      return Util.deserializeFn(prepareFn);
   }
   public IFn getCombineFn() {
-    return Util.bootFn(combineFn);
+    return Util.deserializeFn(combineFn);
   }
 
   public IFn getPresentFn() {
     if (null == presentFn)
       return null;
     else
-      return Util.bootFn(presentFn);
+      return Util.deserializeFn(presentFn);
   }
 }

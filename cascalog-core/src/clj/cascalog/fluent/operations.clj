@@ -154,30 +154,18 @@
                             (fields new-fields)))))
 
 (defop filter* [op-var in-fields]
-  #(->> (ClojureFilter. (fn-spec op-var) false)
+  #(->> (ClojureFilter. op-var)
         (Each. % (fields in-fields))))
 
-(defn filterop [op]
-  (fn [flow & more]
-    (apply filter* flow op more)))
-
 (defn map* [flow op-var in-fields out-fields]
-  (each flow #(ClojureMap. % (fn-spec op-var) false)
+  (each flow #(ClojureMap. % op-var)
         in-fields
         out-fields))
-
-(defn mapop [op]
-  (fn [flow & more]
-    (apply map* flow op more)))
 
 (defn mapcat* [flow op-var in-fields out-fields]
-  (each flow #(ClojureMapcat. % (fn-spec op-var) false)
+  (each flow #(ClojureMapcat. % op-var)
         in-fields
         out-fields))
-
-(defn mapcatop [op]
-  (fn [flow & more]
-    (apply mapcat* flow op more)))
 
 (defn merge*
   "Merges the supplied flows."
@@ -221,7 +209,7 @@
   [agg-fn in-fields out-fields]
   (let [in-fields  (fields in-fields)
         out-fields (fields out-fields)
-        spec (CombinerSpec. (fn-spec agg-fn))]
+        spec (CombinerSpec. agg-fn)]
     (reify
       ParallelAggregatorBuilder
       (gen-functor [_]
@@ -238,7 +226,7 @@
     (reify AggregatorBuilder
       (gen-agg [_]
         {:input in-fields
-         :op (ClojureAggregator. out-fields (fn-spec agg-fn) false)}))))
+         :op (ClojureAggregator. out-fields agg-fn)}))))
 
 (defn bufferiter
   [buffer-fn in-fields out-fields]
@@ -247,7 +235,7 @@
     (reify BufferBuilder
       (gen-buffer [_]
         {:input in-fields
-         :op (ClojureBufferIter. out-fields (fn-spec buffer-fn) false)}))))
+         :op (ClojureBufferIter. out-fields buffer-fn)}))))
 
 (defn buffer
   [buffer-fn in-fields out-fields]
@@ -256,7 +244,7 @@
     (reify BufferBuilder
       (gen-buffer [_]
         {:input in-fields
-         :op (ClojureBuffer. out-fields (fn-spec buffer-fn) false)}))))
+         :op (ClojureBuffer. out-fields buffer-fn)}))))
 
 (defn is-agg?
   [agg-type]

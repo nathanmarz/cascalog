@@ -47,7 +47,7 @@
   (let [ser (KryoService/serialize (ops/fn-spec op-var))]
     (proxy [BaseOperation Function] [output-fields]
       (prepare [^FlowProcess flow-process ^OperationCall op-call]
-        (let [op (Util/bootFn (KryoService/deserialize ser))]
+        (let [op (Util/deserializeFn (KryoService/deserialize ser))]
           (-> op-call
               (.setContext [op (if stateful? (op))]))))
       (operate [^FlowProcess flow-process ^FunctionCall fn-call]
@@ -67,7 +67,7 @@
   (let [ser (KryoService/serialize (ops/fn-spec op-var))]
     (proxy [BaseOperation Function] [output-fields]
       (prepare [^FlowProcess flow-process ^OperationCall op-call]
-        (let [op (Util/bootFn (KryoService/deserialize ser))]
+        (let [op (Util/deserializeFn (KryoService/deserialize ser))]
           (-> op-call
               (.setContext [op (if stateful? (op))]))))
       (operate [^FlowProcess flow-process ^FunctionCall fn-call]

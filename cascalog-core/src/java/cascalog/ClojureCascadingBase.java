@@ -26,83 +26,42 @@ import clojure.lang.IFn;
 import clojure.lang.ISeq;
 
 public class ClojureCascadingBase extends BaseOperation {
-  private byte[] serialized_spec;
-  private boolean stateful;
-  private Object state;
+  private byte[] serializedFn;
   protected IFn fn;
 
-  public void initialize(byte[] fn_spec, boolean stateful) {
-    serialized_spec = fn_spec;
-    this.stateful = stateful;
+  public void initialize(IFn fn) {
+    serializedFn = Util.serializeFn(fn);
   }
 
-  public ClojureCascadingBase(byte[] fn_spec, boolean stateful) {
-    initialize(fn_spec, stateful);
+  public ClojureCascadingBase(IFn fn) {
+    initialize(fn);
   }
 
-  public ClojureCascadingBase(Fields fields, byte[] fn_spec, boolean stateful) {
+  public ClojureCascadingBase(Fields fields, IFn fn) {
     super(fields);
-    initialize(fn_spec, stateful);
+    initialize(fn);
   }
 
   @Override
-  public void prepare(FlowProcess flow_process, OperationCall op_call) {
-    this.fn = Util.bootFn(serialized_spec);
-    if (stateful) {
-      try {
-        state = this.fn.invoke();
-      } catch (Exception e) {
-        throw new RuntimeException(e);
-      }
-    }
+  public void prepare(FlowProcess fp, OperationCall call) {
+    this.fn = Util.deserializeFn(serializedFn);
   }
 
   protected Object applyFunction(ISeq seq) {
-    try {
-      if (stateful) {
-        return this.fn.applyTo(seq.cons(state));
-      } else {
-        return this.fn.applyTo(seq);
-      }
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
+    return this.fn.applyTo(seq);
   }
 
   protected Object invokeFunction(Object arg) {
-    try {
-      if (stateful) {
-        return this.fn.invoke(state, arg);
-      } else {
-        return this.fn.invoke(arg);
-      }
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
+    return this.fn.invoke(arg);
   }
 
-
   protected Object invokeFunction() {
-    try {
-      if (stateful) {
-        return this.fn.invoke(state);
-      } else {
-        return this.fn.invoke();
-      }
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
+    return this.fn.invoke();
   }
 
 
   @Override
-  public void cleanup(FlowProcess flowProcess, OperationCall op_call) {
-    if (stateful) {
-      try {
-        this.fn.invoke(state);
-      } catch (Exception e) {
-        throw new RuntimeException(e);
-      }
-    }
+  public void cleanup(FlowProcess flowProcess, OperationCall call) {
+    super.cleanup(flowProcess, call);
   }
 }

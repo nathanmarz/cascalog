@@ -1,6 +1,6 @@
 (ns cascalog.rules
-    (:import [cascalog.aggregator CombinerSpec])
-    (:use [cascalog.debug :only (debug-print)]
+
+  (:use [cascalog.debug :only (debug-print)]
         [clojure.set :only (intersection union difference subset?)]
         [clojure.walk :only (postwalk)]
         [jackknife.core :only (throw-illegal throw-runtime)])
@@ -13,13 +13,15 @@
             [cascalog.fluent.conf :as conf]
             [cascalog.fluent.tap :as tap]
             [cascalog.fluent.workflow :as w])
+  (:import )
   (:import [cascading.tap Tap]
            [cascading.tuple Fields Tuple TupleEntry]
            [cascading.flow Flow FlowConnector]
            [cascading.pipe Pipe]
            [cascading.flow.hadoop HadoopFlowProcess]
            [cascading.pipe.joiner CascalogJoiner CascalogJoiner$JoinType]
-           [cascalog CombinerSpec ClojureCombiner ClojureCombinedAggregator Util
+           [cascalog.aggregator CombinerSpec]
+           [cascalog ClojureCombiner ClojureCombinedAggregator Util
             ClojureParallelAgg]
            [org.apache.hadoop.mapred JobConf]
            [jcascalog Predicate Subquery PredicateMacro ClojureOp

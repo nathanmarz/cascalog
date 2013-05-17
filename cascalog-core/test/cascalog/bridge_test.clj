@@ -69,11 +69,9 @@
       (t/invoke-function ?clj-map [1]) => [[2]])
     ?clj-map
     (ClojureMap. (fields "num")
-                 (ops/fn-spec #'inc-wrapped)
-                 false)
+                 #'inc-wrapped)
     (ClojureMap. (fields "num")
-                 (ops/fn-spec #'inc)
-                 false)))
+                 #'inc)))
 
 (deftest ClojureMap-multiple-fields-test
   (facts "ClojureMap test, multiple fields."

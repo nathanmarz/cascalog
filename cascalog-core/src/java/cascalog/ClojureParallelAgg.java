@@ -36,8 +36,8 @@ public class ClojureParallelAgg implements ParallelAgg {
 
   // TODO: Remove this once we have a functor properly in place.
   public void prepare(FlowProcess flowProcess, OperationCall operationCall) {
-    _initFn = Util.bootFn(_spec.prepareFn);
-    _combinerFn = Util.bootFn(_spec.combineFn);
+    _initFn = Util.deserializeFn(_spec.prepareFn);
+    _combinerFn = Util.deserializeFn(_spec.combineFn);
   }
 
   public List<Object> init(List<Object> input) {

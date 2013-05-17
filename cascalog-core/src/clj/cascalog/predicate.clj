@@ -1,6 +1,5 @@
 (ns cascalog.predicate
-    (:import [cascalog.aggregator CombinerSpec])
-    (:use [cascalog.util :only (uuid multifn? substitute-if search-for-var
+  (:use [cascalog.util :only (uuid multifn? substitute-if search-for-var
                                    any-list?)]
         [jackknife.seq :only (transpose)]
         [clojure.tools.macro :only (name-with-attributes)])
@@ -13,8 +12,9 @@
            [cascading.tuple Fields]
            [clojure.lang IFn]
            [jcascalog PredicateMacro Subquery ClojureOp PredicateMacroTemplate]
+           [cascalog.aggregator CombinerSpec]
            [cascalog ClojureParallelAggregator ClojureBuffer
-            ClojureBufferCombiner CombinerSpec CascalogFunction
+            ClojureBufferCombiner CascalogFunction
             CascalogFunctionExecutor CascadingFilterToFunction
             CascalogBuffer CascalogBufferExecutor CascalogAggregator
             CascalogAggregatorExecutor ClojureParallelAgg ParallelAgg]))

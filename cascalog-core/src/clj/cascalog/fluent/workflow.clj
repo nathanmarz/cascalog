@@ -13,6 +13,7 @@
             [cascalog.fluent.def :as d]
             [cascalog.fluent.operations :as ops]
             [cascalog.fluent.flow :as flow]
+            [cascalog.fluent.fn :as func]
             [cascalog.util :as u]
             [hadoop-util.core :as hadoop])
   (:import [cascalog Util]
@@ -33,8 +34,9 @@
            [cascading.pipe Pipe Each Every GroupBy CoGroup]
            [cascading.pipe.joiner InnerJoin]
            [com.twitter.maple.tap MemorySourceTap]
-           [cascalog ClojureFilter ClojureMapcat ClojureMap
-            ClojureAggregator Util ClojureBuffer ClojureBufferIter
+           [cascalog.aggregator ClojureAggregator]
+           [cascalog Util ClojureFilter ClojureMapcat ClojureMap
+             Util ClojureBuffer ClojureBufferIter
             FastFirst MultiGroupBy ClojureMultibuffer]))
 
 (defalias fields-array cascading/fields-array)
@@ -48,7 +50,7 @@
   returns [in-fields func-fields spec out-fields]"
   ([arr] (parse-args arr Fields/RESULTS))
   ([[func-args & varargs] defaultout]
-     (let [spec      (ops/fn-spec func-args)
+     (let [spec      (func/serialize func-args)
            func-var  (if (var? func-args)
                        func-args
                        (clojure.core/first func-args))

@@ -1,11 +1,12 @@
 (ns cascalog.fluent.fn
-  (:refer-clojure :exclude [fn])
+  (:refer-clojure :exclude (fn))
   (:require [cascalog.util :as u]
             [jackknife.core :refer (throw-runtime)])
   (:import [cascalog Util KryoService]))
 
 (defn- save-env [bindings form]
-  (let [form (with-meta (cons `fn (rest form)) ;; cascalog.fluent/fn, not core/fn
+  ;; cascalog.fluent.fn/fn, not core/fn
+  (let [form (with-meta (cons `fn (rest form))
                (meta form))
         namespace (str *ns*)
         savers (for [b bindings] [(str (.sym b)) (.sym b)])
