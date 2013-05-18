@@ -226,7 +226,6 @@
 (defn- predicate-dispatcher
   [op & _]
   (let [ret (cond
-             (keyword? op)                     ::option
              (instance? Tap op)                ::tap
              (instance? Filter op)             ::cascading-filter
              (instance? CascalogFunction op)   ::cascalog-function
@@ -267,25 +266,21 @@
   (or (:name trap)
       (uuid)))
 
-(defn- hof-prepend [hof-args & args]
-  (if hof-args
-    (cons hof-args args)
-    args))
-
 (defn- simpleop-build-predicate
-  [op hof-args infields outfields _]
+  [op infields outfields _]
   (predicate operation
-             (apply op (hof-prepend hof-args infields :fn> outfields :> Fields/ALL))
+             (op infields :fn> outfields :> Fields/ALL)
              infields
              outfields
              false))
 
 (defn- simpleagg-build-predicate
-  [buffer? op hof-args infields outfields _]
-  (predicate aggregator buffer?
+  [buffer? op infields outfields _]
+  (predicate aggregator
+             buffer?
              nil
              identity
-             (apply op (hof-prepend hof-args infields :fn> outfields :> Fields/ALL))
+             (op infields :fn> outfields :> Fields/ALL)
              identity
              infields
              outfields))
@@ -293,15 +288,13 @@
 (defmulti predicate-default-var predicate-dispatcher)
 (defmulti build-predicate-specific predicate-dispatcher)
 
-(defmethod predicate-default-var ::option [& _] :<)
-
 ;; taps, by default, only produce.
 (defmethod predicate-default-var ::tap [& _] :>)
 
 ;; The general logic is, create a name, attach a pipe to this bad boy
  ;; and build up a trap map.
 (defmethod build-predicate-specific ::tap
-  [tap _ infields outfields options]
+  [tap infields outfields options]
   (let [sourcename (uuid) ;; Create a name,
         pname (init-pipe-name options)
         pipe (w/assemble (w/pipe sourcename)
@@ -318,7 +311,7 @@
 
 (defmethod predicate-default-var :generator [& _] :>)
 (defmethod build-predicate-specific :generator
-  [gen _ _ outfields options]
+  [gen _ outfields options]
   (let [pname (init-pipe-name options)
         trapmap (merge (:trapmap gen)
                        (init-trap-map options))
@@ -335,7 +328,7 @@
 
 (defmethod predicate-default-var ::java-parallel-agg [& _] :>)
 (defmethod build-predicate-specific ::java-parallel-agg
-  [java-pagg _ infields outfields _]
+  [java-pagg infields outfields _]
   (let [cascading-agg (ClojureParallelAggregator. (w/fields outfields)
                                                   java-pagg
                                                   (count infields))
@@ -355,12 +348,12 @@
 
 (defmethod predicate-default-var ::parallel-aggregator [& _] :>)
 (defmethod build-predicate-specific ::parallel-aggregator
-  [pagg _ infields outfields options]
+  [pagg infields outfields options]
   (let [init-spec (ops/fn-spec (:init-var pagg))
         combine-spec (ops/fn-spec (:combine-var pagg))
         java-pagg (ClojureParallelAgg. (-> (CombinerSpec. combine-spec)
                                            (.setPrepareFn init-spec)))]
-    (build-predicate-specific java-pagg nil infields outfields options)
+    (build-predicate-specific java-pagg infields outfields options)
     ))
 
 (defmethod predicate-default-var ::parallel-buffer [& _] :>)
@@ -369,11 +362,11 @@
           (ops/fn-spec (cons avar args)))]
 
   (defmethod build-predicate-specific ::parallel-buffer
-    [pbuf hof-args infields outfields options]
+    [pbuf infields outfields options]
     (let [temp-vars (v/gen-nullable-vars ((:num-intermediate-vars-fn pbuf)
                                           infields
                                           outfields))
-          hof-args  (cons (dissoc options :trap) hof-args)
+          hof-args  {}
           sort-fields (:sort options)
           sort-fields (if (empty? sort-fields) nil sort-fields)
           combiner-spec (-> (CombinerSpec. (mk-hof-fn-spec (:combine-hof-var pbuf) hof-args))
@@ -390,8 +383,7 @@
                                  Fields/RESULTS))
           group-assembly (w/raw-every (w/fields temp-vars)
                                       (ClojureBuffer. (w/fields outfields)
-                                                      (mk-hof-fn-spec
-                                                       (:buffer-hof-var pbuf) hof-args))
+                                                      (mk-hof-fn-spec (:buffer-hof-var pbuf) hof-args))
                                       Fields/ALL)]
       (predicate aggregator
                  true
@@ -403,7 +395,7 @@
 
 (defmethod predicate-default-var ::vanilla-function [& _] :<)
 (defmethod build-predicate-specific ::vanilla-function
-  [afn _ infields outfields _]
+  [afn infields outfields _]
   (let [opvar (search-for-var afn)
         _ (u/safe-assert opvar "Vanilla functions must have vars associated with them.")
         [func-fields out-selector] (if (not-empty outfields)
@@ -430,12 +422,11 @@
 
 (defmethod predicate-default-var :filter [& _] :<)
 (defmethod build-predicate-specific :filter
-  [op hof-args infields outfields _]
+  [op infields outfields _]
   (let [[func-fields out-selector] (if (not-empty outfields)
                                      [outfields Fields/ALL]
                                      [nil nil])
-        assembly (apply op (hof-prepend hof-args infields
-                                        :fn> func-fields :> out-selector))]
+        assembly (op infields :fn> func-fields :> out-selector)]
     (predicate operation
                assembly
                infields
@@ -444,7 +435,7 @@
 
 (defmethod predicate-default-var ::cascalog-function [& _] :>)
 (defmethod build-predicate-specific ::cascalog-function
-  [op _ infields outfields _]
+  [op infields outfields _]
   (predicate operation
              (w/raw-each (w/fields infields)
                          (CascalogFunctionExecutor. (w/fields outfields) op)
@@ -455,7 +446,7 @@
 
 (defmethod predicate-default-var ::cascading-filter [& _] :<)
 (defmethod build-predicate-specific ::cascading-filter
-  [op _ infields outfields _]
+  [op infields outfields _]
   (u/safe-assert (#{0 1} (count outfields))
                  "Must emit 0 or 1 fields from filter")
   (let [c-infields (w/fields infields)
@@ -468,7 +459,7 @@
 
 (defmethod predicate-default-var ::cascalog-buffer [& _] :>)
 (defmethod build-predicate-specific ::cascalog-buffer
-  [op _ infields outfields options]
+  [op infields outfields options]
   (predicate aggregator
              true
              nil
@@ -482,7 +473,7 @@
 
 (defmethod predicate-default-var ::cascalog-aggregator [& _] :>)
 (defmethod build-predicate-specific ::cascalog-aggregator
-  [op _ infields outfields _]
+  [op infields outfields _]
   (predicate aggregator
              false
              nil
@@ -496,27 +487,24 @@
 
 (defmethod predicate-default-var :cascalog-tap [& _] :>)
 (defmethod build-predicate-specific :cascalog-tap
-  [gen _ infields outfields options]
+  [gen infields outfields options]
   (build-predicate-specific (:source gen)
-                            nil
                             infields
                             outfields
                             options))
 
 (defmethod predicate-default-var ::data-structure [& _] :>)
 (defmethod build-predicate-specific ::data-structure
-  [tuples _ infields outfields options]
+  [tuples infields outfields options]
   (build-predicate-specific (w/memory-source-tap tuples)
-                            nil
                             infields
                             outfields
                             options))
 
 ;; TODO: Does this need other multimethods?
 (defmethod build-predicate-specific :generator-filter
-  [op _ infields outfields options]
+  [op infields outfields options]
   (let [gen (build-predicate-specific (:generator op)
-                                      nil
                                       infields
                                       outfields
                                       options)]
@@ -524,8 +512,8 @@
 
 ;; TODO: Document: what is this?
 (defmethod build-predicate-specific :outconstant-equal
-  [_ _ infields outfields options]
-  (-> (build-predicate-specific = _ infields outfields options)
+  [_ infields outfields options]
+  (-> (build-predicate-specific = infields outfields options)
       (assoc :allow-on-genfilter? true)))
 
 (defn- variable-substitution
@@ -609,12 +597,11 @@
   "Build a predicate. Calls down to build-predicate-specific for
   predicate-specific building and adds constant substitution and null
   checking of ? vars."
-  [options op hof-args orig-infields outvars]
+  [options op orig-infields outvars]
   (let [outvars                  (replace-ignored-vars outvars)
         [infields infield-subs]  (variable-substitution orig-infields)
         [infields dupvars duplicate-assem] (fix-duplicate-infields infields)
-        predicate   (build-predicate-specific op hof-args
-                                              infields outvars options)
+        predicate   (build-predicate-specific op infields outvars options)
         new-outvars (concat outvars (keys infield-subs) dupvars)
         in-insertion-assembly (when (seq infields)
                                 (w/compose-straight-assemblies

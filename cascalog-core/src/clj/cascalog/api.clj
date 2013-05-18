@@ -225,7 +225,8 @@ as well."
 
 (defn multigroup*
   [declared-group-vars buffer-out-vars buffer-spec & sqs]
-  (let [[buffer-op hof-args] (if (sequential? buffer-spec) buffer-spec [buffer-spec nil])
+  (let [[buffer-op hof-args]
+        (if (sequential? buffer-spec) buffer-spec [buffer-spec nil])
         sq-out-vars (map get-out-fields sqs)
         group-vars (apply set/intersection (map set sq-out-vars))
         num-vars (reduce + (map count sq-out-vars))
@@ -251,6 +252,9 @@ as well."
                 ~buffer-spec
                 ~@sqs))
 
+;; TODO: All of these are actually just calling through to "select*"
+;; in the fluent API.
+
 (defmulti select-fields
   "Select fields of a named generator.
 
@@ -262,7 +266,7 @@ as well."
 
 (defmethod select-fields :tap [tap fields]
   (let [fields (collectify fields)
-        pname (u/uuid)
+        pname  (u/uuid)
         outfields (v/gen-nullable-vars (count fields))
         pipe (w/assemble (w/pipe pname)
                          (w/identity fields :fn> outfields :> outfields))]
@@ -270,18 +274,25 @@ as well."
 
 (defmethod select-fields :generator [query select-fields]
   (let [select-fields (collectify select-fields)
-        outfields (:outfields query)]
-    (safe-assert (set/subset? (set select-fields) (set outfields))
-                 (str "Cannot select " select-fields " from " outfields))
+        outfields     (:outfields query)]
+    (safe-assert (set/subset? (set select-fields)
+                              (set outfields))
+                 (format "Cannot select % from %."
+                         select-fields
+                         outfields))
     (merge query
            {:pipe (w/assemble (:pipe query) (w/select select-fields))
             :outfields select-fields})))
 
 (defmethod select-fields :cascalog-tap [cascalog-tap fields]
-  (select-fields (:source cascalog-tap) fields))
+  (select-fields (:source cascalog-tap)
+                 fields))
 
 (defmethod select-fields :java-subquery [sq fields]
-  (select-fields (.getCompiledSubquery sq) fields))
+  (select-fields (.getCompiledSubquery sq)
+                 fields))
+
+;; TODO: This should only call rename* on the underlying pipe.
 
 (defn name-vars [gen vars]
   (let [vars (collectify vars)]
@@ -291,15 +302,15 @@ as well."
 
 ;; ## Defining custom operations
 
-(defalias defmapop w/defmapop
+(defalias defmapop d/defmapfn
   "Defines a custom operation that appends new fields to the input tuple.")
 
-(defalias defmapcatop w/defmapcatop)
-;; (defalias defbufferop w/defbufferop)
+(defalias defmapcatop d/defmapcatfn)
+(defalias defbufferop d/defbufferfn)
 ;; (defalias defmultibufferop w/defmultibufferop)
-;; (defalias defbufferiterop w/defbufferiterop)
-;; (defalias defaggregateop w/defaggregateop)
-(defalias deffilterop w/deffilterop)
+(defalias defbufferiterop d/defbufferiterfn)
+(defalias defaggregateop d/defaggregatefn)
+(defalias deffilterop d/deffilterfn)
 (defalias defparallelagg p/defparallelagg)
 (defalias defparallelbuf p/defparallelbuf)
 

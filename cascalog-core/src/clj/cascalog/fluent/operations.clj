@@ -4,6 +4,7 @@
             [cascalog.fluent.conf :as conf]
             [cascalog.fluent.cascading :as casc :refer (fields default-output)]
             [cascalog.fluent.algebra :refer (plus)]
+            [cascalog.fluent.types :refer (generator)]
             [cascalog.fluent.fn :as serfn]
             [cascalog.util :as u]
             [cascalog.fluent.source :as src]
@@ -33,16 +34,16 @@
 
 ;; ## Operations
 ;;
-;; TODO: Note that scalding uses a form of "let" for stateful
-;; operations. They implement stateful operations with a context
-;; object. Ask Oscar -- what's the context object? Looks like we can
-;; use this to get around serialization.
+;; All of these operations work on implementers of the Generator
+;; protocol, defined in cascalog.fluent.types.
 
 (defn add-op
-  "Accepts a flow and a function from pipe to pipe and applies the
-  operation to the active head pipe."
+  "Accepts a generator and a function from pipe to pipe and applies
+  the operation to the active head pipe."
   [flow fn]
-  (update-in flow [:pipe] fn))
+  (update-in (generator flow)
+             [:pipe]
+             fn))
 
 (defmacro defop
   "Defines a flow operation."
@@ -66,11 +67,10 @@
              (default-output from-fields to-fields)))))
 
 (defn rename-pipe
-  ([flow] (rename-pipe flow (u/uuid)))
-  ([flow name]
-     (add-op flow #(Pipe. name %))))
+  ([gen] (rename-pipe gen (u/uuid)))
+  ([gen name]
+     (add-op gen #(Pipe. name %))))
 
-;; TODO: Make sure this still works with new "fields" name.
 (defop select*
   "Remove all but the supplied fields from the given flow."
   [keep-fields]
@@ -183,61 +183,67 @@
 ;;Cascading directly, or at least let the user chain a raw every and a
 ;;raw groupBy. These should take appropriate keyword options.
 
-(defprotocol ParallelAggregatorBuilder
-  (gen-functor [_]))
+(defprotocol IAggregateBy
+  (aggregate-by [_]))
 
-(defprotocol AggregatorBuilder
-  (gen-agg [_]))
+(defprotocol IAggregator
+  (add-aggregator [_ pipe]))
 
-(defprotocol BufferBuilder
-  (gen-buffer [_]))
+(defprotocol IBuffer
+  (add-buffer [_ pipe]))
 
-(defn par-agg
+(defn parallel-agg
   "Creates a parallel aggregation operation. TODO: Take a prepare and
   present var."
   [agg-fn in-fields out-fields]
   (let [in-fields  (fields in-fields)
         out-fields (fields out-fields)
-        spec (CombinerSpec. agg-fn)]
+        spec       (CombinerSpec. agg-fn)
+        aggregator (ClojureMonoidAggregator. out-fields spec)]
     (reify
-      ParallelAggregatorBuilder
-      (gen-functor [_]
-        (ClojureMonoidFunctor. out-fields spec))
-      AggregatorBuilder
-      (gen-agg [_]
-        {:input in-fields
-         :op (ClojureMonoidAggregator. out-fields spec)}))))
+      IAggregateBy
+      (aggregate-by [_]
+        (ClojureAggregateBy. in-fields
+                             (ClojureMonoidFunctor. out-fields spec)
+                             aggregator))
+      IAggregator
+      (add-aggregator [_ pipe]
+        (Every. pipe in-fields aggregator)))))
 
 (defn agg
+  "Returns in instance of IAggregator that adds a reduce-side-only
+  aggregation to its supplied pipe."
   [agg-fn in-fields out-fields]
   (let [in-fields  (fields in-fields)
         out-fields (fields out-fields)]
-    (reify AggregatorBuilder
-      (gen-agg [_]
-        {:input in-fields
-         :op (ClojureAggregator. out-fields agg-fn)}))))
+    (reify IAggregator
+      (add-aggregator [_ pipe]
+        (Every. pipe in-fields (ClojureAggregator. out-fields agg-fn))))))
 
 (defn bufferiter
   [buffer-fn in-fields out-fields]
   (let [in-fields  (fields in-fields)
         out-fields (fields out-fields)]
-    (reify BufferBuilder
-      (gen-buffer [_]
-        {:input in-fields
-         :op (ClojureBufferIter. out-fields buffer-fn)}))))
+    (reify IBuffer
+      (add-buffer [_ pipe]
+        (Every. pipe in-fields (ClojureBufferIter. out-fields buffer-fn))))))
 
 (defn buffer
   [buffer-fn in-fields out-fields]
   (let [in-fields  (fields in-fields)
         out-fields (fields out-fields)]
-    (reify BufferBuilder
-      (gen-buffer [_]
-        {:input in-fields
-         :op (ClojureBuffer. out-fields buffer-fn)}))))
+    (reify IBuffer
+      (add-buffer [_ pipe]
+        (Every. pipe in-fields (ClojureBuffer. out-fields buffer-fn))))))
 
-(defn is-agg?
-  [agg-type]
-  (partial satisfies? agg-type))
+(defn aggregator? [x]
+  (satisfies? IAggregator x))
+
+(defn parallel-agg? [x]
+  (satisfies? IAggregateBy x))
+
+(defn buffer? [x]
+  (satisfies? IBuffer x))
 
 ;; TODO: add options
 
@@ -256,86 +262,77 @@
           (= -1 reducers) pipe
           :else (throw-illegal "Number of reducers must be non-negative."))))
 
+(defn aggregate-mode
+  "Accepts a sequence of aggregators and a boolean force-reduce? flag
+  and returns a keyword representing the aggregation type."
+  [aggregators force-reduce?]
+  (cond (some buffer? aggregators)
+        (if (> (count aggregators) 1)
+          (throw-illegal "Buffer must be specified on its own")
+          ::buffer)
+
+        (and (not force-reduce?)
+             (every? parallel-agg? aggregators))
+        ::parallel
+
+        :else ::aggregate))
+
+(defn- groupby
+  "Adds a raw GroupBy operation to the pipe. Don't use this directly."
+  [pipe group-fields sort-fields reverse?]
+  (if sort-fields
+    (GroupBy. pipe group-fields
+              (fields sort-fields)
+              (boolean reverse?))
+    (GroupBy. pipe group-fields)))
+
+(defn- aggby [pipe group-fields spill-threshold aggs]
+  (let [aggs (->> aggs
+                  (map aggregate-by)
+                  (into-array AggregateBy))]
+    (AggregateBy. pipe group-fields spill-threshold aggs)))
+
 ;; TODO: Add proper assertions around sorting. (We can't sort when
 ;; we're in AggregateBy, for example.
 
-;; TODO: Add a "reduce-mode" function that returns a keyword
-;; representing the proper aggregation.
-;;
-;; TODO: Split these out into a raw every, a mk-group-by kind of like
-;; what Nathan had below, and a raw aggregateby. Then we need an
-;; operation to determine which works.
-
-(comment
-  "from rules.clj:"
-  (defn- mk-group-by
-    "Create a groupby operation, respecting grouping and sorting
-  options."
-    [grouping-fields options]
-    (let [{s :sort rev :reverse} options]
-      (if (seq s)
-        (w/group-by grouping-fields s rev)
-        (w/group-by grouping-fields))))
-
-  (defn- build-agg-assemblies
-    "returns [pregroup vec, postgroup vec]"
-    [grouping-fields aggs]
-    (cond (and (= 1 (count aggs))
-               (:parallel-agg (first aggs))
-               (:buffer? (first aggs)))
-          (mk-parallel-buffer-agg grouping-fields (first aggs))
-
-          (every? :parallel-agg aggs) (mk-parallel-aggregator grouping-fields aggs)
-
-          :else [[identity] (map :serial-agg-assembly aggs)])))
-
-(defn group-by*
-  [flow group-fields aggs
+(defop group-by*
+  "Applies a grouping operation to the supplied generator."
+  [group-fields aggs
    & {:keys [reducers spill-threshold sort-fields reverse? reduce-only]
       :or {spill-threshold 10000}}]
-  (let [group-fields  (fields group-fields)
-        build-groupby (fn [pipe every-seq]
-                        (let [pipe (if sort-fields
-                                     (GroupBy. pipe group-fields
-                                               (fields sort-fields)
-                                               (boolean reverse?))
-                                     (GroupBy. pipe group-fields))]
-                          (-> (reduce (fn [p {:keys [op input]}]
-                                        (Every. p input op))
-                                      pipe every-seq)
-                              (set-reducers reducers))))]
-    (add-op flow
-            (fn [pipe]
-              (cond
-               (some (is-agg? BufferBuilder) aggs)
-               ;; emit buffer
-               (do (when (> (count aggs) 1)
-                     (throw-illegal "Buffer must be specified on its own"))
-                   (build-groupby pipe (map gen-buffer aggs)))
-
-               (and (not reduce-only)
-                    (every? (is-agg? ParallelAggregatorBuilder) aggs))
-               ;; emit AggregateBy
-               (let [aggs (for [agg-pred aggs
-                                :let [{:keys [input op]} (gen-agg agg-pred)]]
-                            (ClojureAggregateBy. input
-                                                 (gen-functor agg-pred)
-                                                 op))]
-                 (AggregateBy. pipe group-fields spill-threshold
-                               (into-array AggregateBy aggs)))
-
-               :else (build-groupby pipe (map gen-agg aggs)))))))
+  (fn [pipe]
+    (let [group-fields (fields group-fields)
+          build-group  (fn [thunk]
+                         (thunk
+                          (groupby pipe group-fields
+                                   (fields sort-fields)
+                                   reverse?)))
+          mode (aggregate-mode aggs reduce-only)]
+      (case mode
+        ::buffer    (build-group #(add-buffer (first aggs) %))
+        ::aggregate (build-group (fn [grouped]
+                                   (reduce (fn [p op]
+                                             (add-aggregator op p))
+                                           grouped aggs)))
+        ::parallel  (aggby pipe group-fields spill-threshold aggs)
+        (throw-illegal "Unsupported aggregation mode: " mode)))))
 
 (defn unique
   "Performs a unique on the input pipe by the supplied fields."
   ([flow]
      (unique flow Fields/ALL))
   ([flow unique-fields]
-     (let [unique-fields (fields unique-fields)]
-       (add-op flow (fn [pipe]
-                      (-> pipe
-                          (GroupBy. unique-fields)
-                          (Every. (FastFirst.) Fields/RESULTS)))))))
+     (let [agg (reify IAggregator
+                 (add-aggregator [_ pipe]
+                   (Every. pipe (FastFirst.) Fields/RESULTS)))]
+       (group-by* flow unique-fields [agg]))))
+
+(defn union*
+  "Merges the supplied flows and ensures uniqueness of the resulting
+  tuples."
+  [& flows]
+  (-> (apply merge* flows)
+      (unique)))
 
 ;; ## Output Operations
 ;;

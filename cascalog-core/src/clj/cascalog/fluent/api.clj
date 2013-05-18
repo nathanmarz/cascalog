@@ -13,7 +13,7 @@
     [x] (* x x))
 
   (to-memory
-   (-> (begin-flow [[1 1 "a"] [1 2 "a"] [1 3 "a"] [2 4 "b"] [2 5 "b"]])
+   (-> (generator [[1 1 "a"] [1 2 "a"] [1 3 "a"] [2 4 "b"] [2 5 "b"]])
        (rename* ["k" "v" "letter"])
        (exec* (mapop* inc) "k" "inck")))
 
@@ -21,5 +21,5 @@
    (-> (begin-flow [[1 1 "a"] [1 2 "a"] [1 3 "a"] [2 4 "b"] [2 5 "b"]])
        (rename* ["k" "v" "letter"])
        (group-by* "k"
-                  (par-agg + "v" "sum")
-                  (par-agg str "letter" "string")))))
+                  (parallel-agg + "v" "sum")
+                  (parallel-agg str "letter" "string")))))

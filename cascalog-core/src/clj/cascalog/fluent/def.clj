@@ -46,7 +46,7 @@
   (def mapcatop* (attach ops/mapcat* :mapcat))
   (def filterop* (attach ops/filter* :filter))
   (def aggregateop* (attach ops/agg :aggregate))
-  (def parallelagg* (attach ops/par-agg :combiner))
+  (def parallelagg* (attach ops/parallel-agg :combiner))
   (def bufferop* (attach ops/buffer :buffer))
   (def bufferiterop* (attach ops/bufferiter :bufferiter)))
 

@@ -1,68 +1,18 @@
 (ns cascalog.fluent.flow
-  (:require [clojure.set :refer (subset?)]
-            [cascalog.util :as u]
+  (:require [cascalog.util :as u]
             [hadoop-util.core :as hadoop]
-            [cascalog.fluent.algebra :refer (plus Semigroup)]
             [cascalog.fluent.conf :as conf]
+            [cascalog.fluent.types :as types]
             [cascalog.fluent.tap :as tap]
             [cascalog.fluent.io :as io]
-            [cascalog.fluent.operations :as ops]
-            [cascalog.fluent.source :as src])
+            [cascalog.fluent.operations :as ops])
   (:import [cascalog Util]
-           [cascalog.fluent.tap CascalogTap]
            [cascading.pipe Pipe Merge]
            [cascading.tap Tap]
-           [cascading.tuple Fields]
            [cascading.flow FlowDef]
-           [cascading.flow.hadoop HadoopFlow HadoopFlowConnector]
-           [com.twitter.maple.tap MemorySourceTap]))
-
-
-;; Note that we need to use getIdentifier on the taps.
-
-;; source-map is a map of identifier to tap, or source. Pipe is the
-;; current pipe that the user needs to operate on.
-
-(defrecord ClojureFlow [source-map sink-map trap-map tails pipe])
-
-(extend-protocol Semigroup
-  Pipe
-  (plus [l r]
-    (Merge. (into-array Pipe [(Pipe. (u/uuid) l)
-                              (Pipe. (u/uuid) r)])))
-
-  ClojureFlow
-  (plus [l r]
-    (letfn [(merge-k [k] (merge (k l) (k r)))
-            (plus-k [k] (plus (k l) (k r)))]
-      (->ClojureFlow (merge-k :source-map)
-                     (plus-k :sink-map)
-                     (plus-k :trap-map)
-                     (plus-k :tails)
-                     (plus-k :pipe)))))
+           [cascading.flow.hadoop HadoopFlow HadoopFlowConnector]))
 
 ;; ## Flow Building
-
-(defn begin-flow
-  "Accepts a tappable thing and returns a ClojureFlow."
-  [source]
-  (let [tap (src/to-source source)
-        id  (.getIdentifier tap)]
-    (map->ClojureFlow {:source-map {id tap}
-                       :pipe (Pipe. id)})))
-
-;; TODO: Make this work by adding a field to the ClojureFlow and add
-;; the proper information to the flowdef.
-
-(defn name*
-  "Assigns the supplied name to the flow."
-  [m name]
-  (assoc m :name name))
-
-(defn strip-pipe
-  "Strip the leaf pipe from the supplied flow."
-  [m]
-  (assoc m :pipe nil))
 
 (defn flow-def
   "Generates an instance of FlowDef off of the supplied ClojureFlow."
@@ -88,6 +38,10 @@
       compile-hadoop
       (.writeDOT path))
   flow)
+
+;; TODO: Add support for supplying a name to the flow-def at this
+;; stage. Not sure if we're going to be able to apply the name to the
+;; HadoopFlow.
 
 (defprotocol IRunnable
   "All runnable items should implement this function."
@@ -121,7 +75,8 @@
   structures. Accepts many workflows, and (optionally) a flow name as
   the first argument."
   [& args]
-  (let [[name flows] (parse-exec-args args)]
+  (let [strip-pipe   (fn [m] (assoc m :pipe nil))
+        [name flows] (parse-exec-args args)]
     (io/with-fs-tmp [fs tmp]
       (hadoop/mkdirs fs tmp)
       (let [taps (->> (u/unique-rooted-paths tmp)
