@@ -1,6 +1,5 @@
 (ns cascalog.predicate
-  (:use [cascalog.util :only (uuid multifn? substitute-if search-for-var
-                                   any-list?)]
+  (:use [cascalog.util :only (uuid multifn? substitute-if search-for-var any-list?)]
         [jackknife.seq :only (transpose)]
         [clojure.tools.macro :only (name-with-attributes)])
   (:require [jackknife.core :as u]
@@ -113,8 +112,6 @@
   :outvar)
 
 (defpredicate outconstant-equal)
-
-(defpredicate option :key :val)
 
 (defpredicate predicate-macro :pred-fn)
 
@@ -302,7 +299,7 @@
 (defmethod predicate-default-var ::tap [& _] :>)
 
 ;; The general logic is, create a name, attach a pipe to this bad boy
-;; and build up a trap map.
+ ;; and build up a trap map.
 (defmethod build-predicate-specific ::tap
   [tap _ infields outfields options]
   (let [sourcename (uuid) ;; Create a name,
@@ -601,9 +598,6 @@
                  (w/compose-straight-assemblies assem idassem)])
               [(conj newfields f) dupvars assem]))]
     (reduce update [[] [] identity] infields)))
-
-(defn mk-option-predicate [[op _ infields _]]
-  (predicate option op infields))
 
 (defn- mk-null-check [fields]
   (let [non-null-fields (filter v/non-nullable-var? fields)]

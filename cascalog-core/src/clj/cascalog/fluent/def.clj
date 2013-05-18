@@ -119,7 +119,7 @@
      `(defmapcatfn ~sym# ~@body#)))
 
 (defdeprecated defmapop defmapfn)
-(defdeprecated deffilterop defmapfn)
+(defdeprecated deffilterop deffilterfn)
 (defdeprecated defmapcatop defmapcatfn)
 (defdeprecated defaggregateop defaggregatefn)
 (defdeprecated defbufferop defbufferfn)

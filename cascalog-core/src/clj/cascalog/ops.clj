@@ -4,6 +4,7 @@
         [jackknife.def :only (defnk)]
         [jackknife.seq :only (collectify)]
         [cascalog.fluent.workflow :only (fill-tap!)]
+        [cascalog.fluent.def :only (mapfn)]
         [cascalog.fluent.io :only (with-fs-tmp)])
   (:require [cascalog.util :as u]
             [cascalog.ops-impl :as impl]
@@ -151,12 +152,11 @@
 
 ;; Operations to use within queries
 
-(defmapop re-parse
+(defn re-parse
   "Accepts a regex `pattern` and a string argument `str` and returns
   the groups within `str` that match the supplied `pattern`."
-  {:params [pattern]}
-  [str]
-  (re-seq pattern str))
+  [pattern]
+  (mapfn [str] (re-seq pattern str)))
 
 (defparallelagg count
   :init-var #'impl/one
@@ -182,30 +182,30 @@
 (def limit-rank
   (merge limit {:buffer-hof-var #'impl/limit-rank-buffer}))
 
-(def ^{:doc "Predicate operation that produces the average value of the
+(def avg
+  "Predicate operation that produces the average value of the
   supplied input variable. For example:
 
   (let [src [[1] [2]]]
     (<- [?avg]
         (src ?x)
         (avg ?x :> ?avg)))
-  ;;=> ([1.5])"}
-  avg
+  ;;=> ([1.5])"
   (<- [!v :> !avg]
       (count !c)
       (sum !v :> !s)
       (div !s !c :> !avg)))
 
 (comment
-  (def ^{:doc "Predicate operation that produces a count of all distinct
+  (def distinct-count
+    "Predicate operation that produces a count of all distinct
   values of the supplied input variable. For example:
 
   (let [src [[1] [2] [2]]]
   (<- [?count]
       (src ?x)
       (distinct-count ?x :> ?count)))
-  ;;=> ([2])"}
-    distinct-count
+  ;;=> ([2])"
     (<- [:<< !invars :> !c]
         (:sort :<< !invars)
         (impl/distinct-count-agg :<< !invars :> !c))))

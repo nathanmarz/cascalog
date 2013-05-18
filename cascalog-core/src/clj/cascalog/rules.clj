@@ -6,6 +6,7 @@
   (:require [jackknife.seq :as s]
             [cascalog.vars :as v]
             [cascalog.util :as u]
+            [cascalog.options :as opts]
             [cascalog.graph :as g]
             [cascalog.predicate :as p]
             [hadoop-util.core :as hadoop]
@@ -44,18 +45,6 @@
                                    "inbound nodes to non-generator predicate.")
                     (recur (first inbound-nodes)))))))
 
-(defn- split-predicates
-  "returns [generators operations aggregators]."
-  [predicates]
-  (let [{ops :operation
-         aggs :aggregator
-         gens :generator} (merge {:operation [] :aggregator [] :generator []}
-         (group-by :type predicates))]
-    (when (and (> (count aggs) 1)
-               (some :buffer? aggs))
-      (throw-illegal "Cannot use both aggregators and buffers in same grouping"))
-    [gens ops aggs]))
-
 (defstruct tailstruct
   :ground?
   :operations
@@ -64,8 +53,10 @@
   :node)
 
 (defn- connect-op [tail op]
-  (let [new-node (g/connect-value (:node tail) op)
-        new-outfields (concat (:available-fields tail) (:outfields op))]
+  (let [new-node (g/connect-value (:node tail)
+                                  op)
+        new-outfields (concat (:available-fields tail)
+                              (:outfields op))]
     (struct tailstruct
             (:ground? tail)
             (:operations tail)
@@ -328,8 +319,12 @@
                                              all-agg-infields
                                              total-fields))]
         (g/create-edge prev-node node)
-        (struct tailstruct (:ground? prev-tail) (:operations prev-tail)
-                (:drift-map prev-tail) total-fields node)))))
+        (struct tailstruct
+                (:ground? prev-tail)
+                (:operations prev-tail)
+                (:drift-map prev-tail)
+                total-fields
+                node)))))
 
 (defn projection-fields [needed-vars allfields]
   (let [needed-set (set needed-vars)
@@ -515,27 +510,6 @@
                        (:pipe newgen))
                 :outfields project-fields})))))
 
-(def DEFAULT-OPTIONS
-  {:distinct false
-   :sort nil
-   :reverse false
-   :trap nil})
-
-(defn- validate-option-merge! [val-old val-new]
-  (if (and (not (nil? val-old)) (not= val-old val-new))
-    (throw-runtime "Same option set to conflicting values!")
-    val-new))
-
-(defn- mk-options [opt-predicates]
-  (->> opt-predicates
-       (map (fn [{k :key, v :val}]
-              (let [v (if (= :sort k) v (first v))
-                    v (if (= :trap k) {:tap v :name (u/uuid)} v)]
-                (if (contains? DEFAULT-OPTIONS k)
-                  {k v}
-                  (throw-illegal (str k " is not a valid option predicate"))))))
-       (apply merge-with validate-option-merge!)
-       (merge DEFAULT-OPTIONS)))
 
 ;; This is my hook into the var unique thing. Figure out what this
 ;; does.
@@ -674,34 +648,60 @@
                          dups))
      :else parsed-preds)))
 
+(defn- split-predicates
+  "returns [generators operations aggregators]."
+  [predicates]
+  (let [{ops :operation aggs :aggregator gens :generator}
+        (merge {:operation [] :aggregator [] :generator []}
+               (group-by :type predicates))]
+    (when (and (> (count aggs) 1)
+               (some :buffer? aggs))
+      (throw-illegal "Cannot use both aggregators and buffers in same grouping"))
+    [gens ops aggs]))
+
 (defn- build-query
   "This is the big mother. This is where the query gets built and
   where I'll be spending some good time."
   [out-vars raw-predicates]
   (debug-print "outvars:" out-vars)
   (debug-print "raw predicates:" raw-predicates)
-  (let [[out-vars raw-predicates drift-map] (->> raw-predicates
+  (let [
+        ;; Parse the options out of the predicates,
+        [raw-opts raw-predicates] (s/separate (comp keyword? first) raw-predicates)
+
+        ;; and assemble the option map.
+        option-m (opts/generate-option-map raw-opts)
+
+        ;; rewrite all predicates and assemble the true set of output
+        ;; variables.
+        [out-vars raw-predicates drift-map] (->> raw-predicates
                                                  (map parse-predicate)
                                                  (pred-clean!)
                                                  (mapcat split-outvar-constants)
                                                  (map rewrite-predicate)
                                                  (mapcat split-outvar-constants)
                                                  (uniquify-query-vars out-vars))
-        [raw-opts raw-predicates] (s/separate #(keyword? (first %)) raw-predicates)
-        options                   (mk-options (map p/mk-option-predicate raw-opts))
-        [gens ops aggs]           (->> raw-predicates
-                                       (map (partial apply p/build-predicate options))
-                                       (split-predicates))
-        rule-graph                (g/mk-graph)
-        joined                    (->> gens
-                                       (map (fn [{:keys [ground? outfields] :as g}]
-                                              (struct tailstruct ground?
-                                                      ops drift-map outfields
-                                                      (g/create-node rule-graph g))))
-                                       (merge-tails rule-graph))
-        grouping-fields           (seq (intersection (set (:available-fields joined))
-                                                     (set out-vars)))
-        agg-tail                  (build-agg-tail options joined grouping-fields aggs)
+
+        ;; Split up generators, operations and aggregators.
+        [gens ops aggs] (->> raw-predicates
+                             (map (partial apply p/build-predicate option-m))
+                             (split-predicates))
+
+        rule-graph (g/mk-graph)
+        joined (->> gens
+                    (map (fn [{:keys [ground? outfields] :as g}]
+                           (struct tailstruct
+                                   ground?
+                                   ops
+                                   drift-map
+                                   outfields
+                                   (g/create-node rule-graph g))))
+                    (merge-tails rule-graph))
+        ;; Group by the pre-aggregation variables that are in the
+        ;; result vector.
+        grouping-fields (seq (intersection (set (:available-fields joined))
+                                           (set out-vars)))
+        agg-tail (build-agg-tail option-m joined grouping-fields aggs)
         {:keys [operations node]} (add-ops-fixed-point agg-tail)]
     (if (not-empty operations)
       (throw-runtime "Could not apply all operations: " (pr-str operations))
