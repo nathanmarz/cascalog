@@ -1,14 +1,14 @@
 /*
     Copyright 2010 Nathan Marz
- 
-    Project and contact information: http://www.cascalog.org/ 
+
+    Project and contact information: http://www.cascalog.org/
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
     You may obtain a copy of the License at
-   
+
         http://www.apache.org/licenses/LICENSE-2.0
-   
+
     Unless required by applicable law or agreed to in writing, software
     distributed under the License is distributed on an "AS IS" BASIS,
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -34,10 +34,10 @@ import clojure.lang.RT;
 import clojure.lang.Var;
 
 public class Util {
-  static Var require = RT.var("clojure.core", "require");
-  static Var symbol = RT.var("clojure.core", "symbol");
-  static IFn serializeFn = bootSimpleFn("cascalog.fluent.fn", "serialize");
-  static IFn deserializeFn = bootSimpleFn("cascalog.fluent.fn", "deserialize");
+  static final Var require = RT.var("clojure.core", "require");
+  static final Var symbol = RT.var("clojure.core", "symbol");
+  static final IFn serializeFn = bootSimpleFn("cascalog.fluent.fn", "serialize");
+  static final IFn deserializeFn = bootSimpleFn("cascalog.fluent.fn", "deserialize");
 
   public static ISeq cat(ISeq s1, ISeq s2) {
     if (s1 == null || RT.seq(s1) == null) { return s2; }
@@ -56,7 +56,7 @@ public class Util {
   }
 
   @SuppressWarnings("ThrowableResultOfMethodCallIgnored")
-  public static void tryRequire(String ns_name) {
+  public static synchronized void tryRequire(String ns_name) {
     try {
       require.invoke(symbol.invoke(ns_name));
     } catch (Exception e) {
@@ -71,27 +71,27 @@ public class Util {
     }
   }
 
-  public static Var getVar(String ns_name, String fn_name) {
+  public static synchronized Var getVar(String ns_name, String fn_name) {
     tryRequire(ns_name);
     return RT.var(ns_name, fn_name);
   }
 
-  public static IFn bootSimpleFn(String ns_name, String fn_name) {
+  public static synchronized IFn bootSimpleFn(String ns_name, String fn_name) {
     return (IFn) getVar(ns_name, fn_name).deref();
   }
 
-  public static MultiFn bootSimpleMultifn(String ns_name, String fn_name) {
+  public static synchronized MultiFn bootSimpleMultifn(String ns_name, String fn_name) {
     return (MultiFn) getVar(ns_name, fn_name).deref();
   }
 
-  public static IFn deserializeFn(byte[] fnSpec) {
+  public static synchronized IFn deserializeFn(byte[] fnSpec) {
     return (IFn)  deserializeFn.invoke(fnSpec);
   }
 
-  public static byte[] serializeFn(IFn fn) {
+  public static synchronized byte[] serializeFn(IFn fn) {
     return (byte[]) serializeFn.invoke(fn);
   }
-    
+
   public static ISeq coerceToSeq(Object o) {
     if (o instanceof List) {
       return RT.seq(o);
