@@ -18,16 +18,20 @@
 
 package cascalog;
 
+import java.util.Map;
+
 import cascading.flow.FlowProcess;
 import cascading.operation.BaseOperation;
 import cascading.operation.OperationCall;
 import cascading.tuple.Fields;
 import clojure.lang.IFn;
 import clojure.lang.ISeq;
+import clojure.lang.Keyword;
 
 public class ClojureCascadingBase extends BaseOperation {
   private byte[] serializedFn;
   protected IFn fn;
+  protected IFn cleanupFn;
 
   public void initialize(IFn fn) {
     serializedFn = Util.serializeFn(fn);
@@ -44,7 +48,26 @@ public class ClojureCascadingBase extends BaseOperation {
 
   @Override
   public void prepare(FlowProcess fp, OperationCall call) {
-    this.fn = Util.deserializeFn(serializedFn);
+    IFn fn = Util.deserializeFn(serializedFn);
+
+    Boolean isPrepared =
+        (Boolean) Util.bootSimpleFn("cascalog.fluent.def", "prepared?").invoke(fn);
+
+    if (isPrepared.booleanValue()) {
+      Object res = fn.invoke(fp, call);
+
+      if(res instanceof Map) {
+        Map resmap = (Map) res;
+        this.fn = (IFn) resmap.get(Keyword.intern("operate"));
+        this.cleanupFn = (IFn) resmap.get(Keyword.intern("cleanup"));
+      } else {
+        this.fn = (IFn) res;
+        this.cleanupFn = null;
+      }
+    } else {
+      this.fn = fn;
+      this.cleanupFn = null;
+    }
   }
 
   protected Object applyFunction(ISeq seq) {
@@ -63,5 +86,9 @@ public class ClojureCascadingBase extends BaseOperation {
   @Override
   public void cleanup(FlowProcess flowProcess, OperationCall call) {
     super.cleanup(flowProcess, call);
+
+    if(cleanupFn != null) {
+      cleanupFn.invoke();
+    }
   }
 }

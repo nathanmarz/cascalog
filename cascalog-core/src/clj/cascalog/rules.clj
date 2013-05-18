@@ -1,5 +1,4 @@
 (ns cascalog.rules
-
   (:use [cascalog.debug :only (debug-print)]
         [clojure.set :only (intersection union difference subset?)]
         [clojure.walk :only (postwalk)]
@@ -13,7 +12,6 @@
             [cascalog.fluent.conf :as conf]
             [cascalog.fluent.tap :as tap]
             [cascalog.fluent.workflow :as w])
-  (:import )
   (:import [cascading.tap Tap]
            [cascading.tuple Fields Tuple TupleEntry]
            [cascading.flow Flow FlowConnector]
@@ -217,93 +215,121 @@
                                    join-node)
                            rest-tails))))))
 
-(defn- agg-available-fields [grouping-fields aggs]
-  (vec (union (set grouping-fields)
-              (apply union (map #(set (:outfields %)) aggs)))))
+;; ## Aggregation Operations
+;;
+;; The following operations deal with Cascalog's aggregations. I think
+;; we can replace all of this by delegating out to the GroupBy
+;; implementation in operations.
 
-(defn- agg-infields [sort-fields aggs]
-  (vec (apply union (set sort-fields) (map #(set (:infields %)) aggs))))
+(letfn [
+        ;; Returns the union of all grouping fields and all outputs
+        ;; for every aggregation field. These are the only fields
+        ;; available after the aggregation.
+        (agg-available-fields
+          [grouping-fields aggs]
+          (->> aggs
+               (map #(set (:outfields %)))
+               (apply union)
+               (union (set grouping-fields))
+               (vec)))
 
-(defn- normalize-grouping
-  "Returns [new-grouping-fields inserter-assembly]. If no grouping
-  fields are supplied, ths function groups on 1, which forces a global
-  grouping."
-  [grouping-fields]
-  (if (seq grouping-fields)
-    [grouping-fields identity]
-    (let [newvar (v/gen-nullable-var)]
-      [[newvar] (w/insert newvar 1)])))
+        ;; These are the operations that go into the
+        ;; aggregators.
+        (agg-infields [sort-fields aggs]
+          (->> aggs
+               (map #(set (:infields %)))
+               (apply union (set sort-fields))
+               (vec)))
 
-(defn- mk-combined-aggregator [pagg argfields outfields]
-  (w/raw-every (w/fields argfields)
-               (ClojureCombinedAggregator. (w/fields outfields) pagg)
-               Fields/ALL))
+        ;; Returns [new-grouping-fields inserter-assembly]. If no
+        ;; grouping fields are supplied, ths function groups on 1,
+        ;; which forces a global grouping.
+        (normalize-grouping
+          [grouping-fields]
+          (if (seq grouping-fields)
+            [grouping-fields identity]
+            (let [newvar (v/gen-nullable-var)]
+              [[newvar] (w/insert newvar 1)])))
 
-(defn mk-agg-arg-fields [fields]
-  (when (seq fields)
-    (w/fields fields)))
+        (mk-combined-aggregator [pagg argfields outfields]
+          (w/raw-every (w/fields argfields)
+                       (ClojureCombinedAggregator. (w/fields outfields) pagg)
+                       Fields/ALL))
 
-(defn- mk-parallel-aggregator [grouping-fields aggs]
-  (let [argfields  (map #(mk-agg-arg-fields (:infields %)) aggs)
-        tempfields (map #(v/gen-nullable-vars (count (:outfields %))) aggs)
-        specs      (map :parallel-agg aggs)
-        combiner (ClojureCombiner. (w/fields grouping-fields)
-                                   argfields
-                                   (w/fields (apply concat tempfields))
-                                   specs)]
-    [[(w/raw-each Fields/ALL combiner Fields/RESULTS)]
-     (map mk-combined-aggregator specs tempfields (map :outfields aggs))] ))
+        (mk-agg-arg-fields [fields]
+          (when (seq fields)
+            (w/fields fields)))
 
-(defn- mk-parallel-buffer-agg [grouping-fields agg]
-  [[((:parallel-agg agg) grouping-fields)]
-   [(:serial-agg-assembly agg)]] )
+        (mk-parallel-aggregator [grouping-fields aggs]
+          (let [argfields  (map #(mk-agg-arg-fields (:infields %)) aggs)
+                tempfields (map #(v/gen-nullable-vars (count (:outfields %))) aggs)
+                specs      (map :parallel-agg aggs)
+                combiner (ClojureCombiner. (w/fields grouping-fields)
+                                           argfields
+                                           (w/fields (apply concat tempfields))
+                                           specs)]
+            [[(w/raw-each Fields/ALL combiner Fields/RESULTS)]
+             (map mk-combined-aggregator specs tempfields (map :outfields aggs))]))
 
-(defn- build-agg-assemblies
-  "returns [pregroup vec, postgroup vec]"
-  [grouping-fields aggs]
-  (cond (and (= 1 (count aggs))
-             (:parallel-agg (first aggs))
-             (:buffer? (first aggs)))
-        (mk-parallel-buffer-agg grouping-fields (first aggs))
+        (mk-parallel-buffer-agg [grouping-fields agg]
+          [[((:parallel-agg agg) grouping-fields)]
+           [(:serial-agg-assembly agg)]])
 
-        (every? :parallel-agg aggs) (mk-parallel-aggregator grouping-fields aggs)
+        ;; returns [pregroup vec, postgroup vec]
+        (build-agg-assemblies
+          [grouping-fields aggs]
+          (cond (and (= 1 (count aggs))
+                     (:parallel-agg (first aggs))
+                     (:buffer? (first aggs)))
+                (mk-parallel-buffer-agg grouping-fields
+                                        (first aggs))
 
-        :else [[identity] (map :serial-agg-assembly aggs)]))
+                (every? :parallel-agg aggs)
+                (mk-parallel-aggregator grouping-fields aggs)
 
-(defn- mk-group-by
-  "Create a groupby operation, respecting grouping and sorting
-  options."
-  [grouping-fields options]
-  (let [{s :sort rev :reverse} options]
-    (if (seq s)
-      (w/group-by grouping-fields s rev)
-      (w/group-by grouping-fields))))
+                :else [[identity] (map :serial-agg-assembly aggs)]))
 
-(defn- build-agg-tail [options prev-tail grouping-fields aggs]
-  (debug-print "Adding aggregators to tail" options prev-tail grouping-fields aggs)
-  (when (and (empty? aggs) (:sort options))
-    (throw-illegal "Cannot specify a sort when there are no aggregators"))
-  (if (and (not (:distinct options)) (empty? aggs))
-    prev-tail
-    (let [aggs (or (not-empty aggs) [p/distinct-aggregator])
-          [grouping-fields inserter] (normalize-grouping grouping-fields)
-          [prep-aggs postgroup-aggs] (build-agg-assemblies grouping-fields aggs)
-          assem (apply w/compose-straight-assemblies
-                       (concat [inserter]
-                               (map :pregroup-assembly aggs)
-                               prep-aggs
-                               [(mk-group-by grouping-fields options)]
-                               postgroup-aggs
-                               (map :post-assembly aggs)))
-          total-fields (agg-available-fields grouping-fields aggs)
-          all-agg-infields  (agg-infields (:sort options) aggs)
-          prev-node (:node prev-tail)
-          node (g/create-node (g/get-graph prev-node)
-                              (p/predicate group assem
-                                           all-agg-infields total-fields))]
-      (g/create-edge prev-node node)
-      (struct tailstruct (:ground? prev-tail) (:operations prev-tail)
-              (:drift-map prev-tail) total-fields node))))
+        ;; Create a groupby operation, respecting grouping and sorting
+        ;; options.
+
+        (mk-group-by
+          [grouping-fields options]
+          (let [{s :sort rev :reverse} options]
+            (if (seq s)
+              (w/group-by grouping-fields s rev)
+              (w/group-by grouping-fields))))]
+
+  ;; Note that the final group that pops out of this thing is keeping
+  ;; track of the input fields to each of the aggregators as well as
+  ;; the total number of available output fields. These include the
+  ;; fields generated by the aggregations, as well as the fields used
+  ;; for grouping.
+  (defn- build-agg-tail [options prev-tail grouping-fields aggs]
+    (debug-print "Adding aggregators to tail" options prev-tail grouping-fields aggs)
+    (when (and (empty? aggs) (:sort options))
+      (throw-illegal "Cannot specify a sort when there are no aggregators"))
+    (if (and (not (:distinct options)) (empty? aggs))
+      prev-tail
+      (let [aggs (or (not-empty aggs) [p/distinct-aggregator])
+            [grouping-fields inserter] (normalize-grouping grouping-fields)
+            [prep-aggs postgroup-aggs] (build-agg-assemblies grouping-fields aggs)
+            assem (apply w/compose-straight-assemblies
+                         (concat [inserter]
+                                 (map :pregroup-assembly aggs)
+                                 prep-aggs
+                                 [(mk-group-by grouping-fields options)]
+                                 postgroup-aggs
+                                 (map :post-assembly aggs)))
+            total-fields (agg-available-fields grouping-fields aggs)
+            all-agg-infields  (agg-infields (:sort options) aggs)
+            prev-node (:node prev-tail)
+            node (g/create-node (g/get-graph prev-node)
+                                (p/predicate group assem
+                                             all-agg-infields
+                                             total-fields))]
+        (g/create-edge prev-node node)
+        (struct tailstruct (:ground? prev-tail) (:operations prev-tail)
+                (:drift-map prev-tail) total-fields node)))))
 
 (defn projection-fields [needed-vars allfields]
   (let [needed-set (set needed-vars)
@@ -319,12 +345,6 @@
      (empty? inter) [(first allfields)]
      :else (vec inter))))
 
-(defn- mk-projection-assembly
-  [forceproject projection-fields allfields]
-  (if (and (not forceproject) (= (set projection-fields) (set allfields)))
-    identity
-    (w/select projection-fields)))
-
 (defmulti node->generator (fn [pred & _] (:type pred)))
 
 (defmethod node->generator :generator [pred prevgens]
@@ -332,12 +352,11 @@
     (throw (RuntimeException. "Planner exception: Generator has inbound nodes")))
   pred)
 
-(w/defmapop join-fields-selector
-  {:params [num-fields]}
-  [& args]
-  (let [joins (partition num-fields args)]
-    (or (s/find-first (partial s/some? (complement nil?)) joins)
-        (repeat num-fields nil))))
+(defn join-fields-selector [num-fields]
+  (cascalog.fluent.def/mapfn [& args]
+    (let [joins (partition num-fields args)]
+      (or (s/find-first (partial s/some? (complement nil?)) joins)
+          (repeat num-fields nil)))))
 
 (w/defmapop truthy? [arg]
   (if arg true false))
@@ -409,6 +428,12 @@
     (merge prevpred {:outfields (concat (:outfields pred) (:outfields prevpred))
                      :pipe ((:assembly pred) (:pipe prevpred))})))
 
+;; Look at the previous generators -- we should only have a single
+;; incoming generator in this case, since we're pushing into a single
+;; grouping. The output fields that are remaining need to follow this
+;; damned logic.
+;;
+;; Basically, Nathan is implementing this ad-hoc field algebra...
 (defmethod node->generator :group [pred prevgens]
   (when-not (= 1 (count prevgens))
     (throw (RuntimeException. "Planner exception: group has multiple inbound generators")))
@@ -416,27 +441,79 @@
     (merge prevpred {:outfields (:totaloutfields pred)
                      :pipe ((:assembly pred) (:pipe prevpred))})))
 
-;; forceproject necessary b/c *must* reorder last set of fields coming out to match declared ordering
-(defn build-generator [forceproject needed-vars node]
-  (let [pred           (g/get-value node)
-        my-needed      (vec (set (concat (:infields pred) needed-vars)))
-        prev-gens      (doall (map (partial build-generator false my-needed)
-                                   (g/get-inbound-nodes node)))
-        newgen         (node->generator pred prev-gens)
-        project-fields (projection-fields needed-vars (:outfields newgen)) ]
-    (debug-print "build gen:" my-needed project-fields pred)
-    (if (and forceproject (not= project-fields needed-vars))
-      (throw-runtime (format "Only able to build to %s but need %s. Missing %s"
-                             project-fields
-                             needed-vars
-                             (vec (clojure.set/difference (set needed-vars)
-                                                          (set project-fields)))))
-      (merge newgen
-             {:pipe ((mk-projection-assembly forceproject
-                                             project-fields
-                                             (:outfields newgen))
-                     (:pipe newgen))
-              :outfields project-fields}))))
+;; forceproject necessary b/c *must* reorder last set of fields coming
+;; out to match declared ordering
+
+;; So, it looks like this function builds up a generator of tuples,
+;; which in Nathan's world is a pipe, some output fields and the
+;; remaining information for the FlowDef.
+;;
+;; Other than the Fields algebra, I think I've got it.
+
+(comment
+  "This is what it comes down to. We want to convert nodes to
+  generators that can be compiled down into the FlowDef
+  representation. This'll be accomplished by keeping around a graph
+  with a bunch of nodes, and resolving the input generators down."
+
+  "Nodes are generator, join, operation, group."
+  (defpredicate generator
+    :join-set-var
+    :ground?
+    :sourcemap
+    :pipe
+    :outfields
+    :trapmap))
+
+;; This projection assembly checks every output field against the
+;; existing "allfields" deal. If the fields match up and no project is
+;; being forced, then the function goes ahead and passes identity back
+;; out.
+;;
+;; The final compilation step (the subquery step) requires a forced
+;; projection, since a subquery declares its output variables.
+
+(letfn [(mk-projection-assembly
+          [forceproject projection-fields allfields]
+          (if (and (not forceproject)
+                   (= (set projection-fields)
+                      (set allfields)))
+            identity
+            (w/select projection-fields)))]
+
+  (defn build-generator [forceproject needed-vars node]
+    (let [
+          ;; Get the current operation at this node.
+          pred           (g/get-value node)
+
+          ;; The input had some required variables -- I've got to get
+          ;; my required variables and concatenate them onto the set
+          ;; of required variables.
+          my-needed      (vec (set (concat (:infields pred) needed-vars)))
+
+          ;; Now, go ahead and build up generators for every input
+          ;; node in the graph. This will recursively walk backward
+          ;; along the graph until it finds the root generators, I
+          ;; think.
+          prev-gens      (doall (map (partial build-generator false my-needed)
+                                     (g/get-inbound-nodes node)))
+
+          ;;
+          newgen         (node->generator pred prev-gens)
+          project-fields (projection-fields needed-vars (:outfields newgen)) ]
+      (debug-print "build gen:" my-needed project-fields pred)
+      (if (and forceproject (not= project-fields needed-vars))
+        (throw-runtime (format "Only able to build to %s but need %s. Missing %s"
+                               project-fields
+                               needed-vars
+                               (vec (clojure.set/difference (set needed-vars)
+                                                            (set project-fields)))))
+        (merge newgen
+               {:pipe ((mk-projection-assembly forceproject
+                                               project-fields
+                                               (:outfields newgen))
+                       (:pipe newgen))
+                :outfields project-fields})))))
 
 (def DEFAULT-OPTIONS
   {:distinct false
@@ -460,21 +537,31 @@
        (apply merge-with validate-option-merge!)
        (merge DEFAULT-OPTIONS)))
 
+;; This is my hook into the var unique thing. Figure out what this
+;; does.
 (defn- mk-var-uniquer-reducer [out?]
-  (fn [[preds vmap] [op hof-args invars outvars]]
+  (fn [[preds vmap] {:keys [op invars outvars]}]
     (let [[updatevars vmap] (v/uniquify-vars (if out? outvars invars)
                                              vmap
                                              :force-unique? out?)
           [invars outvars] (if out?
                              [invars updatevars]
                              [updatevars outvars])]
-      [(conj preds [op hof-args invars outvars]) vmap])))
+      [(conj preds {:op op
+                    :invars invars
+                    :outvars outvars})
+       vmap])))
 
 (defn mk-drift-map [vmap]
   (let [update-fn (fn [m [_ vals]]
                     (let [target (first vals)]
+                      (prn m target vals)
                       (reduce #(assoc %1 %2 target) m (rest vals))))]
     (reduce update-fn {} (seq vmap))))
+
+;; TODO: Take a look at this thing when the actual job is getting
+;; compiled and figure out what this mk-var-uniquer-reducer is
+;; actually doing.
 
 (defn- uniquify-query-vars
   "TODO: this won't handle drift for generator filter outvars should
@@ -487,56 +574,66 @@
         drift-map             (mk-drift-map vmap)]
     [out-vars raw-predicates drift-map]))
 
+;; This thing handles the logic that the output of an operation, if
+;; marked as a constant, should be a filter.
+;;
+;; This gets called twice, since we might have some new output
+;; variables after converting generator as set logic.
 (defn split-outvar-constants
-  [[op hof-args invars outvars]]
+  [{:keys [op invars outvars] :as m}]
   (let [[new-outvars newpreds] (reduce
                                 (fn [[outvars preds] v]
                                   (if (v/cascalog-var? v)
                                     [(conj outvars v) preds]
                                     (let [newvar (v/gen-nullable-var)]
                                       [(conj outvars newvar)
-                                       (conj preds [(p/predicate p/outconstant-equal)
-                                                    nil [v newvar] []])])))
+                                       (conj preds {:op     (p/predicate p/outconstant-equal)
+                                                    :invars [v newvar]
+                                                    :outvars []})])))
                                 [[] []]
                                 outvars)]
-    (cons [op hof-args invars new-outvars] newpreds)))
+    (-> (assoc m :outvars new-outvars)
+        (cons newpreds))))
 
-(defn- rewrite-predicate [[op hof-args invars outvars :as predicate]]
+;; Handles the output for generator as set.
+(defn- rewrite-predicate [{:keys [op invars outvars] :as predicate}]
   (if-not (and (p/generator? op) (seq invars))
     predicate
     (if (= 1 (count outvars))
-      [(p/predicate p/generator-filter op (first outvars)) hof-args [] invars]
+      {:op (p/predicate p/generator-filter op (first outvars))
+       :invars []
+       :outvars invars}
       (throw-illegal (str "Generator filter can only have one outvar -> "
                           outvars)))))
 
 (defn- parse-predicate [[op vars]]
-  (let [[vars hof-args] (if (p/hof-predicate? op)
-                          [(rest vars) (s/collectify (first vars))]
-                          [vars nil])
-        {invars :<< outvars :>>} (p/parse-variables vars (p/predicate-default-var op))]
-    [op hof-args invars outvars]))
+  (let [{invars :<< outvars :>>}
+        (p/parse-variables vars (p/predicate-default-var op))]
+    {:op op
+     :invars invars
+     :outvars outvars}))
 
 (defn- unzip-generators
   "Returns a vector containing two sequences; the subset of the
   supplied sequence of parsed-predicates identified as generators, and
   the rest."
   [parsed-preds]
-  (s/separate (comp p/generator? first) parsed-preds))
+  (s/separate (comp p/generator? :op) parsed-preds))
 
 (defn gen-as-set?
   "Returns true if the supplied parsed predicate is a generator meant
   to be used as a set, false otherwise."
   [parsed-pred]
-  (and (p/generator? (first parsed-pred))
-       (not-empty (nth parsed-pred 2))))
+  (and (p/generator? (:op parsed-pred))
+       (not-empty    (:invars parsed-pred))))
 
 (defn- gen-as-set-ungrounding-vars
   "Returns a sequence of ungrounding vars present in the
   generators-as-sets contained within the supplied sequence of parsed
-  predicates (of the form `[op hof-args invars outvars]`)."
+  predicates (maps with keys :op, :invars, :outvars)."
   [parsed-preds]
   (mapcat (comp (partial filter v/unground-var?)
-                #(->> % (take-last 2) (apply concat)))
+                #(mapcat % [:invars :outvars]))
           (filter gen-as-set? parsed-preds)))
 
 (defn- parse-ungrounding-outvars
@@ -547,7 +644,7 @@
   that appear within non-generator predicates."
   [parsed-preds]
   (map (comp (partial mapcat #(filter v/unground-var? %))
-             (partial map last))
+             (partial map :outvars))
        (unzip-generators parsed-preds)))
 
 (defn- pred-clean!
@@ -577,7 +674,10 @@
                          dups))
      :else parsed-preds)))
 
-(defn- build-query [out-vars raw-predicates]
+(defn- build-query
+  "This is the big mother. This is where the query gets built and
+  where I'll be spending some good time."
+  [out-vars raw-predicates]
   (debug-print "outvars:" out-vars)
   (debug-print "raw predicates:" raw-predicates)
   (let [[out-vars raw-predicates drift-map] (->> raw-predicates

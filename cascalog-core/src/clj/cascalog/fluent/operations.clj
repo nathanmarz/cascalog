@@ -13,6 +13,7 @@
   (:import [java.io File]
            [cascading.tuple Tuple Fields]
            [cascalog.ops KryoInsert]
+           [cascading.tuple Fields]
            [cascading.operation Identity Debug NoOp]
            [cascading.operation.filter Sample]
            [cascading.operation.aggregator First Count Sum Min Max]
@@ -174,25 +175,13 @@
 
 ;; ## Aggregations
 ;;
-;; One can implement a groupAll by leaving group-fields nil. Cascalog
-;;will use a random field and group on a 1:
-
-(comment
-  "from rules.clj. build-agg-assemblies in that same namespace has the
-  rules for how to actually build aggregators, and how to choose which
-  type of aggregators to use."
-  "my-group-by creates a group by operation with proper respect for
-  fields and sorting."
-
-  (defn- normalize-grouping
-    "Returns [new-grouping-fields inserter-assembly]. If no grouping
-  fields are supplied, ths function groups on 1, which forces a global
-  grouping."
-    [grouping-fields]
-    (if (seq grouping-fields)
-      [grouping-fields identity]
-      (let [newvar (v/gen-nullable-var)]
-        [[newvar] (w/insert newvar 1)]))))
+;; TODO: Convert away from this protocol approach. Redefining these
+;; namespaces causes issues, when the aggregators suddenly aren't
+;; instances and don't respond to isa?
+;;
+;; We need to make sure that we can jack in other aggregators from
+;;Cascading directly, or at least let the user chain a raw every and a
+;;raw groupBy. These should take appropriate keyword options.
 
 (defprotocol ParallelAggregatorBuilder
   (gen-functor [_]))
@@ -251,9 +240,70 @@
   (partial satisfies? agg-type))
 
 ;; TODO: add options
+
+(def REDUCER-KEY "mapred.reduce.tasks")
+
+(defn set-reducers
+  "Set the number of reducers for this step in the pipe."
+  [pipe reducers]
+  (if-not reducers
+    pipe
+    (cond (pos? reducers)
+          (do (-> pipe
+                  (.getStepConfigDef)
+                  (.setProperty REDUCER-KEY, (str reducers)))
+              pipe)
+          (= -1 reducers) pipe
+          :else (throw-illegal "Number of reducers must be non-negative."))))
+
+;; TODO: Add proper assertions around sorting. (We can't sort when
+;; we're in AggregateBy, for example.
+
+;; TODO: Add a "reduce-mode" function that returns a keyword
+;; representing the proper aggregation.
+;;
+;; TODO: Split these out into a raw every, a mk-group-by kind of like
+;; what Nathan had below, and a raw aggregateby. Then we need an
+;; operation to determine which works.
+
+(comment
+  "from rules.clj:"
+  (defn- mk-group-by
+    "Create a groupby operation, respecting grouping and sorting
+  options."
+    [grouping-fields options]
+    (let [{s :sort rev :reverse} options]
+      (if (seq s)
+        (w/group-by grouping-fields s rev)
+        (w/group-by grouping-fields))))
+
+  (defn- build-agg-assemblies
+    "returns [pregroup vec, postgroup vec]"
+    [grouping-fields aggs]
+    (cond (and (= 1 (count aggs))
+               (:parallel-agg (first aggs))
+               (:buffer? (first aggs)))
+          (mk-parallel-buffer-agg grouping-fields (first aggs))
+
+          (every? :parallel-agg aggs) (mk-parallel-aggregator grouping-fields aggs)
+
+          :else [[identity] (map :serial-agg-assembly aggs)])))
+
 (defn group-by*
-  [flow group-fields & aggs]
-  (let [group-fields (fields group-fields)]
+  [flow group-fields aggs
+   & {:keys [reducers spill-threshold sort-fields reverse? reduce-only]
+      :or {spill-threshold 10000}}]
+  (let [group-fields  (fields group-fields)
+        build-groupby (fn [pipe every-seq]
+                        (let [pipe (if sort-fields
+                                     (GroupBy. pipe group-fields
+                                               (fields sort-fields)
+                                               (boolean reverse?))
+                                     (GroupBy. pipe group-fields))]
+                          (-> (reduce (fn [p {:keys [op input]}]
+                                        (Every. p input op))
+                                      pipe every-seq)
+                              (set-reducers reducers))))]
     (add-op flow
             (fn [pipe]
               (cond
@@ -261,27 +311,31 @@
                ;; emit buffer
                (do (when (> (count aggs) 1)
                      (throw-illegal "Buffer must be specified on its own"))
-                   (let [{:keys [input op]} (gen-buffer (first aggs))]
-                     (-> pipe
-                         (GroupBy. group-fields)
-                         (Every. input op))))
+                   (build-groupby pipe (map gen-buffer aggs)))
 
-               (every? (is-agg? ParallelAggregatorBuilder) aggs)
+               (and (not reduce-only)
+                    (every? (is-agg? ParallelAggregatorBuilder) aggs))
                ;; emit AggregateBy
                (let [aggs (for [agg-pred aggs
                                 :let [{:keys [input op]} (gen-agg agg-pred)]]
                             (ClojureAggregateBy. input
                                                  (gen-functor agg-pred)
                                                  op))]
-                 (AggregateBy. pipe group-fields (into-array AggregateBy aggs)))
+                 (AggregateBy. pipe group-fields spill-threshold
+                               (into-array AggregateBy aggs)))
 
-               :else
-               ;; simple aggregation
-               (let [pipe (GroupBy. pipe group-fields)]
-                 (reduce (fn [p agg]
-                           (let [{:keys [op input]} (gen-agg agg)]
-                             (Every. p input op)))
-                         pipe aggs)))))))
+               :else (build-groupby pipe (map gen-agg aggs)))))))
+
+(defn unique
+  "Performs a unique on the input pipe by the supplied fields."
+  ([flow]
+     (unique flow Fields/ALL))
+  ([flow unique-fields]
+     (let [unique-fields (fields unique-fields)]
+       (add-op flow (fn [pipe]
+                      (-> pipe
+                          (GroupBy. unique-fields)
+                          (Every. (FastFirst.) Fields/RESULTS)))))))
 
 ;; ## Output Operations
 ;;

@@ -60,9 +60,8 @@
                                  [Fields/ALL (apply hash-map varargs)]
                                  [(fields (clojure.core/first varargs))
                                   (apply hash-map (rest varargs))])
-           stateful (get (meta func-var) :stateful false)
            options  (merge {:fn> (:fields (meta func-var)) :> defaultout} keyargs)]
-       [in-fields (fields (:fn> options)) spec (fields (:> options)) stateful])))
+       [in-fields (fields (:fn> options)) spec (fields (:> options))])))
 
 ;; ## Pipe Operations
 
@@ -83,26 +82,26 @@
 (defn filter [& args]
   (fn [previous]
     (debug-print "filter" args)
-    (let [[in-fields func-fields spec out-fields stateful] (parse-args args)]
+    (let [[in-fields func-fields spec out-fields] (parse-args args)]
       (if func-fields
         (Each. previous in-fields
-               (ClojureMap. func-fields spec stateful) out-fields)
+               (ClojureMap. func-fields spec) out-fields)
         (Each. previous in-fields
-               (ClojureFilter. spec stateful))))))
+               (ClojureFilter. spec))))))
 
 (defn mapcat [& args]
   (fn [previous]
     (debug-print "mapcat" args)
-    (let [[in-fields func-fields spec out-fields stateful] (parse-args args)]
+    (let [[in-fields func-fields spec out-fields] (parse-args args)]
       (Each. previous in-fields
-             (ClojureMapcat. func-fields spec stateful) out-fields))))
+             (ClojureMapcat. func-fields spec) out-fields))))
 
 (defn map [& args]
   (fn [previous]
     (debug-print "map" args)
-    (let [[in-fields func-fields spec out-fields stateful] (parse-args args)]
+    (let [[in-fields func-fields spec out-fields] (parse-args args)]
       (Each. previous in-fields
-             (ClojureMap. func-fields spec stateful)
+             (ClojureMap. func-fields spec)
              out-fields))))
 
 (letfn [(as-pipes [pipe-or-pipes]
@@ -204,36 +203,36 @@
 (defn aggregate [& args]
   (fn [^Pipe previous]
     (debug-print "aggregate" args)
-    (let [[^Fields in-fields func-fields specs ^Fields out-fields stateful]
+    (let [[^Fields in-fields func-fields specs ^Fields out-fields]
           (parse-args args Fields/ALL)]
       (Every. previous in-fields
-              (ClojureAggregator. func-fields specs stateful)
+              (ClojureAggregator. func-fields specs)
               out-fields))))
 
 (defn buffer [& args]
   (fn [^Pipe previous]
     (debug-print "buffer" args)
-    (let [[^Fields in-fields func-fields specs ^Fields out-fields stateful]
+    (let [[^Fields in-fields func-fields specs ^Fields out-fields]
           (parse-args args Fields/ALL)]
       (Every. previous in-fields
-              (ClojureBuffer. func-fields specs stateful) out-fields))))
+              (ClojureBuffer. func-fields specs) out-fields))))
 
 (defn bufferiter [& args]
   (fn [^Pipe previous]
     (debug-print "bufferiter" args)
-    (let [[^Fields in-fields func-fields specs ^Fields out-fields stateful]
+    (let [[^Fields in-fields func-fields specs ^Fields out-fields]
           (parse-args args Fields/ALL)]
       (Every. previous in-fields
-              (ClojureBufferIter. func-fields specs stateful) out-fields))))
+              (ClojureBufferIter. func-fields specs) out-fields))))
 
 (defn multibuffer [& args]
   (fn [pipes fields-sum]
     (debug-print "multibuffer" args)
-    (let [[group-fields func-fields specs _ stateful] (parse-args args Fields/ALL)]
+    (let [[group-fields func-fields specs _] (parse-args args Fields/ALL)]
       (MultiGroupBy. pipes
                      group-fields
                      fields-sum
-                     (ClojureMultibuffer. func-fields specs stateful)))))
+                     (ClojureMultibuffer. func-fields specs)))))
 
 ;; we shouldn't need a seq for fields (b/c we know how many pipes we
 ;; have)

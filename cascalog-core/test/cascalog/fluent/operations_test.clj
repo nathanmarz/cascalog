@@ -14,36 +14,29 @@
 (defn sum [& xs]
   (reduce + xs))
 
-(defmapop plus-two [x]
+(defmapfn plus-two [x]
   (+ 2 x))
 
-(defmapop times
-  {:params [x]}
+(defn times
   [y]
-  (* x y))
+  (mapfn [x] (* x y)))
 
-(deftest runner-tests
-  (facts "Runner retrieves backing operations from defops."
+(deftest custom-op-test
+  (facts
+    "Normal squaring function works."
+    (square 10) => 100
 
-    "When passed a non-defop declared function, runner returns its
-     input."
-    ((runner sum) 1 2 3) => 6
+    "And still works as a mapop. The behavior is unchanged."
+    ((mapop* square) 3) => 9
 
-    "runner extracts a backing function from a defop fn."
-    ((runner plus-two) 2) => 4
+    "anonymous mapops work as functions"
+    ((mapfn [x] (* x 5)) 4) => 20
 
-    "runner extracts a backing function from a defop var."
-    ((runner #'plus-two) 2) => 4
+    "operations defined with def*fn work as normal functions."
+    (plus-two 2) => 4
 
-    "Runner returns the backing higher order function from a defop
-  defined var or fn:"
-    (tabular
-     (let [backing-hof (runner ?input)
-           times-ten   (backing-hof 10)]
-       (times-ten 2) => 20)
-     ?input
-     times
-     #'times)))
+    "Higher order mapfns work normally"
+    ((times 2) 4) => 8))
 
 (deftest map-test
   (let [src (-> (begin-flow [["jenna" 10]
@@ -71,9 +64,8 @@
     lifted to mapops!"
     (-> (begin-flow [1 2 3 4 5])
         (rename* "a")
-        (map* square "a" "squared")
-        ((mapop square) "a" "squared")
-        ((times 10) "a" "b"))
+        (exec* (mapop* square) "a" "squared")
+        (exec* (times 10) "a" "b"))
     => (produces [[1 1 10]
                   [2 4 20]
                   [3 9 30]
@@ -84,7 +76,7 @@
      flow:"
     (-> (begin-flow [1 2 3 4 5])
         (rename* "a")
-        (plus-two "a" "b"))
+        (exec* plus-two "a" "b"))
     => (produces [[1 3] [2 4] [3 5] [4 6] [5 7]])))
 
 (future-fact

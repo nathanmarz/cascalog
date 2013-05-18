@@ -283,9 +283,6 @@
              outfields
              false))
 
-(defn- mk-hof-fn-spec [avar args]
-  (ops/fn-spec (cons avar args)))
-
 (defn- simpleagg-build-predicate
   [buffer? op hof-args infields outfields _]
   (predicate aggregator buffer?
@@ -297,8 +294,6 @@
              outfields))
 
 (defmulti predicate-default-var predicate-dispatcher)
-(defmulti hof-predicate? predicate-dispatcher)
-(defmethod hof-predicate? :default [_] false)
 (defmulti build-predicate-specific predicate-dispatcher)
 
 (defmethod predicate-default-var ::option [& _] :<)
@@ -366,46 +361,48 @@
   [pagg _ infields outfields options]
   (let [init-spec (ops/fn-spec (:init-var pagg))
         combine-spec (ops/fn-spec (:combine-var pagg))
-        java-pagg (ClojureParallelAgg. (CombinerSpec. init-spec combine-spec))]
+        java-pagg (ClojureParallelAgg. (-> (CombinerSpec. combine-spec)
+                                           (.setPrepareFn init-spec)))]
     (build-predicate-specific java-pagg nil infields outfields options)
     ))
 
 (defmethod predicate-default-var ::parallel-buffer [& _] :>)
-(defmethod hof-predicate? ::parallel-buffer [op & _] (:hof? op))
-(defmethod build-predicate-specific ::parallel-buffer
-  [pbuf hof-args infields outfields options]
-  (let [temp-vars (v/gen-nullable-vars ((:num-intermediate-vars-fn pbuf)
-                                        infields
-                                        outfields))
-        hof-args  (cons (dissoc options :trap) hof-args)
-        sort-fields (:sort options)
-        sort-fields (if (empty? sort-fields) nil sort-fields)
-        combiner-spec (CombinerSpec.
-                       (mk-hof-fn-spec (:init-hof-var pbuf) hof-args)
-                       (mk-hof-fn-spec (:combine-hof-var pbuf) hof-args)
-                       (mk-hof-fn-spec (:extract-hof-var pbuf) hof-args))
-        combiner (fn [group-fields]
-                   (w/raw-each Fields/ALL
-                               (ClojureBufferCombiner.
-                                (w/fields group-fields)
-                                (w/fields sort-fields)
-                                (w/fields infields)
-                                (w/fields temp-vars)
-                                combiner-spec)
-                               Fields/RESULTS))
-        group-assembly (w/raw-every (w/fields temp-vars)
-                                    (ClojureBuffer. (w/fields outfields)
-                                                    (mk-hof-fn-spec
-                                                     (:buffer-hof-var pbuf) hof-args)
-                                                    false)
-                                    Fields/ALL)]
-    (predicate aggregator
-               true
-               combiner
-               identity group-assembly
-               identity
-               infields
-               outfields)))
+
+(letfn [(mk-hof-fn-spec [avar args]
+          (ops/fn-spec (cons avar args)))]
+
+  (defmethod build-predicate-specific ::parallel-buffer
+    [pbuf hof-args infields outfields options]
+    (let [temp-vars (v/gen-nullable-vars ((:num-intermediate-vars-fn pbuf)
+                                          infields
+                                          outfields))
+          hof-args  (cons (dissoc options :trap) hof-args)
+          sort-fields (:sort options)
+          sort-fields (if (empty? sort-fields) nil sort-fields)
+          combiner-spec (-> (CombinerSpec. (mk-hof-fn-spec (:combine-hof-var pbuf) hof-args))
+                            (.setPrepareFn (mk-hof-fn-spec (:init-hof-var pbuf) hof-args))
+                            (.setPresentFn (mk-hof-fn-spec (:extract-hof-var pbuf) hof-args)))
+          combiner (fn [group-fields]
+                     (w/raw-each Fields/ALL
+                                 (ClojureBufferCombiner.
+                                  (w/fields group-fields)
+                                  (w/fields sort-fields)
+                                  (w/fields infields)
+                                  (w/fields temp-vars)
+                                  combiner-spec)
+                                 Fields/RESULTS))
+          group-assembly (w/raw-every (w/fields temp-vars)
+                                      (ClojureBuffer. (w/fields outfields)
+                                                      (mk-hof-fn-spec
+                                                       (:buffer-hof-var pbuf) hof-args))
+                                      Fields/ALL)]
+      (predicate aggregator
+                 true
+                 combiner
+                 identity group-assembly
+                 identity
+                 infields
+                 outfields))))
 
 (defmethod predicate-default-var ::vanilla-function [& _] :<)
 (defmethod build-predicate-specific ::vanilla-function
@@ -419,27 +416,22 @@
     (predicate operation assembly infields outfields false)))
 
 (defmethod predicate-default-var :map [& _] :>)
-(defmethod hof-predicate? :map [op & _] (:hof? (meta op)))
 (defmethod build-predicate-specific :map [& args]
   (apply simpleop-build-predicate args))
 
 (defmethod predicate-default-var :mapcat [& _] :>)
-(defmethod hof-predicate? :mapcat [op & _] (:hof? (meta op)))
 (defmethod build-predicate-specific :mapcat [& args]
   (apply simpleop-build-predicate args))
 
 (defmethod predicate-default-var :aggregate [& _] :>)
-(defmethod hof-predicate? :aggregate [op & _] (:hof? (meta op)))
 (defmethod build-predicate-specific :aggregate [& args]
   (apply simpleagg-build-predicate false args))
 
 (defmethod predicate-default-var :buffer [& _] :>)
-(defmethod hof-predicate? :buffer [op & _] (:hof? (meta op)))
 (defmethod build-predicate-specific :buffer [& args]
   (apply simpleagg-build-predicate true args))
 
 (defmethod predicate-default-var :filter [& _] :<)
-(defmethod hof-predicate? :filter [op & _] (:hof? (meta op)))
 (defmethod build-predicate-specific :filter
   [op hof-args infields outfields _]
   (let [[func-fields out-selector] (if (not-empty outfields)
