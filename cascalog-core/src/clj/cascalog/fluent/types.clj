@@ -56,6 +56,8 @@
   CascalogTap
   (generator [tap] (generator (:source tap)))
 
+  clojure.lang.IPersistentVector
+  (generator [v] (generator (seq v)))
   clojure.lang.ISeq
   (generator [v]
     (generator

@@ -1,10 +1,12 @@
 (ns cascalog.fluent.operations
   (:require [clojure.tools.macro :refer (name-with-attributes)]
-            [clojure.set :refer (subset? difference)]
+            [clojure.set :refer (subset? difference intersection)]
+            [cascalog.vars :as v]
             [cascalog.fluent.conf :as conf]
-            [cascalog.fluent.cascading :as casc :refer (fields default-output)]
+            [cascalog.fluent.cascading :as casc
+             :refer (fields default-output)]
             [cascalog.fluent.algebra :refer (plus)]
-            [cascalog.fluent.types :refer (generator)]
+            [cascalog.fluent.types :refer (generator to-sink)]
             [cascalog.fluent.fn :as serfn]
             [cascalog.util :as u]
             [cascalog.fluent.source :as src]
@@ -91,13 +93,12 @@
   "Accepts a sequence and a (probably stateful) generator and returns
   a new sequence with all duplicates replaced by a call to `gen`."
   [coll gen]
-  (second
-   (reduce (fn [[seen-set acc] elem]
-             (if (contains? seen-set elem)
-               [seen-set (conj acc (gen))]
-               [(conj seen-set elem) (conj acc elem)]))
-           [#{} []]
-           (into [] coll))))
+  (reduce (fn [[seen-set acc] elem]
+            (if (contains? seen-set elem)
+              [seen-set (conj acc (gen))]
+              [(conj seen-set elem) (conj acc elem)]))
+          [#{} []]
+          (collectify coll)))
 
 (defn with-dups
   "Accepts a flow, some fields, and a function from (flow,
@@ -109,19 +110,144 @@
   function, which may decide to call (discard* delta) if the fields
   are still around."
   [flow from-fields f]
-  (let [from-fields (collectify from-fields)]
-    (if (apply distinct? from-fields)
-      (f flow from-fields [])
-      (let [cleaned-fields (replace-dups from-fields casc/gen-unique-var)
-            delta (seq (difference (set cleaned-fields)
-                                   (set from-fields)))]
-        (-> (reduce (fn [subflow [field gen]]
-                      (if (= field gen)
-                        subflow
-                        (identity* subflow field gen)))
-                    flow
-                    (map vector from-fields cleaned-fields))
-            (f cleaned-fields delta))))))
+  (if (apply distinct? (collectify from-fields))
+    (f flow from-fields [])
+    (let [[delta cleaned-fields]
+          (replace-dups from-fields casc/gen-unique-var)]
+      (-> (reduce (fn [subflow [field gen]]
+                    (if (= field gen)
+                      subflow
+                      (identity* subflow field gen)))
+                  flow
+                  (map vector from-fields cleaned-fields))
+          (f cleaned-fields (seq delta))))))
+
+;; ## Logic Variable Substitution Rules
+
+;; TODO: If we have some sort of ignored variable coming out of a
+;; Cascalog query, we want to strip all operations out at that
+;; point. Probably when we're building up a generator.
+
+(defn- constant-substitutions
+  "Returns a 2-vector of the form
+
+   [new variables, {map of newvars to values to substitute}]"
+  [vars]
+  (u/substitute-if (complement v/cascalog-var?)
+                   (fn [_] (v/gen-nullable-var))
+                   (collectify vars)))
+
+(defn insert-subs [flow sub-m]
+  (if (empty? sub-m)
+    flow
+    (apply insert* flow (u/flatten sub-m))))
+
+(defn with-constants
+  "Allows constant substitution on inputs."
+  [gen in-fields f]
+  (let [[new-input sub-m] (constant-substitutions in-fields)
+        ignored (keys sub-m)]
+    (-> (insert-subs gen sub-m)
+        (f (fields new-input))
+        (discard* (fields ignored)))))
+
+(defn- replace-ignored-vars
+  "Replaces all ignored variables with a nullable cascalog
+  variable. "
+  [vars]
+  (map (fn [v] (if (= "_" v) (v/gen-nullable-var) v))
+       (collectify vars)))
+
+(defn not-nil? [& xs]
+  (every? (complement nil?) xs))
+
+(defn filter-nullable-vars
+  "If there are any nullable variables present in the output, filter
+  nulls out now."
+  [flow fields]
+  (if-let [non-null-fields (seq (filter v/non-nullable-var? fields))]
+    (filter* flow #'not-nil? non-null-fields)
+    flow))
+
+(defn no-overlap? [large small]
+  (empty?
+   (intersection (set (collectify large))
+                 (set (collectify small)))))
+
+;; TODO: Replace 'build-predicate' with this thing.
+;;
+;; The enhance-predicate logic in predicate.clj sort of does this
+;;"accept the function, do something around it" logic.
+
+(defn logically
+  "Accepts a flow, input fields, output fields and a function that
+  accepts the same things and allows for the following features:
+
+  Any variables not prefixed with !, !! or ? are treated as constants
+  in the flow. This allows for (map* flow + 10 [\"?a\"] [\"?b\"]) to
+  work properly and clean up its fields without hassle.
+
+  Any non-nullable output variables (prefixed with ?) are removed from
+  the flow.
+
+  Duplicate input fields are allowed. It is currently NOT allowed to
+  output one of the input variables. In Cascalog, this triggers an
+  implicit filter; this needs to be supplied at another layer."
+  [gen in-fields out-fields f]
+  {:pre [(no-overlap? out-fields in-fields)]}
+  (let [new-output (replace-ignored-vars out-fields)
+        ignored (difference (set new-output)
+                            (set (collectify out-fields)))]
+    (with-constants gen in-fields
+      (fn [gen in]
+        (with-dups gen in
+          (fn [gen in delta]
+            (-> gen
+                (f (fields in)
+                   (fields new-output))
+                (discard* (fields (concat delta ignored)))
+                (filter-nullable-vars new-output))))))))
+
+(comment
+  "This one works, since all inputs are logical variables."
+  (-> [1 2 3 4]
+      (rename* "?a")
+      (map* inc "?a" "?other")
+      (logically ["?a" 10 "?other"] "?b"
+                 (fn [gen in out]
+                   (-> gen (map* * in out))))
+      (to-memory))
+
+  "This one fails, since one of the inputs is interpreted as a
+  constant."
+  (-> [1 2 3 4]
+      (rename* "?a")
+      (map* inc "?a" "other")
+      (logically ["?a" 10 "other"] "?b"
+                 (fn [gen in out]
+                   (-> gen (map* * in out))))
+      (to-memory))
+
+  "TODO: in logically, we need to start enforcing some rules. no one
+  can push an actual instance of Fields in at this point. It doesn't
+  make sense with these logical rules. We do now have some notion of
+  an assembly -- an assembly is a function from one flow to another.
+
+  I think we need a typeclass to chain some operation. add-op
+  shouldn't have to take a generator -- it can definitely augment just
+  a pipe, or even another function that's going to modify a pipe (by
+  composition)."
+
+  ;; State monad to build these things up?
+  ;; Or do we need a continuation passing style:
+  (defn augment [a b]
+    (fn [pipe]
+      [])
+    )
+  (defprotocol IAssembly
+    (augment [_ pipe]
+      ))
+  )
 
 (defop debug*
   "Prints all tuples that pass through the StdOut."
@@ -350,7 +476,7 @@
          (rename-pipe))))
 
 (defn write* [flow sink]
-  (let [sink (src/to-sink sink)]
+  (let [sink (to-sink sink)]
     (-> flow
         (in-branch (.getIdentifier sink)
                    (fn [subflow name]
@@ -361,7 +487,7 @@
 (defn trap*
   "Applies a trap to the current branch of the supplied flow."
   [flow trap]
-  (let [trap (src/to-sink trap)
+  (let [trap (to-sink trap)
         id   (.getIdentifier trap)]
     (-> flow
         (rename-pipe id)

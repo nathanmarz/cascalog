@@ -607,7 +607,7 @@
                                 (w/compose-straight-assemblies
                                  (mk-insertion-assembly infield-subs)
                                  duplicate-assem))
-        null-check-out                 (mk-null-check outvars)]
+        null-check-out (mk-null-check outvars)]
     (enhance-predicate predicate
                        (filter v/cascalog-var? orig-infields)
                        in-insertion-assembly

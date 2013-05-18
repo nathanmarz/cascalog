@@ -74,7 +74,8 @@
         available-fields (:available-fields tail)
         join-set-vars (find-generator-join-set-vars (:node tail))
         infields-set (set (:infields op))]
-    (and (or (:allow-on-genfilter? op) (empty? join-set-vars))
+    (and (or (:allow-on-genfilter? op)
+             (empty? join-set-vars))
          (subset? infields-set (set available-fields))
          (or ground? (every? v/ground-var? infields-set)))))
 
@@ -561,7 +562,8 @@
                                     [(conj outvars v) preds]
                                     (let [newvar (v/gen-nullable-var)]
                                       [(conj outvars newvar)
-                                       (conj preds {:op     (p/predicate p/outconstant-equal)
+                                       (conj preds {:op (p/predicate
+                                                         p/outconstant-equal)
                                                     :invars [v newvar]
                                                     :outvars []})])))
                                 [[] []]
