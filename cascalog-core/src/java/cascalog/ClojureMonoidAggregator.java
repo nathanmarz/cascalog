@@ -22,6 +22,8 @@ import cascading.flow.FlowProcess;
 import cascading.operation.Aggregator;
 import cascading.operation.AggregatorCall;
 import cascading.tuple.Fields;
+import cascading.tuple.Tuple;
+import clojure.lang.IFn;
 import clojure.lang.ISeq;
 import clojure.lang.RT;
 
@@ -36,12 +38,15 @@ public class ClojureMonoidAggregator extends ClojureCascadingBase implements Agg
     }
 
     public void aggregate(FlowProcess flowProcess, AggregatorCall aggCall) {
-        ISeq argSeq = Util.coerceFromTuple(aggCall.getArguments().getTuple());
+        final Object arg2 = aggCall.getArguments().getTuple().getObject(0);
+
         final Object context = aggCall.getContext();
         if(context == null) {
-            aggCall.setContext(argSeq);
+            aggCall.setContext(new Object[] {arg2});
         } else {
-            aggCall.setContext(applyFunction(RT.cons(aggCall.getContext(), argSeq)));
+            final Object arg1 = ((Object[])context)[0];
+            final Object res = applyFunction(RT.list(arg1, arg2));
+            aggCall.setContext(res);
         }
     }
 
@@ -49,7 +54,7 @@ public class ClojureMonoidAggregator extends ClojureCascadingBase implements Agg
         try {
             final Object context = aggCall.getContext();
             if(context != null) {
-                aggCall.getOutputCollector().add(Util.coerceToTuple(context));
+                aggCall.getOutputCollector().add(new Tuple((Object[])context));
             }
         } catch(Exception e) {
             throw new RuntimeException(e);

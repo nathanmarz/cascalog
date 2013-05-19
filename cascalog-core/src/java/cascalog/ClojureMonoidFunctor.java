@@ -5,6 +5,7 @@ import cascading.pipe.assembly.AggregateBy;
 import cascading.tuple.Fields;
 import cascading.tuple.Tuple;
 import cascading.tuple.TupleEntry;
+import clojure.lang.RT;
 
 /**
  * Class MonoidAgg
@@ -32,16 +33,14 @@ public class ClojureMonoidFunctor extends ClojureCascadingBase implements Aggreg
         if(result == null) {
             return args;
         } else {
-            return Util.coerceToTuple(invokeFunction(Util.coerceFromTuple(args)));
+            Object arg1 = result.getObject(0);
+            Object arg2 = args.getObject(0);
+            return Util.coerceToTuple(applyFunction(RT.list(arg1, arg2)));
         }
     }
 
     @Override
     public Tuple complete(FlowProcess flowProcess, Tuple result) {
-        if(inited) {
-            cleanup(flowProcess, null);
-            inited = false;
-        }
         return result;
     }
 }

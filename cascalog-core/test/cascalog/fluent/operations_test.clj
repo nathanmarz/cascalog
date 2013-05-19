@@ -132,3 +132,11 @@
                                  [2 2 3 3]
                                  [3 3 4 4]
                                  [4 4 5 5]]))))
+
+(deftest test-simple-par-agg
+  (let [source [["a" 1] ["a" 2] ["b" 10] ["c" 9] ["b" 20]]]
+    (fact
+     (-> (begin-flow source)
+         (rename* ["k" "v"])
+         (group-by* "k" (par-agg + "v" "s")))
+     => (produces [["a" 3] ["b" 30] ["c" 9]]))))
