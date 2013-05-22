@@ -24,6 +24,11 @@
   "Returns a unique ungrounding var with an optional suffix."
   (gen-var-fn "!!"))
 
+(defn uniquify-var
+  "Appends a unique suffix to the supplied input."
+  [v]
+  (str v (gen-unique-suffix)))
+
 (defn gen-nullable-vars
   "Generates the given number, 'amt', of nullable variables in a sequence.
 
@@ -162,32 +167,19 @@ interpreted as a logic variable."
     (postwalk (sanitize-fn generator) pred)))
 
 ;; # Variable Uniqueing
-;;
-;; I don't know what's going on here. I'll come back to the
-;; documentation after I've finished deciphering rules.clj.
-
-(defn uniquify-var
-  "Appends a unique suffix to the supplied input."
-  [v]
-  (str v (gen-unique-suffix)))
-
-(defn- var-updater-fn [force-unique?]
-  (fn [[all equalities] v]
-    (if (cascalog-var? v)
-      (let [existing (get equalities v [])
-            varlist (cond (empty? existing) (conj existing v)
-                          (and force-unique? (ground-var? v))
-                          (conj existing (uniquify-var v))
-                          :else existing)
-            newname (if force-unique?
-                      (last varlist)
-                      (first varlist))]
-        [(conj all newname) (assoc equalities v varlist)])
-      [(conj all v) equalities])))
 
 (defn uniquify-vars
-  [vars equalities & {:keys [force-unique?]
-                      :or {:force-unique? false}}]
-  (reduce (var-updater-fn force-unique?)
-          [[] equalities]
-          vars))
+  [vars equalities & {:keys [force-unique?]}]
+  (letfn [(updater [[all equalities] v]
+            (if (cascalog-var? v)
+              (let [existing (get equalities v [])
+                    varlist (cond (empty? existing) (conj existing v)
+                                  (and force-unique? (ground-var? v))
+                                  (conj existing (uniquify-var v))
+                                  :else existing)
+                    newname (if force-unique?
+                              (last varlist)
+                              (first varlist))]
+                [(conj all newname) (assoc equalities v varlist)])
+              [(conj all v) equalities]))]
+    (reduce updater [[] equalities] vars)))

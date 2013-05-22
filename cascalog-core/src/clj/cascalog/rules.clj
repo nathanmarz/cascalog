@@ -35,15 +35,17 @@
   :totaloutfields)
 
 (defn- find-generator-join-set-vars [node]
-  (let [pred (g/get-value node)
-        inbound-nodes (g/get-inbound-nodes node)]
-    (cond (#{:join :group} (:type pred)) nil
-          (= :generator (:type pred)) (if-let [v (:join-set-var pred)] [v])
-          :else (do
-                  (if-not (= 1 (count inbound-nodes))
-                    (throw-runtime "Planner exception: Unexpected number of "
-                                   "inbound nodes to non-generator predicate.")
-                    (recur (first inbound-nodes)))))))
+  (let [predicate     (g/get-value node)
+        inbound-nodes (g/get-inbound-nodes node)
+        pred-type     (:type predicate)]
+    (condp = pred-type
+      :join       nil
+      :group      nil
+      :generator (if-let [v (:join-set-var pred)] [v])
+      (if (= 1 (count inbound-nodes))
+        (recur (first inbound-nodes))
+        (throw-runtime "Planner exception: Unexpected number of "
+                       "inbound nodes to non-generator predicate.")))))
 
 (defstruct tailstruct
   :ground?
@@ -589,6 +591,8 @@
      :invars invars
      :outvars outvars}))
 
+;; ## Gen-As-Set Validation
+
 (defn- unzip-generators
   "Returns a vector containing two sequences; the subset of the
   supplied sequence of parsed-predicates identified as generators, and
@@ -649,6 +653,8 @@
                          "The following are duplicated: "
                          dups))
      :else parsed-preds)))
+
+;; ## Query Building
 
 (defn- split-predicates
   "returns [generators operations aggregators]."
