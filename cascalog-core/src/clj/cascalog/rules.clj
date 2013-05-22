@@ -48,96 +48,111 @@
                        "inbound nodes to non-generator predicate.")))))
 
 (defstruct tailstruct
-  :ground?
-  :operations
-  :drift-map
-  :available-fields
+  :ground? ;; Does this thing have any hanging ungrounding vars?
+  :operations ;; Operations that potentially could be applied
+  :drift-map ;; map of variables -> equalities
+  :available-fields ;; fields presented by the tail.
   :node)
 
-(defn- connect-op [tail op]
-  (let [new-node (g/connect-value (:node tail)
-                                  op)
-        new-outfields (concat (:available-fields tail)
-                              (:outfields op))]
-    (struct tailstruct
-            (:ground? tail)
-            (:operations tail)
-            (:drift-map tail)
-            new-outfields new-node)))
+;; ## Operation Application
 
-(defn- add-op [tail op]
-  (debug-print "Adding op to tail " op tail)
-  (let [tail (connect-op tail op)
-        new-ops (s/remove-first (partial = op) (:operations tail))]
-    (merge tail {:operations new-ops})))
+(letfn [
+        ;; The assumption here is that the new operation is only
+        ;; ADDING fields. All output fields are unique, in this
+        ;; particular case.
+        ;;
+        ;; We have a bug here, because input fields show up before
+        ;; output fields -- if we write a certain input field BEFORE
+        ;; an output field, we lose.
+        (connect-op [tail op]
+          (struct tailstruct
+                  (:ground? tail)
+                  (:operations tail)
+                  (:drift-map tail)
+                  (concat (:available-fields tail)
+                          (:outfields op))
+                  (g/connect-value (:node tail) op)))
 
-(defn- op-allowed? [tail op]
-  (let [ground? (:ground? tail)
-        available-fields (:available-fields tail)
-        join-set-vars (find-generator-join-set-vars (:node tail))
-        infields-set (set (:infields op))]
-    (and (or (:allow-on-genfilter? op)
-             (empty? join-set-vars))
-         (subset? infields-set (set available-fields))
-         (or ground? (every? v/ground-var? infields-set)))))
+        ;; Adds an operation onto the tail -- this builds up an entry
+        ;; in the graph by connecting the new operation to the old
+        ;; operation's node. This is how we keep track of everything.
+        (add-op [tail op]
+          (debug-print "Adding op to tail " op tail)
+          (let [tail    (connect-op tail op)
+                new-ops (s/remove-first (partial = op) (:operations tail))]
+            (merge tail {:operations new-ops})))
 
-(defn- fixed-point-operations
-  "Adds operations to tail until can't anymore. Returns new tail"
-  [tail]
-  (if-let [op (s/find-first (partial op-allowed? tail)
-                            (:operations tail))]
-    (recur (add-op tail op))
-    tail))
+        (op-allowed? [tail op]
+          (let [ground?          (:ground? tail)
+                available-fields (:available-fields tail)
+                join-set-vars    (find-generator-join-set-vars (:node tail))
+                infields-set     (set (:infields op))]
+            (and (or (:allow-on-genfilter? op)
+                     (empty? join-set-vars))
+                 (subset? infields-set (set available-fields))
+                 (or ground? (every? v/ground-var? infields-set)))))
 
-;; TODO: refactor and simplify drift algorithm
-(defn- add-drift-op
-  [tail equality-sets rename-map new-drift-map]
-  (let [eq-assemblies (map w/equal equality-sets)
-        outfields (vec (keys rename-map))
-        rename-in (vec (vals rename-map))
-        rename-assembly (if (seq rename-in)
-                          (w/identity rename-in :fn> outfields :> Fields/SWAP)
-                          identity)
-        assembly   (apply w/compose-straight-assemblies
-                          (concat eq-assemblies [rename-assembly]))
-        infields (vec (apply concat rename-in equality-sets))
-        tail (connect-op tail (p/predicate p/operation
-                                           assembly
-                                           infields
-                                           outfields
-                                           false))
-        newout (difference (set (:available-fields tail))
-                           (set rename-in))]
-    (merge tail {:drift-map new-drift-map
-                 :available-fields newout} )))
+        ;; Adds operations to tail until can't anymore. Returns new tail
+        (fixed-point-operations [tail]
+          (if-let [op (s/find-first (partial op-allowed? tail)
+                                    (:operations tail))]
+            (recur (add-op tail op))
+            tail))
 
-(defn- determine-drift
-  [drift-map available-fields]
-  (let [available-set (set available-fields)
-        rename-map (reduce (fn [m f]
-                             (let [drift (drift-map f)]
-                               (if (and drift (not (available-set drift)))
-                                 (assoc m drift f)
-                                 m)))
-                           {} available-fields)
-        eqmap (select-keys (u/reverse-map (select-keys drift-map available-fields))
-                           available-fields)
-        equality-sets (map (fn [[k v]] (conj v k)) eqmap)
-        new-drift-map (->> equality-sets
-                           (apply concat (vals rename-map))
-                           (apply dissoc drift-map))]
-    [new-drift-map equality-sets rename-map]))
+        (add-drift-op [tail equality-sets rename-map new-drift-map]
+          (let [eq-assemblies (map w/equal equality-sets)
+                outfields (vec (keys rename-map))
+                rename-in (vec (vals rename-map))
+                rename-assembly (if (seq rename-in)
+                                  (w/identity rename-in :fn> outfields :> Fields/SWAP)
+                                  identity)
+                assembly   (apply w/compose-straight-assemblies
+                                  (concat eq-assemblies [rename-assembly]))
+                infields (vec (apply concat rename-in equality-sets))
+                tail (connect-op tail (p/predicate p/operation
+                                                   assembly
+                                                   infields
+                                                   outfields
+                                                   false))
+                newout (difference (set (:available-fields tail))
+                                   (set rename-in))]
+            (merge tail {:drift-map new-drift-map
+                         :available-fields newout} )))
 
-(defn- add-ops-fixed-point
-  "Adds operations to tail until can't anymore. Returns new tail"
-  [tail]
-  (let [{:keys [drift-map available-fields] :as tail} (fixed-point-operations tail)
-        [new-drift-map equality-sets rename-map]
-        (determine-drift drift-map available-fields)]
-    (if (and (empty? equality-sets)
-             (empty? rename-map))
-      tail
-      (recur (add-drift-op tail equality-sets rename-map new-drift-map)))))
+        (drift-equalities [drift-m available-fields]
+          )
+        (determine-drift
+          [drift-map available-fields]
+          ;; This function kicks out a new drift map, a set of fields
+          ;; that are meant to be equal, and a map of items to rename.
+          (let [available-set (set available-fields)
+                rename-map (reduce (fn [m f]
+                                     (let [drift (drift-map f)]
+                                       (if (and drift (not (available-set drift)))
+                                         (assoc m drift f)
+                                         m)))
+                                   {} available-fields)
+                eqmap (select-keys (u/reverse-map
+                                    (select-keys drift-map available-fields))
+                                   available-fields)
+                equality-sets (map (fn [[k v]] (conj v k)) eqmap)
+                new-drift-map (->> equality-sets
+                                   (apply concat (vals rename-map))
+                                   (apply dissoc drift-map))]
+            [new-drift-map equality-sets rename-map]))]
+
+  (defn- add-ops-fixed-point
+    "Adds operations to tail until can't anymore. Returns new tail"
+    [tail]
+    (let [{:keys [drift-map available-fields] :as tail} (fixed-point-operations tail)
+          [new-drift-map equality-sets rename-map]
+          (determine-drift drift-map available-fields)]
+      (if (and (empty? equality-sets)
+               (empty? rename-map))
+        tail
+        (recur (add-drift-op tail equality-sets rename-map new-drift-map))))))
+
+;; ## Join Field Detection
 
 (defn- tail-fields-intersection [& tails]
   (->> tails
@@ -181,12 +196,24 @@
 (defn- select-selector [seq1 selector]
   (mapcat (fn [o b] (if b [o])) seq1 selector))
 
+;; ## Tail Merging
+
 (defn- merge-tails
+  "The first call begins with an empty graph and a bunch of generator
+  tails, each with a list of operations that could be applied. Based
+  on the op-allowed logic, these tails try to consume as many
+  operations as possible before giving up at a fixed point."
   [graph tails]
+  ;; Start by adding as many operations as possible to each tail.
   (let [tails (map add-ops-fixed-point tails)]
     (if (= 1 (count tails))
-      ;; if still unground, allow operations to be applied
+      ;; once we get down to a single generator -- either because we
+      ;; only had one to begin with, or because a join gets us back to
+      ;; basics -- go ahead and mark the tail as ground? and apply the
+      ;; rest of the operations.
       (add-ops-fixed-point (merge (first tails) {:ground? true}))
+
+      ;; Otherwise, we need to go into join mode.
       (let [[join-fields join-set rest-tails] (select-join tails)
             join-node             (g/create-node graph (p/predicate join join-fields))
             join-set-vars    (map find-generator-join-set-vars (map :node join-set))
@@ -516,40 +543,30 @@
 
 ;; This is my hook into the var unique thing. Figure out what this
 ;; does.
-(defn- mk-var-uniquer-reducer [out?]
-  (fn [[preds vmap] {:keys [op invars outvars]}]
-    (let [[updatevars vmap] (v/uniquify-vars (if out? outvars invars)
-                                             vmap
-                                             :force-unique? out?)
-          [invars outvars] (if out?
-                             [invars updatevars]
-                             [updatevars outvars])]
-      [(conj preds {:op op
-                    :invars invars
-                    :outvars outvars})
-       vmap])))
+(letfn [(var-uniquer-reducer [[preds vmap] {:keys [op invars outvars]}]
+          (let [[updatevars vmap] (v/uniquify-vars outvars vmap)]
+            [(conj preds {:op op
+                          :invars invars
+                          :outvars updatevars})
+             vmap]))
 
-(defn mk-drift-map [vmap]
-  (let [update-fn (fn [m [_ vals]]
-                    (let [target (first vals)]
-                      (prn m target vals)
-                      (reduce #(assoc %1 %2 target) m (rest vals))))]
-    (reduce update-fn {} (seq vmap))))
+        (mk-drift-map [vmap]
+          (let [update-fn (fn [m [_ vals]]
+                            (let [target (first vals)]
+                              (reduce #(assoc %1 %2 target) m (rest vals))))]
+            (reduce update-fn {} (seq vmap))))]
 
-;; TODO: Take a look at this thing when the actual job is getting
-;; compiled and figure out what this mk-var-uniquer-reducer is
-;; actually doing.
-
-(defn- uniquify-query-vars
-  "TODO: this won't handle drift for generator filter outvars should
-  fix this by rewriting and simplifying how drift implementation
-  works."
-  [out-vars raw-predicates]
-  (let [[raw-predicates vmap] (reduce (mk-var-uniquer-reducer true) [[] {}] raw-predicates)
-        [raw-predicates vmap] (reduce (mk-var-uniquer-reducer false) [[] vmap] raw-predicates)
-        [out-vars vmap]       (v/uniquify-vars out-vars vmap)
-        drift-map             (mk-drift-map vmap)]
-    [out-vars raw-predicates drift-map]))
+  (defn- uniquify-query-vars
+    "TODO: this won't handle drift for generator filter outvars should
+     fix this by rewriting and simplifying how drift implementation
+     works."
+    [raw-predicates]
+    (let [[raw-predicates vmap] (reduce var-uniquer-reducer
+                                        [[] {}] raw-predicates)]
+      [raw-predicates (mk-drift-map
+                       (merge (let [xs (into #{} (mapcat :vars raw-predicates))]
+                                (zipmap xs (map vector xs)))
+                              vmap))])))
 
 ;; This thing handles the logic that the output of an operation, if
 ;; marked as a constant, should be a filter.
@@ -698,6 +715,12 @@
         rule-graph (g/mk-graph)
         joined (->> gens
                     (map (fn [{:keys [ground? outfields] :as g}]
+                           ;; Every generator is mapped to a tail
+                           ;; struct with a list of all aggregations
+                           ;; that could possibly be applied. The
+                           ;; graph starts with a bunch of nodes
+                           ;; representing the generators (and not
+                           ;; connected to anything).
                            (struct tailstruct
                                    ground?
                                    ops

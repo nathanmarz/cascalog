@@ -169,17 +169,15 @@ interpreted as a logic variable."
 ;; # Variable Uniqueing
 
 (defn uniquify-vars
-  [vars equalities & {:keys [force-unique?]}]
+  [vars equalities]
   (letfn [(updater [[all equalities] v]
             (if (cascalog-var? v)
               (let [existing (get equalities v [])
                     varlist (cond (empty? existing) (conj existing v)
-                                  (and force-unique? (ground-var? v))
+                                  (ground-var? v)
                                   (conj existing (uniquify-var v))
                                   :else existing)
-                    newname (if force-unique?
-                              (last varlist)
-                              (first varlist))]
+                    newname (last varlist)]
                 [(conj all newname) (assoc equalities v varlist)])
               [(conj all v) equalities]))]
     (reduce updater [[] equalities] vars)))
