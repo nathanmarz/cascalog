@@ -4,7 +4,9 @@
             [jackknife.seq :as s]
             [cascalog.vars :as v]
             [cascalog.predicate :as p]
-            [cascalog.fluent.types :refer (generator?)])
+            [cascalog.options :as opts]
+            [cascalog.fluent.types :refer (generator?)]
+            [cascalog.fluent.operations :as ops])
   (:import [jcascalog Predicate]
            [clojure.lang IPersistentVector]))
 
@@ -104,14 +106,6 @@
           (assoc :>> expanded-vars)))
     arg-m))
 
-;; This function is called from cascalog.rules, notably during
-;; predicate macro expansion.
-
-(defn- implicit-var-flag [vars selector-default]
-  (if (some v/cascalog-keyword? vars)
-    :<
-    selector-default))
-
 ;; TODO: Remove the pre assertion on jackknife.seq/unweave, move this
 ;; over and republish.
 
@@ -149,7 +143,10 @@
   ;; tag the supplied selector-default onto the front.
   (let [vars (if (v/cascalog-keyword? (first vars))
                vars
-               (cons (implicit-var-flag vars selector-default) vars))]
+               (-> (if (some v/cascalog-keyword? vars)
+                     :<
+                     selector-default)
+                   (cons vars)))]
     (-> vars
         (parse-predicate-vars)
         (desugar-selectors :> :>>
@@ -159,7 +156,7 @@
 
 (defn parse-predicate [[op vars]]
   (let [{invars :<< outvars :>>}
-        (parse-variables vars (p/predicate-default-var op))]
+        (parse-variables vars (p/default-var op))]
     {:op op
      :invars invars
      :outvars outvars}))
@@ -248,8 +245,31 @@
     (let [[op & vars] pred
           {invars :<< outvars :>>}
           (-> (v/sanitize vars)
-              (parse-variables (p/predicate-default-var op)))]
+              (parse-variables (p/default-var op)))]
       (->RawPredicate op invars outvars {}))))
+
+;; Output of the subquery, the predicates it contains, the options in
+;; the subquery and the drift-map for its output variables.
+;;
+;; TODO: Have this thing extend IGenerator.
+(defrecord RawSubquery [fields predicates options drift-map])
+
+(comment
+  "Make some functions that pull these out."
+  (defn generators [sq])
+  (defn operations [sq])
+  (defn aggregators [sq])
+
+  ;; It'd be nice to use trammel here for contracts.
+
+  (defn validate
+    "Returns the subquery if valid, fails otherwise."
+    [sq]
+    (let [aggs (aggregators sq)]
+      (if (and (> (count aggs) 1)
+               (some buffer? aggs))
+        (throw-illegal "Cannot use both aggregators and buffers in same grouping")
+        sq))))
 
 (defn parse-predicates
   "Returns [raw-predicates drift-map]"
@@ -261,3 +281,17 @@
        (map rewrite-predicate)
        (mapcat split-outvar-constants)
        (uniquify-query-vars)))
+
+;; Damn, looks like cascalog.vars has some pretty good stuff for this!
+
+(defn parse-subquery
+  "Parses predicates and output fields and returns a proper subquery."
+  [output-fields raw-predicates]
+  (let [[raw-options raw-predicates] (s/separate (comp keyword? first)
+                                                 raw-predicates)
+        option-map (opts/generate-option-map raw-options)
+        [raw-predicates drift-map] (parse-predicates raw-predicates)]
+    (->RawSubquery output-fields
+                   (map to-predicate raw-predicates)
+                   option-map
+                   drift-map)))

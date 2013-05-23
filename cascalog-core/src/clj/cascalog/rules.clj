@@ -33,7 +33,10 @@
   :infields
   :totaloutfields)
 
-(defn- find-generator-join-set-vars [node]
+(defn find-generator-join-set-vars
+  "Returns a singleton vector with the generator-as-set join var if it
+  exists, nil otherwise."
+  [node]
   (let [predicate     (g/get-value node)
         inbound-nodes (g/get-inbound-nodes node)
         pred-type     (:type predicate)]
@@ -46,12 +49,9 @@
         (throw-runtime "Planner exception: Unexpected number of "
                        "inbound nodes to non-generator predicate.")))))
 
-(defstruct tailstruct
-  :ground? ;; Does this thing have any hanging ungrounding vars?
-  :operations ;; Operations that potentially could be applied
-  :drift-map ;; map of variables -> equalities
-  :available-fields ;; fields presented by the tail.
-  :node)
+;; TODO: Implement IGenerator here.
+(defrecord TailStruct [ground? operations drift-map available-fields children]
+  )
 
 ;; ## Operation Application
 
@@ -122,8 +122,7 @@
           (let [eqmap (select-keys (u/reverse-map
                                     (select-keys drift-m available-fields))
                                    available-fields)
-                equality-sets (map (fn [[k v]] (conj v k)) eqmap)]
-            ))
+                equality-sets (map (fn [[k v]] (conj v k)) eqmap)]))
 
         (determine-drift
           [drift-map available-fields]
@@ -161,45 +160,77 @@
 
 (defn- tail-fields-intersection [& tails]
   (->> tails
-       (map #(set (:available-fields %)))
+       (map (comp set :available-fields))
        (apply intersection)))
 
-(defn- joinable? [joinfields tail]
-  (let [join-set (set joinfields)
+(defn- joinable?
+  "Returns true if the supplied tail can be joined with the supplied
+  join fields, false otherwise.
+
+  A join works if the join fields are all available in the given tail
+  AND the tail's either fully ground, or every non-join variable is
+  unground."
+  [tail joinfields]
+  (let [join-set   (set joinfields)
         tailfields (set (:available-fields tail))]
     (and (subset? join-set tailfields)
          (or (:ground? tail)
-             (every? v/unground-var? (difference tailfields join-set))))))
+             (every? v/unground-var?
+                     (difference tailfields join-set))))))
 
-(defn- find-join-fields [tail1 tail2]
+(defn- find-join-fields
+  [tail1 tail2]
   (let [join-set (tail-fields-intersection tail1 tail2)]
-    (when (every? (partial joinable? join-set) [tail1 tail2])
-      join-set)))
+    (if (and (joinable? tail1 join-set)
+             (joinable? tail2 join-set))
+      join-set
+      [])))
+
+(defn maximal-join
+  "Returns the between the two generators with the largest
+  intersection of joinable fields."
+  [tail-seq]
+  (let [join-fields (map (fn [[t1 t2]] (find-join-fields t1 t2))
+                         (u/all-pairs tail-seq))]
+    (apply max-key count join-fields)))
 
 (defn- select-join
   "Splits tails into [join-fields {join set} {rest of tails}] This is
    unoptimal. It's better to rewrite this as a search problem to find
    optimal joins"
   [tails]
-  (let [max-join (->> (u/all-pairs tails)
-                      (map (fn [[t1 t2]]
-                             (or (find-join-fields t1 t2) [])))
-                      (sort-by count)
-                      (last))]
+  (let [max-join (maximal-join tails)]
     (if (empty? max-join)
       (throw-illegal "Unable to join predicates together")
-      (cons (vec max-join)
-            (s/separate (partial joinable? max-join) tails)))))
+      (cons max-join (s/separate (partial joinable? max-join) tails)))))
 
-(defn- intersect-drift-maps
-  [drift-maps]
-  (let [tokeep (->> drift-maps
-                    (map #(set (seq %)))
-                    (apply intersection))]
-    (u/pairs->map (seq tokeep))))
+(defn attempt-join
+  "Attempt to reduce the supplied set of tails by joining."
+  [graph tails]
+  (let [[join-fields join-set tails] (select-join tails)
+        ;; Generate a new node in the graph for the join.
+        join-node (g/create-node graph (p/predicate join (vec join-fields)))
 
-(defn- select-selector [seq1 selector]
-  (mapcat (fn [o b] (if b [o])) seq1 selector))
+        ;; All join fields survive from normal generators; from
+        ;; generator-as-set generators, only the field we need to
+        ;; filter gets through.
+        available-fields (distinct
+                          (mapcat (fn [tail]
+                                    (or (find-generator-join-set-vars (:node tail))
+                                        (:available-fields tail)))
+                                  join-set))
+        new-ops (->> (map (comp set :operations) join-set)
+                     (apply intersection))]
+    (dorun (map #(g/create-edge (:node %) join-node) join-set))
+    (debug-print "Selected join" join-fields join-set)
+    (debug-print "Available fields" available-fields)
+    (cons (struct tailstruct
+                  (s/some? :ground? join-set)
+                  (vec new-ops)
+                  (v/intersect-drift-maps (map :drift-map join-set))
+                  available-fields
+                  join-node)
+          tails)))
 
 ;; ## Tail Merging
 
@@ -217,29 +248,7 @@
       ;; basics -- go ahead and mark the tail as ground? and apply the
       ;; rest of the operations.
       (add-ops-fixed-point (merge (first tails) {:ground? true}))
-
-      ;; Otherwise, we need to go into join mode.
-      (let [[join-fields join-set rest-tails] (select-join tails)
-            join-node             (g/create-node graph (p/predicate join join-fields))
-            join-set-vars    (map find-generator-join-set-vars (map :node join-set))
-            available-fields (vec (set (apply concat
-                                              (cons (apply concat join-set-vars)
-                                                    (select-selector
-                                                     (map :available-fields join-set)
-                                                     (map not join-set-vars))))))
-            new-ops (vec (apply intersection (map #(set (:operations %)) join-set)))
-            new-drift-map    (intersect-drift-maps (map :drift-map join-set))]
-        (debug-print "Selected join" join-fields join-set)
-        (debug-print "Join-set-vars" join-set-vars)
-        (debug-print "Available fields" available-fields)
-        (dorun (map #(g/create-edge (:node %) join-node) join-set))
-        (recur graph (cons (struct tailstruct
-                                   (s/some? :ground? join-set)
-                                   new-ops
-                                   new-drift-map
-                                   available-fields
-                                   join-node)
-                           rest-tails))))))
+      (recur graph (attempt-join graph tails)))))
 
 ;; ## Aggregation Operations
 ;;
@@ -347,33 +356,20 @@
                                  postgroup-aggs
                                  (map :post-assembly aggs)))
             total-fields (agg-available-fields grouping-fields aggs)
-            all-agg-infields  (agg-infields (:sort options) aggs)
-            prev-node (:node prev-tail)
-            node (g/create-node (g/get-graph prev-node)
-                                (p/predicate group assem
-                                             all-agg-infields
-                                             total-fields))]
-        (g/create-edge prev-node node)
+            all-agg-infields (agg-infields (:sort options) aggs)]
         (struct tailstruct
                 (:ground? prev-tail)
                 (:operations prev-tail)
                 (:drift-map prev-tail)
                 total-fields
-                node)))))
+                (g/connect-value (:node prev-tail)
+                                 (p/predicate group
+                                              assem
+                                              all-agg-infields
+                                              total-fields)))))))
 
-(defn projection-fields [needed-vars allfields]
-  (let [needed-set (set needed-vars)
-        all-set    (set allfields)
-        inter      (intersection needed-set all-set)]
-    (cond
-     ;; maintain ordering when =, this is for output of generators to
-     ;; match declared ordering
-     (= inter needed-set) needed-vars
-
-     ;; this happens during global aggregation, need to keep one field
-     ;; in
-     (empty? inter) [(first allfields)]
-     :else (vec inter))))
+;; ## Finally, we go ahead and walk the tree, converting all nodes to
+;; ## generators.
 
 (defmulti node->generator (fn [pred & _] (:type pred)))
 
@@ -394,12 +390,14 @@
 (defn- replace-join-fields [join-fields join-renames fields]
   (let [replace-map (zipmap join-fields join-renames)]
     (reduce (fn [ret f]
-              (let [newf (replace-map f)
-                    newf (if newf newf f)]
+              (let [newf (or (replace-map f)
+                             f)]
                 (conj ret newf)))
             [] fields)))
 
-(defn- generate-join-fields [numfields numpipes]
+(defn- generate-join-fields
+  "returns `numpipes` sets of `numfields` fields."
+  [numfields numpipes]
   (take numpipes (repeatedly (partial v/gen-nullable-vars numfields))))
 
 (defn- new-pipe-name [prevgens]
@@ -415,7 +413,6 @@
   (debug-print "Creating join" pred)
   (debug-print "Joining" prevgens)
   (let [join-fields (:infields pred)
-        num-join-fields (count join-fields)
         sourcemap   (apply merge (map :sourcemap prevgens))
         trapmap     (apply merge (map :trapmap prevgens))
         {inner-gens :inner
@@ -424,18 +421,38 @@
         join-set-fields (map :join-set-var outerone-gens)
         prevgens    (concat inner-gens outer-gens outerone-gens) ; put them in order
         infields    (map :outfields prevgens)
-        inpipes     (map (fn [p f] (w/assemble p (w/select f) (w/pipe-rename (u/uuid))))
+
+        ;; Go through and select the input fields, the rename each
+        ;; pipe.
+        ;;
+        ;; is this necessary? Probably not, since we know that each
+        ;; pipe has these items.
+        inpipes     (map (fn [p f] (w/assemble p
+                                              (w/select f)
+                                              (w/pipe-rename (u/uuid))))
                          (map :pipe prevgens)
-                         infields)      ; is this necessary?
-        join-renames (generate-join-fields num-join-fields (count prevgens))
-        rename-fields (flatten (map (partial replace-join-fields join-fields) join-renames infields))
+                         infields)
+
+        ;; Generate some anonymous pipe names (nullable variables)
+        join-renames (generate-join-fields (count join-fields)
+                                           (count prevgens))
+
+        ;;
+        rename-fields (flatten (map (partial replace-join-fields join-fields)
+                                    join-renames
+                                    infields))
+
         keep-fields (vec (set (apply concat
                                      (cons join-set-fields
                                            (map :outfields
                                                 (concat inner-gens outer-gens))))))
-        cascalogjoin (concat (repeat (count inner-gens) CascalogJoiner$JoinType/INNER)
-                             (repeat (count outer-gens) CascalogJoiner$JoinType/OUTER)
-                             (repeat (count outerone-gens) CascalogJoiner$JoinType/EXISTS))
+
+        cascalogjoin (concat (repeat (count inner-gens)
+                                     CascalogJoiner$JoinType/INNER)
+                             (repeat (count outer-gens)
+                                     CascalogJoiner$JoinType/OUTER)
+                             (repeat (count outerone-gens)
+                                     CascalogJoiner$JoinType/EXISTS))
         joined      (apply w/assemble inpipes
                            (concat
                             [(w/co-group (repeat (count inpipes) join-fields)
@@ -445,18 +462,27 @@
                                (if-let [join-set-var (:join-set-var gen)]
                                  [(truthy? (take 1 joinfields) :fn> [join-set-var] :> Fields/ALL)]))
                              prevgens join-renames)
-                            [(join-fields-selector [num-join-fields] (flatten join-renames) :fn> join-fields :> Fields/SWAP)
+                            [(join-fields-selector [(count join-fields)]
+                                                   (flatten join-renames)
+                                                   :fn>
+                                                   join-fields :> Fields/SWAP)
                              (w/select keep-fields)
                              ;; maintain the pipe name (important for setting traps on subqueries)
                              (w/pipe-rename (new-pipe-name prevgens))]))]
-    (p/predicate p/generator nil true sourcemap joined keep-fields trapmap)))
+    (p/predicate p/generator
+                 nil
+                 true
+                 sourcemap
+                 joined
+                 keep-fields
+                 trapmap)))
 
 (defmethod node->generator :operation [pred prevgens]
-  (when-not (= 1 (count prevgens))
-    (throw (RuntimeException. "Planner exception: operation has multiple inbound generators")))
-  (let [prevpred (first prevgens)]
-    (merge prevpred {:outfields (concat (:outfields pred) (:outfields prevpred))
-                     :pipe ((:assembly pred) (:pipe prevpred))})))
+  (if-not (= 1 (count prevgens))
+    (throw-runtime "Planner exception: operation has multiple inbound generators")
+    (let [prevpred (first prevgens)]
+      (merge prevpred {:outfields (concat (:outfields pred) (:outfields prevpred))
+                       :pipe ((:assembly pred) (:pipe prevpred))}))))
 
 ;; Look at the previous generators -- we should only have a single
 ;; incoming generator in this case, since we're pushing into a single
@@ -465,11 +491,11 @@
 ;;
 ;; Basically, Nathan is implementing this ad-hoc field algebra...
 (defmethod node->generator :group [pred prevgens]
-  (when-not (= 1 (count prevgens))
-    (throw (RuntimeException. "Planner exception: group has multiple inbound generators")))
-  (let [prevpred (first prevgens)]
-    (merge prevpred {:outfields (:totaloutfields pred)
-                     :pipe ((:assembly pred) (:pipe prevpred))})))
+  (if-not (= 1 (count prevgens))
+    (throw-runtime "Planner exception: group has multiple inbound generators")
+    (let [prevpred (first prevgens)]
+      (merge prevpred {:outfields (:totaloutfields pred)
+                       :pipe ((:assembly pred) (:pipe prevpred))}))))
 
 ;; forceproject necessary b/c *must* reorder last set of fields coming
 ;; out to match declared ordering
@@ -503,13 +529,27 @@
 ;; The final compilation step (the subquery step) requires a forced
 ;; projection, since a subquery declares its output variables.
 
+(defn projection-fields [needed-vars available-vars]
+  (let [needed    (set needed-vars)
+        available (set available-vars)
+        inter     (intersection needed available)]
+    (cond
+     ;; maintain ordering when =, this is for output of generators to
+     ;; match declared ordering
+     (= inter available) needed-vars
+
+     ;; this happens during global aggregation, need to keep one field
+     ;; in. TOOD: Not so sure.
+     (empty? inter) [(first available)]
+     :else (vec inter))))
+
 (letfn [(mk-projection-assembly
-          [forceproject projection-fields allfields]
+          [forceproject proj-fields allfields]
           (if (and (not forceproject)
-                   (= (set projection-fields)
+                   (= (set proj-fields)
                       (set allfields)))
             identity
-            (w/select projection-fields)))]
+            (w/select proj-fields)))]
 
   (defn build-generator [forceproject needed-vars node]
     (let [
@@ -566,19 +606,10 @@
   [out-vars raw-predicates]
   (debug-print "outvars:" out-vars)
   (debug-print "raw predicates:" raw-predicates)
-  (let [
-        ;; Parse the options out of the predicates,
-        [raw-opts raw-predicates] (s/separate (comp keyword? first) raw-predicates)
-
-        ;; and assemble the option map.
-        option-m (opts/generate-option-map raw-opts)
-
-        ;; rewrite all predicates
-        [raw-predicates drift-map] (parse/parse-predicates raw-predicates)
-
+  (let [{:keys [predicates options drift-map fields]} (parse/parse-subquery out-vars raw-predicates)
         ;; Split up generators, operations and aggregators.
-        [gens ops aggs] (->> raw-predicates
-                             (map (partial apply p/build-predicate option-m))
+        [gens ops aggs] (->> predicates
+                             (map (partial apply p/build-predicate options))
                              (split-predicates))
 
         rule-graph (g/mk-graph)
@@ -601,7 +632,7 @@
         ;; result vector.
         grouping-fields (seq (intersection (set (:available-fields joined))
                                            (set out-vars)))
-        agg-tail (build-agg-tail option-m joined grouping-fields aggs)
+        agg-tail (build-agg-tail options joined grouping-fields aggs)
         {:keys [operations node]} (add-ops-fixed-point agg-tail)]
     (if (not-empty operations)
       (throw-runtime "Could not apply all operations: " (pr-str operations))
@@ -646,7 +677,7 @@
   variables and raw predicates come in, predicate macros are expanded,
   and the query (or another predicate macro) is compiled."
   [out-vars raw-predicates]
-  (let [out-vars   (v/sanitize out-vars)
+  (let [out-vars (v/sanitize out-vars)
         predicates (->> raw-predicates
                         (map parse/to-predicate)
                         predmacro/expand-predicate-macros)]

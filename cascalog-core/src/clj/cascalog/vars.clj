@@ -1,9 +1,11 @@
 (ns cascalog.vars
   "This namespace deals with all Cascalog variable
   transformations."
-  (:require [cascalog.util :as u]
+  (:require [clojure.set :refer (intersection)]
+            [clojure.walk :refer (postwalk)]
+            [cascalog.util :as u]
             [cascalog.fluent.cascading :refer (gen-var-fn gen-unique-suffix)]
-            [clojure.walk :refer (postwalk)]))
+            [cascalog.fluent.types :refer (generator?)]))
 
 ;; # Var Generation
 ;;
@@ -116,6 +118,11 @@ interpreted as a logic variable."
   (prefixed by ! or ?), false otherwise."
   (complement unground-var?))
 
+(def fully-ground?
+  "Returns true if every supplied var is a ground variable, false
+  otherwise."
+  (partial every? ground-var?))
+
 (defn cascalog-var?
   "A predicate on 'obj' to check is it a cascalog variable."
   [obj]
@@ -166,7 +173,7 @@ interpreted as a logic variable."
                     gen-nullable-var)]
     (postwalk (sanitize-fn generator) pred)))
 
-;; # Variable Unique
+;; # Variable Uniqueing
 
 (defn unique-vars
   "Returns two things. The first entry is a sequence of uniqued
@@ -199,3 +206,10 @@ interpreted as a logic variable."
                     (reduce (fn [m duplicate]
                               (assoc m duplicate original)) m more))]
     (reduce update-fn {} (vals vmap))))
+
+(defn intersect-drift-maps
+  [drift-maps]
+  (let [tokeep (->> drift-maps
+                    (map set)
+                    (apply intersection))]
+    (u/pairs->map (seq tokeep))))
