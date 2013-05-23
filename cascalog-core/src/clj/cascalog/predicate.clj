@@ -5,7 +5,8 @@
   (:require [jackknife.core :as u]
             [cascalog.vars :as v]
             [cascalog.fluent.workflow :as w]
-            [cascalog.fluent.operations :as ops])
+            [cascalog.fluent.operations :as ops]
+            [cascalog.fluent.types :as types])
   (:import [cascading.tap Tap]
            [cascading.operation Filter]
            [cascading.tuple Fields]
@@ -99,6 +100,7 @@
   :outfields)
 
 ;; automatically generates source pipes and attaches to sources
+(defrecord Generator [join-set-var ])
 (defpredicate generator
   :join-set-var
   :ground?
@@ -118,130 +120,23 @@
 (def distinct-aggregator
   (predicate aggregator false nil identity (w/fast-first) identity [] []))
 
-(defstruct predicate-variables :in :out)
+(defn predicate-dispatcher [pred]
+  (let [op  (:op pred)
+        ret (cond (types/generator? op)             ::generator
+                  (instance? Filter op)             ::cascading-filter
+                  (instance? CascalogFunction op)   ::cascalog-function
+                  (instance? CascalogBuffer op)     ::cascalog-buffer
+                  (instance? CascalogAggregator op) ::cascalog-aggregator
+                  (instance? ParallelAgg op)        ::java-parallel-agg
 
-;; ## Variable Parsing
-;;
-;; The following functions deal with parsing of logic variables out of
-;; predicates.
-
-;; TODO: validation on the arg-m. We shouldn't ever have the sugar arg
-;; and the non-sugar arg. Move the examples out to tests.
-
-(defn desugar-selectors
-  "Accepts a map of cascalog input or output symbol (:< or :>, for
-  example) to var sequence, a <sugary input or output selector> and a
-  <full vector input or output selector> and either destructures the
-  non-sugary input or moves the sugary input into its proper
-  place. For example:
-
- (desugar-selectors {:>> ([\"?a\"])} :> :>>)
- ;=> {:>> [\"?a\"]}
-
- (desugar-selectors {:> [\"?a\"] :<< [[\"?b\"]]} :> :>> :< :<<)
- ;=>  {:>> [\"?a\"], :<< [\"?b\"]}"
-  [arg-m & sugar-full-pairs]
-  (letfn [(desugar [m [sugar-k full-k]]
-            (if-not (some m #{sugar-k full-k})
-              m
-              (-> m
-                  (dissoc sugar-k)
-                  (assoc full-k
-                    (or (first (m full-k))
-                        (m sugar-k))))))]
-    (reduce desugar arg-m
-            (partition 2 sugar-full-pairs))))
-
-(defn expand-positional-selector
-  "Accepts a map of cascalog selector to var sequence and, if the map
-  contains an entry for Cascalog's positional selector, expands out
-  the proper number of logic vars and replaces each entry specified
-  within the positional map. This function returns the updated map."
-  [arg-m]
-  (if-let [[amt selector-map] (arg-m :#>)]
-    (let [expanded-vars (reduce (fn [v [pos var]]
-                                  (assoc v pos var))
-                                (vec (v/gen-nullable-vars amt))
-                                selector-map)]
-      (-> arg-m
-          (dissoc :#>)
-          (assoc :>> expanded-vars)))
-    arg-m))
-
-;; This function is called from cascalog.rules, notably during
-;; predicate macro expansion.
-
-(defn- implicit-var-flag [vars selector-default]
-  (if (some v/cascalog-keyword? vars)
-    :<
-    selector-default))
-
-;; TODO: Remove the pre assertion on jackknife.seq/unweave, move this
-;; over and republish.
-
-(defn unweave
-  "[1 2 3 4 5 6] -> [[1 3 5] [2 4 6]]"
-  [coll]
-  [(take-nth 2 coll) (take-nth 2 (rest coll))])
-
-(defn parse-predicate-vars
-  "Accepts a normalized cascalog predicate vector of normalized
-  vars (without the ops) and returns a map of cascalog reserved
-  keyword to the logic variables immediately following."
-  [vars]
-  {:pre [(keyword? (first vars))]}
-  (let [[keywords vars] (->> vars
-                             (partition-by v/cascalog-keyword?)
-                             (unweave))]
-    (zipmap (map first keywords)
-            vars)))
-
-;; TODO: Note that this is the spot where we'd go ahead and add new
-;; selectors to Cascalog. For example, say we wanted the ability to
-;; pour the results of a query into a vector directly; :>> ?a. This is
-;; the place.
-
-(defn parse-variables
-  "parses variables of the form ['?a' '?b' :> '!!c'] and returns a map
-   of input variables, output variables, If there is no :>, defaults
-   to selector-default."
-  [vars selector-default]
-  {:pre (contains? #{:< :>} selector-default)}
-  ;; First, if we start with a cascalog keyword, don't worry about
-  ;; it. If we don't, we probably need to append something; if we're
-  ;; dealing with a predicate macro, don't do anything, otherwise just
-  ;; tag the supplied selector-default onto the front.
-  (let [vars (if (v/cascalog-keyword? (first vars))
-               vars
-               (cons (implicit-var-flag vars selector-default) vars))]
-    (-> vars
-        (parse-predicate-vars)
-        (desugar-selectors :> :>>
-                           :< :<<)
-        (expand-positional-selector)
-        (select-keys #{:<< :>>}))))
-
-;; Here ends variable parsing.
-
-(defn- predicate-dispatcher
-  [op & _]
-  (let [ret (cond
-             (instance? Tap op)                ::tap
-             (instance? Filter op)             ::cascading-filter
-             (instance? CascalogFunction op)   ::cascalog-function
-             (instance? CascalogBuffer op)     ::cascalog-buffer
-             (instance? CascalogAggregator op) ::cascalog-aggregator
-             (instance? ParallelAgg op)        ::java-parallel-agg
-             (map? op)                         (:type op)
-             (or (vector? op) (any-list? op))  ::data-structure
-             (:pred-type (meta op))            (:pred-type (meta op))
-             (instance? IFn op)                ::vanilla-function
-             :else (u/throw-illegal (str op " is an invalid predicate.")))]
+                  ;; This dispatches generator-filter, generator,
+                  ;; aggregator, operation.
+                  (map? op)                         (:type op)
+                  (or (vector? op) (any-list? op))  ::data-structure
+                  (:pred-type (meta op))            (:pred-type (meta op))
+                  (instance? IFn op)                ::vanilla-function
+                  :else (u/throw-illegal (str op " is an invalid predicate.")))]
     (if (= ret :bufferiter) :buffer ret)))
-
-(defn generator? [p]
-  (contains? #{::tap :generator :cascalog-tap ::data-structure}
-             (predicate-dispatcher p)))
 
 (defn predicate-macro? [p]
   (or (var? p)
@@ -285,16 +180,18 @@
              infields
              outfields))
 
-(defmulti predicate-default-var predicate-dispatcher)
+(defmulti predicate-default-var predicate-dispatcher :default :>)
+(defmethod predicate-default-var ::vanilla-function [& _] :<)
+(defmethod predicate-default-var :filter [& _] :<)
+(defmethod predicate-default-var ::cascading-filter [& _] :<)
+
 (defmulti build-predicate-specific predicate-dispatcher)
 
-;; taps, by default, only produce.
-(defmethod predicate-default-var ::tap [& _] :>)
-
 ;; The general logic is, create a name, attach a pipe to this bad boy
- ;; and build up a trap map.
-(defmethod build-predicate-specific ::tap
-  [tap infields outfields options]
+;; and build up a trap map.
+(defmethod build-predicate-specific ::generator
+  [{:keys [op output] :as pred}]
+  (types/generator op)
   (let [sourcename (uuid) ;; Create a name,
         pname (init-pipe-name options)
         pipe (w/assemble (w/pipe sourcename)
@@ -309,7 +206,6 @@
                outfields
                (init-trap-map options))))
 
-(defmethod predicate-default-var :generator [& _] :>)
 (defmethod build-predicate-specific :generator
   [gen _ outfields options]
   (let [pname (init-pipe-name options)
@@ -326,7 +222,6 @@
                outfields
                trapmap)))
 
-(defmethod predicate-default-var ::java-parallel-agg [& _] :>)
 (defmethod build-predicate-specific ::java-parallel-agg
   [java-pagg infields outfields _]
   (let [cascading-agg (ClojureParallelAggregator. (w/fields outfields)
@@ -346,7 +241,6 @@
                infields
                outfields)))
 
-(defmethod predicate-default-var ::parallel-aggregator [& _] :>)
 (defmethod build-predicate-specific ::parallel-aggregator
   [pagg infields outfields options]
   (let [init-spec (ops/fn-spec (:init-var pagg))
@@ -355,8 +249,6 @@
                                            (.setPrepareFn init-spec)))]
     (build-predicate-specific java-pagg infields outfields options)
     ))
-
-(defmethod predicate-default-var ::parallel-buffer [& _] :>)
 
 (letfn [(mk-hof-fn-spec [avar args]
           (ops/fn-spec (cons avar args)))]
@@ -393,7 +285,7 @@
                  infields
                  outfields))))
 
-(defmethod predicate-default-var ::vanilla-function [& _] :<)
+
 (defmethod build-predicate-specific ::vanilla-function
   [afn infields outfields _]
   (let [opvar (search-for-var afn)
@@ -404,23 +296,18 @@
         assembly (w/filter opvar infields :fn> func-fields :> out-selector)]
     (predicate operation assembly infields outfields false)))
 
-(defmethod predicate-default-var :map [& _] :>)
 (defmethod build-predicate-specific :map [& args]
   (apply simpleop-build-predicate args))
 
-(defmethod predicate-default-var :mapcat [& _] :>)
 (defmethod build-predicate-specific :mapcat [& args]
   (apply simpleop-build-predicate args))
 
-(defmethod predicate-default-var :aggregate [& _] :>)
 (defmethod build-predicate-specific :aggregate [& args]
   (apply simpleagg-build-predicate false args))
 
-(defmethod predicate-default-var :buffer [& _] :>)
 (defmethod build-predicate-specific :buffer [& args]
   (apply simpleagg-build-predicate true args))
 
-(defmethod predicate-default-var :filter [& _] :<)
 (defmethod build-predicate-specific :filter
   [op infields outfields _]
   (let [[func-fields out-selector] (if (not-empty outfields)
@@ -433,7 +320,6 @@
                outfields
                false)))
 
-(defmethod predicate-default-var ::cascalog-function [& _] :>)
 (defmethod build-predicate-specific ::cascalog-function
   [op infields outfields _]
   (predicate operation
@@ -444,7 +330,6 @@
              outfields
              false))
 
-(defmethod predicate-default-var ::cascading-filter [& _] :<)
 (defmethod build-predicate-specific ::cascading-filter
   [op infields outfields _]
   (u/safe-assert (#{0 1} (count outfields))
@@ -457,7 +342,6 @@
                             Fields/ALL))]
     (predicate operation assem infields outfields false)))
 
-(defmethod predicate-default-var ::cascalog-buffer [& _] :>)
 (defmethod build-predicate-specific ::cascalog-buffer
   [op infields outfields options]
   (predicate aggregator
@@ -471,7 +355,6 @@
              infields
              outfields))
 
-(defmethod predicate-default-var ::cascalog-aggregator [& _] :>)
 (defmethod build-predicate-specific ::cascalog-aggregator
   [op infields outfields _]
   (predicate aggregator
@@ -485,15 +368,6 @@
              infields
              outfields))
 
-(defmethod predicate-default-var :cascalog-tap [& _] :>)
-(defmethod build-predicate-specific :cascalog-tap
-  [gen infields outfields options]
-  (build-predicate-specific (:source gen)
-                            infields
-                            outfields
-                            options))
-
-(defmethod predicate-default-var ::data-structure [& _] :>)
 (defmethod build-predicate-specific ::data-structure
   [tuples infields outfields options]
   (build-predicate-specific (w/memory-source-tap tuples)
@@ -501,14 +375,13 @@
                             outfields
                             options))
 
-;; TODO: Does this need other multimethods?
 (defmethod build-predicate-specific :generator-filter
   [op infields outfields options]
-  (let [gen (build-predicate-specific (:generator op)
-                                      infields
-                                      outfields
-                                      options)]
-    (assoc gen :join-set-var (:outvar op))))
+  (-> (build-predicate-specific (:generator op)
+                                infields
+                                outfields
+                                options)
+      (assoc :join-set-var (:outvar op))))
 
 ;; TODO: Document: what is this?
 (defmethod build-predicate-specific :outconstant-equal

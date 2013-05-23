@@ -166,18 +166,36 @@ interpreted as a logic variable."
                     gen-nullable-var)]
     (postwalk (sanitize-fn generator) pred)))
 
-;; # Variable Uniqueing
+;; # Variable Unique
 
-(defn uniquify-vars
+(defn unique-vars
+  "Returns two things. The first entry is a sequence of uniqued
+  variables. To unique, we check that the supplied map of equalities
+  doesn't have an entry yet for a given variable.
+
+  If it doesn't, we add an entry pointing to a singleton vector with
+  the item.
+
+  If it does, we swap out the duplicate var in `vars` with a uniqued
+  version created by appending a unique suffix onto the end."
   [vars equalities]
-  (letfn [(updater [[all equalities] v]
-            (if (cascalog-var? v)
+  (letfn [(update [[acc equality-m] v]
+            (if-not (cascalog-var? v)
+              [(conj acc v) equality-m]
               (let [existing (get equalities v [])
-                    varlist (cond (empty? existing) (conj existing v)
-                                  (ground-var? v)
-                                  (conj existing (uniquify-var v))
-                                  :else existing)
+                    varlist  (cond (empty? existing) (conj existing v)
+                                   (ground-var? v)
+                                   (conj existing (uniquify-var v))
+                                   :else existing)
                     newname (last varlist)]
-                [(conj all newname) (assoc equalities v varlist)])
-              [(conj all v) equalities]))]
-    (reduce updater [[] equalities] vars)))
+                [(conj acc newname) (assoc equalities v varlist)])))]
+    (reduce update [[] equalities] vars)))
+
+(defn mk-drift-map
+  "Accepts a map of item -> [item, item-dup-a, item-dup-b...] and
+  returns a map up duplicate back to the original item."
+  [vmap]
+  (let [update-fn (fn [m [original & more]]
+                    (reduce (fn [m duplicate]
+                              (assoc m duplicate original)) m more))]
+    (reduce update-fn {} (vals vmap))))

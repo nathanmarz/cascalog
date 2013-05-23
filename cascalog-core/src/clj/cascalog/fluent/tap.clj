@@ -23,17 +23,6 @@
 ;; TODO: Plug in support here.
 (defrecord CascalogTap [source sink])
 
-(defstruct cascalog-tap :type :source :sink)
-
-(defn mk-cascalog-tap
-  "Defines a cascalog tap which can be used to add additional
-  abstraction over cascading taps.
-
-   'source' can be a cascading tap, subquery, or a cascalog tap.
-   'sink' can be a cascading tap, sink function, or a cascalog tap."
-  [source sink]
-  (struct-map cascalog-tap :type :cascalog-tap :source source :sink sink))
-
 (def valid-sinkmode? #{:keep :update :replace})
 
 (defn- sink-mode [kwd]
@@ -106,7 +95,7 @@ identity.  identity."
         sink (if sink-template
                (template-tap parent sink-template templatefields)
                parent)]
-    (mk-cascalog-tap source sink)))
+    (->CascalogTap source sink)))
 
 (defn hfs-tap
   "Returns a Cascading Hfs tap with support for the supplied scheme,

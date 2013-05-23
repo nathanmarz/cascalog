@@ -6,7 +6,7 @@
          [midje sweet cascalog])
    (:import [cascading.tuple Fields])
    (:require [cascalog.ops :as c]
-             [cascalog.io :as io]))
+             [cascalog.fluent.io :as io]))
 
   (def mac2
     (<- [:< ?a]

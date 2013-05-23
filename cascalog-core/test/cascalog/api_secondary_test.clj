@@ -5,7 +5,7 @@
           cascalog.testing)
     (:import [cascading.tuple Fields])
     (:require [cascalog.ops :as c]
-              [cascalog.io :as io]))
+              [cascalog.fluent.io :as io]))
 
   (deftest test-outfields-query
     (let [age [["nathan" 25]]]

@@ -1,16 +1,15 @@
 (ns cascalog.rules
   (:use [cascalog.debug :only (debug-print)]
         [clojure.set :only (intersection union difference subset?)]
-        [clojure.walk :only (postwalk)]
         [jackknife.core :only (throw-illegal throw-runtime)])
   (:require [jackknife.seq :as s]
             [cascalog.vars :as v]
             [cascalog.util :as u]
             [cascalog.options :as opts]
             [cascalog.graph :as g]
+            [cascalog.parse :as parse]
             [cascalog.predicate :as p]
-            [hadoop-util.core :as hadoop]
-            [cascalog.fluent.conf :as conf]
+            [cascalog.predmacro :as predmacro]
             [cascalog.fluent.tap :as tap]
             [cascalog.fluent.workflow :as w])
   (:import [cascading.tap Tap]
@@ -41,7 +40,7 @@
     (condp = pred-type
       :join       nil
       :group      nil
-      :generator (if-let [v (:join-set-var pred)] [v])
+      :generator (if-let [v (:join-set-var predicate)] [v])
       (if (= 1 (count inbound-nodes))
         (recur (first inbound-nodes))
         (throw-runtime "Planner exception: Unexpected number of "
@@ -120,7 +119,12 @@
                          :available-fields newout} )))
 
         (drift-equalities [drift-m available-fields]
-          )
+          (let [eqmap (select-keys (u/reverse-map
+                                    (select-keys drift-m available-fields))
+                                   available-fields)
+                equality-sets (map (fn [[k v]] (conj v k)) eqmap)]
+            ))
+
         (determine-drift
           [drift-map available-fields]
           ;; This function kicks out a new drift map, a set of fields
@@ -139,6 +143,7 @@
                 new-drift-map (->> equality-sets
                                    (apply concat (vals rename-map))
                                    (apply dissoc drift-map))]
+            (prn "NEW DRIFT: " new-drift-map)
             [new-drift-map equality-sets rename-map]))]
 
   (defn- add-ops-fixed-point
@@ -514,162 +519,33 @@
           ;; The input had some required variables -- I've got to get
           ;; my required variables and concatenate them onto the set
           ;; of required variables.
-          my-needed      (vec (set (concat (:infields pred) needed-vars)))
+          my-needed (vec (set (concat (:infields pred) needed-vars)))
 
           ;; Now, go ahead and build up generators for every input
           ;; node in the graph. This will recursively walk backward
           ;; along the graph until it finds the root generators, I
           ;; think.
-          prev-gens      (doall (map (partial build-generator false my-needed)
-                                     (g/get-inbound-nodes node)))
-
           ;;
-          newgen         (node->generator pred prev-gens)
+          ;; This is the stage where we can introduce the projection
+          ;; pushdown. Currently, this has a side effect, but I think
+          ;; we can get rid of that.
+          prev-gens (doall (map (partial build-generator false my-needed)
+                                (g/get-inbound-nodes node)))
+          newgen (node->generator pred prev-gens)
           project-fields (projection-fields needed-vars (:outfields newgen)) ]
       (debug-print "build gen:" my-needed project-fields pred)
       (if (and forceproject (not= project-fields needed-vars))
         (throw-runtime (format "Only able to build to %s but need %s. Missing %s"
                                project-fields
                                needed-vars
-                               (vec (clojure.set/difference (set needed-vars)
-                                                            (set project-fields)))))
+                               (vec (difference (set needed-vars)
+                                                (set project-fields)))))
         (merge newgen
                {:pipe ((mk-projection-assembly forceproject
                                                project-fields
                                                (:outfields newgen))
                        (:pipe newgen))
                 :outfields project-fields})))))
-
-
-;; This is my hook into the var unique thing. Figure out what this
-;; does.
-(letfn [(var-uniquer-reducer [[preds vmap] {:keys [op invars outvars]}]
-          (let [[updatevars vmap] (v/uniquify-vars outvars vmap)]
-            [(conj preds {:op op
-                          :invars invars
-                          :outvars updatevars})
-             vmap]))
-
-        (mk-drift-map [vmap]
-          (let [update-fn (fn [m [_ vals]]
-                            (let [target (first vals)]
-                              (reduce #(assoc %1 %2 target) m (rest vals))))]
-            (reduce update-fn {} (seq vmap))))]
-
-  (defn- uniquify-query-vars
-    "TODO: this won't handle drift for generator filter outvars should
-     fix this by rewriting and simplifying how drift implementation
-     works."
-    [raw-predicates]
-    (let [[raw-predicates vmap] (reduce var-uniquer-reducer
-                                        [[] {}] raw-predicates)]
-      [raw-predicates (mk-drift-map
-                       (merge (let [xs (into #{} (mapcat :vars raw-predicates))]
-                                (zipmap xs (map vector xs)))
-                              vmap))])))
-
-;; This thing handles the logic that the output of an operation, if
-;; marked as a constant, should be a filter.
-;;
-;; This gets called twice, since we might have some new output
-;; variables after converting generator as set logic.
-(defn split-outvar-constants
-  [{:keys [op invars outvars] :as m}]
-  (let [[new-outvars newpreds] (reduce
-                                (fn [[outvars preds] v]
-                                  (if (v/cascalog-var? v)
-                                    [(conj outvars v) preds]
-                                    (let [newvar (v/gen-nullable-var)]
-                                      [(conj outvars newvar)
-                                       (conj preds {:op (p/predicate
-                                                         p/outconstant-equal)
-                                                    :invars [v newvar]
-                                                    :outvars []})])))
-                                [[] []]
-                                outvars)]
-    (-> (assoc m :outvars new-outvars)
-        (cons newpreds))))
-
-;; Handles the output for generator as set.
-(defn- rewrite-predicate [{:keys [op invars outvars] :as predicate}]
-  (if-not (and (p/generator? op) (seq invars))
-    predicate
-    (if (= 1 (count outvars))
-      {:op (p/predicate p/generator-filter op (first outvars))
-       :invars []
-       :outvars invars}
-      (throw-illegal (str "Generator filter can only have one outvar -> "
-                          outvars)))))
-
-(defn- parse-predicate [[op vars]]
-  (let [{invars :<< outvars :>>}
-        (p/parse-variables vars (p/predicate-default-var op))]
-    {:op op
-     :invars invars
-     :outvars outvars}))
-
-;; ## Gen-As-Set Validation
-
-(defn- unzip-generators
-  "Returns a vector containing two sequences; the subset of the
-  supplied sequence of parsed-predicates identified as generators, and
-  the rest."
-  [parsed-preds]
-  (s/separate (comp p/generator? :op) parsed-preds))
-
-(defn gen-as-set?
-  "Returns true if the supplied parsed predicate is a generator meant
-  to be used as a set, false otherwise."
-  [parsed-pred]
-  (and (p/generator? (:op parsed-pred))
-       (not-empty    (:invars parsed-pred))))
-
-(defn- gen-as-set-ungrounding-vars
-  "Returns a sequence of ungrounding vars present in the
-  generators-as-sets contained within the supplied sequence of parsed
-  predicates (maps with keys :op, :invars, :outvars)."
-  [parsed-preds]
-  (mapcat (comp (partial filter v/unground-var?)
-                #(mapcat % [:invars :outvars]))
-          (filter gen-as-set? parsed-preds)))
-
-(defn- parse-ungrounding-outvars
-  "For the supplied sequence of parsed cascalog predicates of the form
-  `[op hof-args invars outvars]`, returns a vector of two
-  entries: a sequence of all output ungrounding vars that appear
-  within generator predicates, and a sequence of all ungrounding vars
-  that appear within non-generator predicates."
-  [parsed-preds]
-  (map (comp (partial mapcat #(filter v/unground-var? %))
-             (partial map :outvars))
-       (unzip-generators parsed-preds)))
-
-(defn- pred-clean!
-  "Performs various validations on the supplied set of parsed
-  predicates. If all validations pass, returns the sequence
-  unchanged."
-  [parsed-preds]
-  (let [gen-as-set-vars (gen-as-set-ungrounding-vars parsed-preds)
-        [gen-outvars pred-outvars] (parse-ungrounding-outvars parsed-preds)
-        extra-vars  (vec (difference (set pred-outvars)
-                                     (set gen-outvars)))
-        dups (s/duplicates gen-outvars)]
-    (cond
-     (not-empty gen-as-set-vars)
-     (throw-illegal (str "Can't have unground vars in generators-as-sets."
-                         (vec gen-as-set-vars)
-                         " violate(s) the rules.\n\n" (pr-str parsed-preds)))
-
-     (not-empty extra-vars)
-     (throw-illegal (str "Ungrounding vars must originate within a generator. "
-                         extra-vars
-                         " violate(s) the rules."))
-
-     (not-empty dups)
-     (throw-illegal (str "Each ungrounding var can only appear once per query."
-                         "The following are duplicated: "
-                         dups))
-     :else parsed-preds)))
 
 ;; ## Query Building
 
@@ -697,15 +573,8 @@
         ;; and assemble the option map.
         option-m (opts/generate-option-map raw-opts)
 
-        ;; rewrite all predicates and assemble the true set of output
-        ;; variables.
-        [out-vars raw-predicates drift-map] (->> raw-predicates
-                                                 (map parse-predicate)
-                                                 (pred-clean!)
-                                                 (mapcat split-outvar-constants)
-                                                 (map rewrite-predicate)
-                                                 (mapcat split-outvar-constants)
-                                                 (uniquify-query-vars out-vars))
+        ;; rewrite all predicates
+        [raw-predicates drift-map] (parse/parse-predicates raw-predicates)
 
         ;; Split up generators, operations and aggregators.
         [gens ops aggs] (->> raw-predicates
@@ -738,101 +607,18 @@
       (throw-runtime "Could not apply all operations: " (pr-str operations))
       (build-generator true out-vars node))))
 
-(defn- new-var-name! [replacements v]
-  (let [new-name  (if (contains? @replacements v)
-                    (@replacements v)
-                    (v/uniquify-var v))]
-    (swap! replacements assoc v new-name)
-    new-name))
-
-(defn- pred-macro-updater [[replacements ret] [op vars]]
-  (let [vars (vec vars) ; in case it's a java data structure
-        newvars (postwalk #(if (v/cascalog-var? %)
-                             (new-var-name! replacements %)
-                             %)
-                          vars)]
-    [replacements (conj ret [op newvars])]))
-
-(defn- build-predicate-macro-fn
-  [invars-decl outvars-decl raw-predicates]
-  (when (seq (intersection (set invars-decl)
-                           (set outvars-decl)))
-    (throw-runtime
-     "Cannot declare the same var as an input and output to predicate macro: "
-     invars-decl
-     " "
-     outvars-decl))
-  (fn [invars outvars]
-    (let [outvars (if (and (empty? outvars)
-                           (sequential? outvars-decl)
-                           (= 1 (count outvars-decl)))
-                    [true]
-                    outvars)
-          ;; kind of a hack, simulate using pred macros like filters
-          replacements (atom (u/mk-destructured-seq-map invars-decl
-                                                        invars
-                                                        outvars-decl
-                                                        outvars))]
-      (second (reduce pred-macro-updater
-                      [replacements []]
-                      raw-predicates)))))
-
-(defn- build-predicate-macro [invars outvars raw-predicates]
-  (->> (build-predicate-macro-fn invars outvars raw-predicates)
-       (p/predicate p/predicate-macro)))
-
-(defn- to-jcascalog-fields [fields]
-  (jcascalog.Fields. (or fields [])))
-
-;; ## Predicate Macro Expansion
-;;
-;; This section deals with predicate macro expansion.
-
-(defn- expand-predicate-macro
-  [p vars]
-  (let [{invars :<< outvars :>>} (p/parse-variables vars :<)]
-    (cond (var? p) [[(var-get p) vars]]
-          (instance? Subquery p) [[(.getCompiledSubquery p) vars]]
-          (instance? ClojureOp p) [(.toRawCascalogPredicate p vars)]
-          (instance? PredicateMacro p) (-> p (.getPredicates
-                                              (to-jcascalog-fields invars)
-                                              (to-jcascalog-fields outvars)))
-          (instance? PredicateMacroTemplate p) [[(.getCompiledPredMacro p) vars]]
-          :else ((:pred-fn p) invars outvars))))
-
-(defn- expand-predicate-macros
-  "Returns a sequence of predicates with all internal predicate macros
-  expanded."
-  [raw-predicates]
-  (mapcat (fn [[p vars :as raw-pred]]
-            (if (p/predicate-macro? p)
-              (expand-predicate-macros (expand-predicate-macro p vars))
-              [raw-pred]))
-          raw-predicates))
-
 ;; ## Query Compilation
 ;;
 ;; This is the entry point from "construct".
 ;;
-;; Before compilation, all predicates are normalized down to clojrue
-;; predicates. I'm not sure I agree with this, as we lose type
-;; information that would be valuable on the Java side.
+;; Before compilation, all predicates are normalized down to clojure
+;; predicates.
 ;;
 ;; Query compilation steps are as follows:
 ;;
 ;; 1. Normalize all predicates
 ;; 2. Expand predicate macros
 ;; 3. Desugar all of the argument selectors (remember positional!)
-
-(defn normalize
-  "Returns a predicate of the form [op [infields, link,
-  outfields]]. For example,
-
-   [* [\"?x\" \"?x\" :> \"?y\"]]"
-  [pred]
-  (if (instance? Predicate pred)
-    (.toRawCascalogPredicate pred)
-    pred))
 
 (defn query-signature?
   "Accepts the normalized return vector of a Cascalog form and returns
@@ -849,86 +635,24 @@
 ;; subquery.
 
 (defn build-rule
-  "This is the entry point into the rules of the system. output
+  "Construct a query or predicate macro functionally. When
+   constructing queries this way, operations should either be vars for
+   operations or values defined using one of Cascalog's def
+   macros. Vars must be stringified when passed to construct. If
+   you're using destructuring in a predicate macro, the & symbol must
+   be stringified as well.
+
+  This is the entry point into the rules of the system. output
   variables and raw predicates come in, predicate macros are expanded,
   and the query (or another predicate macro) is compiled."
   [out-vars raw-predicates]
-  (let [predicates (->> raw-predicates
-                        (map normalize)
-                        expand-predicate-macros)]
+  (let [out-vars   (v/sanitize out-vars)
+        predicates (->> raw-predicates
+                        (map parse/to-predicate)
+                        predmacro/expand-predicate-macros)]
     (if (query-signature? out-vars)
       (build-query out-vars predicates)
-      (let [parsed (p/parse-variables out-vars :<)]
-        (build-predicate-macro (parsed :<<)
-                               (parsed :>>)
-                               predicates)))))
-
-(defn mk-raw-predicate
-  "Receives a cascalog predicate of the form [op <any other vars>] and
-  sanitizes the reserved cascalog variables by converting symbols into
-  strings."
-  [[op-sym & vars]]
-  [op-sym (v/sanitize vars)])
-
-(defn enforce-gen-schema
-  "Accepts a cascalog generator; if `g` is well-formed, acts as
-`identity`. If the supplied generator is a vector, list, or a straight
-cascading tap, returns a new generator with field-names."
-  [g]
-  (cond (= (:type g) :cascalog-tap)
-        (enforce-gen-schema (:source g))
-
-        (or (instance? Tap g)
-            (vector? g)
-            (list? g))
-        (let [pluck (if (instance? Tap g) tap/pluck-tuple, first)
-              size  (count (pluck g))
-              vars  (v/gen-nullable-vars size)]
-          (if (zero? size)
-            (throw-illegal
-             "Data structure is empty -- memory sources must contain tuples.")
-            (->> [[g :>> vars] [:distinct false]]
-                 (map mk-raw-predicate)
-                 (build-rule vars))))
-        :else g))
-
-(defn connect-to-sink
-  [gen sink]
-  ((w/pipe-rename (u/uuid)) (:pipe gen)))
-
-(defn normalize-gen [gen]
-  (if (instance? Subquery gen)
-    (.getCompiledSubquery gen)
-    gen))
-
-(defn combine* [gens distinct?]
-  ;; it would be nice if cascalog supported Fields/UNKNOWN as output of generator
-  (let [gens (map (comp enforce-gen-schema normalize-gen) gens)
-        outfields (:outfields (first gens))
-        pipes (map :pipe gens)
-        pipes (for [p pipes]
-                (w/assemble p (w/identity Fields/ALL
-                                          :fn>
-                                          outfields
-                                          :>
-                                          Fields/RESULTS)))
-        outpipe (if-not distinct?
-                  (w/assemble pipes (w/group-by Fields/ALL))
-                  (w/assemble pipes (w/group-by Fields/ALL) (w/first)))]
-    (p/predicate p/generator
-                 nil
-                 true
-                 (apply merge (map :sourcemap gens))
-                 outpipe
-                 outfields
-                 (apply merge (map :trapmap gens)))))
-
-(defn generator-selector [gen & _]
-  (cond (instance? Tap gen) :tap
-        (instance? Subquery gen) :java-subquery
-        :else (:type gen)))
-
-(defn normalize-sink-connection [sink subquery]
-  (cond (fn? sink)  (sink subquery)
-        (map? sink) (normalize-sink-connection (:sink sink) subquery)
-        :else       [sink subquery]))
+      (let [parsed (parse/parse-variables out-vars :<)]
+        (predmacro/build-predicate-macro (parsed :<<)
+                                         (parsed :>>)
+                                         predicates)))))

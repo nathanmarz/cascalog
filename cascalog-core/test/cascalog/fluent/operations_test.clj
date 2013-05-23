@@ -39,9 +39,9 @@
     ((times 2) 4) => 8))
 
 (deftest map-test
-  (let [src (-> (begin-flow [["jenna" 10]
-                             ["sam" 2]
-                             ["oscar" 3]])
+  (let [src (-> [["jenna" 10]
+                 ["sam" 2]
+                 ["oscar" 3]]
                 (rename* ["user" "tweet-count"]))]
     (facts
       "Naming input and output the same replaces the input variable in
@@ -62,7 +62,7 @@
   (fact
     "Higher order functions and vanilla functions
     lifted to mapops!"
-    (-> (begin-flow [1 2 3 4 5])
+    (-> [1 2 3 4 5]
         (rename* "a")
         (exec* (mapop* square) "a" "squared")
         (exec* (times 10) "a" "b"))
@@ -74,7 +74,7 @@
 
     "Any function defined with def*op can be used directly in the
      flow:"
-    (-> (begin-flow [1 2 3 4 5])
+    (-> [1 2 3 4 5]
         (rename* "a")
         (exec* plus-two "a" "b"))
     => (produces [[1 3] [2 4] [3 5] [4 6] [5 7]])))
@@ -85,7 +85,7 @@
 (deftest check-intermediate-write
   (io/with-fs-tmp [_ tmp-a tmp-b]
     (fact "Interspersing calls to write doesn't affect the flow."
-      (-> (begin-flow [[1 2] [2 3] [3 4] [4 5]])
+      (-> [[1 2] [2 3] [3 4] [4 5]]
           (rename* ["a" "b"])
           (write* (hfs-textline tmp-a))
           (map* #'inc "a" "inc")
@@ -102,7 +102,7 @@
        with-dups. Note that with-dups won't currently clean up the
        extra delta vars for you. Fix this later by cleaning up the
        delta variables."
-      (-> (begin-flow [[1 2] [2 3] [3 4] [4 5]])
+      (-> [[1 2] [2 3] [3 4] [4 5]]
           (rename* ["a" "b"])
           (with-dups ["a" "a" "b"]
             (fn [flow input delta]
@@ -115,7 +115,7 @@
                     [4 5 4 13]]))))
 
 (deftest test-merged-flow
-  (let [source (-> (begin-flow [[1 1] [2 2] [3 3] [4 4]])
+  (let [source (-> [[1 1] [2 2] [3 3] [4 4]]
                    (rename* ["a" "b"]))
         a      (-> source
                    (map* square "a" "c")

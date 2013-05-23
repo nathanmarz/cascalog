@@ -8,6 +8,7 @@
             [cascalog.predicate :as p]
             [cascalog.rules :as rules]
             [cascalog.util :as u]
+            [cascalog.parse :as parse]
             [cascalog.fluent.tap :as tap]
             [cascalog.fluent.conf :as conf]
             [cascalog.fluent.workflow :as w]
@@ -20,13 +21,15 @@
   (:import [cascading.flow Flow FlowDef]
            [cascading.flow.hadoop HadoopFlowConnector]
            [cascading.tuple Fields]
+           [cascading.tap Tap]
            [cascading.pipe Pipe]
-           [com.twitter.maple.tap StdoutTap]))
+           [com.twitter.maple.tap StdoutTap]
+           [jcascalog Subquery]))
 
 ;; Functions for creating taps and tap helpers
 
 (defalias memory-source-tap w/memory-source-tap)
-(defalias cascalog-tap tap/mk-cascalog-tap)
+(defalias cascalog-tap tap/->CascalogTap)
 (defalias hfs-tap tap/hfs-tap)
 (defalias lfs-tap tap/lfs-tap)
 (defalias sequence-file w/sequence-file)
@@ -39,9 +42,14 @@
 
 ;; ## Query introspection
 
+(defn- generator-selector [gen & _]
+  (cond (instance? Tap gen) :tap
+        (instance? Subquery gen) :java-subquery
+        :else (:type gen)))
+
 (defmulti get-out-fields
   "Get the fields of a generator."
-  rules/generator-selector)
+  generator-selector)
 
 (defmethod get-out-fields :tap [tap]
   (let [cfields (.getSourceFields tap)]
@@ -52,9 +60,6 @@
 
 (defmethod get-out-fields :generator [query]
   (:outfields query))
-
-(defmethod get-out-fields :cascalog-tap [cascalog-tap]
-  (get-out-fields (:source cascalog-tap)))
 
 (defmethod get-out-fields :java-subquery [sq]
   (get-out-fields (.getCompiledSubquery sq)))
@@ -72,16 +77,7 @@
 
 ;; ## Query creation and execution
 
-(defn construct
-  "Construct a query or predicate macro functionally. When
-constructing queries this way, operations should either be vars for
-operations or values defined using one of Cascalog's def macros. Vars
-must be stringified when passed to construct. If you're using
-destructuring in a predicate macro, the & symbol must be stringified
-as well."
-  [outvars preds]
-  (rules/build-rule (v/sanitize outvars)
-                    (map rules/mk-raw-predicate preds)))
+(defalias construct rules/build-rule)
 
 (defmacro <-
   "Constructs a query or predicate macro from a list of
@@ -93,6 +89,15 @@ as well."
 
 (def cross-join
   (<- [:>] (identity 1 :> _)))
+
+(defn normalize-gen [gen]
+  (if (instance? Subquery gen)
+    (.getCompiledSubquery gen)
+    gen))
+
+(defn connect-to-sink
+  [gen sink]
+  ((w/pipe-rename (u/uuid)) (:pipe gen)))
 
 (defn compile-flow
   "Attaches output taps to some number of subqueries and creates a
@@ -107,14 +112,13 @@ as well."
   [& args]
   (let [[flow-name bindings] (flow/parse-exec-args args)
         [sinks gens] (->> bindings
-                          (map rules/normalize-gen)
+                          (map normalize-gen)
                           (partition 2)
-                          (mapcat (partial apply rules/normalize-sink-connection))
+                          ;; (mapcat (partial apply rules/normalize-sink-connection))
                           (unweave))
-        gens      (map rules/enforce-gen-schema gens)
         sourcemap (apply merge (map :sourcemap gens))
         trapmap   (apply merge (map :trapmap gens))
-        tails     (map rules/connect-to-sink gens sinks)
+        tails     (map connect-to-sink gens sinks)
         sinkmap   (w/taps-map tails sinks)]
     (flow/run! (doto (FlowDef.)
                  (.setName flow-name)
@@ -211,17 +215,18 @@ as well."
   [& body]
   `(predmacro* (fn ~@body)))
 
-(defn union
-  "Merge the tuples from the subqueries together into a single
+(comment
+  (defn union
+   "Merge the tuples from the subqueries together into a single
   subquery and ensure uniqueness of tuples."
-  [& gens]
-  (rules/combine* gens true))
+   [& gens]
+   (rules/combine* gens true))
 
-(defn combine
-  "Merge the tuples from the subqueries together into a single
+  (defn combine
+    "Merge the tuples from the subqueries together into a single
   subquery. Doesn't ensure uniqueness of tuples."
-  [& gens]
-  (rules/combine* gens false))
+    [& gens]
+    (rules/combine* gens false)))
 
 (defn multigroup*
   [declared-group-vars buffer-out-vars buffer-spec & sqs]
@@ -262,7 +267,7 @@ as well."
   (<- [?a ?b ?sum]
       (+ ?a ?b :> ?sum)
       ((select-fields generator [\"?a\" \"?b\"]) ?a ?b))"
-  rules/generator-selector)
+  generator-selector)
 
 (defmethod select-fields :tap [tap fields]
   (let [fields (collectify fields)
@@ -283,10 +288,6 @@ as well."
     (merge query
            {:pipe (w/assemble (:pipe query) (w/select select-fields))
             :outfields select-fields})))
-
-(defmethod select-fields :cascalog-tap [cascalog-tap fields]
-  (select-fields (:source cascalog-tap)
-                 fields))
 
 (defmethod select-fields :java-subquery [sq fields]
   (select-fields (.getCompiledSubquery sq)

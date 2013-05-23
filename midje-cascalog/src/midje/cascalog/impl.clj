@@ -2,10 +2,11 @@
   (:use midje.sweet
         [clojure.set :only (difference)]
         [cascalog.api :only (with-job-conf <- ??-)])
-  (:require [cascalog.fluent.io :as io]
+  (:require cascalog.fluent.types
+            [cascalog.fluent.io :as io]
             [cascalog.fluent.flow :as flow]
             [midje.checking.core :as checking])
-  (:import [cascalog.fluent.flow ClojureFlow]))
+  (:import [cascalog.fluent.types ClojureFlow]))
 
 (defn- multifn? [x]
   (instance? clojure.lang.MultiFn x))
