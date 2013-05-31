@@ -142,3 +142,22 @@
                                           [2 2 3 3 "3"]
                                           [3 3 4 4 "4"]
                                           [4 4 5 5 "5"]]))))
+
+(deffilterfn gt2
+  [x] (> x 2))
+
+(deftest test-co-group
+  (let [source (-> (generator [[1 1] [2 2] [3 3] [4 4]]))
+        a      (-> source
+                   (rename* ["a" "b"])
+                   (filter* gt2 "a")
+                   (map* square "b" "c")
+                   ;(discard* "b")
+                   )
+        b      (-> source
+                   (rename* ["x" "y"]))]
+    (fact "Join joins stuff"
+          (sort (-> (co-group* [a b] [["a"] ["x"]] ["a" "x" "b" "c" "y"])
+                    (map* str "y" "q")
+                    to-memory)) => (sort [[3 3 9 3 3 "3"]
+                                          [4 4 16 4 4 "4"]]))))
