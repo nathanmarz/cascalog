@@ -6,7 +6,7 @@
             [cascalog.fluent.cascading :as casc
              :refer (fields default-output)]
             [cascalog.fluent.algebra :refer (plus)]
-            [cascalog.fluent.types :refer (generator to-sink)]
+            [cascalog.fluent.types :refer (generator to-sink with-merged-pipes)]
             [cascalog.fluent.fn :as serfn]
             [cascalog.util :as u]
             [cascalog.fluent.source :as src]
@@ -21,7 +21,7 @@
            [cascading.operation.filter Sample]
            [cascading.operation.aggregator First Count Sum Min Max]
            [cascading.pipe Pipe Each Every GroupBy CoGroup Merge ]
-           [cascading.pipe.joiner InnerJoin]
+           [cascading.pipe.joiner InnerJoin LeftJoin RightJoin]
            [cascading.pipe.assembly Rename AggregateBy]
            [cascalog ClojureFilter ClojureMapcat ClojureMap
             ClojureBuffer ClojureBufferIter FastFirst
@@ -137,7 +137,8 @@
 (defn merge*
   "Merges the supplied flows."
   [& flows]
-  (reduce plus flows))
+  (with-merged-pipes flows
+    (fn [pipes] (Merge. pipes))))
 
 ;; ## Aggregations
 ;;
@@ -299,6 +300,28 @@
   [& flows]
   (-> (apply merge* flows)
       (unique)))
+
+(defn join-to-joiner
+  [join]
+  (condp = join
+    :inner (InnerJoin.)
+    :left (LeftJoin.)
+    :right (RightJoin.)
+    ;; else
+    (if (instance? join cascading.pipe.joiner.Joiner)
+      join
+      (throw-illegal (class join) " is not a joiner"))))
+
+(defn- co-group
+  [pipes group-fields joiner]
+  (CoGroup. pipes group-fields (join-to-joiner joiner)))
+
+(defn co-group*
+  [flows group-fileds {:keys [reducers join] :or [join :inner]}]
+  (with-merged-pipes flows
+    (fn [pipes]
+      (-> (co-group pipes group-fileds join)
+          (set-reducers reducers)))))
 
 ;; ## Output Operations
 ;;
