@@ -41,7 +41,7 @@
     (condp = pred-type
       :join       nil
       :group      nil
-      :generator (if-let [v (:join-set-var pred)] [v])
+      :generator (if-let [v (:join-set-var predicate)] [v])
       (if (= 1 (count inbound-nodes))
         (recur (first inbound-nodes))
         (throw-runtime "Planner exception: Unexpected number of "
