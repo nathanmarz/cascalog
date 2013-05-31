@@ -308,19 +308,22 @@
     :left (LeftJoin.)
     :right (RightJoin.)
     ;; else
-    (if (instance? join cascading.pipe.joiner.Joiner)
+    (if (instance? cascading.pipe.joiner.Joiner join)
       join
       (throw-illegal (class join) " is not a joiner"))))
 
 (defn- co-group
-  [pipes group-fields joiner]
-  (CoGroup. pipes group-fields (join-to-joiner joiner)))
+  [pipes group-fields decl-fields join]
+  (let [group-fields (into-array Fields (map fields group-fields))
+        joiner (join-to-joiner join)
+        decl-fields (fields decl-fields)]
+    (CoGroup. pipes group-fields decl-fields joiner)))
 
 (defn co-group*
-  [flows group-fileds {:keys [reducers join] :or [join :inner]}]
+  [flows group-fields decl-fields & {:keys [reducers join] :or {join :inner}}]
   (with-merged-pipes flows
     (fn [pipes]
-      (-> (co-group pipes group-fileds join)
+      (-> (co-group pipes group-fields decl-fields join)
           (set-reducers reducers)))))
 
 ;; ## Output Operations
