@@ -5,6 +5,7 @@
             [cascalog.fluent.types :as types]
             [cascalog.fluent.tap :as tap]
             [cascalog.fluent.io :as io]
+            [cascalog.fluent.algebra :refer (plus)]
             [cascalog.fluent.operations :as ops])
   (:import [cascalog Util]
            [cascading.pipe Pipe Merge]
@@ -85,7 +86,7 @@
                       (take (count flows)))]
         (->> (map (comp strip-pipe ops/write*)
                   flows taps)
-             (apply ops/merge*)
+             (reduce plus)
              (run!))
         (doall (map tap/get-sink-tuples taps))))))
 
