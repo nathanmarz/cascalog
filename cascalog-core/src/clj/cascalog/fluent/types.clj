@@ -7,8 +7,7 @@
            [cascading.pipe Pipe Merge]
            [cascading.tap Tap]
            [cascading.tuple Fields Tuple]
-           [com.twitter.maple.tap MemorySourceTap]
-           [jcascalog Subquery]))
+           [com.twitter.maple.tap MemorySourceTap]))
 
 ;; ## Tuple Conversion
 ;;
@@ -54,21 +53,11 @@
   (generator [x] x))
 
 (extend-protocol IGenerator
-  Subquery
-  (generator [sq]
-    (generator (.getCompiledSubquery sq)))
-
   CascalogTap
   (generator [tap] (generator (:source tap)))
 
   clojure.lang.IPersistentVector
   (generator [v] (generator (seq v)))
-
-  nil
-  (generator [_]
-    (generator
-     (MemorySourceTap. [] Fields/ALL)))
-
   clojure.lang.ISeq
   (generator [v]
     (generator
@@ -86,11 +75,6 @@
 
 ;; ## Sink Typeclasses
 
-(defn normalize-sink-connection [sink subquery]
-  (cond (fn? sink)  (sink subquery)
-        (map? sink) (normalize-sink-connection (:sink sink) subquery)
-        :else       [sink subquery]))
-
 (defprotocol ISink
   (to-sink [this]
     "Returns a Cascading tap into which Cascalog can sink the supplied
@@ -102,18 +86,18 @@
   Tap
   (to-sink [tap] tap)
 
+  ;; old cascalog-tap. Deprecate this soon.
+  clojure.lang.PersistentStructMap
+  (to-sink [tap] (to-sink (:sink tap)))
+
   CascalogTap
   (to-sink [tap] (to-sink (:sink tap))))
 
-(defn array-of [t]
-  (.getClass
-   (java.lang.reflect.Array/newInstance t 0)))
+(defn- uniqify
+  [pipe]
+  (Pipe. (u/uuid) pipe))
 
 (extend-protocol Semigroup
-  (array-of Pipe)
-  (plus [l r]
-    (into-array Pipe (plus (into [] l)
-                           (into [] r))))
   Pipe
   (plus [l r]
     (Merge. (into-array Pipe [(Pipe. (u/uuid) l)
@@ -128,3 +112,15 @@
                      (plus-k :trap-map)
                      (plus-k :tails)
                      (plus-k :pipe)))))
+
+(defn with-merged-pipes
+  "Creates a new flow by merging incoming pipes using f,
+  which should be a function Pipe[] => Pipe"
+  [flows f]
+  (letfn [(merge-k [k] (apply merge (map k flows)))
+          (merge-pipes [k] (into-array Pipe (map (comp uniqify k) flows)))]
+    (->ClojureFlow (merge-k :source-map)
+                   (merge-k :sink-map)
+                   (merge-k :trap-map)
+                   (vec (mapcat :tails flows))
+                   (f (merge-pipes :pipe)))))
