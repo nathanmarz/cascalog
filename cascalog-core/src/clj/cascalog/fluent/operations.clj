@@ -273,7 +273,7 @@
                           (groupby pipe group-fields
                                    (fields sort-fields)
                                    reverse?)))
-          mode (aggregate-mode aggs reduce-only)]
+          mode (aggregate-mode aggs (or reduce-only sort-fields))]
       (case mode
         ::buffer    (build-group #(add-buffer (first aggs) %))
         ::aggregate (build-group (fn [grouped]
