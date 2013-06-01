@@ -21,7 +21,8 @@
            [cascading.operation.filter Sample]
            [cascading.operation.aggregator First Count Sum Min Max]
            [cascading.pipe Pipe Each Every GroupBy CoGroup Merge ]
-           [cascading.pipe.joiner InnerJoin LeftJoin RightJoin]
+           [cascading.pipe.joiner InnerJoin LeftJoin RightJoin OuterJoin]
+           [cascading.pipe.joiner CascalogJoiner CascalogJoiner$JoinType]
            [cascading.pipe.assembly Rename AggregateBy]
            [cascalog ClojureFilter ClojureMapcat ClojureMap
             ClojureBuffer ClojureBufferIter FastFirst
@@ -317,15 +318,14 @@
       (unique)))
 
 (defn join-to-joiner
-  [join]
-  (condp = join
-    :inner (InnerJoin.)
-    :left (LeftJoin.)
-    :right (RightJoin.)
-    ;; else
-    (if (instance? cascading.pipe.joiner.Joiner join)
-      join
-      (throw-illegal (class join) " is not a joiner"))))
+  [join num-pipes]
+  (if (instance? cascading.pipe.joiner.Joiner join)
+    join
+    (case join
+      :inner (InnerJoin.)
+      :outer (OuterJoin.)
+      ;; else
+      (throw-illegal "Can't create joiner from " join))))
 
 (defn- co-group
   [pipes group-fields decl-fields join]
@@ -350,6 +350,45 @@
         (-> (co-group pipes group-fields decl-fields join)
             (set-reducers reducers)
             (add-co-group-aggs aggs)))))
+
+(defn join-with-smaller
+  [larger-flow fields1 smaller-flow fields2 aggs & {:keys [reducers] :as opts}]
+  (apply co-group*
+         [larger-flow smaller-flow]
+         [fields1 fields2]
+         nil aggs (assoc opts :join (InnerJoin.))))
+
+(defn join-with-larger
+  [smaller-flow fields1 larger-flow fields2 group-fields aggs & {:keys [reducers] :as opts}]
+  (apply join-with-smaller larger-flow fields2 smaller-flow fields1 aggs opts))
+
+(defn left-join-with-smaller
+  [larger-flow fields1 smaller-flow fields2 aggs & {:keys [reducers] :as opts}]
+  (apply co-group*
+         [larger-flow smaller-flow]
+         [fields1 fields2]
+         nil aggs (assoc opts :join (LeftJoin.))))
+
+(defn left-join-with-larger
+  [smaller-flow fields1 larger-flow fields2 aggs & {:keys [reducers] :as opts}]
+  (apply co-group*
+         [larger-flow smaller-flow]
+         [fields2 fields1]
+         nil aggs (assoc opts :join (RightJoin.))))
+
+(defn- cascalog-joiner-type
+  [join]
+  (case join
+      :inner CascalogJoiner$JoinType/INNER
+      :outer CascalogJoiner$JoinType/OUTER
+      :exists CascalogJoiner$JoinType/EXISTS))
+
+(defn join-many
+  "Takes a sequence of [pipe, join-type] pairs along with regular co-group arguments
+   and performs a mixed join. Allowed join types are :inner, :outer, and :exists."
+  [flow-joins group-fields decl-fields aggs & {:keys [reducers] :as opts}]
+  (let [join-types (map (comp cascalog-joiner-type second) flow-joins)]
+    (apply co-group* (map first flow-joins) group-fields decl-fields aggs (assoc opts :join (CascalogJoiner. join-types)))))
 
 ;; ## Output Operations
 ;;
