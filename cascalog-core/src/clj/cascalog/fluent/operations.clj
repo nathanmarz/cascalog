@@ -316,15 +316,25 @@
   [pipes group-fields decl-fields join]
   (let [group-fields (into-array Fields (map fields group-fields))
         joiner (join-to-joiner join)
-        decl-fields (fields decl-fields)]
+        decl-fields (when decl-fields
+                      (fields decl-fields))]
     (CoGroup. pipes group-fields decl-fields joiner)))
 
+(defn- add-co-group-aggs
+  [pipe aggs]
+  (let [mode (aggregate-mode aggs true)]
+    (case mode
+      ::buffer (add-buffer (first aggs) pipe)
+      ::aggregate (reduce (fn [p op]
+                            (add-aggregator op p)) pipe aggs))))
+
 (defn co-group*
-  [flows group-fields decl-fields & {:keys [reducers join] :or {join :inner}}]
-  (with-merged-pipes flows
-    (fn [pipes]
-      (-> (co-group pipes group-fields decl-fields join)
-          (set-reducers reducers)))))
+  [flows group-fields decl-fields aggs & {:keys [reducers join] :or {join :inner}}]
+    (with-merged-pipes flows
+      (fn [pipes]
+        (-> (co-group pipes group-fields decl-fields join)
+            (set-reducers reducers)
+            (add-co-group-aggs aggs)))))
 
 ;; ## Output Operations
 ;;
