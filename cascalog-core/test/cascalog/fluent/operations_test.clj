@@ -146,6 +146,8 @@
 (deffilterfn gt2
   [x] (> x 2))
 
+(def sum (partial parallel-agg +))
+
 (deftest test-co-group
   (let [source (-> (generator [[1 1] [2 2] [3 3] [4 4]]))
         a      (-> source
@@ -157,7 +159,13 @@
         b      (-> source
                    (rename* ["x" "y"]))]
     (fact "Join joins stuff"
-          (sort (-> (co-group* [a b] [["a"] ["x"]] ["a" "x" "b" "c" "y"])
+          (sort (-> (co-group* [a b] [["a"] ["x"]] ["a" "x" "b" "c" "y"]  [])
                     (map* str "y" "q")
                     to-memory)) => (sort [[3 3 9 3 3 "3"]
-                                          [4 4 16 4 4 "4"]]))))
+                                          [4 4 16 4 4 "4"]]))
+    (fact "Agg after join"
+          (let [a (-> (generator [[1 1] [1 2] [2 2]]) (rename* ["a" "b"]))
+                b (-> (generator [[1 10] [2 15]]) (rename* ["x" "y"]))
+                q (co-group* [a b] [["a"] ["x"]] nil [(sum "y" "s")])]
+            (fact (to-memory q) => [[1 1 20] [2 2 15]])
+            ))))
