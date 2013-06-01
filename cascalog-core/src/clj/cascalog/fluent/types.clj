@@ -93,10 +93,6 @@
   CascalogTap
   (to-sink [tap] (to-sink (:sink tap))))
 
-(defn- uniqify
-  [pipe]
-  (Pipe. (u/uuid) pipe))
-
 (extend-protocol Semigroup
   Pipe
   (plus [l r]
@@ -112,15 +108,3 @@
                      (plus-k :trap-map)
                      (plus-k :tails)
                      (plus-k :pipe)))))
-
-(defn with-merged-pipes
-  "Creates a new flow by merging incoming pipes using f,
-  which should be a function Pipe[] => Pipe"
-  [flows f]
-  (letfn [(merge-k [k] (apply merge (map k flows)))
-          (merge-pipes [k] (into-array Pipe (map (comp uniqify k) flows)))]
-    (->ClojureFlow (merge-k :source-map)
-                   (merge-k :sink-map)
-                   (merge-k :trap-map)
-                   (vec (mapcat :tails flows))
-                   (f (merge-pipes :pipe)))))
