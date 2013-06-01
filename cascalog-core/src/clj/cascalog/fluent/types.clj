@@ -105,7 +105,15 @@
   CascalogTap
   (to-sink [tap] (to-sink (:sink tap))))
 
+(defn array-of [t]
+  (.getClass
+   (java.lang.reflect.Array/newInstance t 0)))
+
 (extend-protocol Semigroup
+  (array-of Pipe)
+  (plus [l r]
+    (into-array Pipe (plus (into [] l)
+                           (into [] r))))
   Pipe
   (plus [l r]
     (Merge. (into-array Pipe [(Pipe. (u/uuid) l)

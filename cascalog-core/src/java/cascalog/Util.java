@@ -47,7 +47,6 @@ public class Util {
   public static Throwable getRootCause(Throwable e) {
     Throwable rootCause = e;
     Throwable nextCause = rootCause.getCause();
-
     while (nextCause != null) {
       rootCause = nextCause;
       nextCause = rootCause.getCause();

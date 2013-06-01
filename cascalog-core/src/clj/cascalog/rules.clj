@@ -26,12 +26,21 @@
             PredicateMacroTemplate]
            [java.util ArrayList]))
 
+
+;; This doesn't make much sense. We always needs children.
+(defrecord Join [join-fields children])
+
+(defrecord Group [op-seq in-fields out-fields])
+
 ;; infields for a join are the names of the join fields
 (p/defpredicate join :infields)
+
 (p/defpredicate group
   :assembly
   :infields
   :totaloutfields)
+
+;; TODO: Implement this as a search through the zipper.
 
 (defn find-generator-join-set-vars
   "Returns a singleton vector with the generator-as-set join var if it
@@ -48,10 +57,6 @@
         (recur (first inbound-nodes))
         (throw-runtime "Planner exception: Unexpected number of "
                        "inbound nodes to non-generator predicate.")))))
-
-;; TODO: Implement IGenerator here.
-(defrecord TailStruct [ground? operations drift-map available-fields children]
-  )
 
 ;; ## Operation Application
 

@@ -50,25 +50,42 @@
     `(def ~name
        (map->ParallelAggregator (hash-map ~@body)))))
 
-;; ids are so they can be used in sets safely
+;; Leaves of the tree:
+(defrecord Generator [ground? source-map trap-map pipe fields])
 
-;; for map, mapcat, and filter
-(defrecord Operation [op input output allow-on-genfilter?])
+;; GeneratorSets can't be unground, ever.
+(defrecord GeneratorSet [join-set-var source-map trap-map pipe fields])
 
-;; return a :post-assembly, a :parallel-agg, and a :serial-agg-assembly
-(defrecord Aggregator [op input output])
+;; map, mapcat operations:
+(defrecord Operation [op infields outfields])
 
-;; automatically generates source pipes and attaches to sources
-;;
-;; TODO: Get rid of the generator filter thing.
-(defrecord Generator [ground? source-map trap-map pipe output])
-(defrecord GeneratorSet [join-set-var ground? source-map trap-map pipe output])
-(defrecord Operation [assembly infields outfields])
+;; filters can be applied to Generator or GeneratorSet.
+(defrecord FilterOperation [op infields])
 
-;; When allow-on-genfilter? is true.
-(defrecord FilterOperation [assembly infields outfields])
-(defrecord OutconstantEqual [])
-(defrecord PredMacro [pred-fn])
+;; Sort by filter vs operation, then try and apply all as a fixed
+;; point. Write the fixed point application in terms of the tail.
+
+;; TODO: Implement IGenerator here.
+(defrecord TailStruct [root operations drift-map fields children])
+
+;; ## Operation Application
+
+(defprotocol IApplyToTail
+  (accept? [this tail]
+    "Returns true if this op can be applied to the current tail")
+
+  (apply-to-tail [this tail]
+    "Accepts a tail and performs some modification on that tail,
+    returning a new tail."))
+
+
+;; I think this is duplicated; we can merge this idea together with
+;; the types in the fluent API.
+(defrecord Aggregator [assembly input output])
+
+;; Currently predicate macros are expanded in build-rule, in
+;; rules.clj. By the time we get here, let's assume that everything
+;; has been properly parsed and expanded.
 
 (defn predicate-dispatcher [pred]
   (let [op  (:op pred)
