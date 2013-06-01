@@ -1,4 +1,5 @@
 (ns cascalog.fluent.operations
+  (:use [cascalog.fluent.types])
   (:require [clojure.tools.macro :refer (name-with-attributes)]
             [clojure.set :refer (subset? difference intersection)]
             [cascalog.vars :as v]
@@ -6,7 +7,6 @@
             [cascalog.fluent.cascading :as casc
              :refer (fields default-output)]
             [cascalog.fluent.algebra :refer (plus)]
-            [cascalog.fluent.types :refer (generator to-sink with-merged-pipes)]
             [cascalog.fluent.fn :as serfn]
             [cascalog.util :as u]
             [cascalog.fluent.source :as src]
@@ -133,12 +133,6 @@
   (each flow #(ClojureMapcat. % op-var)
         in-fields
         out-fields))
-
-(defn merge*
-  "Merges the supplied flows."
-  [& flows]
-  (with-merged-pipes flows
-    (fn [pipes] (Merge. pipes))))
 
 ;; ## Aggregations
 ;;
@@ -293,6 +287,27 @@
                  (add-aggregator [_ pipe]
                    (Every. pipe (FastFirst.) Fields/RESULTS)))]
        (group-by* flow unique-fields [agg]))))
+
+;; ## Combining Multiple Flows
+
+(defn with-merged-pipes
+  "Creates a new flow by merging incoming pipes using f,
+  which should be a function Pipe[] => Pipe"
+  [flows f]
+  (let [flows (map rename-pipe flows)]
+    (letfn [(merge-k [k] (apply merge (map k flows)))
+            (merge-pipes [k] (into-array Pipe (map k flows)))]
+      (->ClojureFlow (merge-k :source-map)
+                     (merge-k :sink-map)
+                     (merge-k :trap-map)
+                     (vec (mapcat :tails flows))
+                     (f (merge-pipes :pipe))))))
+
+(defn merge*
+  "Merges the supplied flows."
+  [& flows]
+  (with-merged-pipes flows
+    (fn [pipes] (Merge. pipes))))
 
 (defn union*
   "Merges the supplied flows and ensures uniqueness of the resulting
