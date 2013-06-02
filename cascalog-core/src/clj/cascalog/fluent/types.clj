@@ -106,14 +106,13 @@
   (to-sink [tap] (to-sink (:sink tap))))
 
 (defn array-of [t]
-  (.getClass
-   (java.lang.reflect.Array/newInstance t 0)))
+  (class (into-array t [])))
 
 (extend-protocol Semigroup
   (array-of Pipe)
   (plus [l r]
-    (into-array Pipe (plus (into [] l)
-                           (into [] r))))
+    (into-array Pipe (concat l r)))
+
   Pipe
   (plus [l r]
     (Merge. (into-array Pipe [(Pipe. (u/uuid) l)
