@@ -6,7 +6,7 @@
             [cascalog.fluent.conf :as conf]
             [cascalog.fluent.cascading :as casc
              :refer (fields default-output)]
-            [cascalog.fluent.algebra :refer (plus)]
+            [cascalog.fluent.algebra :refer (plus sum)]
             [cascalog.fluent.fn :as serfn]
             [cascalog.util :as u]
             [cascalog.fluent.source :as src]
@@ -291,34 +291,18 @@
 
 ;; ## Combining Multiple Flows
 
-(defn with-merged-pipes
-  "Creates a new flow by merging incoming pipes using f,
-  which should be a function Pipe[] => Pipe"
-  [flows f]
-  (let [flows (map rename-pipe flows)]
-    (letfn [(merge-k [k] (apply merge (map k flows)))
-            (merge-pipes [k] (into-array Pipe (map k flows)))]
-      (->ClojureFlow (merge-k :source-map)
-                     (merge-k :sink-map)
-                     (merge-k :trap-map)
-                     (vec (mapcat :tails flows))
-                     (f (merge-pipes :pipe))))))
-
-(defn merge*
-  "Merges the supplied flows."
-  [& flows]
-  (with-merged-pipes flows
-    (fn [pipes] (Merge. pipes))))
+;; We should probably call this "sum" and keep it in algebra.clj
+(defn merge* [& flows] (sum flows))
 
 (defn union*
   "Merges the supplied flows and ensures uniqueness of the resulting
   tuples."
   [& flows]
-  (-> (apply merge* flows)
+  (-> (sum flows)
       (unique)))
 
 (defn join-to-joiner
-  [join num-pipes]
+  [join]
   (if (instance? cascading.pipe.joiner.Joiner join)
     join
     (case join
@@ -343,13 +327,23 @@
       ::aggregate (reduce (fn [p op]
                             (add-aggregator op p)) pipe aggs))))
 
+(defn lift-pipes [flows]
+  (map #(add-op % (fn [p] (into-array Pipe [p]))) flows))
+
+(defn- ensure-unique-pipes
+  [flows]
+  (map rename-pipe flows))
+
 (defn co-group*
   [flows group-fields decl-fields aggs & {:keys [reducers join] :or {join :inner}}]
-    (with-merged-pipes flows
-      (fn [pipes]
-        (-> (co-group pipes group-fields decl-fields join)
-            (set-reducers reducers)
-            (add-co-group-aggs aggs)))))
+  (-> flows
+      ensure-unique-pipes
+      lift-pipes
+      sum
+      (add-op (fn [pipes]
+                (-> (co-group pipes group-fields decl-fields join)
+                    (set-reducers reducers)
+                    (add-co-group-aggs aggs))))))
 
 (defn join-with-smaller
   [larger-flow fields1 smaller-flow fields2 aggs & {:keys [reducers] :as opts}]

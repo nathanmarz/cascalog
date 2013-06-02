@@ -7,7 +7,8 @@
            [cascading.pipe Pipe Merge]
            [cascading.tap Tap]
            [cascading.tuple Fields Tuple]
-           [com.twitter.maple.tap MemorySourceTap]))
+           [com.twitter.maple.tap MemorySourceTap]
+           [jcascalog Subquery]))
 
 ;; ## Tuple Conversion
 ;;
@@ -53,11 +54,21 @@
   (generator [x] x))
 
 (extend-protocol IGenerator
+  Subquery
+  (generator [sq]
+    (generator (.getCompiledSubquery sq)))
+
   CascalogTap
   (generator [tap] (generator (:source tap)))
 
   clojure.lang.IPersistentVector
   (generator [v] (generator (seq v)))
+
+  nil
+  (generator [_]
+    (generator
+     (MemorySourceTap. [] Fields/ALL)))
+
   clojure.lang.ISeq
   (generator [v]
     (generator
@@ -75,6 +86,11 @@
 
 ;; ## Sink Typeclasses
 
+(defn normalize-sink-connection [sink subquery]
+  (cond (fn? sink)  (sink subquery)
+        (map? sink) (normalize-sink-connection (:sink sink) subquery)
+        :else       [sink subquery]))
+
 (defprotocol ISink
   (to-sink [this]
     "Returns a Cascading tap into which Cascalog can sink the supplied
@@ -86,14 +102,17 @@
   Tap
   (to-sink [tap] tap)
 
-  ;; old cascalog-tap. Deprecate this soon.
-  clojure.lang.PersistentStructMap
-  (to-sink [tap] (to-sink (:sink tap)))
-
   CascalogTap
   (to-sink [tap] (to-sink (:sink tap))))
 
+(defn array-of [t]
+  (class (into-array t [])))
+
 (extend-protocol Semigroup
+  (array-of Pipe)
+  (plus [l r]
+    (into-array Pipe (concat l r)))
+
   Pipe
   (plus [l r]
     (Merge. (into-array Pipe [(Pipe. (u/uuid) l)
