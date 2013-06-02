@@ -384,10 +384,12 @@
       :exists CascalogJoiner$JoinType/EXISTS))
 
 (defn join-many
-  "Takes a sequence of [pipe, join-type] pairs along with regular co-group arguments
+  "Takes a sequence of [pipe, join-fields, join-type] triplets along with other co-group arguments
    and performs a mixed join. Allowed join types are :inner, :outer, and :exists."
-  [flow-joins group-fields decl-fields aggs & {:keys [reducers] :as opts}]
-  (let [join-types (map (comp cascalog-joiner-type second) flow-joins)]
+  [flow-joins decl-fields aggs & {:keys [reducers] :as opts}]
+  (let [join-types (map (comp cascalog-joiner-type #(nth % 2)) flow-joins)
+        group-fields (map second flow-joins)
+        flows (map first flow-joins)]
     (apply co-group* (map first flow-joins) group-fields decl-fields aggs (assoc opts :join (CascalogJoiner. join-types)))))
 
 ;; ## Output Operations
