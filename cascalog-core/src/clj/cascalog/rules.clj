@@ -26,7 +26,6 @@
             PredicateMacroTemplate]
            [java.util ArrayList]))
 
-
 ;; This doesn't make much sense. We always needs children.
 (defrecord Join [join-fields children])
 
@@ -611,7 +610,8 @@
   [out-vars raw-predicates]
   (debug-print "outvars:" out-vars)
   (debug-print "raw predicates:" raw-predicates)
-  (let [{:keys [predicates options drift-map fields]} (parse/parse-subquery out-vars raw-predicates)
+  (let [{:keys [predicates options drift-map fields]}
+        (parse/parse-subquery out-vars raw-predicates)
         ;; Split up generators, operations and aggregators.
         [gens ops aggs] (->> predicates
                              (map (partial apply p/build-predicate options))

@@ -10,17 +10,6 @@
   (:import [jcascalog Predicate]
            [clojure.lang IPersistentVector]))
 
-(defn- uniquify-query-vars
-  "TODO: this won't handle drift for generator filter outvars should
-   fix this by rewriting and simplifying how drift implementation
-   works."
-  [raw-predicates]
-  (let [reduce-fn (fn [[preds vmap] {:keys [outvars] :as pred}]
-                    (let [[uniqued vmap] (v/unique-vars outvars vmap)]
-                      [(conj preds (assoc pred :outvars uniqued)) vmap]))
-        [raw-predicates vmap] (reduce reduce-fn [[] {}] raw-predicates)]
-    [raw-predicates (v/mk-drift-map vmap)]))
-
 ;; This thing handles the logic that the output of an operation, if
 ;; marked as a constant, should be a filter.
 ;;
@@ -248,11 +237,11 @@
               (parse-variables (p/default-var op)))]
       (->RawPredicate op invars outvars {}))))
 
-;; Output of the subquery, the predicates it contains, the options in
-;; the subquery and the drift-map for its output variables.
+;; Output of the subquery, the predicates it contains and the options
+;; in the subquery.
 ;;
 ;; TODO: Have this thing extend IGenerator.
-(defrecord RawSubquery [fields predicates options drift-map])
+(defrecord RawSubquery [fields predicates options])
 
 (comment
   "Make some functions that pull these out."
@@ -271,16 +260,13 @@
         (throw-illegal "Cannot use both aggregators and buffers in same grouping")
         sq))))
 
-(defn parse-predicates
-  "Returns [raw-predicates drift-map]"
-  [raw-predicates]
+(defn parse-predicates [raw-predicates]
   (->> raw-predicates
        (map parse-predicate)
        (pred-clean!)
        (mapcat split-outvar-constants)
        (map rewrite-predicate)
-       (mapcat split-outvar-constants)
-       (uniquify-query-vars)))
+       (mapcat split-outvar-constants)))
 
 ;; Damn, looks like cascalog.vars has some pretty good stuff for this!
 
@@ -289,9 +275,8 @@
   [output-fields raw-predicates]
   (let [[raw-options raw-predicates] (s/separate (comp keyword? first)
                                                  raw-predicates)
-        option-map (opts/generate-option-map raw-options)
-        [raw-predicates drift-map] (parse-predicates raw-predicates)]
+        option-map     (opts/generate-option-map raw-options)
+        raw-predicates (parse-predicates raw-predicates)]
     (->RawSubquery output-fields
                    (map to-predicate raw-predicates)
-                   option-map
-                   drift-map)))
+                   option-map)))

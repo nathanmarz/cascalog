@@ -61,7 +61,7 @@
 
 (def cascalog-keywords
   "Keywords that have special meaning within Cascalog's predicates."
-  #{:> :< :<< :>> :fn> :#> :?})
+  #{:> :< :<< :>> :fn> :#>})
 
 (def cascalog-keyword?
   "Returns true if the supplied keyword is reserved by cascalog, false
@@ -76,24 +76,13 @@ interpreted as a logic variable."
 
 (def wildcards
   "Wildcard strings reserved by Cascalog."
-  #{"_"})
-
-(defn- extract-varname
-  "returns the name of the supplied logic variable. Expected to be
-  used with symbols or strings. If the supplied symbol or string is a
-  wildcard, gen-var will be used to swap in a logic variable."
-  ([v] (extract-varname v gen-nullable-var))
-  ([v gen-var]
-     (let [s (str v)]
-       (if (contains? wildcards s)
-         (gen-var)
-         s))))
+  #{'_ "_"})
 
 (defn prefixed-by?
   "Returns true if the supplied var `v` is prefixed by the supplied
   prefix, false otherwise."
   [prefix v]
-  (try (.startsWith (extract-varname v) prefix)
+  (try (.startsWith (str v) prefix)
        (catch Exception _ false)))
 
 (defn non-nullable-var?
@@ -129,10 +118,15 @@ interpreted as a logic variable."
   (boolean (some #(prefixed-by? % obj)
                  logic-prefixes)))
 
+(def reserved?
+  "Returns true if the supplied symbol is reserved by Cascalog, false
+  otherwise."
+  (comp boolean (some-fn cascalog-var? wildcards #{"&" '&})))
+
 (def logic-sym?
   "Returns true if the supplied symbol is a Cascalog logic variable,
   false otherwise. & and _ are also munged."
-  (every-pred symbol? (some-fn cascalog-var? #{'&})))
+  (every-pred symbol? reserved?))
 
 (defmacro with-logic-vars
   "Binds all logic variables within the body of `with-logic-vars` to
@@ -159,8 +153,9 @@ interpreted as a logic variable."
   generator."
   [anon-gen]
   (fn [x]
-    (cond (cascalog-var? x) (extract-varname x anon-gen)
-          (= (str x) "&") "&"
+    (cond (contains? wildcards x) (anon-gen)
+          (cascalog-var? x)       (str x)
+          (= (str x) "&")         "&"
           :else x)))
 
 (defn sanitize
@@ -172,44 +167,3 @@ interpreted as a logic variable."
                     gen-ungrounding-var
                     gen-nullable-var)]
     (postwalk (sanitize-fn generator) pred)))
-
-;; # Variable Uniqueing
-
-(defn unique-vars
-  "Returns two things. The first entry is a sequence of uniqued
-  variables. To unique, we check that the supplied map of equalities
-  doesn't have an entry yet for a given variable.
-
-  If it doesn't, we add an entry pointing to a singleton vector with
-  the item.
-
-  If it does, we swap out the duplicate var in `vars` with a uniqued
-  version created by appending a unique suffix onto the end."
-  [vars equalities]
-  (letfn [(update [[acc equality-m] v]
-            (if-not (cascalog-var? v)
-              [(conj acc v) equality-m]
-              (let [existing (get equalities v [])
-                    varlist  (cond (empty? existing) (conj existing v)
-                                   (ground-var? v)
-                                   (conj existing (uniquify-var v))
-                                   :else existing)
-                    newname (last varlist)]
-                [(conj acc newname) (assoc equalities v varlist)])))]
-    (reduce update [[] equalities] vars)))
-
-(defn mk-drift-map
-  "Accepts a map of item -> [item, item-dup-a, item-dup-b...] and
-  returns a map up duplicate back to the original item."
-  [vmap]
-  (let [update-fn (fn [m [original & more]]
-                    (reduce (fn [m duplicate]
-                              (assoc m duplicate original)) m more))]
-    (reduce update-fn {} (vals vmap))))
-
-(defn intersect-drift-maps
-  [drift-maps]
-  (let [tokeep (->> drift-maps
-                    (map set)
-                    (apply intersection))]
-    (u/pairs->map (seq tokeep))))
