@@ -77,11 +77,7 @@
 
     "Any function defined with def*op can be used directly in the
      flow:"
-<<<<<<< HEAD
     (-> [1 2 3 4 5]
-=======
-    (-> (generator [1 2 3 4 5])
->>>>>>> 6775bd2061e63907cc234595e290270c5afbdbd7
         (rename* "a")
         (exec* plus-two "a" "b")
         to-memory)
