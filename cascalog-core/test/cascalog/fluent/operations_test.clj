@@ -1,11 +1,12 @@
 (ns cascalog.fluent.operations-test
   (:use clojure.test
-        [midje sweet cascalog]
         cascalog.fluent.operations
+        cascalog.fluent.types
         cascalog.fluent.flow
         cascalog.fluent.tap
         cascalog.fluent.cascading
-        cascalog.fluent.def)
+        cascalog.fluent.def
+        [midje sweet])
   (:require [cascalog.fluent.io :as io]))
 
 (defn square [x]
@@ -47,16 +48,17 @@
       "Naming input and output the same replaces the input variable in
       the flow."
       (-> src
-          (map* square "tweet-count" "tweet-count"))
-      => (produces [["jenna" 100]
-                    ["sam" 4]
-                    ["oscar" 9]])
+          (map* square "tweet-count" "tweet-count")
+          to-memory)
+      =>  [["jenna" 100]
+           ["sam" 4]
+           ["oscar" 9]]
 
       "Using a new name appends the variable."
-      (-> src (map* square "tweet-count" "squared"))
-      => (produces [["jenna" 10 100]
-                    ["sam" 2 4]
-                    ["oscar" 3 9]]))))
+      (-> src (map* square "tweet-count" "squared") to-memory)
+      =>  [["jenna" 10 100]
+           ["sam" 2 4]
+           ["oscar" 3 9]])))
 
 (deftest op-wrapper-test
   (fact
@@ -65,19 +67,21 @@
     (-> [1 2 3 4 5]
         (rename* "a")
         (exec* (mapop* square) "a" "squared")
-        (exec* (times 10) "a" "b"))
-    => (produces [[1 1 10]
-                  [2 4 20]
-                  [3 9 30]
-                  [4 16 40]
-                  [5 25 50]])
+        (exec* (times 10) "a" "b")
+        (to-memory))
+    => [[1 1 10]
+        [2 4 20]
+        [3 9 30]
+        [4 16 40]
+        [5 25 50]]
 
     "Any function defined with def*op can be used directly in the
      flow:"
     (-> [1 2 3 4 5]
         (rename* "a")
-        (exec* plus-two "a" "b"))
-    => (produces [[1 3] [2 4] [3 5] [4 6] [5 7]])))
+        (exec* plus-two "a" "b")
+        to-memory)
+    => [[1 3] [2 4] [3 5] [4 6] [5 7]]))
 
 (future-fact
  "Check that intermediates actually write out to their sequencefiles.")
@@ -92,8 +96,9 @@
           (filter* odd? "a")
           (map* square "inc" "squared")
           (map* dec "squared" "decreased")
-          (write* (hfs-textline tmp-b)))
-      => (produces [[1 2 2 4 3] [3 4 4 16 15]]))))
+          (write* (hfs-textline tmp-b))
+          to-memory)
+      => [[1 2 2 4 3] [3 4 4 16 15]])))
 
 (deftest duplicate-inputs
   (io/with-fs-tmp [_ tmp-a tmp-b]
@@ -108,11 +113,12 @@
             (fn [flow input delta]
               (-> flow (map* sum input "summed"))))
           (write* (hfs-textline tmp-a))
-          (graph tmp-b))
-      => (produces [[1 2 1 4]
-                    [2 3 2 7]
-                    [3 4 3 10]
-                    [4 5 4 13]]))))
+          (graph tmp-b)
+          (to-memory))
+      => [[1 2 1 4]
+          [2 3 2 7]
+          [3 4 3 10]
+          [4 5 4 13]])))
 
 (deftest test-merged-flow
   (let [source (-> [[1 1] [2 2] [3 3] [4 4]]
@@ -126,11 +132,40 @@
     (fact "Merge combines streams without any join. This test forks a
            source, applies operations to each branch then merges the
            branches back together again."
-      (merge* a b) => (produces [[1 1 1 0]
-                                 [2 2 4 1]
-                                 [3 3 9 2]
-                                 [4 4 16 3]
-                                 [1 1 2 2]
-                                 [2 2 3 3]
-                                 [3 3 4 4]
-                                 [4 4 5 5]]))))
+          (sort (-> (merge* a b)
+                    (map* str "d" "e")
+                    to-memory)) => (sort [[1 1 1 0 "0"]
+                                          [2 2 4 1 "1"]
+                                          [3 3 9 2 "2"]
+                                          [4 4 16 3 "3"]
+                                          [1 1 2 2 "2"]
+                                          [2 2 3 3 "3"]
+                                          [3 3 4 4 "4"]
+                                          [4 4 5 5 "5"]]))))
+
+(deffilterfn gt2
+  [x] (> x 2))
+
+(def sum (partial parallel-agg +))
+
+(deftest test-co-group
+  (let [source (-> (generator [[1 1] [2 2] [3 3] [4 4]]))
+        a      (-> source
+                   (rename* ["a" "b"])
+                   (filter* gt2 "a")
+                   (map* square "b" "c")
+                   ;(discard* "b")
+                   )
+        b      (-> source
+                   (rename* ["x" "y"]))]
+    (fact "Join joins stuff"
+          (sort (-> (co-group* [a b] [["a"] ["x"]] ["a" "x" "b" "c" "y"]  [])
+                    (map* str "y" "q")
+                    to-memory)) => (sort [[3 3 9 3 3 "3"]
+                                          [4 4 16 4 4 "4"]]))
+    (fact "Agg after join"
+          (let [a (-> (generator [[1 1] [1 2] [2 2]]) (rename* ["a" "b"]))
+                b (-> (generator [[1 10] [2 15]]) (rename* ["x" "y"]))
+                q (co-group* [a b] [["a"] ["x"]] nil [(sum "y" "s")])]
+            (fact (to-memory q) => [[1 1 20] [2 2 15]])
+            ))))

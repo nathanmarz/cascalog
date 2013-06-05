@@ -1,12 +1,12 @@
 (ns cascalog.fluent.operations
+  (:use [cascalog.fluent.types])
   (:require [clojure.tools.macro :refer (name-with-attributes)]
             [clojure.set :refer (subset? difference intersection)]
             [cascalog.vars :as v]
             [cascalog.fluent.conf :as conf]
             [cascalog.fluent.cascading :as casc
              :refer (fields default-output)]
-            [cascalog.fluent.algebra :refer (plus)]
-            [cascalog.fluent.types :refer (generator to-sink)]
+            [cascalog.fluent.algebra :refer (plus sum)]
             [cascalog.fluent.fn :as serfn]
             [cascalog.util :as u]
             [cascalog.fluent.source :as src]
@@ -21,7 +21,8 @@
            [cascading.operation.filter Sample]
            [cascading.operation.aggregator First Count Sum Min Max]
            [cascading.pipe Pipe Each Every GroupBy CoGroup Merge ]
-           [cascading.pipe.joiner InnerJoin]
+           [cascading.pipe.joiner InnerJoin LeftJoin RightJoin OuterJoin]
+           [cascading.pipe.joiner CascalogJoiner CascalogJoiner$JoinType]
            [cascading.pipe.assembly Rename AggregateBy]
            [cascalog ClojureFilter ClojureMapcat ClojureMap
             ClojureBuffer ClojureBufferIter FastFirst
@@ -133,11 +134,6 @@
   (each flow #(ClojureMapcat. % op-var)
         in-fields
         out-fields))
-
-(defn merge*
-  "Merges the supplied flows."
-  [& flows]
-  (reduce plus flows))
 
 ;; ## Aggregations
 ;;
@@ -273,7 +269,7 @@
                           (groupby pipe group-fields
                                    (fields sort-fields)
                                    reverse?)))
-          mode (aggregate-mode aggs reduce-only)]
+          mode (aggregate-mode aggs (or reduce-only sort-fields))]
       (case mode
         ::buffer    (build-group #(add-buffer (first aggs) %))
         ::aggregate (build-group (fn [grouped]
@@ -293,12 +289,102 @@
                    (Every. pipe (FastFirst.) Fields/RESULTS)))]
        (group-by* flow unique-fields [agg]))))
 
+;; ## Combining Multiple Flows
+
+;; We should probably call this "sum" and keep it in algebra.clj
+(defn merge* [& flows] (sum flows))
+
 (defn union*
   "Merges the supplied flows and ensures uniqueness of the resulting
   tuples."
   [& flows]
-  (-> (apply merge* flows)
+  (-> (sum flows)
       (unique)))
+
+(defn join-to-joiner
+  [join]
+  (if (instance? cascading.pipe.joiner.Joiner join)
+    join
+    (case join
+      :inner (InnerJoin.)
+      :outer (OuterJoin.)
+      ;; else
+      (throw-illegal "Can't create joiner from " join))))
+
+(defn- co-group
+  [pipes group-fields decl-fields join]
+  (let [group-fields (into-array Fields (map fields group-fields))
+        joiner (join-to-joiner join)
+        decl-fields (when decl-fields
+                      (fields decl-fields))]
+    (CoGroup. pipes group-fields decl-fields joiner)))
+
+(defn- add-co-group-aggs
+  [pipe aggs]
+  (let [mode (aggregate-mode aggs true)]
+    (case mode
+      ::buffer (add-buffer (first aggs) pipe)
+      ::aggregate (reduce (fn [p op]
+                            (add-aggregator op p)) pipe aggs))))
+
+(defn lift-pipes [flows]
+  (map #(add-op % (fn [p] (into-array Pipe [p]))) flows))
+
+(defn- ensure-unique-pipes
+  [flows]
+  (map rename-pipe flows))
+
+(defn co-group*
+  [flows group-fields decl-fields aggs & {:keys [reducers join] :or {join :inner}}]
+  (-> flows
+      ensure-unique-pipes
+      lift-pipes
+      sum
+      (add-op (fn [pipes]
+                (-> (co-group pipes group-fields decl-fields join)
+                    (set-reducers reducers)
+                    (add-co-group-aggs aggs))))))
+
+(defn join-with-smaller
+  [larger-flow fields1 smaller-flow fields2 aggs & {:keys [reducers] :as opts}]
+  (apply co-group*
+         [larger-flow smaller-flow]
+         [fields1 fields2]
+         nil aggs (assoc opts :join (InnerJoin.))))
+
+(defn join-with-larger
+  [smaller-flow fields1 larger-flow fields2 group-fields aggs & {:keys [reducers] :as opts}]
+  (apply join-with-smaller larger-flow fields2 smaller-flow fields1 aggs opts))
+
+(defn left-join-with-smaller
+  [larger-flow fields1 smaller-flow fields2 aggs & {:keys [reducers] :as opts}]
+  (apply co-group*
+         [larger-flow smaller-flow]
+         [fields1 fields2]
+         nil aggs (assoc opts :join (LeftJoin.))))
+
+(defn left-join-with-larger
+  [smaller-flow fields1 larger-flow fields2 aggs & {:keys [reducers] :as opts}]
+  (apply co-group*
+         [larger-flow smaller-flow]
+         [fields2 fields1]
+         nil aggs (assoc opts :join (RightJoin.))))
+
+(defn- cascalog-joiner-type
+  [join]
+  (case join
+      :inner CascalogJoiner$JoinType/INNER
+      :outer CascalogJoiner$JoinType/OUTER
+      :exists CascalogJoiner$JoinType/EXISTS))
+
+(defn join-many
+  "Takes a sequence of [pipe, join-fields, join-type] triplets along with other co-group arguments
+   and performs a mixed join. Allowed join types are :inner, :outer, and :exists."
+  [flow-joins decl-fields aggs & {:keys [reducers] :as opts}]
+  (let [join-types (map (comp cascalog-joiner-type #(nth % 2)) flow-joins)
+        group-fields (map second flow-joins)
+        flows (map first flow-joins)]
+    (apply co-group* (map first flow-joins) group-fields decl-fields aggs (assoc opts :join (CascalogJoiner. join-types)))))
 
 ;; ## Output Operations
 ;;
