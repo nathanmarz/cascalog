@@ -2,7 +2,7 @@
 
 [![Build Status](https://secure.travis-ci.org/nathanmarz/cascalog.png?branch=develop)](http://travis-ci.org/nathanmarz/cascalog)
 
-Cascalog is a fully-featured data processing and querying library for Clojure or Java. The main use cases for Cascalog are processing "Big Data" on top of Hadoop or doing analysis on your local computer. Cascalog is a replacement for tools like Pig, Hive, and Cascading and operates at a significantly higher level of abstraction than those tools.
+[Cascalog](http://cascalog.org/) is a fully-featured data processing and querying library for Clojure or Java. The main use cases for Cascalog are processing "Big Data" on top of Hadoop or doing analysis on your local computer. Cascalog is a replacement for tools like Pig, Hive, and Cascading and operates at a significantly higher level of abstraction than those tools.
 
 Follow the getting started steps, check out the tutorial, and you'll be running Cascalog queries on your local computer within 5 minutes.
 
@@ -18,7 +18,7 @@ The best way to get started with Cascalog is experiment with the toy datasets th
 2. Make sure you have Java 1.6 (run `java -version`)
 3. Start a new leiningen project with `lein new <project name>`, replacing `<project name>`
 4. Include dependency on Cascalog in your project by adding `[cascalog "1.10.1"]` into your project's `project.clj` file.
-5. Work through the examples in the [introductory](http://nathanmarz.com/blog/introducing-cascalog-a-clojure-based-query-language-for-hado.html) [tutorials](http://nathanmarz.com/blog/new-cascalog-features-outer-joins-combiners-sorting-and-more.html)
+5. Work through the examples in the [Getting Started Guide](http://cascalog.org/articles/getting_started.html).
 
 # Using Cascalog within a project
 
@@ -41,12 +41,11 @@ Leiningen < 2.0
     :dependencies [cascalog "1.10.1"] 
     :dev-dependencies [[org.apache.hadoop/hadoop-core "0.20.2-dev"]]
 
-Note that Cascalog is compatible with Clojure 1.2.0, 1.2.1, 1.3.0,
-1.4.0, and 1.5.1. 
+Note that Cascalog is compatible with Clojure 1.2.0, 1.2.1, 1.3.0, 1.4.0, and 1.5.1. 
     
 # Documentation and Issue Tracker
 
-- The [Cascalog Wiki](https://github.com/nathanmarz/cascalog/wiki) contains more information and links to Various articles and tutorials.
+- The [Cascalog website](http://cascalog.org/) contains more information and links to Various articles and tutorials.
 - API documentation can be found at http://nathanmarz.github.com/cascalog/.
 - [Issue Tracker on Github](https://github.com/nathanmarz/cascalog/issues).
 
