@@ -77,7 +77,7 @@
 
 ;; ## Query creation and execution
 
-(defalias construct rules/build-rule)
+(defalias construct cascalog.parse/parse-subquery)
 
 (defmacro <-
   "Constructs a query or predicate macro from a list of

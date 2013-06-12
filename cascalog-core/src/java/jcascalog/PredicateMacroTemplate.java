@@ -72,10 +72,7 @@ public class PredicateMacroTemplate {
   }
 
   public Object getCompiledPredMacro() {
-    List<Object> fieldsDeclaration = new ArrayList<Object>();
-    fieldsDeclaration.addAll(_inFields);
-    fieldsDeclaration.add(Keyword.intern(">"));
-    fieldsDeclaration.addAll(_outFields);
-    return Util.bootSimpleFn("cascalog.rules", "build-rule").invoke(fieldsDeclaration, _preds);
+    return Util.bootSimpleFn("cascalog.predmacro", "build-predmacro")
+      .invoke(_inFields, _outFields, _preds);
   }
 }

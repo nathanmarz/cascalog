@@ -6,6 +6,7 @@
             [cascalog.fluent.cascading :as casc
              :refer (fields default-output)]
             [cascalog.fluent.algebra :refer (plus)]
+            [cascalog.fluent.cascading :refer (uniquify-var)]
             [cascalog.fluent.types :refer (generator to-sink)]
             [cascalog.fluent.fn :as serfn]
             [cascalog.util :as u]
@@ -38,6 +39,10 @@
 ;;
 ;; All of these operations work on implementers of the Generator
 ;; protocol, defined in cascalog.fluent.types.
+
+(defmacro assembly [args & ops]
+  `(fn [flow# ~@args]
+     (-> flow# ~@ops)))
 
 (defn add-op
   "Accepts a generator and a function from pipe to pipe and applies
@@ -87,7 +92,7 @@
 (defop discard*
   "Discard the supplied fields."
   [drop-fields]
-  #(Each. % drop-fields (NoOp.) Fields/SWAP))
+  #(Each. % (fields drop-fields) (NoOp.) Fields/SWAP))
 
 (defop debug*
   "Prints all tuples that pass through the StdOut."
@@ -100,7 +105,8 @@
   [flow & field-v-pairs]
   (let [[out-fields vals] (unweave field-v-pairs)]
     (each flow #(KryoInsert. % (into-array Object vals))
-          Fields/NONE out-fields)))
+          Fields/NONE
+          out-fields)))
 
 (defn sample*
   "Sample some percentage of elements within this pipe. percent should
@@ -111,6 +117,8 @@
   ([flow percent seed]
      (add-op flow #(Each. % (Sample. percent seed)))))
 
+;; TODO: rename* should accept a map of old fieldname -> new
+;; fieldname.
 (defn rename*
   "rename old-fields to new-fields."
   ([flow new-fields]
@@ -234,7 +242,8 @@
   [aggregators force-reduce?]
   (cond (some buffer? aggregators)
         (if (> (count aggregators) 1)
-          (throw-illegal "Buffer must be specified on its own")
+          (throw-illegal
+           "Cannot use both aggregators and buffers in the same grouping.")
           ::buffer)
 
         (and (not force-reduce?)
@@ -351,10 +360,10 @@
 (defn replace-dups
   "Accepts a sequence and a (probably stateful) generator and returns
   a new sequence with all duplicates replaced by a call to `gen`."
-  [coll gen]
+  [coll]
   (reduce (fn [[seen-set acc] elem]
             (if (contains? seen-set elem)
-              [seen-set (conj acc (gen))]
+              [seen-set (conj acc (uniquify-var elem))]
               [(conj seen-set elem) (conj acc elem)]))
           [#{} []]
           (collectify coll)))
@@ -371,8 +380,7 @@
   [flow from-fields f]
   (if (apply distinct? (collectify from-fields))
     (f flow from-fields [])
-    (let [[delta cleaned-fields]
-          (replace-dups from-fields casc/gen-unique-var)]
+    (let [[delta cleaned-fields] (replace-dups from-fields)]
       (-> (reduce (fn [subflow [field gen]]
                     (if (= field gen)
                       subflow
@@ -405,7 +413,7 @@
   (let [[new-input sub-m] (constant-substitutions in-fields)
         ignored (keys sub-m)]
     (-> (insert-subs gen sub-m)
-        (f (fields new-input))
+        (f new-input)
         (discard* (fields ignored)))))
 
 (defn- replace-ignored-vars
@@ -473,7 +481,7 @@
       (logically ["?a" 10 "?other"] "?b"
                  (fn [gen in out]
                    (-> gen (map* * in out))))
-      (to-memory))
+      (cascalog.fluent.flow/to-memory))
 
   "This one fails, since one of the inputs is interpreted as a
   constant."

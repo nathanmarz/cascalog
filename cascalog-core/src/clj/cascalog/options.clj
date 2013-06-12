@@ -12,24 +12,30 @@
 ;;
 ;; * Validation for each option type.
 ;; * Can the user add an option type on the fly? Is there some generic
-;; way to specify an option's meaning within the predicate? Not sure
-;;how we can make this pluggable.
+;;   way to specify an option's meaning within the predicate? Not sure
+;;   how we can make this pluggable, other than just allowing all options.
 
 (def DEFAULT-OPTIONS
   "The set of options supported by Cascalog, mapped to default values."
   {:distinct false
    :sort nil
-   :reverse false
-   :trap nil})
+   :reverse nil
+   :trap nil
+   :spill-threshold nil})
 
 (defn careful-merge
-  "Monoid that keeps the right value of it's not nil or not equal to
-  the old left value. If these conditions aren't met, the merge will
-  throw an exception."
+  "Semigroup that keeps the right value of it's not nil or not equal
+  to the old left value. If these conditions aren't met, the merge
+  will throw an exception."
   [l r]
-  (if (or (nil? r) (= l r))
-    (throw-illegal "Same option set to conflicting values!")
+  (if-not (or (nil? l) (= l r))
+    (throw-illegal (format "Same option set to conflicting values: % vs %."
+                           l r))
     r))
+
+(def option?
+  "A predicate is an option if it begins with a keyword."
+  (comp keyword? first))
 
 (defn generate-option-map
   "Accepts a sequence of option predicates and generates a map of
@@ -40,8 +46,12 @@
               (assert (contains? DEFAULT-OPTIONS opt)
                       (str opt " is not a valid option predicate"))
               {opt (condp = opt
+                     ;; Flatten sorting fields.
                      :sort (flatten more)
-                     :trap (first more)
+
+                     ;; Otherwise, take the first item. TODO: Throw if
+                     ;; more than one item exists for non-sorting
+                     ;; fields.
                      (first more))}))
        (apply merge-with careful-merge)
        (merge DEFAULT-OPTIONS)))

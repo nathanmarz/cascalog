@@ -9,7 +9,6 @@
             [cascalog.graph :as g]
             [cascalog.parse :as parse]
             [cascalog.predicate :as p]
-            [cascalog.predmacro :as predmacro]
             [cascalog.fluent.tap :as tap]
             [cascalog.fluent.workflow :as w])
   (:import [cascading.tap Tap]
@@ -30,135 +29,6 @@
 (defrecord Join [join-fields children])
 
 (defrecord Group [op-seq in-fields out-fields])
-
-;; infields for a join are the names of the join fields
-(p/defpredicate join :infields)
-
-(p/defpredicate group
-  :assembly
-  :infields
-  :totaloutfields)
-
-;; TODO: Implement this as a search through the zipper.
-
-(defn find-generator-join-set-vars
-  "Returns a singleton vector with the generator-as-set join var if it
-  exists, nil otherwise."
-  [node]
-  (let [predicate     (g/get-value node)
-        inbound-nodes (g/get-inbound-nodes node)
-        pred-type     (:type predicate)]
-    (condp = pred-type
-      :join       nil
-      :group      nil
-      :generator (if-let [v (:join-set-var predicate)] [v])
-      (if (= 1 (count inbound-nodes))
-        (recur (first inbound-nodes))
-        (throw-runtime "Planner exception: Unexpected number of "
-                       "inbound nodes to non-generator predicate.")))))
-
-;; ## Operation Application
-
-(letfn [
-        ;; The assumption here is that the new operation is only
-        ;; ADDING fields. All output fields are unique, in this
-        ;; particular case.
-        ;;
-        ;; We have a bug here, because input fields show up before
-        ;; output fields -- if we write a certain input field BEFORE
-        ;; an output field, we lose.
-        (connect-op [tail op]
-          (struct tailstruct
-                  (:ground? tail)
-                  (:operations tail)
-                  (:drift-map tail)
-                  (concat (:available-fields tail)
-                          (:outfields op))
-                  (g/connect-value (:node tail) op)))
-
-        ;; Adds an operation onto the tail -- this builds up an entry
-        ;; in the graph by connecting the new operation to the old
-        ;; operation's node. This is how we keep track of everything.
-        (add-op [tail op]
-          (debug-print "Adding op to tail " op tail)
-          (let [tail    (connect-op tail op)
-                new-ops (s/remove-first (partial = op) (:operations tail))]
-            (merge tail {:operations new-ops})))
-
-        (op-allowed? [tail op]
-          (let [ground?          (:ground? tail)
-                available-fields (:available-fields tail)
-                join-set-vars    (find-generator-join-set-vars (:node tail))
-                infields-set     (set (:infields op))]
-            (and (or (:allow-on-genfilter? op)
-                     (empty? join-set-vars))
-                 (subset? infields-set (set available-fields))
-                 (or ground? (every? v/ground-var? infields-set)))))
-
-        ;; Adds operations to tail until can't anymore. Returns new tail
-        (fixed-point-operations [tail]
-          (if-let [op (s/find-first (partial op-allowed? tail)
-                                    (:operations tail))]
-            (recur (add-op tail op))
-            tail))
-
-        (add-drift-op [tail equality-sets rename-map new-drift-map]
-          (let [eq-assemblies (map w/equal equality-sets)
-                outfields (vec (keys rename-map))
-                rename-in (vec (vals rename-map))
-                rename-assembly (if (seq rename-in)
-                                  (w/identity rename-in :fn> outfields :> Fields/SWAP)
-                                  identity)
-                assembly   (apply w/compose-straight-assemblies
-                                  (concat eq-assemblies [rename-assembly]))
-                infields (vec (apply concat rename-in equality-sets))
-                tail (connect-op tail (p/predicate p/operation
-                                                   assembly
-                                                   infields
-                                                   outfields
-                                                   false))
-                newout (difference (set (:available-fields tail))
-                                   (set rename-in))]
-            (merge tail {:drift-map new-drift-map
-                         :available-fields newout} )))
-
-        (drift-equalities [drift-m available-fields]
-          (let [eqmap (select-keys (u/reverse-map
-                                    (select-keys drift-m available-fields))
-                                   available-fields)
-                equality-sets (map (fn [[k v]] (conj v k)) eqmap)]))
-
-        (determine-drift
-          [drift-map available-fields]
-          ;; This function kicks out a new drift map, a set of fields
-          ;; that are meant to be equal, and a map of items to rename.
-          (let [available-set (set available-fields)
-                rename-map (reduce (fn [m f]
-                                     (let [drift (drift-map f)]
-                                       (if (and drift (not (available-set drift)))
-                                         (assoc m drift f)
-                                         m)))
-                                   {} available-fields)
-                eqmap (select-keys (u/reverse-map
-                                    (select-keys drift-map available-fields))
-                                   available-fields)
-                equality-sets (map (fn [[k v]] (conj v k)) eqmap)
-                new-drift-map (->> equality-sets
-                                   (apply concat (vals rename-map))
-                                   (apply dissoc drift-map))]
-            (prn "NEW DRIFT: " new-drift-map)
-            [new-drift-map equality-sets rename-map]))]
-
-  (defn- add-ops-fixed-point
-    "Adds operations to tail until can't anymore. Returns new tail"
-    [tail]
-    (let [{:keys [drift-map available-fields] :as tail} (fixed-point-operations tail)
-          [new-drift-map equality-sets rename-map]
-          (determine-drift drift-map available-fields)]
-      (if (and (empty? equality-sets)
-               (empty? rename-map))
-        tail
-        (recur (add-drift-op tail equality-sets rename-map new-drift-map))))))
 
 ;; ## Join Field Detection
 
@@ -604,14 +474,11 @@
       (throw-illegal "Cannot use both aggregators and buffers in same grouping"))
     [gens ops aggs]))
 
-(defn- build-query
+(defn build-query
   "This is the big mother. This is where the query gets built and
   where I'll be spending some good time."
-  [out-vars raw-predicates]
-  (debug-print "outvars:" out-vars)
-  (debug-print "raw predicates:" raw-predicates)
-  (let [{:keys [predicates options drift-map fields]}
-        (parse/parse-subquery out-vars raw-predicates)
+  [out-vars nodes options]
+  (let [{:keys [predicates options fields]} (parse/parse-subquery out-vars raw-predicates)
         ;; Split up generators, operations and aggregators.
         [gens ops aggs] (->> predicates
                              (map (partial apply p/build-predicate options))
@@ -629,7 +496,6 @@
                            (struct tailstruct
                                    ground?
                                    ops
-                                   drift-map
                                    outfields
                                    (g/create-node rule-graph g))))
                     (merge-tails rule-graph))
@@ -642,53 +508,3 @@
     (if (not-empty operations)
       (throw-runtime "Could not apply all operations: " (pr-str operations))
       (build-generator true out-vars node))))
-
-;; ## Query Compilation
-;;
-;; This is the entry point from "construct".
-;;
-;; Before compilation, all predicates are normalized down to clojure
-;; predicates.
-;;
-;; Query compilation steps are as follows:
-;;
-;; 1. Normalize all predicates
-;; 2. Expand predicate macros
-;; 3. Desugar all of the argument selectors (remember positional!)
-
-(defn query-signature?
-  "Accepts the normalized return vector of a Cascalog form and returns
-  true if the return vector is from a subquery, false otherwise. (A
-  predicate macro would trigger false, for example.)"
-  [vars]
-  (not (some v/cascalog-keyword? vars)))
-
-;; This is the main entry point from api.clj. What's the significance
-;; of a query vs a predicate macro? The main thing in the current API
-;; is that a query triggers an actual grouping, and compiles down to
-;; another generator with a pipe, etc, while a predicate macro is just
-;; a collection of predicates that expands out within another
-;; subquery.
-
-(defn build-rule
-  "Construct a query or predicate macro functionally. When
-   constructing queries this way, operations should either be vars for
-   operations or values defined using one of Cascalog's def
-   macros. Vars must be stringified when passed to construct. If
-   you're using destructuring in a predicate macro, the & symbol must
-   be stringified as well.
-
-  This is the entry point into the rules of the system. output
-  variables and raw predicates come in, predicate macros are expanded,
-  and the query (or another predicate macro) is compiled."
-  [out-vars raw-predicates]
-  (let [out-vars (v/sanitize out-vars)
-        predicates (->> raw-predicates
-                        (map parse/to-predicate)
-                        predmacro/expand-predicate-macros)]
-    (if (query-signature? out-vars)
-      (build-query out-vars predicates)
-      (let [parsed (parse/parse-variables out-vars :<)]
-        (predmacro/build-predicate-macro (parsed :<<)
-                                         (parsed :>>)
-                                         predicates)))))

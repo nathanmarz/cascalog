@@ -1,7 +1,7 @@
 (ns cascalog.util
   (:use [jackknife.core :only (update-vals)]
         [jackknife.seq :only (unweave merge-to-vec collectify)])
-  (:refer-clojure :exclude [flatten])
+  (:refer-clojure :exclude [flatten memoize])
   (:require [clojure.string :as s]
             [clojure.walk :refer (postwalk)])
   (:import [java.util UUID]))
@@ -130,19 +130,40 @@
   [key-name newval]
   (alter-meta! *ns* merge {key-name newval}))
 
-(defn mk-destructured-seq-map [& bindings]
+(defn mk-destructured-seq-map
+  "Accepts pairs of bindings and generates a map of replacements to
+  make... TODO: More docs."
+  [& bindings]
   ;; lhs needs to be symbolified
   (let [bindings (clean-nil-bindings bindings)
         to-sym (fn [s] (if (keyword? s) s (symbol s)))
         [lhs rhs] (unweave bindings)
-        lhs  (for [l lhs] (if (sequential? l) (vec (map to-sym l)) (symbol l)))
-        rhs  (for [r rhs] (if (sequential? r) (vec r) r))
+        lhs (for [l lhs] (if (sequential? l)
+                           (vec (map to-sym l))
+                           (symbol l)))
+        rhs (for [r rhs] (if (sequential? r)
+                           (vec r)
+                           r))
         destructured (vec (destructure (interleave lhs rhs)))
         syms (first (unweave destructured))
         extract-code (vec (for [s syms] [(str s) s]))]
     (eval
      `(let ~destructured
         (into {} ~extract-code)))))
+
+(defn memoize
+  "Similar to clojure.core/memoize, but allows for an optional
+  initialization map."
+  {:static true}
+  ([f] (memoize f {}))
+  ([f init-m]
+     (let [mem (atom init-m)]
+       (fn [& args]
+         (if-let [e (find @mem args)]
+           (val e)
+           (let [ret (apply f args)]
+             (swap! mem assoc args ret)
+             ret))))))
 
 ;; TODO: Move to "conf" namespace.
 

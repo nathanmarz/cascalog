@@ -26,11 +26,6 @@
   "Returns a unique ungrounding var with an optional suffix."
   (gen-var-fn "!!"))
 
-(defn uniquify-var
-  "Appends a unique suffix to the supplied input."
-  [v]
-  (str v (gen-unique-suffix)))
-
 (defn gen-nullable-vars
   "Generates the given number, 'amt', of nullable variables in a sequence.
 
@@ -59,14 +54,14 @@
 ;;
 ;; Certain keywords are reserved by Cascalog.
 
-(def cascalog-keywords
+(def selectors
   "Keywords that have special meaning within Cascalog's predicates."
-  #{:> :< :<< :>> :fn> :#>})
+  #{:> :< :<< :>> :#>})
 
-(def cascalog-keyword?
+(def selector?
   "Returns true if the supplied keyword is reserved by cascalog, false
-otherwise."
-  (comp boolean cascalog-keywords))
+   otherwise."
+  (comp boolean selectors))
 
 (def logic-prefixes
   "Symbol prefixes reserved by Cascalog for use within predicates. Any
@@ -125,7 +120,7 @@ interpreted as a logic variable."
 
 (def logic-sym?
   "Returns true if the supplied symbol is a Cascalog logic variable,
-  false otherwise. & and _ are also munged."
+  false otherwise. & and _ are also accepted."
   (every-pred symbol? reserved?))
 
 (defmacro with-logic-vars

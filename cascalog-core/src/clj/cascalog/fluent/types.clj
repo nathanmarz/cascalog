@@ -64,11 +64,6 @@
   clojure.lang.IPersistentVector
   (generator [v] (generator (seq v)))
 
-  nil
-  (generator [_]
-    (generator
-     (MemorySourceTap. [] Fields/ALL)))
-
   clojure.lang.ISeq
   (generator [v]
     (generator

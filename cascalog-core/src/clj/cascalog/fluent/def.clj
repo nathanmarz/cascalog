@@ -32,6 +32,18 @@
   [op]
   (= true (-> op meta ::prepared)))
 
+(derive ::map ::operation)
+(derive ::mapcat ::operation)
+
+(derive ::bufferiter ::buffer)
+
+(defn buffer? [op]
+  (isa? (type op) ::buffer))
+
+(defn aggregator? [op]
+  (or (isa? (type op) ::aggregate)
+      (isa? (type op) ::combiner)))
+
 (letfn [(attach [builder type]
           (fn [afn]
             (if-not (ifn? afn)
@@ -41,14 +53,14 @@
                   (apply afn args))
                 (merge (meta afn) {::op afn
                                    ::op-builder builder
-                                   ::pred-type type})))))]
-  (def mapop* (attach ops/map* :map))
-  (def mapcatop* (attach ops/mapcat* :mapcat))
-  (def filterop* (attach ops/filter* :filter))
-  (def aggregateop* (attach ops/agg :aggregate))
-  (def parallelagg* (attach ops/parallel-agg :combiner))
-  (def bufferop* (attach ops/buffer :buffer))
-  (def bufferiterop* (attach ops/bufferiter :bufferiter)))
+                                   :type type})))))]
+  (def mapop* (attach ops/map* ::map))
+  (def mapcatop* (attach ops/mapcat* ::mapcat))
+  (def filterop* (attach ops/filter* ::filter))
+  (def aggregateop* (attach ops/agg ::aggregate))
+  (def parallelagg* (attach ops/parallel-agg ::combiner))
+  (def bufferop* (attach ops/buffer ::buffer))
+  (def bufferiterop* (attach ops/bufferiter ::bufferiter)))
 
 (defmacro mapfn [& body] `(mapop* (s/fn ~@body)))
 (defmacro mapcatfn [& body] `(mapcatop* (s/fn ~@body)))
@@ -124,6 +136,36 @@
 (defdeprecated defaggregateop defaggregatefn)
 (defdeprecated defbufferop defbufferfn)
 (defdeprecated defbufferiterop defbufferiterfn)
+
+(defrecord ParallelAggregator [init-var combine-var present-var])
+
+(defmacro defparallelagg
+  "Binds an efficient aggregator to the supplied symbol. A parallel
+  aggregator processes each tuple through an initializer function,
+  then combines the results each tuple's initialization until one
+  result is achieved. `defparallelagg` accepts two keyword arguments:
+
+  :init-var -- A var bound to a fn that accepts raw tuples and returns
+  an intermediate result; #'one, for example.
+
+  :combine-var -- a var bound to a fn that both accepts and returns
+  intermediate results.
+
+  For example,
+
+  (defparallelagg sum
+  :init-var #'identity
+  :combine-var #'+)
+
+  Used as
+
+  (sum ?x :> ?y)"
+  {:arglists '([name doc-string? attr-map?
+                & {:keys [init-var combine-var present-var]}])}
+  [name & body]
+  (let [[name body] (name-with-attributes name body)]
+    `(def ~name
+       (map->ParallelAggregator (hash-map ~@body)))))
 
 ;; ## Runner
 ;;

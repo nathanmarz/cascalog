@@ -22,15 +22,13 @@ public class Predicate {
   }
 
   public List<Object> toRawCascalogPredicate() {
-    List<Object> fieldsDeclaration = new ArrayList<Object>();
-    fieldsDeclaration.addAll(_initialFields);
-    if (_outFields != null) {
-      fieldsDeclaration.add(Keyword.intern(">"));
-      fieldsDeclaration.addAll(_outFields);
-    }
     List<Object> pred = new ArrayList<Object>();
     pred.add(_op);
-    pred.add(fieldsDeclaration);
+    pred.addAll(_initialFields);
+    if (_outFields != null) {
+      pred.add(Keyword.intern(">"));
+      pred.addAll(_outFields);
+    }
     return pred;
   }
 }

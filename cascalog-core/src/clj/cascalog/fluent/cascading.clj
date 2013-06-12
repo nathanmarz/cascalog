@@ -12,15 +12,16 @@
   (defn gen-unique-suffix []
     (str "__gen" (swap! i inc))))
 
+(defn uniquify-var
+  "Appends a unique suffix to the supplied input."
+  [v]
+  (str v (gen-unique-suffix)))
+
 (defn gen-var-fn
   "Accepts a prefix and returns a function of no arguments that, when
   called, produces a unique string with the supplied prefix."
   [prefix]
-  (fn [] (str prefix (gen-unique-suffix))))
-
-(def gen-unique-var
-  "Returns a unique non-nullable var with a optional suffix."
-  (gen-var-fn ""))
+  (fn [] (uniquify-var prefix)))
 
 (defn ^Fields fields
   "Returns the supplied object as an instance of Cascading Fields."
