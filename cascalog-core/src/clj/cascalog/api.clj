@@ -21,8 +21,6 @@
            [cascading.flow.hadoop HadoopFlowConnector]
            [cascading.tuple Fields]
            [cascading.tap Tap]
-           [cascading.pipe Pipe]
-           [com.twitter.maple.tap StdoutTap]
            [jcascalog Subquery]))
 
 ;; Functions for creating taps and tap helpers
