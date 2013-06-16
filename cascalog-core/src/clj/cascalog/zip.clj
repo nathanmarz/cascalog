@@ -2,17 +2,20 @@
   (:require [clojure.zip :as zip]
             [jackknife.seq :refer (collectify)]))
 
+(defprotocol TreeNode
+  (branch? [node] "Is it possible for node to have children?")
+  (children [node] "Return children of this node.")
+  (make-node [node children] "Makes new node from existing node and new children."))
+
+(extend-protocol TreeNode
+  Object
+  (branch? [node] false)
+  (make-node [node children] node))
+
 (defn cascalog-zip
   "Returns a zipper for cascalog nodes, given a root sequence"
-  {:added "1.0"}
   [root]
-  (zip/zipper map?      ;; can this zipper have children?
-              (comp collectify :children) ;; how to access the seq of children?
-
-              ;; How to make a new node?
-              (fn [node children]
-                (with-meta children (meta node)))
-              root))
+  (zip/zipper branch? children make-node root))
 
 (defn leftmost-descendant
   "Given a zipper loc, returns its leftmost descendent (ie, down repeatedly)."
@@ -49,7 +52,17 @@
         (recur (my-next loc))))))
 
 (comment
+  (extend-protocol TreeNode
+    clojure.lang.IPersistentMap
+    (branch? [node] false)
+    (children [node]
+      (collectify (:children node)))
+    (make-node [node children]
+      (with-meta children (meta node))))
   (-> (cascalog-zip {:children [{:children [1 2 3]}
                                 {:children [4 5]}]})
       zip/down
-      zip/children))
+      zip/up
+      zip/down
+      zip/right
+      zip/node))

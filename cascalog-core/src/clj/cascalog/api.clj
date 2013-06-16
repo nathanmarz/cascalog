@@ -6,15 +6,14 @@
   (:require [clojure.set :as set]
             [cascalog.vars :as v]
             [cascalog.predicate :as p]
-            [cascalog.rules :as rules]
             [cascalog.util :as u]
             [cascalog.parse :as parse]
             [cascalog.fluent.tap :as tap]
             [cascalog.fluent.conf :as conf]
-            [cascalog.fluent.workflow :as w]
             [cascalog.fluent.flow :as flow]
             [cascalog.fluent.def :as d]
             [cascalog.fluent.operations :as ops]
+            [cascalog.fluent.tap :as tap]
             [cascalog.fluent.io :as io]
             [cascalog.fluent.cascading :refer (generic-cascading-fields?)]
             [hadoop-util.core :as hadoop])
@@ -28,12 +27,12 @@
 
 ;; Functions for creating taps and tap helpers
 
-(defalias memory-source-tap w/memory-source-tap)
+(defalias memory-source-tap tap/memory-source-tap)
 (defalias cascalog-tap tap/->CascalogTap)
 (defalias hfs-tap tap/hfs-tap)
 (defalias lfs-tap tap/lfs-tap)
-(defalias sequence-file w/sequence-file)
-(defalias text-line w/text-line)
+(defalias sequence-file tap/sequence-file)
+(defalias text-line tap/text-line)
 (defalias hfs-textline tap/hfs-textline)
 (defalias lfs-textline tap/lfs-textline)
 (defalias hfs-seqfile tap/lfs-seqfile)
@@ -90,42 +89,7 @@
 (def cross-join
   (<- [:>] (identity 1 :> _)))
 
-(defn normalize-gen [gen]
-  (if (instance? Subquery gen)
-    (.getCompiledSubquery gen)
-    gen))
-
-(defn connect-to-sink
-  [gen sink]
-  ((w/pipe-rename (u/uuid)) (:pipe gen)))
-
-(defn compile-flow
-  "Attaches output taps to some number of subqueries and creates a
-  Cascading flow. The flow can be executed with `.complete`, or
-  introspection can be done on the flow.
-
-  Syntax: (compile-flow sink1 query1 sink2 query2 ...)
-  or (compile-flow flow-name sink1 query1 sink2 query2)
-
-   If the first argument is a string, that will be used as the name
-  for the query and will show up in the JobTracker UI."
-  [& args]
-  (let [[flow-name bindings] (flow/parse-exec-args args)
-        [sinks gens] (->> bindings
-                          (map normalize-gen)
-                          (partition 2)
-                          ;; (mapcat (partial apply rules/normalize-sink-connection))
-                          (unweave))
-        sourcemap (apply merge (map :sourcemap gens))
-        trapmap   (apply merge (map :trapmap gens))
-        tails     (map connect-to-sink gens sinks)
-        sinkmap   (w/taps-map tails sinks)]
-    (flow/run! (doto (FlowDef.)
-                 (.setName flow-name)
-                 (.addSources sourcemap)
-                 (.addSinks sinkmap)
-                 (.addTraps trapmap)
-                 (.addTails (into-array Pipe tails))))))
+(defalias compile-flow flow/compile-flow)
 
 (defn explain
   "Explains a query (by outputting a DOT file).
@@ -168,13 +132,7 @@
   If the first argument is a string, that will be used as the name
   for the query and will show up in the JobTracker UI."
   [& args]
-  (let [[name [& subqueries]] (flow/parse-exec-args args)]
-    (io/with-fs-tmp [fs tmp]
-      (hadoop/mkdirs fs tmp)
-      (let [outtaps (for [q subqueries] (hfs-seqfile (str tmp "/" (u/uuid))))
-            bindings (mapcat vector outtaps subqueries)]
-        (apply ?- name bindings)
-        (doall (map tap/get-sink-tuples outtaps))))))
+  (apply flow/all-to-memory (map parse/compile-query args)))
 
 (defmacro ?<-
   "Helper that both defines and executes a query in a single call.
@@ -193,113 +151,95 @@
   [& args]
   `(first (??- (<- ~@args))))
 
-(defn predmacro*
-  "Functional version of predmacro. See predmacro for details."
-  [pred-macro-fn]
-  (p/predicate p/predicate-macro
-               (fn [invars outvars]
-                 (for [[op & vars] (pred-macro-fn invars outvars)]
-                   [op vars]))))
-
-(defmacro predmacro
-  "A more general but more verbose way to create predicate macros.
-
-   Creates a function that takes in [invars outvars] and returns a
-   list of predicates. When making predicate macros this way, you must
-   create intermediate variables with gen-nullable-var(s). This is
-   because unlike the (<- [?a :> ?b] ...) way of doing pred macros,
-   Cascalog doesn't have a declaration for the inputs/outputs.
-
-   See https://github.com/nathanmarz/cascalog/wiki/Predicate-macros
-  "
-  [& body]
-  `(predmacro* (fn ~@body)))
+(defalias predmacro* parse/predmacro*)
+(defalias predmacro parse/predmacro)
 
 (comment
   (defn union
-   "Merge the tuples from the subqueries together into a single
+    "Merge the tuples from the subqueries together into a single
   subquery and ensure uniqueness of tuples."
-   [& gens]
-   (rules/combine* gens true))
+    [& gens]
+    (rules/combine* gens true))
 
   (defn combine
     "Merge the tuples from the subqueries together into a single
   subquery. Doesn't ensure uniqueness of tuples."
     [& gens]
-    (rules/combine* gens false)))
+    (rules/combine* gens false))
 
-(defn multigroup*
-  [declared-group-vars buffer-out-vars buffer-spec & sqs]
-  (let [[buffer-op hof-args]
-        (if (sequential? buffer-spec) buffer-spec [buffer-spec nil])
-        sq-out-vars (map get-out-fields sqs)
-        group-vars (apply set/intersection (map set sq-out-vars))
-        num-vars (reduce + (map count sq-out-vars))
-        pipes (w/pipes-array (map :pipe sqs))
-        args [declared-group-vars :fn> buffer-out-vars]
-        args (if hof-args (cons hof-args args) args)]
-    (safe-assert (seq declared-group-vars)
-                 "Cannot do global grouping with multigroup")
-    (safe-assert (= (set group-vars)
-                    (set declared-group-vars))
-                 "Declared group vars must be same as intersection of vars of all subqueries")
-    (p/predicate p/generator nil
-                 true
-                 (apply merge (map :sourcemap sqs))
-                 ((apply buffer-op args) pipes num-vars)
-                 (concat declared-group-vars buffer-out-vars)
-                 (apply merge (map :trapmap sqs)))))
+  (defn multigroup*
+    [declared-group-vars buffer-out-vars buffer-spec & sqs]
+    (let [[buffer-op hof-args]
+          (if (sequential? buffer-spec) buffer-spec [buffer-spec nil])
+          sq-out-vars (map get-out-fields sqs)
+          group-vars (apply set/intersection (map set sq-out-vars))
+          num-vars (reduce + (map count sq-out-vars))
+          pipes (w/pipes-array (map :pipe sqs))
+          args [declared-group-vars :fn> buffer-out-vars]
+          args (if hof-args (cons hof-args args) args)]
+      (safe-assert (seq declared-group-vars)
+                   "Cannot do global grouping with multigroup")
+      (safe-assert (= (set group-vars)
+                      (set declared-group-vars))
+                   "Declared group vars must be same as intersection of vars of all subqueries")
+      (p/predicate p/generator nil
+                   true
+                   (apply merge (map :sourcemap sqs))
+                   ((apply buffer-op args) pipes num-vars)
+                   (concat declared-group-vars buffer-out-vars)
+                   (apply merge (map :trapmap sqs)))))
 
-(defmacro multigroup
-  [group-vars out-vars buffer-spec & sqs]
-  `(multigroup* ~(v/sanitize group-vars)
-                ~(v/sanitize out-vars)
-                ~buffer-spec
-                ~@sqs))
+  (defmacro multigroup
+    [group-vars out-vars buffer-spec & sqs]
+    `(multigroup* ~(v/sanitize group-vars)
+                  ~(v/sanitize out-vars)
+                  ~buffer-spec
+                  ~@sqs)))
 
 ;; TODO: All of these are actually just calling through to "select*"
 ;; in the fluent API.
 
-(defmulti select-fields
-  "Select fields of a named generator.
+(comment
+  (defmulti select-fields
+   "Select fields of a named generator.
 
   Example:
   (<- [?a ?b ?sum]
       (+ ?a ?b :> ?sum)
       ((select-fields generator [\"?a\" \"?b\"]) ?a ?b))"
-  generator-selector)
+   generator-selector)
 
-(defmethod select-fields :tap [tap fields]
-  (let [fields (collectify fields)
-        pname  (u/uuid)
-        outfields (v/gen-nullable-vars (count fields))
-        pipe (w/assemble (w/pipe pname)
-                         (w/identity fields :fn> outfields :> outfields))]
-    (p/predicate p/generator nil true {pname tap} pipe outfields {})))
+  (defmethod select-fields :tap [tap fields]
+    (let [fields (collectify fields)
+          pname  (u/uuid)
+          outfields (v/gen-nullable-vars (count fields))
+          pipe (w/assemble (w/pipe pname)
+                           (w/identity fields :fn> outfields :> outfields))]
+      (p/predicate p/generator nil true {pname tap} pipe outfields {})))
 
-(defmethod select-fields :generator [query select-fields]
-  (let [select-fields (collectify select-fields)
-        outfields     (:outfields query)]
-    (safe-assert (set/subset? (set select-fields)
-                              (set outfields))
-                 (format "Cannot select % from %."
-                         select-fields
-                         outfields))
-    (merge query
-           {:pipe (w/assemble (:pipe query) (w/select select-fields))
-            :outfields select-fields})))
+  (defmethod select-fields :generator [query select-fields]
+    (let [select-fields (collectify select-fields)
+          outfields     (:outfields query)]
+      (safe-assert (set/subset? (set select-fields)
+                                (set outfields))
+                   (format "Cannot select % from %."
+                           select-fields
+                           outfields))
+      (merge query
+             {:pipe (w/assemble (:pipe query) (w/select select-fields))
+              :outfields select-fields})))
 
-(defmethod select-fields :java-subquery [sq fields]
-  (select-fields (.getCompiledSubquery sq)
-                 fields))
+  (defmethod select-fields :java-subquery [sq fields]
+    (select-fields (.getCompiledSubquery sq)
+                   fields))
 
-;; TODO: This should only call rename* on the underlying pipe.
+  ;; TODO: This should only call rename* on the underlying pipe.
 
-(defn name-vars [gen vars]
-  (let [vars (collectify vars)]
-    (<- vars
-        (gen :>> vars)
-        (:distinct false))))
+  (defn name-vars [gen vars]
+    (let [vars (collectify vars)]
+      (<- vars
+          (gen :>> vars)
+          (:distinct false)))))
 
 ;; ## Defining custom operations
 
@@ -312,8 +252,9 @@
 (defalias defbufferiterop d/defbufferiterfn)
 (defalias defaggregateop d/defaggregatefn)
 (defalias deffilterop d/deffilterfn)
-(defalias defparallelagg p/defparallelagg)
-(defalias defparallelbuf p/defparallelbuf)
+(defalias defparallelagg d/defparallelagg)
+(comment
+  (defalias defparallelbuf d/defparallelbuf))
 
 ;; ## Miscellaneous helpers
 

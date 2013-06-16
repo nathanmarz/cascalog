@@ -1,10 +1,9 @@
 (ns cascalog.testing
   (:use clojure.test cascalog.api)
   (:require [cascalog.util :as u]
-            [cascalog.rules :as rules]
-            [cascalog.fluent.workflow :refer (mk-flow)]
             [cascalog.fluent.operations :as ops]
             [cascalog.fluent.tap :as tap]
+            [cascalog.fluent.types :refer (normalize-sink-connection)]
             [cascalog.fluent.io :as io]
             [cascalog.fluent.conf :as conf]
             [hadoop-util.core :as hadoop]
@@ -192,28 +191,6 @@
   (defn mk-test-sink [spec path]
     (mk-test-tap (:fields (mapify-spec spec)) path)))
 
-(defn test-assembly
-  ([source-specs sink-specs assembly]
-     (test-assembly :fatal source-specs sink-specs assembly))
-  ([log-level source-specs sink-specs assembly]
-     (io/with-log-level log-level
-       (io/with-tmp-files [source-path (io/temp-dir "sources")
-                           sink-path   (io/temp-path "sinks")]
-         (let [source-specs  (collectify source-specs)
-               sink-specs     (collectify sink-specs)
-               sources        (map mk-test-source
-                                   source-specs
-                                   (u/unique-rooted-paths source-path))
-               sinks          (map mk-test-sink
-                                   sink-specs
-                                   (u/unique-rooted-paths sink-path))
-               flow           (mk-flow sources sinks assembly)
-               _              (.complete flow)
-               out-tuples     (doall (map tap/get-sink-tuples sinks))
-               expected-data  (map :tuples sink-specs)]
-           (is (= (map u/multi-set expected-data)
-                  (map u/multi-set out-tuples))))))))
-
 (defn- mk-tmpfiles+forms [amt]
   (let [tmpfiles  (take amt (repeatedly (fn [] (gensym "tap"))))
         tmpforms  (->> tmpfiles
@@ -251,7 +228,7 @@
     (io/with-log-level log-level
       (io/with-tmp-files [sink-path (io/temp-dir "sink")]
         (with-job-conf {"io.sort.mb" 10}
-          (let [bindings (mapcat (partial apply rules/normalize-sink-connection)
+          (let [bindings (mapcat (partial apply normalize-sink-connection)
                                  (partition 2 bindings))
                 [specs rules]  (unweave bindings)
                 sinks          (map mk-test-sink specs

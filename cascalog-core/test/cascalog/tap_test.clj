@@ -4,7 +4,7 @@
         cascalog.testing)
   (:require [cascalog.fluent.io :as io]
             [cascalog.fluent.tap :as tap]
-            [cascalog.fluent.workflow :as w])
+            [cascalog.fluent.cascading :refer (fields)])
   (:import [cascading.tuple Fields]
            [cascading.tap Tap]
            [cascading.tap.hadoop Hfs Lfs GlobHfs TemplateTap]))
@@ -26,7 +26,7 @@
   (fn [& opts]
     (extracter
      (apply tap-func
-            (w/text-line ["line"] Fields/ALL)
+            (tap/text-line ["line"] Fields/ALL)
             "/path/"
             opts))))
 
@@ -42,9 +42,9 @@
           (tap-sink)
           (.getSinkFields)) => ?fields)
     ?fields                ?opts
-    (w/fields Fields/ALL)  []
-    (w/fields ["?a"])      [:outfields ["?a"]]
-    (w/fields ["?a" "!b"]) [:outfields ["?a" "!b"]]))
+    (fields Fields/ALL)  []
+    (fields ["?a"])      [:outfields ["?a"]]
+    (fields ["?a" "!b"]) [:outfields ["?a" "!b"]]))
 
 (deftest taps-type-test
   (tabular

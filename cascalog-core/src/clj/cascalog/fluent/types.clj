@@ -107,8 +107,8 @@
 (extend-protocol Semigroup
   (array-of Pipe)
   (plus [l r]
-    (into-array Pipe (plus (into [] l)
-                           (into [] r))))
+    (into-array Pipe (concat l r)))
+
   Pipe
   (plus [l r]
     (Merge. (into-array Pipe [(Pipe. (u/uuid) l)

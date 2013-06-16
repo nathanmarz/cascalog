@@ -20,7 +20,7 @@
   fn [& sigs]
   (let [[env-form namespace form] (save-env (vals &env) &form)]
     `(with-meta (clojure.core/fn ~@sigs)
-       {:type ::serializable-fn
+       {::fn-type ::serializable-fn
         ::env ~env-form
         ::namespace ~namespace
         ::source ~form})))
@@ -42,7 +42,7 @@
 (defn serialize-type [val]
   (cond (var? val) :var
         (instance? clojure.lang.MultiFn val) :multifn
-        (fn? val) (if (= ::serializable-fn (-> val meta :type))
+        (fn? val) (if (= ::serializable-fn (-> val meta ::fn-type))
                     :serfn
                     :find-var)
         :else :java))

@@ -37,10 +37,10 @@
 
 (derive ::bufferiter ::buffer)
 
-(defn buffer? [op]
+(defn bufferop? [op]
   (isa? (type op) ::buffer))
 
-(defn aggregator? [op]
+(defn aggregateop? [op]
   (or (isa? (type op) ::aggregate)
       (isa? (type op) ::combiner)))
 
@@ -48,12 +48,12 @@
           (fn [afn]
             (if-not (ifn? afn)
               (throw-illegal type " operation doesn't implement IFn: ")
-              (with-meta
-                (s/fn [& args]
-                  (apply afn args))
-                (merge (meta afn) {::op afn
-                                   ::op-builder builder
-                                   :type type})))))]
+              (u/meta-update
+               (s/fn [& args]
+                 (apply afn args))
+               #(merge % (meta afn) {::op afn
+                                     ::op-builder builder
+                                     :type type})))))]
   (def mapop* (attach ops/map* ::map))
   (def mapcatop* (attach ops/mapcat* ::mapcat))
   (def filterop* (attach ops/filter* ::filter))

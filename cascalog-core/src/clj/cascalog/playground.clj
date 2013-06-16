@@ -9,8 +9,7 @@
        '[jackknife.seq :only (find-first)])
   (conf/set-job-conf! {"io.sort.mb" 1})
   (require '(cascalog [ops :as c]
-                      [vars :as v])
-           '(cascalog.fluent.workflow :as w)))
+                      [vars :as v])))
 
 (defn bootstrap-emacs []
   (bootstrap)

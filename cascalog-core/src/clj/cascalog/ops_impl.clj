@@ -1,7 +1,6 @@
 (ns cascalog.ops-impl
   (:use cascalog.api)
-  (:require [cascalog.vars :as v]
-            [cascalog.fluent.workflow :as w]))
+  (:require [cascalog.vars :as v]))
 
 (defn one [] 1)
 
@@ -64,12 +63,11 @@
   (fn [tuples]
     (take limit (map #(conj (vec %1) %2) tuples (iterate inc 1)))))
 
-(comment
-  (w/defaggregateop distinct-count-agg
-    ([] [nil 0])
-    ([[prev cnt] & tuple]
-       [tuple (if (= tuple prev) cnt (inc cnt))])
-    ([state] [(second state)])))
+(defaggregateop distinct-count-agg
+  ([] [nil 0])
+  ([[prev cnt] & tuple]
+     [tuple (if (= tuple prev) cnt (inc cnt))])
+  ([state] [(second state)]))
 
 (defn bool-or [& vars]
   (boolean (some identity vars)))

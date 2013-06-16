@@ -1,12 +1,12 @@
 (comment
   (ns cascalog.predicate-test
-   (:use cascalog.predicate
-         clojure.test
-         midje.sweet
-         cascalog.testing)
-   (:require [cascalog.workflow :as w]))
+    (:use cascalog.predicate
+          clojure.test
+          midje.sweet
+          cascalog.testing)
+    (:require [cascalog.fluent.def :as d]))
 
-  (w/defmapop timesplusone ["blahfield"]
+  (d/defmapop timesplusone ["blahfield"]
     [a b]
     (inc (* a b)))
 
@@ -28,7 +28,7 @@
                            :outfields ["?q"]}))
       (test-assembly source-data sink-data (:assembly pred))))
 
-  (w/defmapop addplusone ["blah" "blah2"]
+  (d/defmapop addplusone ["blah" "blah2"]
     [& all]
     [(inc (apply + all))
      (first all)])
@@ -53,7 +53,7 @@
         (:outfields pred) => #(= 4 (count %)))
       (test-assembly source-data sink-data (:assembly pred))))
 
-  (w/defmapop nilop ["f1" "f2"] [a]
+  (d/defmapop nilop ["f1" "f2"] [a]
     (if (= a 1)
       [nil a]
       [a nil]))
@@ -71,7 +71,7 @@
                        :tuples [[2 nil] [3 nil]]} ]
       (test-assembly source-data sink-data (:assembly pred))))
 
-  (w/defmapcatop many-vals ["val"] [n]
+  (d/defmapcatop many-vals ["val"] [n]
     (cond (odd? n) [(* n 2) (* 3 n) (* n n)]
           (= n 2)  []
           :else     [(inc n)]))

@@ -53,8 +53,10 @@
 (defrecord Generator [source-map trap-map pipe fields])
 
 ;; GeneratorSets can't be unground, ever.
-(defrecord GeneratorSet [join-set-var source-map trap-map pipe fields])
+(defrecord GeneratorSet [generator join-set-var])
 
+;; TODO: Consider moving the assembly out and keeping the operation by
+;; itself. The assembly should probably be part of the Hadoop planner.
 (defrecord Operation [assembly input output])
 
 ;; filters can be applied to Generator or GeneratorSet.
@@ -63,6 +65,7 @@
 (defrecord Aggregator [op input output])
 
 (defn validate-generator-set!
+  "GeneratorSets can't be unground, ever."
   [input output]
   (when (not-empty input)
     (when (> (count output) 1)
@@ -77,11 +80,12 @@
   [gen input output]
   {:pre [(types/generator? gen)]}
   (let [{:keys [pipe source-map trap-map]} (-> (types/generator gen)
-                                               (ops/rename* output))]
+                                               (ops/rename* output))
+        generator (->Generator source-map trap-map pipe output)]
     (if-let [[join-set-var] (not-empty input)]
       (do (validate-generator-set! input output)
-          (->GeneratorSet join-set-var source-map trap-map pipe output))
-      (->Generator source-map trap-map pipe output))))
+          (->GeneratorSet generator join-set-var))
+      generator)))
 
 ;; Currently predicate macros are expanded in build-rule, in
 ;; rules.clj. By the time we get here, let's assume that everything
@@ -158,9 +162,8 @@
 
 (defmethod to-predicate CascalogFunction
   [op input output]
-  (->Operation (ops/assembly
-                [in out]
-                (ops/each #(CascalogFunctionExecutor. % op) in out))
+  (->Operation (ops/assembly [in out]
+                             (ops/each #(CascalogFunctionExecutor. % op) in out))
                input
                output))
 

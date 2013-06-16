@@ -1,5 +1,6 @@
 (ns cascalog.fluent.cascading
-  (:require [clojure.set :refer (subset?)]
+  (:require [cascalog.util :as u]
+            [clojure.set :refer (subset?)]
             [jackknife.seq :refer (collectify)])
   (:import [cascading.tap Tap]
            [cascading.tuple Fields]
@@ -22,6 +23,13 @@
   called, produces a unique string with the supplied prefix."
   [prefix]
   (fn [] (uniquify-var prefix)))
+
+(defn pipe
+  "Returns a Pipe of the given name, or if one is not supplied with a
+   unique random name."
+  ([] (pipe (u/uuid)))
+  ([^String name]
+     (Pipe. name)))
 
 (defn ^Fields fields
   "Returns the supplied object as an instance of Cascading Fields."

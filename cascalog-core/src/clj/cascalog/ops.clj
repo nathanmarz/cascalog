@@ -3,7 +3,7 @@
   (:use cascalog.api
         [jackknife.def :only (defnk)]
         [jackknife.seq :only (collectify)]
-        [cascalog.fluent.workflow :only (fill-tap!)]
+        [cascalog.fluent.tap :only (fill-tap!)]
         [cascalog.fluent.def :only (mapfn)]
         [cascalog.fluent.io :only (with-fs-tmp)])
   (:require [cascalog.util :as u]
@@ -170,17 +170,18 @@
 
 (def !count (each impl/!count-parallel))
 
-(defparallelbuf limit
-  :hof? true
-  :init-hof-var #'impl/limit-init
-  :combine-hof-var #'impl/limit-combine
-  :extract-hof-var #'impl/limit-extract
-  :num-intermediate-vars-fn (fn [infields _]
-                              (clojure.core/count infields))
-  :buffer-hof-var #'impl/limit-buffer)
+(comment
+  (defparallelbuf limit
+   :hof? true
+   :init-hof-var #'impl/limit-init
+   :combine-hof-var #'impl/limit-combine
+   :extract-hof-var #'impl/limit-extract
+   :num-intermediate-vars-fn (fn [infields _]
+                               (clojure.core/count infields))
+   :buffer-hof-var #'impl/limit-buffer)
 
-(def limit-rank
-  (merge limit {:buffer-hof-var #'impl/limit-rank-buffer}))
+  (def limit-rank
+    (merge limit {:buffer-hof-var #'impl/limit-rank-buffer})))
 
 (def avg
   "Predicate operation that produces the average value of the
@@ -208,18 +209,19 @@
   ;;=> ([2])"
     (<- [:<< !invars :> !c]
         (:sort :<< !invars)
-        (impl/distinct-count-agg :<< !invars :> !c))))
+        (impl/distinct-count-agg :<< !invars :> !c)))
 
-(defn fixed-sample-agg [amt]
-  (<- [:<< ?invars :>> ?outvars]
-      ((cascalog.ops.RandLong.) :<< ?invars :> ?rand)
-      (:sort ?rand)
-      (limit [amt] :<< ?invars :>> ?outvars)))
+  (defn fixed-sample-agg [amt]
+    (<- [:<< ?invars :>> ?outvars]
+        ((cascalog.ops.RandLong.) :<< ?invars :> ?rand)
+        (:sort ?rand)
+        (limit [amt] :<< ?invars :>> ?outvars))))
 
 ;; Common patterns
 
-(defn lazy-generator
-  "Returns a cascalog generator on the supplied sequence of
+(comment
+  (defn lazy-generator
+    "Returns a cascalog generator on the supplied sequence of
   tuples. `lazy-generator` serializes each item in the lazy sequence
   into a sequencefile located at the supplied temporary directory and returns
   a tap for the data in that directory.
@@ -233,15 +235,16 @@
              [?field1 ?field2 ... etc]
              (lazy-tap ?field1 ?field2)
              ...)))"
-  [tmp-path [tuple :as l-seq]]
-  {:pre [(coll? tuple)]}
-  (let [tap (:sink (hfs-seqfile tmp-path))
-        n-fields (clojure.core/count tuple)]
-    (fill-tap! tap l-seq)
-    (name-vars tap (v/gen-nullable-vars n-fields))))
+    [tmp-path [tuple :as l-seq]]
+    {:pre [(coll? tuple)]}
+    (let [tap (:sink (hfs-seqfile tmp-path))
+          n-fields (clojure.core/count tuple)]
+      (fill-tap! tap l-seq)
+      (name-vars tap (v/gen-nullable-vars n-fields)))))
 
-(defnk first-n
-  "Accepts a generator and a number `n` and returns a subquery that
+(comment
+  (defnk first-n
+    "Accepts a generator and a number `n` and returns a subquery that
    produces the first n elements from the supplied generator. Two
    boolean keyword arguments are supported:
 
@@ -258,20 +261,20 @@
 
   ;; produces ([3 4]) when executed
   (first-n query 1 :sort [\"?x\"] :reverse true)"
-  [gen n :sort nil :reverse false]
-  (let [num-fields (num-out-fields gen)
-        in-vars  (v/gen-nullable-vars num-fields)
-        out-vars (v/gen-nullable-vars num-fields)
-        sort-set (if sort (-> sort collectify set) #{})
-        sort-vars (if sort
-                    (mapcat (fn [f v] (if (sort-set f) [v]))
-                            (get-out-fields gen)
-                            in-vars))]
-    (<- out-vars
-        (gen :>> in-vars)
-        (:sort :<< sort-vars)
-        (:reverse reverse)
-        (limit [n] :<< in-vars :>> out-vars))))
+    [gen n :sort nil :reverse false]
+    (let [num-fields (num-out-fields gen)
+          in-vars  (v/gen-nullable-vars num-fields)
+          out-vars (v/gen-nullable-vars num-fields)
+          sort-set (if sort (-> sort collectify set) #{})
+          sort-vars (if sort
+                      (mapcat (fn [f v] (if (sort-set f) [v]))
+                              (get-out-fields gen)
+                              in-vars))]
+      (<- out-vars
+          (gen :>> in-vars)
+          (:sort :<< sort-vars)
+          (:reverse reverse)
+          (limit [n] :<< in-vars :>> out-vars)))))
 
 (defn fixed-sample
   "Returns a subquery getting a random sample of n elements from the generator"

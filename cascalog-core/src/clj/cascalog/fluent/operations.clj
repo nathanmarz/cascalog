@@ -5,7 +5,7 @@
             [cascalog.fluent.conf :as conf]
             [cascalog.fluent.cascading :as casc
              :refer (fields default-output)]
-            [cascalog.fluent.algebra :refer (plus)]
+            [cascalog.fluent.algebra :refer (plus sum)]
             [cascalog.fluent.cascading :refer (uniquify-var)]
             [cascalog.fluent.types :refer (generator to-sink)]
             [cascalog.fluent.fn :as serfn]
@@ -22,7 +22,8 @@
            [cascading.operation.filter Sample]
            [cascading.operation.aggregator First Count Sum Min Max]
            [cascading.pipe Pipe Each Every GroupBy CoGroup Merge ]
-           [cascading.pipe.joiner InnerJoin]
+           [cascading.pipe.joiner Joiner InnerJoin LeftJoin RightJoin OuterJoin]
+           [cascading.pipe.joiner CascalogJoiner CascalogJoiner$JoinType]
            [cascading.pipe.assembly Rename AggregateBy]
            [cascalog ClojureFilter ClojureMapcat ClojureMap
             ClojureBuffer ClojureBufferIter FastFirst
@@ -81,8 +82,9 @@
 (defop select*
   "Remove all but the supplied fields from the given flow."
   [keep-fields]
-  #(Each. % (fields keep-fields)
-          (Identity. keep-fields)))
+  #(Each. %
+          (fields keep-fields)
+          (Identity. (fields keep-fields))))
 
 (defn identity*
   "Mirrors the supplied set of input fields into the output fields."
@@ -141,11 +143,6 @@
   (each flow #(ClojureMapcat. % op-var)
         in-fields
         out-fields))
-
-(defn merge*
-  "Merges the supplied flows."
-  [& flows]
-  (reduce plus flows))
 
 ;; ## Aggregations
 ;;
@@ -265,10 +262,12 @@
   (let [aggs (->> aggs
                   (map aggregate-by)
                   (into-array AggregateBy))]
-    (AggregateBy. pipe group-fields spill-threshold aggs)))
+    (AggregateBy. pipe (fields group-fields) spill-threshold aggs)))
 
 ;; TODO: Add proper assertions around sorting. (We can't sort when
 ;; we're in AggregateBy, for example.
+;;
+;; Note that sorting fields will force a reduce step.
 
 (defop group-by*
   "Applies a grouping operation to the supplied generator."
@@ -282,7 +281,7 @@
                           (groupby pipe group-fields
                                    (fields sort-fields)
                                    reverse?)))
-          mode (aggregate-mode aggs reduce-only)]
+          mode (aggregate-mode aggs (or reduce-only sort-fields))]
       (case mode
         ::buffer    (build-group #(add-buffer (first aggs) %))
         ::aggregate (build-group (fn [grouped]
@@ -292,22 +291,112 @@
         ::parallel  (aggby pipe group-fields spill-threshold aggs)
         (throw-illegal "Unsupported aggregation mode: " mode)))))
 
+(def unique-aggregator
+  (reify IAggregator
+    (add-aggregator [_ pipe]
+      (Every. pipe (FastFirst.) Fields/RESULTS))))
+
 (defn unique
   "Performs a unique on the input pipe by the supplied fields."
   ([flow]
      (unique flow Fields/ALL))
   ([flow unique-fields]
-     (let [agg (reify IAggregator
-                 (add-aggregator [_ pipe]
-                   (Every. pipe (FastFirst.) Fields/RESULTS)))]
-       (group-by* flow unique-fields [agg]))))
+     (group-by* flow unique-fields [unique-aggregator])))
 
 (defn union*
   "Merges the supplied flows and ensures uniqueness of the resulting
   tuples."
   [& flows]
-  (-> (apply merge* flows)
-      (unique)))
+  (unique (sum flows)))
+
+;; ## Join Operations
+
+(defn join->joiner
+  "Converts the supplier joiner instance or keyword to a Cascading
+  Joiner."
+  [join]
+  (if (instance? Joiner join)
+    join
+    (case join
+      :inner (InnerJoin.)
+      :outer (OuterJoin.)
+      (throw-illegal "Can't create joiner from " join))))
+
+(defn- co-group
+  [pipes group-fields decl-fields join]
+  (let [group-fields (into-array Fields (map fields group-fields))
+        joiner       (join->joiner join)
+        decl-fields  (when decl-fields
+                       (fields decl-fields))]
+    (CoGroup. pipes group-fields decl-fields joiner)))
+
+(defn- add-co-group-aggs
+  [pipe aggs]
+  (let [mode (aggregate-mode aggs true)]
+    (case mode
+      ::buffer (add-buffer (first aggs) pipe)
+      ::aggregate (reduce (fn [p op]
+                            (add-aggregator op p)) pipe aggs))))
+
+(defn lift-pipes [flows]
+  (map #(add-op % (fn [p] (into-array Pipe [p]))) flows))
+
+(defn- ensure-unique-pipes
+  [flows]
+  (map rename-pipe flows))
+
+(defn co-group*
+  [flows group-fields decl-fields aggs & {:keys [reducers join] :or {join :inner}}]
+  (-> flows
+      ensure-unique-pipes
+      lift-pipes
+      sum
+      (add-op (fn [pipes]
+                (-> (co-group pipes group-fields decl-fields join)
+                    (set-reducers reducers)
+                    (add-co-group-aggs aggs))))))
+
+(defn join-with-smaller
+  [larger-flow fields1 smaller-flow fields2 aggs & {:keys [reducers] :as opts}]
+  (apply co-group*
+         [larger-flow smaller-flow]
+         [fields1 fields2]
+         nil aggs (assoc opts :join (InnerJoin.))))
+
+(defn join-with-larger
+  [smaller-flow fields1 larger-flow fields2 group-fields aggs & {:keys [reducers] :as opts}]
+  (apply join-with-smaller larger-flow fields2 smaller-flow fields1 aggs opts))
+
+(defn left-join-with-smaller
+  [larger-flow fields1 smaller-flow fields2 aggs & {:keys [reducers] :as opts}]
+  (apply co-group*
+         [larger-flow smaller-flow]
+         [fields1 fields2]
+         nil aggs (assoc opts :join (LeftJoin.))))
+
+(defn left-join-with-larger
+  [smaller-flow fields1 larger-flow fields2 aggs & {:keys [reducers] :as opts}]
+  (apply co-group*
+         [larger-flow smaller-flow]
+         [fields2 fields1]
+         nil aggs (assoc opts :join (RightJoin.))))
+
+(defn- cascalog-joiner-type
+  [join]
+  (case join
+      :inner CascalogJoiner$JoinType/INNER
+      :outer CascalogJoiner$JoinType/OUTER
+      :exists CascalogJoiner$JoinType/EXISTS))
+
+(defn join-many
+  "Takes a sequence of [pipe, join-fields, join-type] triplets along with other co-group arguments
+   and performs a mixed join. Allowed join types are :inner, :outer, and :exists."
+  [flow-joins decl-fields aggs & {:keys [reducers] :as opts}]
+  (let [join-types (map (comp cascalog-joiner-type #(nth % 2)) flow-joins)
+        group-fields (map second flow-joins)
+        flows (map first flow-joins)]
+    (apply co-group* (map first flow-joins) group-fields decl-fields aggs (assoc opts :join (CascalogJoiner. join-types)))))
+
 
 ;; ## Output Operations
 ;;
@@ -359,14 +448,19 @@
 
 (defn replace-dups
   "Accepts a sequence and a (probably stateful) generator and returns
-  a new sequence with all duplicates replaced by a call to `gen`."
+  the set of replacements, plus a new sequence with all duplicates
+  replaced by a call to `gen`."
   [coll]
-  (reduce (fn [[seen-set acc] elem]
-            (if (contains? seen-set elem)
-              [seen-set (conj acc (uniquify-var elem))]
-              [(conj seen-set elem) (conj acc elem)]))
-          [#{} []]
-          (collectify coll)))
+  (let [[uniques cleaned-fields]
+        (reduce (fn [[seen-set acc] elem]
+                  (if (contains? seen-set elem)
+                    [seen-set (conj acc (uniquify-var elem))]
+                    [(conj seen-set elem) (conj acc elem)]))
+                [#{} []]
+                (collectify coll))]
+    [(difference (set cleaned-fields)
+                 uniques)
+     cleaned-fields]))
 
 (defn with-dups
   "Accepts a flow, some fields, and a function from (flow,
@@ -411,10 +505,12 @@
   "Allows constant substitution on inputs."
   [gen in-fields f]
   (let [[new-input sub-m] (constant-substitutions in-fields)
-        ignored (keys sub-m)]
-    (-> (insert-subs gen sub-m)
-        (f new-input)
-        (discard* (fields ignored)))))
+        ignored (keys sub-m)
+        gen (-> (insert-subs gen sub-m)
+                (f new-input))]
+    (if (seq ignored)
+      (discard* gen (fields ignored))
+      gen)))
 
 (defn- replace-ignored-vars
   "Replaces all ignored variables with a nullable cascalog
@@ -467,11 +563,14 @@
       (fn [gen in]
         (with-dups gen in
           (fn [gen in delta]
-            (-> gen
-                (f (fields in)
-                   (fields new-output))
-                (discard* (fields (concat delta ignored)))
-                (filter-nullable-vars new-output))))))))
+            (let [gen (-> gen
+                          (f (fields in)
+                             (fields new-output)))
+                  gen (if-let [to-discard (not-empty
+                                           (fields (concat delta ignored)))]
+                        (discard* gen to-discard)
+                        gen)]
+              (filter-nullable-vars gen new-output))))))))
 
 (comment
   "This one works, since all inputs are logical variables."

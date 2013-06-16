@@ -1,9 +1,8 @@
 (ns cascalog.bridge-test
-    (:import [cascalog.aggregator ClojureAggregator ClojureAggregator])
-    (:use midje.sweet
+  (:import [cascalog.aggregator ClojureAggregator ClojureAggregator])
+  (:use midje.sweet
         clojure.test)
-  (:require [cascalog.fluent.workflow :as w]
-            [cascalog.fluent.cascading :refer (fields)]
+  (:require [cascalog.fluent.cascading :refer (pipe fields)]
             [cascalog.fluent.operations :as ops]
             [cascalog.testing :as t]
             [cascalog.util :as u])
@@ -50,12 +49,12 @@
 
 (deftest pipe-test
   (tabular
-    (fact "Pipe testing."
-      ?pipe => #(instance? Pipe %)
-      (.getName ?pipe) => ?check)
-    ?pipe           ?check
-    (w/pipe)        #(= 36 (.length %))
-    (w/pipe "name") "name"))
+   (fact "Pipe testing."
+     ?pipe => #(instance? Pipe %)
+     (.getName ?pipe) => ?check)
+   ?pipe           ?check
+   (pipe)        #(= 36 (.length %))
+   (pipe "name") "name"))
 
 (deftest ClojureFilter-test
   (fact "Clojure Filter test."
