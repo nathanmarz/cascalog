@@ -5,7 +5,6 @@
             [jackknife.core :refer (throw-illegal throw-runtime)]
             [jackknife.seq :as s]
             [cascalog.vars :as v]
-            [cascalog.graph :as g]
             [cascalog.util :as u]
             [cascalog.zip :as zip]
             [clojure.zip :as czip]
