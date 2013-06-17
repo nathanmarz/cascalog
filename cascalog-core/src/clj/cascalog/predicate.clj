@@ -1,8 +1,5 @@
 (ns cascalog.predicate
-  (:use [cascalog.util :only (uuid substitute-if search-for-var any-list?)]
-        [jackknife.core :only (throw-illegal)]
-        [jackknife.seq :only (transpose)]
-        [clojure.tools.macro :only (name-with-attributes)])
+  (:use [jackknife.core :only (throw-illegal)])
   (:require [jackknife.core :as u]
             [clojure.zip :as zip]
             [cascalog.vars :as v]
@@ -17,12 +14,9 @@
            [cascading.pipe Each Every]
            [cascading.tap Tap]
            [cascading.operation Filter]
-           [cascading.tuple Fields]
-           [clojure.lang IFn]
-           [jcascalog PredicateMacro Subquery ClojureOp PredicateMacroTemplate]
+           [jcascalog Subquery ClojureOp]
            [cascalog.aggregator CombinerSpec]
-           [cascalog ClojureParallelAggregator ClojureBuffer
-            ClojureBufferCombiner CascalogFunction
+           [cascalog CascalogFunction
             CascalogFunctionExecutor CascadingFilterToFunction
             CascalogBuffer CascalogBufferExecutor CascalogAggregator
             CascalogAggregatorExecutor ClojureParallelAgg ParallelAgg]))

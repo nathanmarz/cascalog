@@ -1,6 +1,6 @@
 (ns cascalog.fluent.conf
   (:require [jackknife.core :as u]
-            [cascalog.util :refer (conf-merge project-merge serialization-entry)]
+            [cascalog.util :refer (project-merge)]
             [clojure.java.io :refer (resource)])
   (:import [cascading.flow FlowProps]))
 

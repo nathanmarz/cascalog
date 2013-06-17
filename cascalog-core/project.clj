@@ -11,7 +11,8 @@
   :java-source-paths ["src/java"]
   :repositories {"conjars" "http://conjars.org/repo/"}
   :exclusions [log4j/log4j org.slf4j/slf4j-log4j12]
-  :dependencies [[org.clojure/clojure "1.5.1"]
+  :dependencies [[slamhound "1.3.3"]
+                 [org.clojure/clojure "1.5.1"]
                  [org.clojure/tools.macro "0.1.1"]
                  [log4j "1.2.16"]
                  [org.slf4j/slf4j-log4j12 "1.6.6"]

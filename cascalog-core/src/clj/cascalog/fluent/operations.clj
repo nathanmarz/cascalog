@@ -15,7 +15,7 @@
             [jackknife.core :refer (throw-illegal)]
             [jackknife.seq :refer (unweave collectify)])
   (:import [java.io File]
-           [cascading.tuple Tuple Fields]
+           [cascading.tuple Fields]
            [cascalog.ops KryoInsert]
            [cascading.tuple Fields]
            [cascading.operation Identity Debug NoOp]
