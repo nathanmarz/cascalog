@@ -55,8 +55,8 @@ Raise an exception if any deletion fails unless silently is true."
     tmp-dir))
 
 (defn delete-all
-  "delete-file-recursively is preemptive delete on exiting the code block for
-   repl and tests run in the same process."
+  "delete-file-recursively is preemptive delete on exiting the code
+   block for repl and tests run in the same process."
   [bindings]
   (doseq [file (reverse (map second (partition 2 bindings)))]
     (if (.exists file)

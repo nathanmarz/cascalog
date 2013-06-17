@@ -1,6 +1,5 @@
 (ns cascalog.api
-  (:use [cascalog.debug :only (debug-print)]
-        [jackknife.core :only (safe-assert throw-runtime)]
+  (:use [jackknife.core :only (safe-assert throw-runtime)]
         [jackknife.def :only (defalias)]
         [jackknife.seq :only (unweave collectify)])
   (:require [clojure.set :as set]
@@ -262,13 +261,6 @@
    serializable by Hadoop."
   [f & rest]
   (apply / (double f) rest))
-
-(defmacro with-debug
-  "Wrap queries in this macro to cause debug information for the query
-   planner to be printed out."
-  [& body]
-  `(binding [cascalog.debug/*DEBUG* true]
-     ~@body))
 
 ;; ## Class Creation
 

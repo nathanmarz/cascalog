@@ -1,15 +1,14 @@
 (ns cascalog.util
-  (:use [jackknife.core :only (update-vals)]
-        [jackknife.seq :only (unweave merge-to-vec collectify)])
   (:refer-clojure :exclude [flatten memoize])
-  (:require [clojure.string :as s]
-            [clojure.walk :refer (postwalk)])
+  (:require [clojure.walk :refer (postwalk)]
+            [jackknife.seq :refer (unweave)])
   (:import [java.util UUID]))
 
-(defn path
-  {:tag String}
+(defn ^String path
   [x]
-  (if (string? x) x (.getAbsolutePath ^java.io.File x)))
+  (if (string? x)
+    x
+    (.getAbsolutePath ^java.io.File x)))
 
 (defmacro with-timeout
   "Accepts a vector with a timeout (in ms) and any number of forms and
@@ -32,13 +31,6 @@
             (.cancel f# true)
             nil))))
 
-(defn any-list?
-  "Returns true if the supplied value is a type of list, false
-  otherwise."
-  [val]
-  (or (list? val)
-      (instance? java.util.List val)))
-
 (defn flatten
   "Flattens out a nested sequence. unlike clojure.core/flatten, also
   flattens maps."
@@ -46,27 +38,6 @@
   (->> vars
        (postwalk #(if (map? %) (seq %) %))
        (clojure.core/flatten)))
-
-(defn multifn? [x]
-  (instance? clojure.lang.MultiFn x))
-
-(defn try-update-in
-  [m key-vec f & args]
-  (reduce #(%2 %1) m
-          (for [k key-vec]
-            #(if (get % k)
-               (apply update-in % [k] f args)
-               %))))
-
-(defn substitute-if
-  "Returns [newseq {map of newvals to oldvals}]"
-  [pred subfn aseq]
-  (reduce (fn [[newseq subs] val]
-            (let [[newval sub] (if (pred val)
-                                 (let [subbed (subfn val)] [subbed {subbed val}])
-                                 [val {}])]
-              [(conj newseq newval) (merge subs sub)]))
-          [[] {}] aseq))
 
 (defn multi-set
   "Returns a map of elem to count"
@@ -90,9 +61,6 @@
                   (map (partial vector v) vals))]
     (apply concat (for [i (range (dec (count coll)))]
                     (pair-up (nth coll i) (drop (inc i) coll))))))
-
-(defn pairs->map [pairs]
-  (apply hash-map (flatten pairs)))
 
 (defn reverse-map
   "{:a 1 :b 1 :c 2} -> {1 [:a :b] 2 :c}"
@@ -164,85 +132,3 @@
            (let [ret (apply f args)]
              (swap! mem assoc args ret)
              ret))))))
-
-;; TODO: Move to "conf" namespace.
-
-(def default-serializations
-  ["org.apache.hadoop.io.serializer.WritableSerialization"
-   "cascading.tuple.hadoop.BytesSerialization"
-   "cascading.tuple.hadoop.TupleSerialization"])
-
-(defn serialization-entry
-  [serial-vec]
-  (->> serial-vec
-       (map (fn [x]
-              (cond (string? x) x
-                    (class? x) (.getName x))))
-       (s/join ",")))
-
-(defn no-empties [s]
-  (when s (not= "" s)))
-
-(defn merge-serialization-strings
-  [& all]
-  (serialization-entry
-   (->> (filter no-empties all)
-        (map #(s/split % #","))
-        (apply merge-to-vec default-serializations))))
-
-(defn stringify [x]
-  (if (class? x)
-    (.getName x)
-    (str x)))
-
-(defn resolve-collections [v]
-  (->> (collectify v)
-       (map stringify)
-       (s/join ",")))
-
-(defn adjust-vals [& vals]
-  (->> (map resolve-collections vals)
-       (apply merge-serialization-strings)))
-
-(defn conf-merge [& ms]
-  (->> ms
-       (map #(update-vals % (fn [_ v] (resolve-collections v))))
-       (reduce merge)))
-
-(defn project-merge [& ms]
-  (let [vals (->> (map #(get % "io.serializations") ms)
-                  (apply adjust-vals))
-        ms (apply conf-merge ms)]
-    (assoc ms "io.serializations" vals)))
-
-(defn stringify-keys [m]
-  (into {} (for [[k v] m]
-             [(if (keyword? k)
-                (name k)
-                (str k)) v])))
-
-(defn try-parse-num [^String s]
-  (try
-    (Long/parseLong s)
-    (catch NumberFormatException _
-      nil )))
-
-(defn recent-eval? [v]
-  (let [m (meta v)
-        ^String name (-> m :name str)]
-    (and (= "clojure.core" (:ns m))
-         (.startsWith name "*")
-         (try-parse-num (.substring name 1))
-         )))
-
-(defn search-for-var [val]
-  ;; get all of them, filter out *1, *2, and *3, sort by static -> dynamic
-  (->> (all-ns)
-       (map ns-map)
-       (mapcat identity)
-       (map second)
-       (filter #(and (var? %) (identical? (var-get %) val)))
-       ;; using identical? for issue #117
-       (filter (complement recent-eval?))
-       (sort-by (fn [v] (if (-> v meta :dynamic) 1 0)))
-       first ))

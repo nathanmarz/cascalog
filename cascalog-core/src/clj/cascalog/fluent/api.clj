@@ -1,6 +1,7 @@
 (ns cascalog.fluent.api
   (:use cascalog.fluent.operations
         cascalog.fluent.flow
+        cascalog.fluent.types
         cascalog.fluent.tap
         cascalog.fluent.cascading
         cascalog.fluent.def)

@@ -2,7 +2,6 @@
   (:require [clojure.tools.macro :refer (name-with-attributes)]
             [clojure.set :refer (subset? difference intersection)]
             [cascalog.vars :as v]
-            [cascalog.fluent.conf :as conf]
             [cascalog.fluent.cascading :as casc
              :refer (fields default-output)]
             [cascalog.fluent.algebra :refer (plus sum)]
@@ -10,8 +9,6 @@
             [cascalog.fluent.types :refer (generator to-sink)]
             [cascalog.fluent.fn :as serfn]
             [cascalog.util :as u]
-            [cascalog.fluent.source :as src]
-            [hadoop-util.core :as hadoop]
             [jackknife.core :refer (throw-illegal)]
             [jackknife.seq :refer (unweave collectify)])
   (:import [java.io File]
@@ -34,7 +31,8 @@
 
 ;; ## Cascalog Function Representation
 
-(defn fn-spec [var] (serfn/serialize var))
+(defn fn-spec [var]
+  (serfn/serialize var))
 
 ;; ## Operations
 ;;
@@ -486,6 +484,16 @@
 ;; TODO: If we have some sort of ignored variable coming out of a
 ;; Cascalog query, we want to strip all operations out at that
 ;; point. Probably when we're building up a generator.
+
+(defn substitute-if
+  "Returns [newseq {map of newvals to oldvals}]"
+  [pred subfn aseq]
+  (reduce (fn [[newseq subs] val]
+            (let [[newval sub] (if (pred val)
+                                 (let [subbed (subfn val)] [subbed {subbed val}])
+                                 [val {}])]
+              [(conj newseq newval) (merge subs sub)]))
+          [[] {}] aseq))
 
 (defn- constant-substitutions
   "Returns a 2-vector of the form

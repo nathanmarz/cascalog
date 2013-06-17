@@ -119,12 +119,18 @@
 
 (defmethod to-predicate :cascalog.fluent.def/filter
   [op input _]
-  (->FilterOperation (filter-assem [in] (d/exec* op in))
+  (->FilterOperation (filter-assem [in] (ops/filter* op in))
                      input))
 
-(defmethod to-predicate :cascalog.fluent.def/operation
+(defmethod to-predicate :cascalog.fluent.def/map
   [op input output]
-  (->Operation (assem [in out] (d/exec* op in out))
+  (->Operation (assem [in out] (ops/map* op in out))
+               input
+               output))
+
+(defmethod to-predicate :cascalog.fluent.def/mapcat
+  [op input output]
+  (->Operation (assem [in out] (ops/mapcat* op in out))
                input
                output))
 
@@ -224,8 +230,11 @@
     (to-predicate op input output)))
 
 (comment
+  "TODO: Convert to test."
   (let [gen (-> (types/generator [1 2 3 4])
                 (ops/rename* "?x"))
         pred (to-predicate * ["?a" "?a"] ["?b"])]
-    (f/to-memory
-     ((:assembly pred) gen ["?x" "?x"] "?z"))))
+    (fact
+      (f/to-memory
+       ((:assembly pred) gen ["?x" "?x"] "?z"))
+      => [[1 1] [2 4] [3 9] [4 16]])))

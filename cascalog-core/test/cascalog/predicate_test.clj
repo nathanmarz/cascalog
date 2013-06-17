@@ -1,4 +1,5 @@
 (comment
+  "TODO: These need to be moved so that they're only testing the fluent operations."
   (ns cascalog.predicate-test
     (:use cascalog.predicate
           clojure.test
@@ -74,7 +75,7 @@
   (d/defmapcatop many-vals ["val"] [n]
     (cond (odd? n) [(* n 2) (* 3 n) (* n n)]
           (= n 2)  []
-          :else     [(inc n)]))
+          :else    [(inc n)]))
 
   (deftest test-mapcat-pred
     (let [pred (build-predicate {} many-vals nil ["?a"] ["?b"])

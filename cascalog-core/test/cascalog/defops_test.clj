@@ -1,7 +1,7 @@
 (ns cascalog.defops-test
   (:use cascalog.api
         clojure.test
-        [midje sweet]))
+        midje.sweet))
 
 (defmapop ident [x] x)
 

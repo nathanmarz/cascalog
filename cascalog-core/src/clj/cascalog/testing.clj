@@ -1,169 +1,17 @@
 (ns cascalog.testing
-  (:use clojure.test cascalog.api)
-  (:require [cascalog.util :as u]
-            [cascalog.fluent.operations :as ops]
+  (:require [clojure.test :refer :all]
+            [cascalog.api :refer :all]
             [cascalog.fluent.tap :as tap]
             [cascalog.fluent.types :refer (normalize-sink-connection)]
             [cascalog.fluent.io :as io]
-            [cascalog.fluent.conf :as conf]
-            [hadoop-util.core :as hadoop]
             [jackknife.seq :refer (unweave collectify)])
-  (:import [cascalog Util KryoService]
-           [clojure.lang IPersistentCollection]
-           [java.io File]
-           [cascading.tuple Fields Tuple TupleEntry TupleEntryCollector]
-           [cascading.operation BaseOperation
-            FunctionCall ConcreteCall Function Filter OperationCall Aggregator]
-           [cascading.flow FlowProcess]
-           [cascading.flow.hadoop HadoopFlowProcess]
-           [cascading.flow.hadoop.util HadoopUtil]))
-
-(defn roundtrip
-  "Round trip the supplied object through Cascading's base64
-  serialization."
-  [obj]
-  (let [conf (hadoop/job-conf (conf/project-conf))]
-    (HadoopUtil/deserializeBase64
-     (HadoopUtil/serializeBase64 obj conf true)
-     conf (class obj) true)))
+  (:import [java.io File]
+           [cascading.tuple Fields]))
 
 ;; ## Cascading Testing Functions
 ;;
 ;; The following functions create proxies for dealing with various
 ;; output collectors.
-
-;(set! *warn-on-reflection* true)
-
-(defn collect-to
-  [^TupleEntryCollector collector v]
-  (let [^Tuple t (if (instance? java.util.List v)
-                   (Tuple. (to-array v))
-                   (doto (Tuple.) (.add v)))]
-    (.add collector t)))
-
-(defn cascalog-map
-  [op-var ^Fields output-fields & {:keys [stateful?]}]
-  (let [ser (KryoService/serialize (ops/fn-spec op-var))]
-    (proxy [BaseOperation Function] [output-fields]
-      (prepare [^FlowProcess flow-process ^OperationCall op-call]
-        (let [op (Util/deserializeFn (KryoService/deserialize ser))]
-          (-> op-call
-              (.setContext [op (if stateful? (op))]))))
-      (operate [^FlowProcess flow-process ^FunctionCall fn-call]
-        (let [[op state] (.getContext fn-call)
-              op (if stateful? (partial op state) op)
-              collector (.getOutputCollector fn-call)
-              ^Tuple args (.. fn-call (getArguments) (getTuple))
-              res (apply op args)]
-        (collect-to collector res)))
-      (cleanup [flow-process ^OperationCall op-call]
-        (if stateful?
-          (let [[op state] (.getContext op-call)]
-            (op state)))))))
-
-(defn cascalog-mapcat
-  [op-var ^Fields output-fields & {:keys [stateful?]}]
-  (let [ser (KryoService/serialize (ops/fn-spec op-var))]
-    (proxy [BaseOperation Function] [output-fields]
-      (prepare [^FlowProcess flow-process ^OperationCall op-call]
-        (let [op (Util/deserializeFn (KryoService/deserialize ser))]
-          (-> op-call
-              (.setContext [op (if stateful? (op))]))))
-      (operate [^FlowProcess flow-process ^FunctionCall fn-call]
-        (let [[op state] (.getContext fn-call)
-              op (if stateful? (partial op state) op)
-              collector (.getOutputCollector fn-call)
-              ^Tuple args (.. fn-call (getArguments) (getTuple))
-              res (apply op args)]
-          (doseq [r res]
-            (collect-to collector r))))
-      (cleanup [flow-process ^OperationCall op-call]
-        (if stateful?
-          (let [[op state] (.getContext op-call)]
-            (op state)))))))
-
-(comment
-  ;; Java and Clojure versions:
-  (def java-m
-    (ClojureMap. (cascalog.fluent.cascading/fields "num")
-                 (ops/fn-spec #'inc)
-                 false))
-  (def clj-m
-    (cascalog-map #'inc (cascalog.fluent.cascading/fields "num"))))
-
-(defn- output-collector [out-atom]
-  (proxy [TupleEntryCollector] []
-    (add [^Tuple tuple]
-      (swap! out-atom conj (Util/coerceFromTuple tuple)))))
-
-(defn- mk-op-call []
-  (let [args-atom    (atom nil)
-        out-atom     (atom [])
-        context-atom (atom nil)]
-    (proxy [ConcreteCall IPersistentCollection] []
-      (setArguments [tuple]
-        (swap! args-atom (constantly tuple)))
-      (getArguments []
-        @args-atom)
-      (getOutputCollector []
-        (output-collector out-atom))
-      (setContext [context]
-        (swap! context-atom (constantly context)))
-      (getContext []
-        @context-atom)
-      (seq []
-        (seq @out-atom)))))
-
-(defn invoke-filter
-  "Invokes the supplied Cascading filter with some tuple. The filter
-  will return true or false."
-  [fil coll]
-  (let [^Filter fil (roundtrip fil)
-        op-call (ConcreteCall.)
-        fp-null FlowProcess/NULL]
-    (.setArguments op-call (TupleEntry. (Util/coerceToTuple coll)))
-    (.prepare fil fp-null op-call)
-    (let [rem (.isRemove fil fp-null op-call)]
-      (.cleanup fil fp-null op-call)
-      rem)))
-
-(defn invoke-function
-  "Invokes the supplied Cascading Function."
-  [m coll]
-  (let [^Function m (roundtrip m)
-        ^ConcreteCall func-call (mk-op-call)
-        fp-null   FlowProcess/NULL]
-    (.setArguments func-call (TupleEntry. (Util/coerceToTuple coll)))
-    (.prepare m fp-null func-call)
-    (.operate m fp-null func-call)
-    (.cleanup m fp-null func-call)
-    (seq func-call)))
-
-(defn bench-op
-  "Invokes the supplied Cascading Function."
-  [m coll]
-  (let [^Function m (roundtrip m)
-        ^ConcreteCall func-call (mk-op-call)
-        fp-null FlowProcess/NULL]
-    (.setArguments func-call (TupleEntry. (Util/coerceToTuple coll)))
-    (.prepare m fp-null func-call)
-    (time (dotimes [_ 1000000]
-            (.operate m fp-null func-call)))
-    (.cleanup m fp-null func-call)
-    #_(seq func-call)))
-
-(defn invoke-aggregator [a colls]
-  (let [^Aggregator a (roundtrip a)
-        ^ConcreteCall ag-call (mk-op-call)
-        fp-null FlowProcess/NULL]
-    (.prepare a fp-null ag-call)
-    (.start a fp-null ag-call)
-    (doseq [coll colls]
-      (.setArguments ag-call (TupleEntry. (Util/coerceToTuple coll)))
-      (.aggregate a fp-null ag-call))
-    (.complete a fp-null ag-call)
-    (.cleanup  a fp-null ag-call)
-    (seq ag-call)))
 
 ;; End of the Cascading runner functions.
 
@@ -175,18 +23,6 @@
           (if (map? spec)
             spec
             {:fields Fields/ALL :tuples spec}))]
-
-  (defn mk-test-source [spec path]
-    ;; unable to use with-log-level here for some reason
-    (let [spec (mapify-spec spec)
-          source (mk-test-tap (:fields spec) path)]
-      (with-open [^TupleEntryCollector collector (-> (HadoopFlowProcess.
-                                                      (hadoop/job-conf
-                                                       (conf/project-conf)))
-                                                     (.openTapForWrite source))]
-        (doall (map #(.add collector (Util/coerceToTuple %))
-                    (-> spec mapify-spec :tuples)))
-        source)))
 
   (defn mk-test-sink [spec path]
     (mk-test-tap (:fields (mapify-spec spec)) path)))

@@ -90,9 +90,9 @@
                (:distinct false))
 
           (?<- (cascalog-tap nil (fn [sq] [sink2 (<- [?n2]
-                                                     (sq ?n)
-                                                     (inc ?n :> ?n2)
-                                                     (:distinct false))]))
+                                                    (sq ?n)
+                                                    (inc ?n :> ?n2)
+                                                    (:distinct false))]))
                [?n] (num ?n)
                (:distinct false))
 

@@ -12,13 +12,14 @@
             [cascalog.options :as opts]
             [cascalog.fluent.types :refer (generator generator? map->ClojureFlow)]
             [cascalog.fluent.def :as d :refer (bufferop? aggregateop?)]
+            [cascalog.fluent.fn :refer (search-for-var)]
             [cascalog.fluent.flow :refer (to-memory graph)]
             [cascalog.fluent.operations :as ops]
             [cascalog.fluent.tap :as tap]
             [cascalog.fluent.cascading :refer (uniquify-var)])
   (:import [jcascalog Predicate PredicateMacro PredicateMacroTemplate]
-           [cascalog.predicate
-            Operation FilterOperation Aggregator Generator GeneratorSet]
+           [cascalog.predicate Operation FilterOperation Aggregator
+            Generator GeneratorSet]
            [clojure.lang IPersistentVector]))
 
 (defprotocol IRawPredicate
@@ -313,7 +314,7 @@
   (binding [*out* writer]
     (let [op (if (ifn? op)
                (let [op (or (:cascalog.fluent.def/op (meta op)) op)]
-                 (or (u/search-for-var op)
+                 (or (search-for-var op)
                      op))
                op)]
       (print (str "(" op " "))

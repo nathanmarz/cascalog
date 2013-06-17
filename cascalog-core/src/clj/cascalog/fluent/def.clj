@@ -32,9 +32,6 @@
   [op]
   (= true (-> op meta ::prepared)))
 
-(derive ::map ::operation)
-(derive ::mapcat ::operation)
-
 (derive ::bufferiter ::buffer)
 
 (defn bufferop? [op]
@@ -44,7 +41,7 @@
   (or (isa? (type op) ::aggregate)
       (isa? (type op) ::combiner)))
 
-(letfn [(attach [builder type]
+(letfn [(attach [type]
           (fn [afn]
             (if-not (ifn? afn)
               (throw-illegal type " operation doesn't implement IFn: ")
@@ -52,15 +49,14 @@
                (s/fn [& args]
                  (apply afn args))
                #(merge % (meta afn) {::op afn
-                                     ::op-builder builder
                                      :type type})))))]
-  (def mapop* (attach ops/map* ::map))
-  (def mapcatop* (attach ops/mapcat* ::mapcat))
-  (def filterop* (attach ops/filter* ::filter))
-  (def aggregateop* (attach ops/agg ::aggregate))
-  (def parallelagg* (attach ops/parallel-agg ::combiner))
-  (def bufferop* (attach ops/buffer ::buffer))
-  (def bufferiterop* (attach ops/bufferiter ::bufferiter)))
+  (def mapop* (attach ::map))
+  (def mapcatop* (attach ::mapcat))
+  (def filterop* (attach ::filter))
+  (def aggregateop* (attach ::aggregate))
+  (def parallelagg* (attach ::combiner))
+  (def bufferop* (attach ::buffer))
+  (def bufferiterop* (attach ::bufferiter)))
 
 (defmacro mapfn [& body] `(mapop* (s/fn ~@body)))
 (defmacro mapcatfn [& body] `(mapcatop* (s/fn ~@body)))
@@ -167,25 +163,20 @@
     `(def ~name
        (map->ParallelAggregator (hash-map ~@body)))))
 
-;; ## Runner
+;; ## Runners
 ;;
 ;; exec* can be used to run an operation directly within the fluent
-;; API.
+;; API. (Not sure if this is a good idea.)
 ;;
 ;; TODO: Move back to normal API.
 
 (defn exec*
   "Accepts an operation and applies it to the given flow."
   [flow op & args]
-  (let [{builder ::op-builder backing-op ::op} (meta op)]
-    (apply (or builder ops/map*)
-           flow
-           (or backing-op op)
-           args)))
-
-(defn build-agg
-  "Accepts an aggregator and applies it to the given flow."
-  [op in-fields out-fields]
-  (let [{builder ::op-builder backing-op ::op} (meta op)]
-    (assert (and builder backing-op) "You have to supply an aggregator.")
-    (builder backing-op in-fields out-fields)))
+  (let [{backing-op ::op type :type} (meta op)
+        builder (case type
+                  ::map ops/map*
+                  ::mapcat ops/mapcat*
+                  ::filter ops/filter*
+                  ops/map*)]
+    (apply builder flow (or backing-op op) args)))

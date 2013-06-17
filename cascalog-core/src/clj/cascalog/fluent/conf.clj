@@ -1,8 +1,66 @@
 (ns cascalog.fluent.conf
-  (:require [jackknife.core :as u]
-            [cascalog.util :refer (project-merge)]
-            [clojure.java.io :refer (resource)])
+  (:require [clojure.string :as s]
+            [jackknife.core :as u]
+            [clojure.java.io :refer (resource)]
+            [jackknife.seq :refer (merge-to-vec collectify)])
   (:import [cascading.flow FlowProps]))
+
+(def default-serializations
+  ["org.apache.hadoop.io.serializer.WritableSerialization"
+   "cascading.tuple.hadoop.BytesSerialization"
+   "cascading.tuple.hadoop.TupleSerialization"])
+
+(defn serialization-entry
+  [serial-vec]
+  (->> serial-vec
+       (map (fn [x]
+              (cond (string? x) x
+                    (class? x) (.getName x))))
+       (s/join ",")))
+
+(defn no-empties [s]
+  (when s (not= "" s)))
+
+(defn merge-serialization-strings
+  [& all]
+  (serialization-entry
+   (->> (filter no-empties all)
+        (map #(s/split % #","))
+        (apply merge-to-vec default-serializations))))
+
+(defn stringify [x]
+  (if (class? x)
+    (.getName x)
+    (str x)))
+
+;; TODO: Use this to merge together conf maps into the JobConf
+;; properly.
+
+(defn stringify-keys [m]
+  (into {} (for [[k v] m]
+             [(if (keyword? k)
+                (name k)
+                (str k)) v])))
+
+(defn resolve-collections [v]
+  (->> (collectify v)
+       (map stringify)
+       (s/join ",")))
+
+(defn adjust-vals [& vals]
+  (->> (map resolve-collections vals)
+       (apply merge-serialization-strings)))
+
+(defn conf-merge [& ms]
+  (->> ms
+       (map #(u/update-vals % (fn [_ v] (resolve-collections v))))
+       (reduce merge)))
+
+(defn project-merge [& ms]
+  (let [vals (->> (map #(get % "io.serializations") ms)
+                  (apply adjust-vals))
+        ms (apply conf-merge ms)]
+    (assoc ms "io.serializations" vals)))
 
 (defn read-settings [x]
   (try (binding [*ns* (create-ns (gensym "settings"))]
