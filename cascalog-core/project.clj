@@ -30,6 +30,6 @@
                    :plugins [[lein-midje "3.0.0"]]
                    :dependencies
                    [[cascalog/midje-cascalog "1.10.2-SNAPSHOT"]
-                    [org.apache.hadoop/hadoop-core "0.20.2"]]}
+                    [org.apache.hadoop/hadoop-core "0.20.2" :exclusions [[org.slf4j/slf4j-log4j12] [log4j] [commons-codec] commons-logging]]]}
              :ci-dev [:dev {:dependencies [[cascalog/midje-cascalog "1.10.1"]
                                            [org.apache.hadoop/hadoop-core "1.0.3"]]}]})

@@ -2,9 +2,8 @@
 
 ;; TODO: better to use UUIDs to avoid name collisions with client code?
 ;; Are the size of fields an issue in the actual flow execution perf-wise?
-(let [i (atom 0)]
-  (defn gen-unique-suffix []
-    (str "__gen" (swap! i inc))))
+(defn gen-unique-suffix []
+  (str "__" (java.util.UUID/randomUUID)))
 
 (defn- gen-var-fn [prefix]
   (fn this
