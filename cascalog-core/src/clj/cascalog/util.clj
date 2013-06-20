@@ -1,5 +1,6 @@
 (ns cascalog.util
-  (:use [jackknife.core :only (update-vals)]
+  (:use [clojure.math.combinatorics :only (combinations)]
+        [jackknife.core :only (update-vals)]
         [jackknife.seq :only (unweave merge-to-vec collectify)])
   (:require [clojure.string :as s])
   (:import [java.util UUID]))
@@ -37,10 +38,7 @@
 (defn all-pairs
   "[1 2 3] -> [[1 2] [1 3] [2 3]]"
   [coll]
-  (let [pair-up (fn [v vals]
-                  (map (partial vector v) vals))]
-    (apply concat (for [i (range (dec (count coll)))]
-                    (pair-up (nth coll i) (drop (inc i) coll))))))
+  (or (combinations coll 2) []))
 
 (defn pairs->map [pairs]
   (apply hash-map (flatten pairs)))
@@ -168,4 +166,5 @@
        (filter #(and (var? %) (identical? (var-get %) val))) ;; using identical? for issue #117
        (filter (complement recent-eval?))
        (sort-by (fn [v] (if (-> v meta :dynamic) 1 0)))
-       first ))
+       first))
+
