@@ -5,8 +5,7 @@
 language: clojure
 lein: lein2
 script: lein2 sub with-profile ci-dev,provided test
-before_install:
-    - lein2 sub install
+install: lein2 sub install
 branches:
   only:
     - develop
