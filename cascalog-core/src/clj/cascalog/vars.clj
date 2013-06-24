@@ -1,9 +1,7 @@
 (ns cascalog.vars)
 
-;; TODO: better to use UUIDs to avoid name collisions with client code?
-;; Are the size of fields an issue in the actual flow execution perf-wise?
 (defn gen-unique-suffix []
-  (str "__" (java.util.UUID/randomUUID)))
+  (str "__" (gensym)))
 
 (defn- gen-var-fn [prefix]
   (fn this
