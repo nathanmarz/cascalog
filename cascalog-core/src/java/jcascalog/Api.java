@@ -12,10 +12,25 @@ import java.util.List;
 import java.util.Map;
 
 public class Api {
+    
+    public static Object lfsTextline(String path) {
+        return getApiFn("lfs-textline").invoke(path);
+    }
+    
+    public static Object lfsTextline(String path, String pattern) {
+        return Util.bootSimpleFn("cascalog.api", "lfs-textline")
+                .invoke(path, Keyword.intern("source-pattern"), pattern);
+    }
+    
     public static Object hfsTextline(String path) {
         return getApiFn("hfs-textline").invoke(path);
     }
-
+    
+    public static Object hfsTextline(String path, String pattern) {
+        return Util.bootSimpleFn("cascalog.api", "hfs-textline")
+                .invoke(path, Keyword.intern("source-pattern"), pattern);
+    }
+   
     public static Object hfsSeqfile(String path) {
         return getApiFn("hfs-seqfile").invoke(path);
     }
