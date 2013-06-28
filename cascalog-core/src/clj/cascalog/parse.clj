@@ -653,8 +653,8 @@
                                     (or [(existence-field tail)]
                                         (:available-fields tail)))
                                   join-set))
-        join-node (->Join (map :node join-set)
-                          (vec max-join))
+        projected (map (comp #(->Projection % max-join) :node) join-set)
+        join-node (->Join projected (vec max-join))
         new-ops (->> (map (comp set :operations) join-set)
                      (apply intersection))]
     (into remaining (->TailStruct join-node
@@ -710,11 +710,12 @@
   (if (empty? aggs)
     (if (:distinct options)
       (let [fields (:available-fields tail)]
-        (chain tail (unique-aggregator fields)))
+        (chain tail (unique-aggregator fields options)))
       tail)
     (let [total-fields (grouping-output aggs grouping-fields)]
       (validate-aggregation! tail aggs options)
       (-> tail
+          (chain #(->Projection % total-fields))
           (chain #(->Grouping % aggs grouping-fields options))
           (assoc :available-fields total-fields)))))
 

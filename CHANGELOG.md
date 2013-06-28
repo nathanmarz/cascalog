@@ -1,3 +1,9 @@
+### 2.0.0
+
+* Project inserted before grouping or join
+* Dependency on chill-hadoop (instead of Cascading Kryo)
+* Upgrades Kryo to 2.21
+
 ### 1.10.1
 * Upgrade to Cascading 2.0.8, Clojure 1.5.1
 * Incorporate cascalog-contrib libraries
