@@ -15,12 +15,8 @@
            [cascading.flow.hadoop.util HadoopUtil]
            [clojure.lang IPersistentCollection]))
 
-(let [i (atom 0)]
-  ;; TODO: Is it better to use UUIDs to avoid name collisions with
-  ;; client code?  Are the size of fields an issue in the actual flow
-  ;; execution perf-wise?
-  (defn gen-unique-suffix []
-    (str "__gen" (swap! i inc))))
+(defn gen-unique-suffix []
+  (str "__" (gensym)))
 
 (defn uniquify-var
   "Appends a unique suffix to the supplied input."
