@@ -36,8 +36,6 @@ import clojure.lang.Var;
 public class Util {
   static final Var require = RT.var("clojure.core", "require");
   static final Var symbol = RT.var("clojure.core", "symbol");
-  static final IFn _serializeFn = bootSimpleFn("cascalog.fluent.fn", "serialize");
-  static final IFn _deserializeFn = bootSimpleFn("cascalog.fluent.fn", "deserialize");
 
   public static ISeq cat(ISeq s1, ISeq s2) {
     if (s1 == null || RT.seq(s1) == null) { return s2; }
@@ -83,11 +81,11 @@ public class Util {
   }
 
   public static synchronized IFn deserializeFn(byte[] fnSpec) {
-    return (IFn)  _deserializeFn.invoke(fnSpec);
+    return (IFn)  bootSimpleFn("cascalog.fluent.fn", "deserialize").invoke(fnSpec);
   }
 
   public static synchronized byte[] serializeFn(IFn fn) {
-    return (byte[]) _serializeFn.invoke(fn);
+    return (byte[]) bootSimpleFn("cascalog.fluent.fn", "serialize").invoke(fn);
   }
 
   public static ISeq coerceToSeq(Object o) {
