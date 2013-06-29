@@ -500,9 +500,9 @@
 
    [new variables, {map of newvars to values to substitute}]"
   [vars]
-  (u/substitute-if (complement v/cascalog-var?)
-                   (fn [_] (v/gen-nullable-var))
-                   (collectify vars)))
+  (substitute-if (complement v/cascalog-var?)
+                 (fn [_] (v/gen-nullable-var))
+                 (collectify vars)))
 
 (defn insert-subs [flow sub-m]
   (if (empty? sub-m)

@@ -240,7 +240,8 @@
               (let [newvar (v/gen-nullable-var)]
                 [(conj new-output newvar)
                  (conj pred-acc
-                       (map->RawPredicate (if (or (fn? v) (u/multifn? v))
+                       (map->RawPredicate (if (or (fn? v)
+                                                  (u/multifn? v))
                                             {:op v :input [newvar]}
                                             {:op = :input [v newvar]})))])))
           [[] []]

@@ -39,6 +39,9 @@
        (postwalk #(if (map? %) (seq %) %))
        (clojure.core/flatten)))
 
+(defn multifn? [op]
+  (instance? clojure.lang.MultiFn op))
+
 (defn multi-set
   "Returns a map of elem to count"
   [aseq]

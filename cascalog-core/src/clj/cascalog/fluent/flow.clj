@@ -30,8 +30,8 @@
   "Compiles the supplied FlowDef into a Hadoop flow."
   [fd]
   (-> (HadoopFlowConnector.
-       (u/project-merge (conf/project-conf)
-                        {"cascading.flow.job.pollinginterval" 10}))
+       (conf/project-merge (conf/project-conf)
+                           {"cascading.flow.job.pollinginterval" 10}))
       (.connect fd)))
 
 (defn graph

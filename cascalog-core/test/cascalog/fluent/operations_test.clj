@@ -6,7 +6,9 @@
         cascalog.fluent.tap
         cascalog.fluent.cascading
         [cascalog.fluent.def :exclude (aggregator? buffer?)])
-  (:require [cascalog.fluent.io :as io]))
+  (:require [cascalog.fluent.io :as io]
+            [cascalog.fluent.types :refer (generator)]
+            [cascalog.fluent.algebra :as algebra]))
 
 (defn square [x]
   (* x x))
@@ -126,14 +128,16 @@
     (fact "Merge combines streams without any join. This test forks a
            source, applies operations to each branch then merges the
            branches back together again."
-          (merge* a b) => (produces [[1 1 1 0]
-                                     [2 2 4 1]
-                                     [3 3 9 2]
-                                     [4 4 16 3]
-                                     [1 1 2 2]
-                                     [2 2 3 3]
-                                     [3 3 4 4]
-                                     [4 4 5 5]]))))
+      (algebra/sum a b) => (produces [[1 1 1 0]
+                                      [2 2 4 1]
+                                      [3 3 9 2]
+                                      [4 4 16 3]
+                                      [1 1 2 2]
+                                      [2 2 3 3]
+                                      [3 3 4 4]
+                                      [4 4 5 5]]))))
+
+(defn gt2 [x] (> x 2))
 
 (deftest test-co-group
   (let [source (-> (generator [[1 1] [2 2] [3 3] [4 4]]))

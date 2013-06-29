@@ -36,8 +36,8 @@ import clojure.lang.Var;
 public class Util {
   static final Var require = RT.var("clojure.core", "require");
   static final Var symbol = RT.var("clojure.core", "symbol");
-  static final IFn serializeFn = bootSimpleFn("cascalog.fluent.fn", "serialize");
-  static final IFn deserializeFn = bootSimpleFn("cascalog.fluent.fn", "deserialize");
+  static final IFn _serializeFn = bootSimpleFn("cascalog.fluent.fn", "serialize");
+  static final IFn _deserializeFn = bootSimpleFn("cascalog.fluent.fn", "deserialize");
 
   public static ISeq cat(ISeq s1, ISeq s2) {
     if (s1 == null || RT.seq(s1) == null) { return s2; }
@@ -59,7 +59,6 @@ public class Util {
     try {
       require.invoke(symbol.invoke(ns_name));
     } catch (Exception e) {
-
       //if playing from the repl and defining functions, file won't exist
       Throwable rootCause = getRootCause(e);
 
@@ -84,11 +83,11 @@ public class Util {
   }
 
   public static synchronized IFn deserializeFn(byte[] fnSpec) {
-    return (IFn)  deserializeFn.invoke(fnSpec);
+    return (IFn)  _deserializeFn.invoke(fnSpec);
   }
 
   public static synchronized byte[] serializeFn(IFn fn) {
-    return (byte[]) serializeFn.invoke(fn);
+    return (byte[]) _serializeFn.invoke(fn);
   }
 
   public static ISeq coerceToSeq(Object o) {
