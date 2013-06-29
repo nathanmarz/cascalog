@@ -716,7 +716,8 @@
     (let [total-fields (grouping-output aggs grouping-fields)]
       (validate-aggregation! tail aggs options)
       (-> tail
-          (chain #(->Projection % total-fields))
+          ;; TODO: Make this work properly.
+          ;; (chain #(->Projection % total-fields))
           (chain #(->Grouping % aggs grouping-fields options))
           (assoc :available-fields total-fields)))))
 
