@@ -49,6 +49,12 @@
 
 (defmulti serialize-val serialize-type)
 
+(defn serialize [val]
+  (let [type (serialize-type val)
+        serialized (serialize-val val)]
+    (KryoService/serialize {:token (type->token type)
+                            :val-ser serialized})))
+
 (defmethod serialize-val :java [val]
   (KryoService/serialize val))
 
@@ -123,6 +129,10 @@
 (defmulti deserialize-val (fn [token serialized]
                             (token->type token)))
 
+(defn deserialize [serialized]
+  (let [{:keys [token val-ser]} (KryoService/deserialize serialized)]
+    (deserialize-val token val-ser)))
+
 (defmethod deserialize-val :find-var [_ serialized]
   (let [{:keys [ns fn-name]} (KryoService/deserialize serialized)]
     (Util/bootSimpleFn ns fn-name)))
@@ -156,13 +166,3 @@
                  (eval to-eval))
                merge
                rest-meta)))
-
-(defn serialize [val]
-  (let [type (serialize-type val)
-        serialized (serialize-val val)]
-    (KryoService/serialize {:token (type->token type)
-                            :val-ser serialized})))
-
-(defn deserialize [serialized]
-  (let [{:keys [token val-ser]} (KryoService/deserialize serialized)]
-    (deserialize-val token val-ser)))
