@@ -366,47 +366,6 @@
                      [* ?x ?x :> ?y]
                      [* ?x ?y :> ?z]])))
 
-;; ## Predicate Parsing
-;;
-;;
-;; Before compilation, all predicates are normalized down to clojure
-;; predicates.
-;;
-;; Query compilation steps are as follows:
-;;
-;; 1. Desugar all of the argument selectors (remember positional!)
-;; 2. Normalize all predicates
-;; 3. Expand predicate macros
-;;
-;; The result of this is a RawSubquery instance with RawPredicates
-;; only inside.
-
-(defn parse-subquery
-  "Parses predicates and output fields and returns a proper subquery."
-  [output-fields raw-predicates]
-  (let [output-fields (v/sanitize output-fields)
-        [raw-options raw-predicates] (s/separate opts/option? raw-predicates)
-        option-map (opts/generate-option-map raw-options)
-        raw-predicates (mapcat normalize raw-predicates)]
-    (if (query-signature? output-fields)
-      (do (validate-predicates! raw-predicates option-map)
-          (build-rule
-           (->RawSubquery output-fields
-                          raw-predicates
-                          option-map)))
-      (let [parsed (parse-variables output-fields :<)]
-        (build-predmacro (:input parsed)
-                         (:output parsed)
-                         raw-predicates)))))
-
-(defmacro <-
-  "Constructs a query or predicate macro from a list of
-  predicates. Predicate macros support destructuring of the input and
-  output variables."
-  [outvars & predicates]
-  `(v/with-logic-vars
-     (parse-subquery ~outvars [~@(map vec predicates)])))
-
 ;; TODO: Implement IGenerator here.
 
 ;; this is the root of the tree, used to account for all variables as
@@ -787,6 +746,47 @@
         {:keys [operations available-fields] :as tail} (add-ops-fixed-point agg-tail)]
     (validate-projection! operations fields available-fields)
     (chain tail #(->Projection % fields))))
+
+;; ## Predicate Parsing
+;;
+;;
+;; Before compilation, all predicates are normalized down to clojure
+;; predicates.
+;;
+;; Query compilation steps are as follows:
+;;
+;; 1. Desugar all of the argument selectors (remember positional!)
+;; 2. Normalize all predicates
+;; 3. Expand predicate macros
+;;
+;; The result of this is a RawSubquery instance with RawPredicates
+;; only inside.
+
+(defn parse-subquery
+  "Parses predicates and output fields and returns a proper subquery."
+  [output-fields raw-predicates]
+  (let [output-fields (v/sanitize output-fields)
+        [raw-options raw-predicates] (s/separate opts/option? raw-predicates)
+        option-map (opts/generate-option-map raw-options)
+        raw-predicates (mapcat normalize raw-predicates)]
+    (if (query-signature? output-fields)
+      (do (validate-predicates! raw-predicates option-map)
+          (build-rule
+           (->RawSubquery output-fields
+                          raw-predicates
+                          option-map)))
+      (let [parsed (parse-variables output-fields :<)]
+        (build-predmacro (:input parsed)
+                         (:output parsed)
+                         raw-predicates)))))
+
+(defmacro <-
+  "Constructs a query or predicate macro from a list of
+  predicates. Predicate macros support destructuring of the input and
+  output variables."
+  [outvars & predicates]
+  `(v/with-logic-vars
+     (parse-subquery ~outvars [~@(map vec predicates)])))
 
 ;; ## Query Execution
 ;;

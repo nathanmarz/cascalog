@@ -179,21 +179,21 @@
       (* (.compareTo o1 o2) (if (:reverse opts) -1 1))
       0)))
 
-(defn limit-combine [options limit]
+(defn limit-combine [options n]
   (let [compare-fn (mk-limit-comparator options)]
     (s/fn [list1 list2]
       (let [res (concat list1 list2)]
         ;; see note in limit-init
-        [(if (> (count res) (* 2 limit))
-           (take limit (sort compare-fn res))
+        [(if (> (clojure.core/count res) (* 2 n))
+           (take n (sort compare-fn res))
            res)]))))
 
-(defn limit-extract [options limit]
+(defn limit-extract [options n]
   (let [compare-fn (mk-limit-comparator options)]
     (s/fn [alist]
-      (let [alist (if (<= (count alist) limit)
+      (let [alist (if (<= (clojure.core/count alist) n)
                     alist
-                    (take limit (sort compare-fn alist)))]
+                    (take n (sort compare-fn alist)))]
         (map (partial apply concat) alist)))))
 
 ;; Special node. The operation inside of here will be passed the
