@@ -80,7 +80,8 @@
                          acc
                          (-> acc (ops/filter* = [old new]))))
                      (-> (types/generator gen)
-                         (ops/rename* cleaned))
+                         (ops/rename* cleaned)
+                         (ops/filter-nullable-vars cleaned))
                      (map vector output cleaned))]))
 
 (defn generator-node

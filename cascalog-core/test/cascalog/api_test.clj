@@ -28,7 +28,7 @@
 
 (deftest test-simple-query
   (let [age [["n" 24] ["n" 23] ["i" 31] ["c" 30] ["j" 21] ["q" nil]]]
-    (test?<- [["j"] ["n"]]
+    (test?<- :info [["j"] ["n"]]
              [?p]
              (age ?p ?a)
              (< ?a 25)
@@ -411,6 +411,14 @@
 (defn hof-arithmetic [a b]
   (mapfn [n] (+ b (* a n))))
 
+(defn sum-plus [a]
+  (cascalog.fluent.def/bufferop*
+   (cascalog.fluent.def/prepfn
+    [_ _]
+    (let [x (* 3 a)]
+      {:operate (fn [tuples]
+                  [(apply + x (map first tuples))])}))))
+
 (deftest test-hof-ops
   (let [integer [[1] [2] [6]]]
     (test?<- [[4] [5] [9]]
@@ -428,40 +436,42 @@
              (integer ?v)
              ((hof-arithmetic 2 1) ?v :> ?n))
 
-    #_(test?<- [[72]]
-               [?n]
-               (integer ?v)
-               (sum-plus [21] ?v :> ?n))))
+    (test?<- [[72]]
+             [?n]
+             (integer ?v)
+             ((sum-plus 21) ?v :> ?n))))
+
+
+(defn lala-appended [source]
+  (let [outvars ["?a"]]
+    (<- outvars
+        (source ?line)
+        (str ?line "lalala" :>> outvars)
+        (:distinct false))))
+
+(deftest test-dynamic-vars
+  (let [sentence [["nathan david"] ["chicken"]]]
+    (test?<- [["nathan davidlalala"] ["chickenlalala"]]
+             [?out]
+             ((lala-appended sentence) ?out))
+
+    (test?<- [["nathan davida"] ["chickena"]]
+             [?out]
+             (sentence :>> [?line])
+             (str :<< ["?line" "a"] :>> ["?out"]))))
+
+(defbufferop nothing-buf [tuples] tuples)
+
+(deftest test-outer-join-anon
+  (let [person  [["a"] ["b"] ["c"]]
+        follows [["a" "b" 1] ["c" "e" 2] ["c" "d" 3]]]
+    (test?<- [["a" "b"] ["c" "e"]
+              ["c" "d"] ["b" nil]]
+             [?p !!p2]
+             (person ?p)
+             (follows ?p !!p2 _))))
 
 (comment
-  ;; TODO: stateful operations should return a map containing :init,
-  ;; :op, :finish
-  (defbufferop [sum-plus [a]]
-    {:stateful true}
-    ([] (* 3 a))
-    ([state tuples] [(apply + state (map first tuples))])
-    ([state] nil))
-
-  (defn lala-appended [source]
-    (let [outvars ["?a"]]
-      (<- outvars
-          (source ?line)
-          (str ?line "lalala" :>> outvars)
-          (:distinct false))))
-
-  (deftest test-dynamic-vars
-    (let [sentence [["nathan david"] ["chicken"]]]
-      (test?<- [["nathan davidlalala"] ["chickenlalala"]]
-               [?out]
-               ((lala-appended sentence) ?out))
-
-      (test?<- [["nathan davida"] ["chickena"]]
-               [?out]
-               (sentence :>> [?line])
-               (str :<< ["?line" "a"] :>> ["?out"]))))
-
-  (defbufferop nothing-buf [tuples] tuples)
-
   (deftest test-limit
     (let [pair [["a" 1] ["a" 3] ["a" 2]
                 ["a" 4] ["b" 1] ["b" 6]
@@ -525,15 +535,6 @@
                (pair ?l ?n)
                (:sort ?n)
                (c/limit [2] ?n :> ?n2))))
-
-  (deftest test-outer-join-anon
-    (let [person  [["a"] ["b"] ["c"]]
-          follows [["a" "b" 1] ["c" "e" 2] ["c" "d" 3]]]
-      (test?<- [["a" "b"] ["c" "e"]
-                ["c" "d"] ["b" nil]]
-               [?p !!p2]
-               (person ?p)
-               (follows ?p !!p2 _))))
 
   (defbufferiterop itersum [tuples-iter]
     [(->> (iterator-seq tuples-iter)

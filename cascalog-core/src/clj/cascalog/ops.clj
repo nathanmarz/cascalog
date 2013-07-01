@@ -4,7 +4,6 @@
         [jackknife.def :only (defnk)]
         [jackknife.seq :only (collectify)]
         [cascalog.fluent.tap :only (fill-tap!)]
-        [cascalog.fluent.def :only (mapfn)]
         [cascalog.fluent.io :only (with-fs-tmp)])
   (:require [cascalog.util :as u]
             [cascalog.ops-impl :as impl]

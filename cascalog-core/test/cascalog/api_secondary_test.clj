@@ -1,5 +1,4 @@
-(comment
-  (ns cascalog.api-secondary-test
+(ns cascalog.api-secondary-test
     (:use clojure.test
           cascalog.api
           cascalog.testing)
@@ -7,6 +6,7 @@
     (:require [cascalog.ops :as c]
               [cascalog.fluent.io :as io]))
 
+(comment
   (deftest test-outfields-query
     (let [age [["nathan" 25]]]
       (is (= ["?age"]
@@ -90,9 +90,9 @@
                (:distinct false))
 
           (?<- (cascalog-tap nil (fn [sq] [sink2 (<- [?n2]
-                                                    (sq ?n)
-                                                    (inc ?n :> ?n2)
-                                                    (:distinct false))]))
+                                                     (sq ?n)
+                                                     (inc ?n :> ?n2)
+                                                     (:distinct false))]))
                [?n] (num ?n)
                (:distinct false))
 
@@ -248,7 +248,8 @@
                ((c/negate gender) ?p _)
                (:distinct false))))
 
-  ;; TODO: test within massive joins (more than one join field, after other joins complete, etc.)
+  ;; TODO: test within massive joins (more than one join field, after
+  ;; other joins complete, etc.)
 
   (deftest test-negation-errors
     (let [nums [[1] [2] [3]]

@@ -16,7 +16,6 @@
             [cascalog.fluent.fn :refer (search-for-var)]
             [cascalog.fluent.flow :refer (all-to-memory to-memory graph)]
             [cascalog.fluent.operations :as ops]
-            [cascalog.fluent.tap :as tap]
             [cascalog.fluent.cascading :refer (uniquify-var)])
   (:import [jcascalog Predicate PredicateMacro PredicateMacroTemplate]
            [cascalog.predicate Operation FilterOperation Aggregator
@@ -674,8 +673,6 @@
                                   available-fields
                                   (vec new-ops)))))
 
-;; ## Aggregation Helpers
-
 ;; ## Aggregation Operations
 ;;
 ;; The following operations deal with Cascalog's aggregations. I think
@@ -710,7 +707,8 @@
       (throw-runtime "Can't apply all aggregators. These fields are missing: "
                      missing-fields))))
 
-(defn unique-aggregator [fields options]
+(defn unique-aggregator
+  [fields options]
   #(->Grouping % [(p/->Aggregator (constantly (ops/unique-aggregator))
                                   fields
                                   fields)]
@@ -771,7 +769,6 @@
                             ". Missing " (vec diff)))))))
 
 (defn build-rule
-  "TODO: Get options back into the mix."
   [{:keys [fields predicates options] :as input}]
   (let [grouped (->> predicates
                      (map p/build-predicate)
@@ -792,6 +789,10 @@
     (chain tail #(->Projection % fields))))
 
 ;; ## Query Execution
+;;
+;; TODO: Add a dynamic variable that holds an execution context. The
+;; implementation below is a planner for Hadoop. We should be able to
+;; write planners equally well for other systems, like Spark or Storm.
 
 (defprotocol IRunner
   (to-generator [item]))
@@ -815,8 +816,7 @@
       (assembly source input)))
 
   ExistenceNode
-  (to-generator [{:keys [source]}]
-    source)
+  (to-generator [{:keys [source]}] source)
 
   Join
   (to-generator [{:keys [sources join-fields type-seq]}]
@@ -876,15 +876,14 @@
                (* ?x ?x :> ?squared)
                (- ?squared 1 :> ?squared-minus)
                ((d/parallelagg* +) ?squared :> ?sum))]
-    (to-memory (compile-query sq)))
+    (to-memory sq))
 
   (let [sq (<- [?x ?y]
                ([1 2 3] ?x)
                ([1 2 3] ?y)
                (cross-join)
                (* ?x ?y :> ?z))]
-    (to-memory (compile-query sq)))
-  (time (run sq))
+    (to-memory sq))
 
   (let [x (<- [?x ?y :> ?z]
               (* ?x ?x :> 10)
