@@ -6,6 +6,8 @@
         [cascalog.fluent.tap :only (fill-tap!)]
         [cascalog.fluent.io :only (with-fs-tmp)])
   (:require [cascalog.util :as u]
+            [cascalog.fluent.def :as d]
+            [cascalog.fluent.fn :as s]
             [cascalog.ops-impl :as impl]
             [cascalog.vars :as v]))
 
@@ -169,15 +171,48 @@
 
 (def !count (each impl/!count-parallel))
 
+(defn limit-init [item] [[item]])
+
+(defn mk-limit-comparator [opts]
+  (s/fn [[^Comparable o1 _] [^Comparable o2 _]]
+    (if (:sort opts)
+      (* (.compareTo o1 o2) (if (:reverse opts) -1 1))
+      0)))
+
+(defn limit-combine [options limit]
+  (let [compare-fn (mk-limit-comparator options)]
+    (s/fn [list1 list2]
+      (let [res (concat list1 list2)]
+        ;; see note in limit-init
+        [(if (> (count res) (* 2 limit))
+           (take limit (sort compare-fn res))
+           res)]))))
+
+(defn limit-extract [options limit]
+  (let [compare-fn (mk-limit-comparator options)]
+    (s/fn [alist]
+      (let [alist (if (<= (count alist) limit)
+                    alist
+                    (take limit (sort compare-fn alist)))]
+        (map (partial apply concat) alist)))))
+
+;; Special node. The operation inside of here will be passed the
+(defn limit [n]
+  (d/->Prepared (fn [options]
+                  (d/->ParallelAggregator
+                   #'limit-init
+                   (limit-combine options n)
+                   (limit-extract options n)))))
+
 (comment
   (defparallelbuf limit
-   :hof? true
-   :init-hof-var #'impl/limit-init
-   :combine-hof-var #'impl/limit-combine
-   :extract-hof-var #'impl/limit-extract
-   :num-intermediate-vars-fn (fn [infields _]
-                               (clojure.core/count infields))
-   :buffer-hof-var #'impl/limit-buffer)
+    :hof? true
+    :init-hof-var #'impl/limit-init
+    :combine-hof-var #'impl/limit-combine
+    :extract-hof-var #'impl/limit-extract
+    :num-intermediate-vars-fn (fn [infields _]
+                                (clojure.core/count infields))
+    :buffer-hof-var #'impl/limit-buffer)
 
   (def limit-rank
     (merge limit {:buffer-hof-var #'impl/limit-rank-buffer})))

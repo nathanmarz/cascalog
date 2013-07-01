@@ -135,6 +135,10 @@
 
 (defrecord ParallelAggregator [init-var combine-var present-var])
 
+;; Special node. The operation inside of here will be passed the
+;; Cascalog option map and expected to return another operation.
+(defrecord Prepared [op])
+
 (defmacro defparallelagg
   "Binds an efficient aggregator to the supplied symbol. A parallel
   aggregator processes each tuple through an initializer function,

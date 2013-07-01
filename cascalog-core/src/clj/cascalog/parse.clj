@@ -771,7 +771,7 @@
 (defn build-rule
   [{:keys [fields predicates options] :as input}]
   (let [grouped (->> predicates
-                     (map p/build-predicate)
+                     (map (partial p/build-predicate options))
                      (group-by type))
         generators (concat (grouped Generator)
                            (grouped GeneratorSet))
@@ -831,6 +831,8 @@
   Grouping
   (to-generator [{:keys [source aggregators grouping-fields options]}]
     (let [aggs (map (fn [{:keys [op input output]}]
+                      ;; We pass the options in here to support
+                      ;; aggregators that might need to sort, etc.
                       (op input output))
                     aggregators)
           options (assoc options

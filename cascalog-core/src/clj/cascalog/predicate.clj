@@ -9,7 +9,7 @@
             [cascalog.fluent.types :as types]
             [cascalog.fluent.flow :as f])
   (:import [clojure.lang IFn]
-           [cascalog.fluent.def ParallelAggregator]
+           [cascalog.fluent.def ParallelAggregator Prepared]
            [cascalog.fluent.types IGenerator]
            [cascading.pipe Each Every]
            [cascading.tap Tap]
@@ -240,11 +240,13 @@
                 output))
 
 (defn build-predicate
-  "Accepts a raw predicate and returns a node in the Cascalog graph."
-  [{:keys [op input output]}]
-  (if (types/generator? op)
-    (generator-node op input output)
-    (to-predicate op input output)))
+  "Accepts an option map and a raw predicate and returns a node in the
+  Cascalog graph."
+  [options {:keys [op input output] :as pred}]
+  (cond (types/generator? op)   (generator-node op input output)
+        (instance? Prepared op) (build-predicate options
+                                                 (assoc pred :op ((:op op) options)))
+        :else                   (to-predicate op input output)))
 
 (comment
   "TODO: Convert to test."
