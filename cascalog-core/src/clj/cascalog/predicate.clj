@@ -65,21 +65,35 @@
     (when (> (count output) 1)
       (throw-illegal "Only one output variable allowed in a generator-as-set."))
     (when-let [unground (not-empty (filter v/unground-var? (concat input output)))]
+
       (throw-illegal (str "Can't use unground vars in generators-as-sets. "
                           (vec unground)
                           " violate(s) the rules.\n\n")))))
+
+(defn sanitize-output
+  "If the generator has duplicate output fields, this function
+  generates duplicates and applies the proper equality operations."
+  [gen output]
+  (let [[_ cleaned] (ops/replace-dups output)]
+    [cleaned (reduce (fn [acc [old new]]
+                       (if (= old new)
+                         acc
+                         (-> acc (ops/filter* = [old new]))))
+                     (-> (types/generator gen)
+                         (ops/rename* cleaned))
+                     (map vector output cleaned))]))
 
 (defn generator-node
   "Converts the supplied generator into the proper type of node."
   [gen input output]
   {:pre [(types/generator? gen)]}
-  (let [{:keys [pipe source-map trap-map]} (-> (types/generator gen)
-                                               (ops/rename* output))
-        generator (->Generator source-map trap-map pipe output)]
-    (if-let [[join-set-var] (not-empty input)]
-      (do (validate-generator-set! input output)
-          (->GeneratorSet generator join-set-var))
-      generator)))
+  (if-not (empty? input)
+    (do (validate-generator-set! input output)
+        (-> (generator-node gen [] input)
+            (->GeneratorSet (first output))))
+    (let [[cleaned gen] (sanitize-output gen output)
+          {:keys [pipe source-map trap-map]} gen]
+      (->Generator source-map trap-map pipe cleaned))))
 
 ;; Currently predicate macros are expanded in build-rule, in
 ;; rules.clj. By the time we get here, let's assume that everything
@@ -196,7 +210,9 @@
 (defmethod to-predicate ParallelAggregator
   [op input output]
   (->Aggregator (fn [in out]
-                  (ops/parallel-agg (:combine-var op) in out))
+                  (ops/parallel-agg (:combine-var op) in out
+                                    :init-var (:init-var op)
+                                    :present-var (:present-var op)))
                 input output))
 
 (defmethod to-predicate CascalogBuffer

@@ -12,7 +12,7 @@ public class ClojureMonoidFunctor extends FoldFunctor<ISeq> {
   final CombinerSpec combinerSpec;
   protected IFn prepareFn;
   protected IFn combineFn;
-  protected IFn presentFn;
+  boolean isPrepared = false;
 
   public ClojureMonoidFunctor(Fields fields, CombinerSpec combinerSpec) {
     super(fields);
@@ -21,9 +21,15 @@ public class ClojureMonoidFunctor extends FoldFunctor<ISeq> {
 
   @Override
   public ISeq prepare(TupleEntry args) {
-    prepareFn = combinerSpec.getPrepareFn();
-    combineFn = combinerSpec.getCombineFn();
-    presentFn = combinerSpec.getPresentFn();
+    if (!isPrepared) {
+      prepareFn = combinerSpec.getPrepareFn();
+      combineFn = combinerSpec.getCombineFn();
+      isPrepared = true;
+    }
+    return applyPrepareFn(args);
+  }
+
+  public ISeq applyPrepareFn(TupleEntry args) {
     if (null != prepareFn) {
       return RT.seq(Util.coerceToList(prepareFn.applyTo(Util.coerceFromTuple(args))));
     } else {
@@ -35,15 +41,11 @@ public class ClojureMonoidFunctor extends FoldFunctor<ISeq> {
   public ISeq fold(ISeq acc, TupleEntry newArgs) {
     return RT.seq(Util.coerceToList(
         combineFn.applyTo(
-            Util.cat(acc, RT.seq(Util.coerceFromTuple(newArgs))))));
+         Util.cat(acc, applyPrepareFn(newArgs)))));
   }
 
   @Override
   public Tuple present(ISeq finalValue) {
-    if (null != presentFn) {
-      return Util.coerceToTuple(presentFn.applyTo(finalValue));
-    } else {
-      return Util.coerceToTuple(finalValue);
-    }
+    return Util.coerceToTuple(finalValue);
   }
 }

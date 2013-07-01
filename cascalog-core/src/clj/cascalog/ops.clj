@@ -215,7 +215,17 @@
     (<- [:<< ?invars :>> ?outvars]
         ((cascalog.ops.RandLong.) :<< ?invars :> ?rand)
         (:sort ?rand)
-        (limit [amt] :<< ?invars :>> ?outvars))))
+        (limit [amt] :<< ?invars :>> ?outvars)))
+
+  (defn fixed-sample
+    "Returns a subquery getting a random sample of n elements from the generator"
+    [gen n]
+    (let [num-fields (num-out-fields gen)
+          in-vars  (v/gen-nullable-vars num-fields)
+          out-vars (v/gen-nullable-vars num-fields)]
+      (<- out-vars
+          (gen :>> in-vars)
+          ((fixed-sample-agg n) :<< in-vars :>> out-vars)))))
 
 ;; Common patterns
 
@@ -275,13 +285,3 @@
           (:sort :<< sort-vars)
           (:reverse reverse)
           (limit [n] :<< in-vars :>> out-vars)))))
-
-(defn fixed-sample
-  "Returns a subquery getting a random sample of n elements from the generator"
-  [gen n]
-  (let [num-fields (num-out-fields gen)
-        in-vars  (v/gen-nullable-vars num-fields)
-        out-vars (v/gen-nullable-vars num-fields)]
-    (<- out-vars
-        (gen :>> in-vars)
-        ((fixed-sample-agg n) :<< in-vars :>> out-vars))))

@@ -9,7 +9,8 @@
 
 (extend-protocol TreeNode
   Object
-  (branch? [node] false)
+  (branch? [node]
+    false)
   (make-node [node children] node))
 
 (defn cascalog-zip

@@ -19,8 +19,9 @@
 
 (defn flow-def
   "Generates an instance of FlowDef off of the supplied ClojureFlow."
-  [{:keys [source-map sink-map trap-map tails]}]
+  [{:keys [source-map sink-map trap-map tails name]}]
   (doto (FlowDef.)
+    (.setName name)
     (.addSources source-map)
     (.addSinks sink-map)
     (.addTraps trap-map)
@@ -84,30 +85,26 @@
    If the first argument is a string, that will be used as the name
   for the query and will show up in the JobTracker UI."
   [& args]
-  (let [strip-pipe   (fn [m] (assoc m :pipe nil))
+  (let [strip-pipe (fn [m] (assoc m :pipe nil))
         [name bindings] (parse-exec-args args)
-        [sinks gens] (->> bindings (partition 2) (unweave))]
+        [sinks gens] (unweave bindings)]
     (-> (map (comp strip-pipe ops/write*)
              gens sinks)
         (sum)
-        (run!))))
+        (ops/name-flow name))))
 
 (defn all-to-memory
   "Return the results of the supplied workflows as data
   structures. Accepts many workflows, and (optionally) a flow name as
   the first argument."
   [& args]
-  (let [strip-pipe   (fn [m] (assoc m :pipe nil))
-        [name flows] (parse-exec-args args)]
+  (let [[name flows] (parse-exec-args args)]
     (io/with-fs-tmp [fs tmp]
       (hadoop/mkdirs fs tmp)
       (let [taps (->> (u/unique-rooted-paths tmp)
                       (map tap/hfs-seqfile)
                       (take (count flows)))]
-        (-> (map (comp strip-pipe ops/write*)
-                 flows taps)
-            (sum)
-            (run!))
+        (run! (apply compile-flow name (interleave taps flows)))
         (doall (map tap/get-sink-tuples taps))))))
 
 (defn to-memory

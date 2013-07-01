@@ -1,6 +1,7 @@
 (ns cascalog.testing
   (:require [clojure.test :refer :all]
             [cascalog.api :refer :all]
+            [cascalog.util :as u]
             [cascalog.fluent.tap :as tap]
             [cascalog.fluent.types :refer (normalize-sink-connection)]
             [cascalog.fluent.io :as io]
@@ -62,7 +63,7 @@
                                [ll (rest bindings)]
                                [:fatal bindings])]
     (io/with-log-level log-level
-      (io/with-tmp-files [sink-path (io/temp-dir "sink")]
+      (io/with-fs-tmp [_ sink-path]
         (with-job-conf {"io.sort.mb" 10}
           (let [bindings (mapcat (partial apply normalize-sink-connection)
                                  (partition 2 bindings))

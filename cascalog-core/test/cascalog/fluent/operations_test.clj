@@ -101,9 +101,9 @@
   (io/with-fs-tmp [_ tmp-a tmp-b]
     (fact
       "duplicate inputs are okay, provided you sanitize them using
-       with-dups. Note that with-dups won't currently clean up the
-       extra delta vars for you. Fix this later by cleaning up the
-       delta variables."
+       with-duplicate-inputs. Note that with-dups won't currently
+       clean up the extra delta vars for you. Fix this later by
+       cleaning up the delta variables."
       (-> [[1 2] [2 3] [3 4] [4 5]]
           (rename* ["a" "b"])
           (with-dups ["a" "a" "b"]
@@ -160,3 +160,18 @@
           q (co-group* [a b] [["a"] ["x"]] nil [(sum "y" "s")])]
       (fact "Agg after join"
         (to-memory q) => [[1 1 20] [2 2 15]]))))
+
+(comment
+  (let [source (-> (generator [[1 1] [2 2] [3 3] [4 4]]))
+        a      (-> source
+                   (rename* ["a" "b"])
+                   (filter* gt2 "a")
+                   (map* square "b" "c"))
+        b      (-> source
+                   (rename* ["x" "a"]))]
+    (sort (-> (join-many [[a ["a"] :inner]
+                          [b ["x"] :inner]]
+                         ["a" "b" "y" "x" "c"]
+                         [])
+              (map* str "y" "q")
+              to-memory))))

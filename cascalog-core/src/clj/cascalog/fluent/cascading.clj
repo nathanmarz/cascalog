@@ -15,13 +15,10 @@
            [cascading.flow.hadoop.util HadoopUtil]
            [clojure.lang IPersistentCollection]))
 
-(defn gen-unique-suffix []
-  (str "__" (gensym)))
-
 (defn uniquify-var
   "Appends a unique suffix to the supplied input."
   [v]
-  (str v (gen-unique-suffix)))
+  (str v (gensym)))
 
 (defn gen-var-fn
   "Accepts a prefix and returns a function of no arguments that, when

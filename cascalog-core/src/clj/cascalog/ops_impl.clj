@@ -61,7 +61,9 @@
 
 (defn limit-rank-buffer [_ limit]
   (fn [tuples]
-    (take limit (map #(conj (vec %1) %2) tuples (iterate inc 1)))))
+    (take limit (map (fn [x y] (conj (vec x) y))
+                     tuples
+                     (iterate inc 1)))))
 
 (defaggregateop distinct-count-agg
   ([] [nil 0])

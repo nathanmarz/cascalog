@@ -10,10 +10,11 @@
             [clojure.zip :as czip]
             [cascalog.predicate :as p]
             [cascalog.options :as opts]
-            [cascalog.fluent.types :refer (generator generator? map->ClojureFlow)]
+            [cascalog.fluent.types :refer
+             (IGenerator generator generator? map->ClojureFlow)]
             [cascalog.fluent.def :as d :refer (bufferop? aggregateop?)]
             [cascalog.fluent.fn :refer (search-for-var)]
-            [cascalog.fluent.flow :refer (to-memory graph)]
+            [cascalog.fluent.flow :refer (all-to-memory to-memory graph)]
             [cascalog.fluent.operations :as ops]
             [cascalog.fluent.tap :as tap]
             [cascalog.fluent.cascading :refer (uniquify-var)])
@@ -390,9 +391,10 @@
         raw-predicates (mapcat normalize raw-predicates)]
     (if (query-signature? output-fields)
       (do (validate-predicates! raw-predicates option-map)
-          (->RawSubquery output-fields
-                         raw-predicates
-                         option-map))
+          (build-rule
+           (->RawSubquery output-fields
+                          raw-predicates
+                          option-map)))
       (let [parsed (parse-variables output-fields :<)]
         (build-predmacro (:input parsed)
                          (:output parsed)
@@ -448,14 +450,16 @@
   (make-node [_ children]
     (->FilterApplication (first children) filter)))
 
-;; Potentially add aggregations into the join. This node combines many
-;; sources.
-(defrecord Join [sources join-fields]
+;; TODO: Potentially add aggregations into the join. This node
+;; combines many sources.
+(defrecord Join [sources join-fields type-seq]
   zip/TreeNode
   (branch? [_] true)
   (children [_] sources)
   (make-node [_ children]
-    (->Join children join-fields)))
+    (assert (= (count children)
+               (count type-seq)))
+    (->Join children join-fields type-seq)))
 
 ;; Build one of these from many aggregators.
 (defrecord Grouping [source aggregators grouping-fields options]
@@ -513,13 +517,12 @@
     "Accepts a tail and performs some modification on that tail,
     returning a new tail."))
 
-
 (defn apply-equality-ops
   "Accepts a TailStruct instance and a sequence of pairs of input
   variables, and applies an equality filter for every pair."
   [tail equality-pairs]
   (reduce (fn [tail equality-pair]
-            (apply-to-tail tail (p/->FilterOperation = equality-pair)))
+            (apply-to-tail (p/to-predicate = equality-pair nil) tail))
           tail
           equality-pairs))
 
@@ -530,9 +533,9 @@
   returns a sequence of all pairs of output variable substitutions,
   plus a new operation with output fields swapped as necessary"
   [op tail]
-  (let [duplicates (not-empty
-                    (intersection (set (:output op))
-                                  (set (:available-fields tail))))]
+  (if-let [duplicates (not-empty
+                       (intersection (set (:output op))
+                                     (set (:available-fields tail))))]
     (let [[eq-pairs output]
           (s/unweave (mapcat (fn [v]
                                (if-not (contains? duplicates v)
@@ -645,20 +648,28 @@
   "Attempt to reduce the supplied set of tails by joining."
   [tails]
   (let [max-join (select-join tails)
-        [join-set remaining] (s/separate #(joinable? max-join %) tails)
+        [join-set remaining] (s/separate #(joinable? % max-join) tails)
         ;; All join fields survive from normal generators; from
         ;; generator-as-set generators, only the field we need to
         ;; filter gets through.
         available-fields (distinct
                           (mapcat (fn [tail]
-                                    (or [(existence-field tail)]
-                                        (:available-fields tail)))
+                                    (if-let [ef (existence-field tail)]
+                                      [ef]
+                                      (:available-fields tail)))
                                   join-set))
-        projected (map (comp #(->Projection % max-join) :node) join-set)
-        join-node (->Join projected (vec max-join))
-        new-ops (->> (map (comp set :operations) join-set)
-                     (apply intersection))]
-    (into remaining (->TailStruct join-node
+        join-node (->Join (map :node join-set)
+                          (vec max-join)
+                          (map (fn [g]
+                                 [(:available-fields g)
+                                  (if-not (:ground? g)
+                                    :outer
+                                    (or (existence-field g)
+                                        :inner))])
+                               join-set))
+        new-ops (when-let [ops (seq (map (comp set :operations) join-set))]
+                  (apply intersection ops))]
+    (conj remaining (->TailStruct join-node
                                   (s/some? :ground? join-set)
                                   available-fields
                                   (vec new-ops)))))
@@ -710,8 +721,7 @@
   [tail aggs grouping-fields options]
   (if (empty? aggs)
     (if (:distinct options)
-      (let [fields (:available-fields tail)]
-        (chain tail (unique-aggregator fields options)))
+      (chain tail (unique-aggregator grouping-fields options))
       tail)
     (let [total-fields (grouping-output aggs grouping-fields)]
       (validate-aggregation! tail aggs options)
@@ -789,10 +799,10 @@
 (extend-protocol IRunner
   cascalog.predicate.Generator
   (to-generator [{:keys [source-map trap-map pipe fields]}]
-    (-> (map->ClojureFlow {:source-map source-map
-                           :trap-map trap-map
-                           :pipe pipe})
-        (ops/rename* fields)))
+    ;; TODO: Have the gene
+    (map->ClojureFlow {:source-map source-map
+                       :trap-map trap-map
+                       :pipe pipe}))
 
   Application
   (to-generator [{:keys [source operation]}]
@@ -804,11 +814,28 @@
     (let [{:keys [assembly input]} filter]
       (assembly source input)))
 
+  ExistenceNode
+  (to-generator [{:keys [source]}]
+    source)
+
+  Join
+  (to-generator [{:keys [sources join-fields type-seq]}]
+    (ops/cascalog-join (map (fn [source [available type]]
+                              (condp = type
+                                :inner (ops/->Inner source available)
+                                :outer (ops/->Outer source available)
+                                (ops/->Existence source available type)))
+                            sources type-seq)
+                       join-fields))
+
   Grouping
   (to-generator [{:keys [source aggregators grouping-fields options]}]
     (let [aggs (map (fn [{:keys [op input output]}]
                       (op input output))
                     aggregators)
+          options (assoc options
+                    :sort-fields (:sort options)
+                    :reverse? (boolean (:reverse options)))
           opts (->> options
                     (filter (comp (complement nil?) second))
                     (u/flatten))]
@@ -817,7 +844,8 @@
   Projection
   (to-generator [{:keys [source fields]}]
     (-> source
-        (ops/select* fields)))
+        (ops/select* fields)
+        (ops/filter-nullable-vars fields)))
 
   TailStruct
   (to-generator [item]
@@ -825,11 +853,24 @@
 
 (defn compile-query [query]
   (zip/postwalk-edit
-   (zip/cascalog-zip (build-rule query))
+   (zip/cascalog-zip query)
    identity
-   (fn [x _] (to-generator x))))
+   (fn [x _]
+     (to-generator x))))
+
+(extend-protocol IGenerator
+  TailStruct
+  (generator [sq]
+    (compile-query sq))
+
+  RawSubquery
+  (generator [sq]
+    (generator (build-rule sq))))
 
 (comment
+  (def cross-join
+    (<- [:>] (identity 1 :> _)))
+
   (let [sq (<- [?squared ?squared-minus ?x ?sum]
                ([1 2 3] ?x)
                (* ?x ?x :> ?squared)
@@ -837,6 +878,12 @@
                ((d/parallelagg* +) ?squared :> ?sum))]
     (to-memory (compile-query sq)))
 
+  (let [sq (<- [?x ?y]
+               ([1 2 3] ?x)
+               ([1 2 3] ?y)
+               (cross-join)
+               (* ?x ?y :> ?z))]
+    (to-memory (compile-query sq)))
   (time (run sq))
 
   (let [x (<- [?x ?y :> ?z]

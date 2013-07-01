@@ -49,7 +49,7 @@
 ;; source-map is a map of identifier to tap, or source. Pipe is the
 ;; current pipe that the user needs to operate on.
 
-(defrecord ClojureFlow [source-map sink-map trap-map tails pipe]
+(defrecord ClojureFlow [source-map sink-map trap-map tails pipe name]
   IGenerator
   (generator [x] x))
 
@@ -121,5 +121,6 @@
       (->ClojureFlow (merge-k :source-map)
                      (plus-k :sink-map)
                      (plus-k :trap-map)
-                     (plus-k :tails)
-                     (plus-k :pipe)))))
+                     (plus-k (comp vec :tails))
+                     (plus-k :pipe)
+                     (:name l)))))

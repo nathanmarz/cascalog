@@ -4,13 +4,13 @@
             [cascalog.vars :as v]
             [cascalog.fluent.cascading :as casc
              :refer (fields default-output)]
-            [cascalog.fluent.algebra :refer (plus sum)]
+            [cascalog.fluent.algebra :refer (sum)]
             [cascalog.fluent.cascading :refer (uniquify-var)]
             [cascalog.fluent.types :refer (generator to-sink)]
             [cascalog.fluent.fn :as serfn]
             [cascalog.util :as u]
             [jackknife.core :refer (throw-illegal)]
-            [jackknife.seq :refer (unweave collectify)])
+            [jackknife.seq :as s :refer (unweave collectify)])
   (:import [java.io File]
            [cascading.tuple Fields]
            [cascalog.ops KryoInsert]
@@ -28,11 +28,6 @@
            [cascalog.aggregator ClojureAggregator
             ClojureMonoidAggregator ClojureMonoidFunctor
             ClojureAggregateBy CombinerSpec]))
-
-;; ## Cascalog Function Representation
-
-(defn fn-spec [var]
-  (serfn/serialize var))
 
 ;; ## Operations
 ;;
@@ -71,6 +66,12 @@
              from-fields
              (f to-fields)
              (default-output from-fields to-fields)))))
+
+(defn name-flow
+  "Assigns a new name to the clojure flow."
+  [gen name]
+  (-> (generator gen)
+      (assoc :name name)))
 
 (defn rename-pipe
   ([gen] (rename-pipe gen (u/uuid)))
@@ -164,20 +165,26 @@
 (defn parallel-agg
   "Creates a parallel aggregation operation. TODO: Take a prepare and
   present var."
-  [agg-fn in-fields out-fields]
-  (let [in-fields  (fields in-fields)
-        out-fields (fields out-fields)
-        spec       (CombinerSpec. agg-fn)
-        aggregator (ClojureMonoidAggregator. out-fields spec)]
+  [agg-fn in-fields out-fields & {:keys [init-var present-var]}]
+  (let [in-fields (fields in-fields)
+        out-fields (fields out-fields)]
     (reify
       IAggregateBy
       (aggregate-by [_]
-        (ClojureAggregateBy. in-fields
-                             (ClojureMonoidFunctor. out-fields spec)
-                             aggregator))
+        (let [map-spec (-> (CombinerSpec. agg-fn)
+                           (.setPrepareFn init-var))
+              reduce-spec (-> (CombinerSpec. agg-fn)
+                              (.setPresentFn present-var))]
+          (ClojureAggregateBy. in-fields
+                               (ClojureMonoidFunctor. out-fields map-spec)
+                               (ClojureMonoidAggregator. out-fields reduce-spec))))
       IAggregator
       (add-aggregator [_ pipe]
-        (Every. pipe in-fields aggregator)))))
+        (let [spec (-> (CombinerSpec. agg-fn)
+                       (.setPrepareFn init-var)
+                       (.setPresentFn present-var))]
+          (Every. pipe in-fields
+                  (ClojureMonoidAggregator. out-fields spec)))))))
 
 (defn agg
   "Returns in instance of IAggregator that adds a reduce-side-only
@@ -289,7 +296,7 @@
         ::parallel  (aggby pipe group-fields spill-threshold aggs)
         (throw-illegal "Unsupported aggregation mode: " mode)))))
 
-(def unique-aggregator
+(defn unique-aggregator []
   (reify IAggregator
     (add-aggregator [_ pipe]
       (Every. pipe (FastFirst.) Fields/RESULTS))))
@@ -387,14 +394,155 @@
       :exists CascalogJoiner$JoinType/EXISTS))
 
 (defn join-many
-  "Takes a sequence of [pipe, join-fields, join-type] triplets along with other co-group arguments
-   and performs a mixed join. Allowed join types are :inner, :outer, and :exists."
-  [flow-joins decl-fields aggs & {:keys [reducers] :as opts}]
-  (let [join-types (map (comp cascalog-joiner-type #(nth % 2)) flow-joins)
+  "Takes a sequence of [pipe, join-fields, join-type] triplets along
+   with other co-group arguments and performs a mixed join. Allowed
+   join types are :inner, :outer, and :exists."
+  [flow-joins decl-fields & {:keys [reducers aggs] :as opts}]
+  (let [join-types   (map (comp cascalog-joiner-type #(nth % 2)) flow-joins)
         group-fields (map second flow-joins)
-        flows (map first flow-joins)]
-    (apply co-group* (map first flow-joins) group-fields decl-fields aggs (assoc opts :join (CascalogJoiner. join-types)))))
+        flows        (map first flow-joins)]
+    (apply co-group*
+           flows
+           group-fields
+           decl-fields
+           (or aggs [])
+           (concat opts [:join (CascalogJoiner. join-types)]))))
 
+(defn generate-join-fields [numfields numpipes]
+  (repeatedly numpipes (partial v/gen-nullable-vars numfields)))
+
+(defn replace-join-fields [join-fields join-renames fields]
+  (let [replace-map (zipmap join-fields join-renames)]
+    (reduce (fn [ret f]
+              (let [newf (-> (replace-map f) (or f))]
+                (conj ret newf)))
+            [] fields)))
+
+(defn declared-fields
+  "Accepts a sequence of join fields and a sequence of
+  field-seqs (each containing the join-fields, presumably) and returns
+  a full vector of unique field names, suitable for the return value
+  of a co-group."
+  [join-fields renames infields]
+  (flatten (map (partial replace-join-fields join-fields)
+                renames
+                infields)))
+
+(defn join-fields-selector
+  "Returns a selector that's used to go pull out groups from the join
+  that aren't all nil."
+  [num-fields]
+  (serfn/fn [& args]
+    (let [joins (partition num-fields args)]
+      (or (s/find-first (partial s/some? (complement nil?)) joins)
+          (repeat num-fields nil)))))
+
+(defn new-pipe-name [joined-seq]
+  (.getName (:pipe (:gen (first joined-seq)))))
+
+(defrecord Inner [gen available-fields])
+(defrecord Outer [gen available-fields])
+(defrecord Existence [gen available-fields out-field])
+
+(defn fields-to-keep
+  "We want to keep the out-field of Existence nodes and all available
+  fields of the Inner and Outer nodes."
+  [gen-seq]
+  (let [grouped (group-by type gen-seq)]
+    (vec (set
+          (concat (mapcat :available-fields (grouped Inner))
+                  (mapcat :available-fields (grouped Outer))
+                  (map :out-field (grouped Existence)))))))
+
+(defn ensure-project
+  "Makes sure that the declared fields are in the proper order."
+  [gen-seq]
+  (let [grouped (group-by type gen-seq)]
+    (->> (concat (grouped Inner)
+                 (grouped Outer)
+                 (grouped Existence))
+         (map (fn [g]
+                (update-in g [:gen] #(select* % (:available-fields g))))))))
+
+(defn build-triplet
+  [gen join-fields]
+  [(:gen gen) join-fields (condp instance? gen
+                            Inner :inner
+                            Outer :outer
+                            Existence :exists)])
+(defn cascalog-join
+  [gen-seq join-fields]
+  (let [final-name (new-pipe-name gen-seq)
+        gen-seq (ensure-project gen-seq)
+        in-fields (map :available-fields gen-seq)
+        join-size (count join-fields)
+        renames  (generate-join-fields join-size (count gen-seq))
+        declared (declared-fields join-fields renames in-fields)
+        to-keep (fields-to-keep gen-seq)
+        select-exists (fn [joined]
+                        (->> (map (fn [g join-renames]
+                                    (if (instance? Existence g)
+                                      [(first join-renames) (:out-field g)]))
+                                  gen-seq renames)
+                             (reduce (fn [flow [in out]]
+                                       (-> flow (identity* in out)))
+                                     joined)))]
+    (-> (join-many (map #(build-triplet % join-fields) gen-seq)
+                   declared)
+        (select-exists)
+        (map* (join-fields-selector join-size)
+              (flatten renames)
+              join-fields)
+        (select* to-keep)
+        (rename-pipe final-name))))
+
+(comment
+  (defn square [x] (* x x))
+  (let [source (-> (generator [[1 2] [2 3] [3 4] [4 5]]))
+        a      (-> source
+                   (rename* ["a" "b"])
+                   (filter* (serfn/fn [x] (> x 2)) "a")
+                   (map* square "b" "c"))
+        b      (-> source
+                   (rename* ["a" "b"]))]
+    (-> (cascalog-join [(->Inner a ["a" "b" "c"])
+                        (->Inner b ["a" "b"])]
+                       ["a" "b"])
+        cascalog.fluent.flow/to-memory)))
+
+;; ## MultiGroup
+;;
+;; TODO: Get this thing working.
+
+(comment
+  (defn multigroup*
+    [declared-group-vars buffer-out-vars buffer-spec & sqs]
+    (let [[buffer-op hof-args]
+          (if (sequential? buffer-spec) buffer-spec [buffer-spec nil])
+          sq-out-vars (map get-out-fields sqs)
+          group-vars (apply set/intersection (map set sq-out-vars))
+          num-vars (reduce + (map count sq-out-vars))
+          pipes (w/pipes-array (map :pipe sqs))
+          args [declared-group-vars :fn> buffer-out-vars]
+          args (if hof-args (cons hof-args args) args)]
+      (safe-assert (seq declared-group-vars)
+                   "Cannot do global grouping with multigroup")
+      (safe-assert (= (set group-vars)
+                      (set declared-group-vars))
+                   "Declared group vars must be same as intersection of vars of all subqueries")
+      (p/predicate p/generator nil
+                   true
+                   (apply merge (map :sourcemap sqs))
+                   ((apply buffer-op args) pipes num-vars)
+                   (concat declared-group-vars buffer-out-vars)
+                   (apply merge (map :trapmap sqs)))))
+
+  (defmacro multigroup
+    [group-vars out-vars buffer-spec & sqs]
+    `(multigroup* ~(v/sanitize group-vars)
+                  ~(v/sanitize out-vars)
+                  ~buffer-spec
+                  ~@sqs)))
 
 ;; ## Output Operations
 ;;
@@ -460,7 +608,7 @@
                  uniques)
      cleaned-fields]))
 
-(defn with-dups
+(defn with-duplicate-inputs
   "Accepts a flow, some fields, and a function from (flow,
   unique-fields, new-fields) => flow and appropriately handles
   duplicate entries inside of the fields.
@@ -470,7 +618,8 @@
   function, which may decide to call (discard* delta) if the fields
   are still around."
   [flow from-fields f]
-  (if (apply distinct? (collectify from-fields))
+  (if (or (empty? from-fields)
+          (apply distinct? (collectify from-fields)))
     (f flow from-fields [])
     (let [[delta cleaned-fields] (replace-dups from-fields)]
       (-> (reduce (fn [subflow [field gen]]
@@ -543,8 +692,6 @@
    (intersection (set (collectify large))
                  (set (collectify small)))))
 
-;; TODO: Replace 'build-predicate' with this thing.
-;;
 ;; The enhance-predicate logic in predicate.clj sort of does this
 ;;"accept the function, do something around it" logic.
 
@@ -569,7 +716,7 @@
                             (set (collectify out-fields)))]
     (with-constants gen in-fields
       (fn [gen in]
-        (with-dups gen in
+        (with-duplicate-inputs gen in
           (fn [gen in delta]
             (let [gen (-> gen
                           (f (fields in)

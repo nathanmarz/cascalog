@@ -115,10 +115,7 @@
    If the first argument is a string, that will be used as the name
   for the query and will show up in the JobTracker UI."
   [& bindings]
-  (let [^Flow flow (apply compile-flow bindings)]
-    (.complete flow)
-    (when-not (-> flow .getFlowStats .isSuccessful)
-      (throw-runtime "Flow failed to complete."))))
+  (flow/run! (apply compile-flow bindings)))
 
 (defn ??-
   "Executes one or more queries and returns a seq of seqs of tuples
@@ -162,49 +159,20 @@
     "Merge the tuples from the subqueries together into a single
   subquery. Doesn't ensure uniqueness of tuples."
     [& gens]
-    (rules/combine* gens false))
-
-  (defn multigroup*
-    [declared-group-vars buffer-out-vars buffer-spec & sqs]
-    (let [[buffer-op hof-args]
-          (if (sequential? buffer-spec) buffer-spec [buffer-spec nil])
-          sq-out-vars (map get-out-fields sqs)
-          group-vars (apply set/intersection (map set sq-out-vars))
-          num-vars (reduce + (map count sq-out-vars))
-          pipes (w/pipes-array (map :pipe sqs))
-          args [declared-group-vars :fn> buffer-out-vars]
-          args (if hof-args (cons hof-args args) args)]
-      (safe-assert (seq declared-group-vars)
-                   "Cannot do global grouping with multigroup")
-      (safe-assert (= (set group-vars)
-                      (set declared-group-vars))
-                   "Declared group vars must be same as intersection of vars of all subqueries")
-      (p/predicate p/generator nil
-                   true
-                   (apply merge (map :sourcemap sqs))
-                   ((apply buffer-op args) pipes num-vars)
-                   (concat declared-group-vars buffer-out-vars)
-                   (apply merge (map :trapmap sqs)))))
-
-  (defmacro multigroup
-    [group-vars out-vars buffer-spec & sqs]
-    `(multigroup* ~(v/sanitize group-vars)
-                  ~(v/sanitize out-vars)
-                  ~buffer-spec
-                  ~@sqs)))
+    (rules/combine* gens false)))
 
 ;; TODO: All of these are actually just calling through to "select*"
 ;; in the fluent API.
 
 (comment
   (defmulti select-fields
-   "Select fields of a named generator.
+    "Select fields of a named generator.
 
   Example:
   (<- [?a ?b ?sum]
       (+ ?a ?b :> ?sum)
       ((select-fields generator [\"?a\" \"?b\"]) ?a ?b))"
-   generator-selector)
+    generator-selector)
 
   (defmethod select-fields :tap [tap fields]
     (let [fields (collectify fields)
@@ -243,6 +211,9 @@
 (defalias defmapop d/defmapfn
   "Defines a custom operation that appends new fields to the input tuple.")
 
+(defalias mapfn d/mapfn)
+(defalias bufferfn d/bufferfn)
+
 (defalias defmapcatop d/defmapcatfn)
 (defalias defbufferop d/defbufferfn)
 ;; (defalias defmultibufferop w/defmultibufferop)
@@ -250,8 +221,6 @@
 (defalias defaggregateop d/defaggregatefn)
 (defalias deffilterop d/deffilterfn)
 (defalias defparallelagg d/defparallelagg)
-(comment
-  (defalias defparallelbuf d/defparallelbuf))
 
 ;; ## Miscellaneous helpers
 

@@ -4,7 +4,7 @@
   (:require [clojure.set :refer (intersection)]
             [clojure.walk :refer (postwalk)]
             [cascalog.util :as u]
-            [cascalog.fluent.cascading :refer (gen-var-fn gen-unique-suffix)]
+            [cascalog.fluent.cascading :refer (gen-var-fn)]
             [cascalog.fluent.types :refer (generator?)]))
 
 ;; # Var Generation
