@@ -26,7 +26,9 @@
                  (project-settings)
                  *JOB-CONF*
                  {"io.serializations"
-                  "cascalog.hadoop.ClojureKryoSerialization"}))
+                  "cascalog.hadoop.ClojureKryoSerialization",
+                  "cascading.compatibility.retain.collector"
+                  "true"}))
 
 (defn set-job-conf! [amap]
   (alter-var-root #'*JOB-CONF* (fn [& ignored] (into {} amap))))
