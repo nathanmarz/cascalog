@@ -14,10 +14,9 @@
 (defn get-variance [mvp-struct]
   (mvp-struct :variance))
 
-(defn get-mean [mvp-struct]
-  (mvp-struct :mean))
-
-(def variance-parallel
+(def sample-variance-parallel
+  "Predicate macro that calculates the sample variance of the supplied input
+   var, in a parallel, numerically stable way."
   (<- [!val :> !var]
       (mean-variance-parallel :< !val :> !ret)
       (get-variance :< !ret :> !var)))
