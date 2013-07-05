@@ -9,13 +9,7 @@
 (fact
   (<- [?x] ([[1]] ?x)) => (produces [[1]]))
 
-;; variance
-(fact ""
-  (let [source [[0] [0]]]
-    (<- [!var] (source !val) (variance :< !val :> !var))) =>
-    (produces [[0.0]]))
-
-(fact ""
+(fact "variance is numerically unstable, resulting in the wrong answer"
   (let [n 100
         lo 1000000000
         hi (+ 1 lo)
@@ -24,7 +18,7 @@
     (produces [[0.0]]))
 
 ;; variance
-(fact ""
+(fact "variance-parallel is stable, resulting in a much less wrong answer"
   (let [n 100
         lo 1000000000
         hi (+ 1 lo)
