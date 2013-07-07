@@ -25,11 +25,11 @@
                  [hadoop-util "0.3.0"]]
   :profiles {:1.3 {:dependencies [[org.clojure/clojure "1.3.0"]]}
              :1.4 {:dependencies [[org.clojure/clojure "1.4.0"]]}
-             :provided {:dependencies [[org.apache.hadoop/hadoop-core "1.0.3"]]}
+             :provided {:dependencies [[org.apache.hadoop/hadoop-core "1.1.2"]]}
              :dev {:resource-paths ["dev"]
                    :plugins [[lein-midje "3.0.0"]]
                    :dependencies
                    [[cascalog/midje-cascalog "1.10.2-SNAPSHOT"]
                     [org.apache.hadoop/hadoop-core "0.20.2"]]}
              :ci-dev [:dev {:dependencies [[cascalog/midje-cascalog "1.10.1"]
-                                           [org.apache.hadoop/hadoop-core "1.0.3"]]}]})
+                                           [org.apache.hadoop/hadoop-core "1.1.2"]]}]})

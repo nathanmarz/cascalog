@@ -81,7 +81,8 @@
 
 ;; TODO: Replace io.serializations with the proper info.
 (defn project-conf []
-  (project-merge {FlowProps/DEFAULT_ELEMENT_COMPARATOR "cascalog.hadoop.DefaultComparator"}
+  (project-merge {FlowProps/DEFAULT_ELEMENT_COMPARATOR
+                  "cascalog.hadoop.DefaultComparator"}
                  (project-settings)
                  *JOB-CONF*
                  {"io.serializations" "cascalog.hadoop.ClojureKryoSerialization"
