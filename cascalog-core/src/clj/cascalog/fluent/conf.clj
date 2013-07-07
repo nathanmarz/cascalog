@@ -81,12 +81,11 @@
 
 ;; TODO: Replace io.serializations with the proper info.
 (defn project-conf []
-  (project-merge {FlowProps/DEFAULT_ELEMENT_COMPARATOR
-                  "cascalog.hadoop.DefaultComparator"}
+  (project-merge {FlowProps/DEFAULT_ELEMENT_COMPARATOR "cascalog.hadoop.DefaultComparator"}
                  (project-settings)
                  *JOB-CONF*
-                 {"io.serializations"
-                  "cascalog.hadoop.ClojureKryoSerialization"}))
+                 {"io.serializations" "cascalog.hadoop.ClojureKryoSerialization"
+                  "cascading.compatibility.retain.collector" true}))
 
 (defn set-job-conf! [amap]
   (alter-var-root #'*JOB-CONF*
