@@ -26,7 +26,11 @@
                  (project-settings)
                  *JOB-CONF*
                  {"io.serializations"
-                  "cascalog.hadoop.ClojureKryoSerialization"}))
+                  "cascalog.hadoop.ClojureKryoSerialization",
+                  "cascading.compatibility.retain.collector"
+                  ; defined in cascading.flow.stream.OperatorStage/RETAIN_COLLECTOR as of 
+                  ; Cascading 2.2
+                  true}))
 
 (defn set-job-conf! [amap]
   (alter-var-root #'*JOB-CONF* (fn [& ignored] (into {} amap))))
