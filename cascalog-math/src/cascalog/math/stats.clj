@@ -12,7 +12,7 @@
   :combine-var #'acc/combine)
 
 (defn get-variance [mvp-struct]
-  (mvp-struct :variance))
+  (double (mvp-struct :variance)))
 
 (def sample-variance-parallel
   "Predicate macro that calculates the sample variance of the supplied input

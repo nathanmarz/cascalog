@@ -32,12 +32,12 @@
 (fact ""
   (let [source [[0]]]
     (<- [!var] (source !val) (sample-variance-parallel :< !val :> !var))) =>
-    (produces [[0]]))
+    (produces [[0.0]]))
 
 (fact ""
   (let [source [[0] [1]]]
     (<- [!var] (source !val) (sample-variance-parallel :< !val :> !var))) =>
-    (produces [[1/2]]))
+    (produces [[0.5]]))
 
 (fact "variance-parallel is stable, resulting in a much less wrong answer"
   (let [n 100
