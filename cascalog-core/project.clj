@@ -11,6 +11,7 @@
   :source-paths ["src/clj"]
   :java-source-paths ["src/java"]
   :repositories {"conjars" "http://conjars.org/repo/"}
+  :plugins [[lein-deps-tree "0.1.2"]]
   :exclusions [log4j/log4j org.slf4j/slf4j-log4j12]
   :dependencies [[org.clojure/clojure "1.5.1"]
                  [org.clojure/tools.macro "0.1.1"]
