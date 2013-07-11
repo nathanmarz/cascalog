@@ -10,5 +10,3 @@
              :provided {:dependencies [[cascalog/cascalog-core "1.10.2-SNAPSHOT"]]}
              :dev {:dependencies
                    [[org.apache.hadoop/hadoop-core "1.1.2"]]}
-             :ci-dev {:dependencies
-                      [[org.apache.hadoop/hadoop-core "1.1.2"]]}})
