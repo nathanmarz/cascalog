@@ -4,7 +4,7 @@
 
 language: clojure
 lein: lein2
-script: lein2 sub with-profile ci-dev,provided test
+script: lein2 sub with-profile dev,provided test
 install: lein2 sub install
 branches:
   only:

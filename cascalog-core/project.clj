@@ -11,6 +11,7 @@
   :source-paths ["src/clj"]
   :java-source-paths ["src/java"]
   :repositories {"conjars" "http://conjars.org/repo/"}
+  :plugins [[lein-deps-tree "0.1.2"]]
   :exclusions [log4j/log4j org.slf4j/slf4j-log4j12]
   :dependencies [[org.clojure/clojure "1.5.1"]
                  [org.clojure/tools.macro "0.1.1"]
@@ -32,6 +33,4 @@
                    :plugins [[lein-midje "3.0.0"]]
                    :dependencies
                    [[cascalog/midje-cascalog "1.10.2-SNAPSHOT"]
-                    [org.apache.hadoop/hadoop-core "1.1.2" :exclusions [[org.slf4j/slf4j-log4j12] [log4j] [commons-codec] commons-logging]]]}
-             :ci-dev [:dev {:dependencies [[cascalog/midje-cascalog "1.10.1"]
-                                           [org.apache.hadoop/hadoop-core "1.1.2"]]}]})
+                    [org.apache.hadoop/hadoop-core "1.1.2" :exclusions [[org.slf4j/slf4j-log4j12] [log4j] [commons-codec] commons-logging]]]}})

@@ -29,17 +29,17 @@ To include Cascalog in your leiningen or cake project, add the following to your
 General
 
     [cascalog "1.10.1"] ;; under :dependencies
-    [org.apache.hadoop/hadoop-core "0.20.2-dev"] ;; under :dev-dependencies
+    [org.apache.hadoop/hadoop-core "1.1.2"] ;; under :dev-dependencies
 
 Leiningen 2.0
 
     :dependencies [cascalog "1.10.1"]
-    :profiles { :dev {:dependencies [[org.apache.hadoop/hadoop-core "0.20.2-dev"]]}}
+    :profiles { :dev {:dependencies [[org.apache.hadoop/hadoop-core "1.1.2"]]}}
 
 Leiningen < 2.0
 
     :dependencies [cascalog "1.10.1"] 
-    :dev-dependencies [[org.apache.hadoop/hadoop-core "0.20.2-dev"]]
+    :dev-dependencies [[org.apache.hadoop/hadoop-core "1.1.2"]]
 
 Note that Cascalog is compatible with Clojure 1.2.0, 1.2.1, 1.3.0, 1.4.0, and 1.5.1. 
     
