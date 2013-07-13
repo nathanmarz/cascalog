@@ -134,13 +134,13 @@
                               (if (v/cascalog-var? v)
                                 (replacement-m (str v) (uniquify-var v))
                                 v)))]
-        (mapcat (fn [pred]
-                  (map (fn [{:keys [input output] :as p}]
-                         (-> p
-                             (assoc :input  (postwalk update input))
-                             (assoc :output (postwalk update output))))
-                       (normalize pred)))
-                raw-predicates)))))
+        (->> raw-predicates
+             (mapcat (fn [pred]
+                       (map (fn [{:keys [input output] :as p}]
+                              (-> p
+                                  (assoc :input  (postwalk update input))
+                                  (assoc :output (postwalk update output))))
+                            (normalize pred)))))))))
 
 ;; ## Variable Parsing
 
@@ -778,7 +778,8 @@
       (let [parsed (parse-variables output-fields :<)]
         (build-predmacro (:input parsed)
                          (:output parsed)
-                         raw-predicates)))))
+                         raw-predicates
+                         option-map)))))
 
 (defmacro <-
   "Constructs a query or predicate macro from a list of

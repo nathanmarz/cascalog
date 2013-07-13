@@ -12,7 +12,7 @@
   (partial s/join ","))
 
 (def defaults
-  (comma u/default-serializations))
+  (comma conf/default-serializations))
 
 (deftest with-job-conf-test
   (with-job-conf {"key" "val"}
@@ -37,8 +37,8 @@
     (fact
       "Calling project-merge on the JobConf will prepend default
       serializations onto the supplied list of serializations."
-      (u/project-merge conf/*JOB-CONF*) => {"io.serializations"
-                                            (comma [defaults "java.lang.String"])})
+      (conf/project-merge conf/*JOB-CONF*) => {"io.serializations"
+                                               (comma [defaults "java.lang.String"])})
     (with-serializations [String]
       (fact
         "You can specify serialiations using the `with-serializations`
@@ -48,16 +48,16 @@
         conf/*JOB-CONF* => {"io.serializations" "java.lang.String"})
 
       (fact "Again, project-merging with w/ Class objects, vs Strings."
-        (u/project-merge conf/*JOB-CONF*) => {"io.serializations"
-                                              (comma [defaults "java.lang.String"])})))
+        (conf/project-merge conf/*JOB-CONF*) => {"io.serializations"
+                                                 (comma [defaults "java.lang.String"])})))
 
   (with-serializations [String]
     (with-job-conf {"io.serializations" "java.lang.String,SomeSerialization"}
       (fact "with-serializations nests properly with with-job-conf."
-        (u/project-merge conf/*JOB-CONF*) => {"io.serializations"
-                                              (comma [defaults
-                                                      "java.lang.String"
-                                                      "SomeSerialization"])}))))
+        (conf/project-merge conf/*JOB-CONF*) => {"io.serializations"
+                                                 (comma [defaults
+                                                         "java.lang.String"
+                                                         "SomeSerialization"])}))))
 
 (comment
   (deftest kryo-properties-test

@@ -106,7 +106,7 @@
        cleaning up the delta variables."
       (-> [[1 2] [2 3] [3 4] [4 5]]
           (rename* ["a" "b"])
-          (with-dups ["a" "a" "b"]
+          (with-duplicate-inputs ["a" "a" "b"]
             (fn [flow input delta]
               (-> flow (map* sum input "summed"))))
           (write* (hfs-textline tmp-a))
@@ -128,36 +128,34 @@
     (fact "Merge combines streams without any join. This test forks a
            source, applies operations to each branch then merges the
            branches back together again."
-      (algebra/sum a b) => (produces [[1 1 1 0]
-                                      [2 2 4 1]
-                                      [3 3 9 2]
-                                      [4 4 16 3]
-                                      [1 1 2 2]
-                                      [2 2 3 3]
-                                      [3 3 4 4]
-                                      [4 4 5 5]]))))
+      (algebra/sum [a b]) => (produces [[1 1 1 0]
+                                        [2 2 4 1]
+                                        [3 3 9 2]
+                                        [4 4 16 3]
+                                        [1 1 2 2]
+                                        [2 2 3 3]
+                                        [3 3 4 4]
+                                        [4 4 5 5]]))))
 
 (defn gt2 [x] (> x 2))
 
 (deftest test-co-group
-  (let [source (-> (generator [[1 1] [2 2] [3 3] [4 4]]))
+  (let [source (generator [[1 1] [2 2] [3 3] [4 4]])
         a      (-> source
                    (rename* ["a" "b"])
                    (filter* gt2 "a")
-                   (map* square "b" "c")
-                   ;;(discard* "b")
-                   )
+                   (map* square "b" "c"))
         b      (-> source
                    (rename* ["x" "y"]))]
     (fact "Join joins stuff"
       (sort (-> (co-group* [a b] [["a"] ["x"]] ["a" "x" "b" "c" "y"]  [])
                 (map* str "y" "q")
-                to-memory)) => (sort [[3 3 9 3 3 "3"]
-                [4 4 16 4 4 "4"]]))
+                to-memory))
+      => (sort [[3 3 9 3 3 "3"] [4 4 16 4 4 "4"]]))
 
     (let [a (-> (generator [[1 1] [1 2] [2 2]]) (rename* ["a" "b"]))
           b (-> (generator [[1 10] [2 15]]) (rename* ["x" "y"]))
-          q (co-group* [a b] [["a"] ["x"]] nil [(sum "y" "s")])]
+          q (co-group* [a b] [["a"] ["x"]] nil [((partial parallel-agg +) "y" "s")])]
       (fact "Agg after join"
         (to-memory q) => [[1 1 20] [2 2 15]]))))
 

@@ -231,9 +231,8 @@
       (sum !v :> !s)
       (div !s !c :> !avg)))
 
-(comment
-  (def distinct-count
-    "Predicate operation that produces a count of all distinct
+(def distinct-count
+  "Predicate operation that produces a count of all distinct
   values of the supplied input variable. For example:
 
   (let [src [[1] [2] [2]]]
@@ -241,9 +240,12 @@
       (src ?x)
       (distinct-count ?x :> ?count)))
   ;;=> ([2])"
-    (<- [:<< !invars :> !c]
-        (:sort :<< !invars)
-        (impl/distinct-count-agg :<< !invars :> !c)))
+  (<- [:<< !invars :> !c]
+      (:sort :<< !invars)
+      (impl/distinct-count-agg :<< !invars :> !c)))
+
+(comment
+
 
   (defn fixed-sample-agg [amt]
     (<- [:<< ?invars :>> ?outvars]

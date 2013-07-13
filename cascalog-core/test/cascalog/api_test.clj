@@ -1,16 +1,16 @@
 (ns cascalog.api-test
-   (:use clojure.test
-         [midje sweet cascalog]
-         [cascalog testing api])
-   (:require [cascalog.ops :as c]
-             [cascalog.util :as u])
-   (:import [cascading.tuple Fields]
-            [cascalog.test KeepEven OneBuffer CountAgg SumAgg]
-            [cascalog.ops IdentityBuffer]))
+  (:use clojure.test
+        [midje sweet cascalog]
+        [cascalog testing api])
+  (:require [cascalog.ops :as c]
+            [cascalog.util :as u])
+  (:import [cascading.tuple Fields]
+           [cascalog.test KeepEven OneBuffer CountAgg SumAgg]
+           [cascalog.ops IdentityBuffer]))
 
 (defmapop mk-one
-    "Returns 1 for any input."
-    [& tuple] 1)
+  "Returns 1 for any input."
+  [& tuple] 1)
 
 (deftest test-no-input
   (let [nums [[1] [2] [3]]]
@@ -471,7 +471,112 @@
              (person ?p)
              (follows ?p !!p2 _))))
 
+(defbufferiterop itersum [tuples-iter]
+  [(->> (iterator-seq tuples-iter)
+        (map first)
+        (reduce +))])
+
+(deftest test-bufferiter
+  (let [nums [[1] [2] [4]]]
+    (test?<- [[7]]
+             [?s]
+             (nums ?n)
+             (itersum ?n :> ?s))))
+
+(defn inc-tuple [& tuple]
+  (map inc tuple))
+
+(deftest test-pos-out-selectors
+  (let [wide [["a" 1 nil 2 3] ["b" 1 "c" 5 1] ["a" 5 "q" 3 2]]]
+    (test?<- [[3 nil] [1 "c"] [2 "q"]]
+             [?l !m]
+             (wide :#> 5 {4 ?l 2 !m})
+             (:distinct false))
+
+    (test?<- [[4] [2] [3]]
+             [?n3]
+             (wide _ ?n1 _ _ ?n2)
+             (inc-tuple ?n1 ?n2 :#> 2 {1 ?n3}))
+
+    (test?<- [["b"]]
+             [?a]
+             (wide :#> 5 {0 ?a 1 ?b 4 ?b}))))
+
+
+(deftest test-avg
+  (let [num1 [[1] [2] [3] [4] [10]]
+        pair [["a" 1] ["a" 2] ["a" 3] ["b" 3]]]
+    (test?<- [[4]]
+             [?avg]
+             (num1 ?n)
+             (c/avg ?n :> ?avg))
+
+    (test?<- [["a" 2] ["b" 3]]
+             [?l ?avg]
+             (pair ?l ?n)
+             (c/avg ?n :> ?avg))))
+
+(deftest test-distinct-count
+  (let [num1 [[1] [2] [2] [4] [1] [6] [19] [1]]
+        pair [["a" 1] ["a" 2] ["b" 3] ["a" 1]]]
+    (test?<- [[5]]
+             [?c]
+             (num1 ?n)
+             (c/distinct-count ?n :> ?c))
+
+    (test?<- [["a" 2] ["b" 1]]
+             [?l ?c]
+             (pair ?l ?n)
+             (c/distinct-count ?n :> ?c))))
+
+(deftest test-nullable-agg
+  (let [follows [["a" "b"] ["b" "c"] ["a" "c"]]]
+    (test?<- [["a" 2] ["b" 1]]
+             [?p !c]
+             (follows ?p _)
+             (c/count !c))))
+
+(deffilterop odd-fail [n & all]
+  (or (even? n)
+      (throw (RuntimeException.))))
+
+(deffilterop a-fail [n & all]
+  (if (= "a" n)
+    (throw (RuntimeException.)) true))
+
 (comment
+  (deftest memory-self-join-test
+    (let [src [["a"]]
+          src2 (memory-source-tap [["a"]])]
+      (with-expected-sink-sets [empty1 [], empty2 []]
+        (test?<- src
+                 [!a]
+                 (src !a)
+                 (src !a)
+                 (:distinct false)
+                 (:trap empty1))
+
+        (test?<- src
+                 [!a]
+                 (src2 !a)
+                 (src2 !a)
+                 (:distinct false)
+                 (:trap empty2)))))
+
+  (deftest test-trap
+    (let [num [[1] [2]]]
+      (with-expected-sink-sets [trap1 [[1]] ]
+        (test?<- [[2]]
+                 [?n]
+                 (num ?n)
+                 (odd-fail ?n)
+                 (:trap trap1)))
+
+      (is (thrown? Exception (test?<- [[2]]
+                                      [?n]
+                                      (num ?n)
+                                      (odd-fail ?n))))))
+
   (deftest test-limit
     (let [pair [["a" 1] ["a" 3] ["a" 2]
                 ["a" 4] ["b" 1] ["b" 6]
@@ -535,110 +640,6 @@
                (pair ?l ?n)
                (:sort ?n)
                (c/limit [2] ?n :> ?n2))))
-
-  (defbufferiterop itersum [tuples-iter]
-    [(->> (iterator-seq tuples-iter)
-          (map first)
-          (reduce +))])
-
-  (deftest test-bufferiter
-    (let [nums [[1] [2] [4]]]
-      (test?<- [[7]]
-               [?s]
-               (nums ?n)
-               (itersum ?n :> ?s))))
-
-  (defn inc-tuple [& tuple]
-    (map inc tuple))
-
-  (deftest test-pos-out-selectors
-    (let [wide [["a" 1 nil 2 3] ["b" 1 "c" 5 1] ["a" 5 "q" 3 2]]]
-      (test?<- [[3 nil] [1 "c"] [2 "q"]]
-               [?l !m]
-               (wide :#> 5 {4 ?l 2 !m})
-               (:distinct false))
-
-      (test?<- [[4] [2] [3]]
-               [?n3]
-               (wide _ ?n1 _ _ ?n2)
-               (inc-tuple ?n1 ?n2 :#> 2 {1 ?n3}))
-
-      (test?<- [["b"]]
-               [?a]
-               (wide :#> 5 {0 ?a 1 ?b 4 ?b}))))
-
-  (deftest test-avg
-    (let [num1 [[1] [2] [3] [4] [10]]
-          pair [["a" 1] ["a" 2] ["a" 3] ["b" 3]]]
-      (test?<- [[4]]
-               [?avg]
-               (num1 ?n)
-               (c/avg ?n :> ?avg))
-
-      (test?<- [["a" 2] ["b" 3]]
-               [?l ?avg]
-               (pair ?l ?n)
-               (c/avg ?n :> ?avg))))
-
-  (deftest test-distinct-count
-    (let [num1 [[1] [2] [2] [4] [1] [6] [19] [1]]
-          pair [["a" 1] ["a" 2] ["b" 3] ["a" 1]]]
-      (test?<- [[5]]
-               [?c]
-               (num1 ?n)
-               (c/distinct-count ?n :> ?c))
-
-      (test?<- [["a" 2] ["b" 1]]
-               [?l ?c]
-               (pair ?l ?n)
-               (c/distinct-count ?n :> ?c))))
-
-  (deftest test-nullable-agg
-    (let [follows [["a" "b"] ["b" "c"] ["a" "c"]]]
-      (test?<- [["a" 2] ["b" 1]]
-               [?p !c]
-               (follows ?p _)
-               (c/count !c))))
-
-  (deffilterop odd-fail [n & all]
-    (or (even? n)
-        (throw (RuntimeException.))))
-
-  (deffilterop a-fail [n & all]
-    (if (= "a" n)
-      (throw (RuntimeException.)) true))
-
-  (deftest memory-self-join-test
-    (let [src [["a"]]
-          src2 (memory-source-tap [["a"]])]
-      (with-expected-sink-sets [empty1 [], empty2 []]
-        (test?<- src
-                 [!a]
-                 (src !a)
-                 (src !a)
-                 (:distinct false)
-                 (:trap empty1))
-
-        (test?<- src
-                 [!a]
-                 (src2 !a)
-                 (src2 !a)
-                 (:distinct false)
-                 (:trap empty2)))))
-
-  (deftest test-trap
-    (let [num [[1] [2]]]
-      (with-expected-sink-sets [trap1 [[1]] ]
-        (test?<- [[2]]
-                 [?n]
-                 (num ?n)
-                 (odd-fail ?n)
-                 (:trap trap1)))
-
-      (is (thrown? Exception (test?<- [[2]]
-                                      [?n]
-                                      (num ?n)
-                                      (odd-fail ?n))))))
 
   (deftest test-trap-joins
     (let [age    [["A" 20] ["B" 21]]
