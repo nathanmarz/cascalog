@@ -1,5 +1,6 @@
 (ns cascalog.options
-  (:require [jackknife.core :refer (throw-illegal)]))
+  (:require [jackknife.core :refer (throw-illegal)]
+            [jackknife.seq :as s]))
 
 ;; ## Option Parsing
 ;;
@@ -35,23 +36,30 @@
 
 (def option?
   "A predicate is an option if it begins with a keyword."
-  (comp keyword? first))
+  (comp keyword? :op))
 
 (defn generate-option-map
   "Accepts a sequence of option predicates and generates a map of
   option -> value."
   [opt-predicates]
   (->> opt-predicates
-       (map (fn [[opt & more]]
-              (assert (contains? DEFAULT-OPTIONS opt)
-                      (str opt " is not a valid option predicate"))
-              {opt (condp = opt
-                     ;; Flatten sorting fields.
-                     :sort (flatten more)
+       (map (fn [{:keys [op input output]}]
+              (assert (contains? DEFAULT-OPTIONS op)
+                      (str op " is not a valid option predicate"))
+              {op (condp = op
+                    ;; Flatten sorting fields.
+                    :sort (flatten input)
 
-                     ;; Otherwise, take the first item. TODO: Throw if
-                     ;; more than one item exists for non-sorting
-                     ;; fields.
-                     (first more))}))
+                    ;; Otherwise, take the first item. TODO: Throw if
+                    ;; more than one item exists for non-sorting
+                    ;; fields.
+                    (first input))}))
        (apply merge-with careful-merge)
        (merge DEFAULT-OPTIONS)))
+
+(defn extract-options
+  "Accepts a sequence of raw predicates and returns a 2-vector of
+  [option-map, rest-of-preds]."
+  [preds]
+  (let [[raw-options preds] (s/separate option? preds)]
+    [(generate-option-map raw-options) preds]))

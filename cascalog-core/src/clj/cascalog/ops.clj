@@ -245,8 +245,6 @@
       (impl/distinct-count-agg :<< !invars :> !c)))
 
 (comment
-
-
   (defn fixed-sample-agg [amt]
     (<- [:<< ?invars :>> ?outvars]
         ((cascalog.ops.RandLong.) :<< ?invars :> ?rand)

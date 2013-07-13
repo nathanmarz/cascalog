@@ -125,6 +125,7 @@
   (validate-declarations! input-decl output-decl)
   (reify IPredMacro
     (expand [_ invars outvars]
+
       (let [outvars (if (use-as-filter? input-decl output-decl outvars)
                       [true]
                       outvars)
@@ -224,7 +225,9 @@
   "Default selector (either input or output) for this
   operation. Dispatches based on type."
   [op]
-  (if (p/filter? op) :< :>))
+  (if (or (keyword? op)
+          (p/filter? op))
+    :< :>))
 
 (defn split-outvar-constants
   "Accepts a sequence of output variables and returns a 2-vector:
@@ -254,14 +257,16 @@
 
   IPersistentVector
   (normalize [[op & rest]]
-    (let [default (default-selector op)
-          {:keys [input output]} (parse-variables rest (default-selector op))
-          [output preds] (split-outvar-constants output)]
-      (concat preds (if (predmacro? op)
-                      (mapcat normalize (expand op input output))
-                      [(->RawPredicate op
-                                       (not-empty input)
-                                       (not-empty output))])))))
+    (let [mk-single (fn [op in out]
+                      [(->RawPredicate op (not-empty in) (not-empty out))])
+          default (default-selector op)
+          {:keys [input output]} (parse-variables rest (default-selector op))]
+      (if (keyword? op)
+        (mk-single op input output)
+        (let [[output preds] (split-outvar-constants output)]
+          (concat preds (if (predmacro? op)
+                          (mapcat normalize (expand op input output))
+                          (mk-single op input output))))))))
 
 ;; ## Unground Var Validation
 
@@ -304,7 +309,7 @@
 ;; in the subquery.
 ;;
 ;; TODO: Have this thing extend IGenerator.
-(defrecord RawSubquery [fields predicates options])
+(defrecord RawSubquery [fields predicates])
 
 ;; Printing Methods
 ;;
@@ -328,17 +333,15 @@
       (println ")"))))
 
 (defmethod print-method RawSubquery
-  [{:keys [fields predicates options]} ^java.io.Writer writer]
+  [{:keys [fields predicates]} ^java.io.Writer writer]
   (binding [*out* writer]
     (println "(<-" (vec fields))
     (doseq [pred predicates]
       (print "    ")
       (print-method pred writer))
-    (doseq [[k v] options :when (not (nil? v))]
-      (println (format "    (%s %s)" k v)))
     (println "    )")))
 
-(defn validate-predicates! [preds options]
+(defn validate-predicates! [preds]
   (let [grouped (group-by (fn [x]
                             (condp #(%1 %2) (:op x)
                               generator? :gens
@@ -350,7 +353,7 @@
                           (:ops grouped))
     (aggregation-assertions! (:buffers grouped)
                              (:aggs grouped)
-                             options)))
+                             (first (opts/extract-options preds)))))
 
 (defn query-signature?
   "Accepts the normalized return vector of a Cascalog form and returns
@@ -728,8 +731,9 @@
                             ". Missing " (vec diff)))))))
 
 (defn build-rule
-  [{:keys [fields predicates options] :as input}]
-  (let [grouped (->> predicates
+  [{:keys [fields predicates] :as input}]
+  (let [[options predicates] (opts/extract-options predicates)
+        grouped (->> predicates
                      (map (partial p/build-predicate options))
                      (group-by type))
         generators (concat (grouped Generator)
@@ -766,20 +770,15 @@
   "Parses predicates and output fields and returns a proper subquery."
   [output-fields raw-predicates]
   (let [output-fields (v/sanitize output-fields)
-        [raw-options raw-predicates] (s/separate opts/option? raw-predicates)
-        option-map (opts/generate-option-map raw-options)
         raw-predicates (mapcat normalize raw-predicates)]
     (if (query-signature? output-fields)
-      (do (validate-predicates! raw-predicates option-map)
+      (do (validate-predicates! raw-predicates)
           (build-rule
-           (->RawSubquery output-fields
-                          raw-predicates
-                          option-map)))
+           (->RawSubquery output-fields raw-predicates)))
       (let [parsed (parse-variables output-fields :<)]
         (build-predmacro (:input parsed)
                          (:output parsed)
-                         raw-predicates
-                         option-map)))))
+                         raw-predicates)))))
 
 (defmacro <-
   "Constructs a query or predicate macro from a list of

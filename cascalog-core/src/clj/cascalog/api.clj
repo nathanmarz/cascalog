@@ -11,6 +11,7 @@
             [cascalog.fluent.conf :as conf]
             [cascalog.fluent.flow :as flow]
             [cascalog.fluent.def :as d]
+            [cascalog.fluent.algebra :as algebra]
             [cascalog.fluent.operations :as ops]
             [cascalog.fluent.tap :as tap]
             [cascalog.fluent.io :as io]
@@ -148,18 +149,20 @@
 (defalias predmacro* parse/predmacro*)
 (defalias predmacro parse/predmacro)
 
-(comment
-  (defn union
-    "Merge the tuples from the subqueries together into a single
+;; TODO: Obviously these are still a little busted. We need to go
+;; ahead and rename everyone to the same shit.
+(defn union
+  "Merge the tuples from the subqueries together into a single
   subquery and ensure uniqueness of tuples."
-    [& gens]
-    (rules/combine* gens true))
+  [& gens]
+  (apply ops/union*
+         (map cascalog.fluent.types/generator gens)))
 
-  (defn combine
-    "Merge the tuples from the subqueries together into a single
+(defn combine
+  "Merge the tuples from the subqueries together into a single
   subquery. Doesn't ensure uniqueness of tuples."
-    [& gens]
-    (rules/combine* gens false)))
+  [& gens]
+  (algebra/sum (map cascalog.fluent.types/generator gens)))
 
 ;; TODO: All of these are actually just calling through to "select*"
 ;; in the fluent API.

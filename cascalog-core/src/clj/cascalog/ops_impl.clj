@@ -68,10 +68,8 @@
 (defaggregateop distinct-count-agg
   ([] [nil 0])
   ([[prev cnt] & tuple]
-     (prn "MID " prev cnt tuple)
      [tuple (if (= tuple prev) cnt (inc cnt))])
-  ([state] (prn "RET " [(second state)])
-     [(second state)]))
+  ([state] [(second state)]))
 
 (defn bool-or [& vars]
   (boolean (some identity vars)))

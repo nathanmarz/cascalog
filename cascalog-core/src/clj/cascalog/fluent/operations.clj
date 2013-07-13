@@ -303,10 +303,9 @@
 
 (defn unique
   "Performs a unique on the input pipe by the supplied fields."
-  ([flow]
-     (unique flow Fields/ALL))
+  ([flow] (unique flow Fields/ALL))
   ([flow unique-fields]
-     (group-by* flow unique-fields [unique-aggregator])))
+     (group-by* flow unique-fields [(unique-aggregator)])))
 
 (defn union*
   "Merges the supplied flows and ensures uniqueness of the resulting

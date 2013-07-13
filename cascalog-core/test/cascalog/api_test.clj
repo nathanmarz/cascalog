@@ -544,6 +544,115 @@
   (if (= "a" n)
     (throw (RuntimeException.)) true))
 
+(defn multipagg-init [v1 v2 v3]
+  [v1 (+ v2 v3)])
+
+(defn multipagg-combiner [v1 v2 v3 v4]
+  [(+ v1 v3)
+   (* v2 v4)])
+
+(defparallelagg multipagg
+  :init-var #'multipagg-init
+  :combine-var #'multipagg-combiner)
+
+(defaggregateop slow-count
+  ([] 0)
+  ([context val] (inc context))
+  ([context] [context]))
+
+(deftest test-multi-parallel-agg
+  (let [vals [[1 2 3] [4 5 6] [7 8 9]]]
+    (test?<- [[12 935 3]]
+             [?d ?e ?count]
+             (vals ?a ?b ?c)
+             (multipagg ?a ?b ?c :> ?d ?e)
+             (c/count ?count))
+
+    (test?<- [[12 935 3]]
+             [?d ?e ?count]
+             (vals ?a ?b ?c)
+             (multipagg ?a ?b ?c :> ?d ?e)
+             (slow-count ?c :> ?count))))
+
+(deftest test-cascading-filter
+  (let [vals [[0] [1] [2] [3]]]
+    (test?<- [[0] [2]]
+             [?v]
+             (vals ?v)
+             ((KeepEven.) ?v)
+             (:distinct false))
+
+    (test?<- [[0 true] [1 false]
+              [2 true] [3 false]]
+             [?v ?b]
+             (vals ?v)
+             ((KeepEven.) ?v :> ?b)
+             (:distinct false))))
+
+(comment
+  "TODO: Fix this Cascalog buffer bullshit."
+  (deftest test-java-buffer
+    (let [vals [["a" 1 10] ["a" 2 20] ["b" 3 31]]]
+      (test?<- [["a" 1] ["b" 1]]
+               [?f1 ?o]
+               (vals ?f1 _ _)
+               ((OneBuffer.) :> ?o))
+
+      (test?<- [["a" 1 10] ["a" 2 20] ["b" 3 31]]
+               [?f1 ?f2out ?f3out]
+               (vals ?f1 ?f2 ?f3)
+               ((IdentityBuffer.) ?f2 ?f3 :> ?f2out ?f3out))))
+
+  (deftest test-java-aggregator
+    (let [vals [["a" 1] ["a" 2] ["b" 3] ["c" 8] ["c" 13] ["b" 1] ["d" 5] ["c" 8]]]
+      (test?<- [["a" 2] ["b" 2] ["c" 3] ["d" 1]]
+               [?f1 ?o]
+               (vals ?f1 _)
+               ((CountAgg.) :> ?o))
+
+      (test?<- [["a" 3 2] ["b" 4 2] ["c" 29 3] ["d" 5 1]]
+               [?key ?sum ?count]
+               (vals ?key ?val)
+               ((CountAgg.) ?count)
+               ((SumAgg.) ?val :> ?sum)))))
+
+(comment
+  "TODO: These need union and combine to do proper renames."
+  (defn run-union-combine-tests
+    "Runs a series of tests on the union and combine operations. v1,
+  v2 and v3 must produce
+
+    [[1] [2] [3]]
+    [[3] [4] [5]]
+    [[2] [4] [6]]"
+    [v1 v2 v3]
+    (test?- [[1] [2] [3] [4] [5]]                 (union v1 v2)
+            [[1] [2] [3] [4] [5] [6]]             (union v1 v2 v3)
+            [[3] [4] [5]]                         (union v2)
+            [[1] [2] [3] [2] [4] [6]]             (combine v1 v3)
+            [[1] [2] [3] [3] [4] [5] [2] [4] [6]] (combine v1 v2 v3)))
+
+  (deftest test-vector-union-combine
+    (run-union-combine-tests [[1] [2] [3]]
+                             [[3] [4] [5]]
+                             [[2] [4] [6]]))
+
+  (deftest test-query-union-combine
+    (run-union-combine-tests (<- [?v] ([[1] [2] [3]] ?v) (:distinct false))
+                             (<- [?v] ([[3] [4] [5]] ?v) (:distinct false))
+                             (<- [?v] ([[2] [4] [6]] ?v) (:distinct false))))
+
+  (deftest test-cascading-union-combine
+    (let [v1 [[1] [2] [3]]
+          v2 [[3] [4] [5]]
+          v3 [[2] [4] [6]]
+          e1 []]
+      (run-union-combine-tests v1 v2 v3)
+
+      "Can't use empty taps inside of a union or combine."
+      (is (thrown? IllegalArgumentException (union e1)))
+      (is (thrown? IllegalArgumentException (combine e1))))))
+
 (comment
   (deftest memory-self-join-test
     (let [src [["a"]]
@@ -694,111 +803,6 @@
           (test?<- [[2]]
                    [?n]
                    (sq ?n))))))
-
-  (defn multipagg-init [v1 v2 v3]
-    [v1 (+ v2 v3)])
-
-  (defn multipagg-combiner [v1 v2 v3 v4]
-    [(+ v1 v3)
-     (* v2 v4)])
-
-  (defparallelagg multipagg
-    :init-var #'multipagg-init
-    :combine-var #'multipagg-combiner)
-
-  (defaggregateop slow-count
-    ([] 0)
-    ([context val] (inc context))
-    ([context] [context]))
-
-  (deftest test-multi-parallel-agg
-    (let [vals [[1 2 3] [4 5 6] [7 8 9]]]
-      (test?<- [[12 935 3]]
-               [?d ?e ?count]
-               (vals ?a ?b ?c)
-               (multipagg ?a ?b ?c :> ?d ?e)
-               (c/count ?count))
-
-      (test?<- [[12 935 3]]
-               [?d ?e ?count]
-               (vals ?a ?b ?c)
-               (multipagg ?a ?b ?c :> ?d ?e)
-               (slow-count ?c :> ?count))))
-
-  (deftest test-cascading-filter
-    (let [vals [[0] [1] [2] [3]]]
-      (test?<- [[0] [2]]
-               [?v]
-               (vals ?v)
-               ((KeepEven.) ?v)
-               (:distinct false))
-
-      (test?<- [[0 true] [1 false]
-                [2 true] [3 false]]
-               [?v ?b]
-               (vals ?v)
-               ((KeepEven.) ?v :> ?b)
-               (:distinct false))))
-
-  (deftest test-java-buffer
-    (let [vals [["a" 1 10] ["a" 2 20] ["b" 3 31]]]
-      (test?<- [["a" 1] ["b" 1]]
-               [?f1 ?o]
-               (vals ?f1 _ _)
-               ((OneBuffer.) :> ?o))
-
-      (test?<- [["a" 1 10] ["a" 2 20] ["b" 3 31]]
-               [?f1 ?f2out ?f3out]
-               (vals ?f1 ?f2 ?f3)
-               ((IdentityBuffer.) ?f2 ?f3 :> ?f2out ?f3out))))
-
-  (deftest test-java-aggregator
-    (let [vals [["a" 1] ["a" 2] ["b" 3] ["c" 8] ["c" 13] ["b" 1] ["d" 5] ["c" 8]]]
-      (test?<- [["a" 2] ["b" 2] ["c" 3] ["d" 1]]
-               [?f1 ?o]
-               (vals ?f1 _)
-               ((CountAgg.) :> ?o))
-
-      (test?<- [["a" 3 2] ["b" 4 2] ["c" 29 3] ["d" 5 1]]
-               [?key ?sum ?count]
-               (vals ?key ?val)
-               ((CountAgg.) ?count)
-               ((SumAgg.) ?val :> ?sum))))
-
-  (defn run-union-combine-tests
-    "Runs a series of tests on the union and combine operations. v1,
-  v2 and v3 must produce
-
-    [[1] [2] [3]]
-    [[3] [4] [5]]
-    [[2] [4] [6]]"
-    [v1 v2 v3]
-    (test?- [[1] [2] [3] [4] [5]]                 (union v1 v2)
-            [[1] [2] [3] [4] [5] [6]]             (union v1 v2 v3)
-            [[3] [4] [5]]                         (union v2)
-            [[1] [2] [3] [2] [4] [6]]             (combine v1 v3)
-            [[1] [2] [3] [3] [4] [5] [2] [4] [6]] (combine v1 v2 v3)))
-
-  (deftest test-vector-union-combine
-    (run-union-combine-tests [[1] [2] [3]]
-                             [[3] [4] [5]]
-                             [[2] [4] [6]]))
-
-  (deftest test-query-union-combine
-    (run-union-combine-tests (<- [?v] ([[1] [2] [3]] ?v) (:distinct false))
-                             (<- [?v] ([[3] [4] [5]] ?v) (:distinct false))
-                             (<- [?v] ([[2] [4] [6]] ?v) (:distinct false))))
-
-  (deftest test-cascading-union-combine
-    (let [v1 [[1] [2] [3]]
-          v2 [[3] [4] [5]]
-          v3 [[2] [4] [6]]
-          e1 []]
-      (run-union-combine-tests v1 v2 v3)
-
-      "Can't use empty taps inside of a union or combine."
-      (is (thrown? IllegalArgumentException (union e1)))
-      (is (thrown? IllegalArgumentException (combine e1)))))
 
   (deftest test-select-fields-tap
     (let [data (memory-source-tap ["f1" "f2" "f3" "f4"]
