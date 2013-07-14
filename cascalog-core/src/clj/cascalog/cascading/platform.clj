@@ -2,6 +2,7 @@
   (:require [jackknife.seq :as s]
             [cascalog.cascading.operations :as ops]
             [cascalog.logic.predicate :as p]
+            [cascalog.logic.def :as d]
             [cascalog.logic.parse :as parse]
             [cascalog.logic.algebra :refer (sum)]
             [cascalog.logic.zip :as zip]
@@ -69,17 +70,17 @@
   ((assem [in out] (ops/each #(CascalogFunctionExecutor. % op) in out))
    gen input output))
 
-(defmethod op-cascading :cascalog.logic.def/map
+(defmethod op-cascading ::d/map
   [op gen input output]
   ((assem [in out] (ops/map* op in out))
    gen input output))
 
-(defmethod op-cascading :cascalog.logic.def/mapcat
+(defmethod op-cascading ::d/mapcat
   [op gen input output]
   ((assem [in out] (ops/mapcat* op in out))
    gen input output))
 
-(defmethod filter-cascading :cascalog.logic.def/filter
+(defmethod filter-cascading ::d/filter
   [op gen input]
   ((filter-assem [in] (ops/filter* op in))
    gen input))
@@ -182,8 +183,7 @@
 
 (comment
   "MOVE these to tests."
-  (require '[cascalog.logic.def :as d]
-           '[cascalog.logic.parse :refer (<-)]
+  (require '[cascalog.logic.parse :refer (<-)]
            '[cascalog.cascading.flow :refer (all-to-memory to-memory graph)])
 
   (def cross-join
@@ -210,5 +210,5 @@
                ([[1 2 3]] ?a)
                (x ?a ?a :> 4)
                ((d/bufferop* +) ?a :> ?z)
-               ((cascalog.logic.def/mapcatop* +) ?a 10 :> ?b))]
+               ((d/mapcatop* +) ?a 10 :> ?b))]
     (clojure.pprint/pprint (build-rule sq))))

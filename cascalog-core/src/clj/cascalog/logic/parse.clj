@@ -288,7 +288,7 @@
   [{:keys [op input output]} ^java.io.Writer writer]
   (binding [*out* writer]
     (let [op (if (ifn? op)
-               (let [op (or (:cascalog.logic.def/op (meta op)) op)]
+               (let [op (or (::d/op (meta op)) op)]
                  (or (search-for-var op) op))
                op)]
       (print (str "(" op " "))

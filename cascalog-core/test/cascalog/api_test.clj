@@ -3,7 +3,8 @@
         [midje sweet cascalog]
         cascalog.logic.testing
         cascalog.api)
-  (:require [cascalog.logic.ops :as c])
+  (:require [cascalog.logic.ops :as c]
+            [cascalog.logic.def :as d])
   (:import [cascalog.test KeepEven OneBuffer CountAgg SumAgg]
            [cascalog.ops IdentityBuffer]))
 
@@ -411,8 +412,8 @@
   (mapfn [n] (+ b (* a n))))
 
 (defn sum-plus [a]
-  (cascalog.logic.def/bufferop*
-   (cascalog.logic.def/prepfn
+  (d/bufferop*
+   (d/prepfn
     [_ _]
     (let [x (* 3 a)]
       {:operate (fn [tuples]

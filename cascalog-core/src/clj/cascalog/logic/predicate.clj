@@ -116,15 +116,15 @@
     (->Operation (d/mapop* op) input output)
     (->FilterOperation (d/filterop* op) input)))
 
-(defmethod to-predicate :cascalog.logic.def/filter
+(defmethod to-predicate ::d/filter
   [op input output]
   (->FilterOperation op input))
 
-(defmethod to-predicate :cascalog.logic.def/map
+(defmethod to-predicate ::d/map
   [op input output]
   (->Operation op input output))
 
-(defmethod to-predicate :cascalog.logic.def/mapcat
+(defmethod to-predicate ::d/mapcat
   [op input output]
   (->Operation op input output))
 
@@ -141,25 +141,25 @@
 
 ;; ## Aggregators
 
-(defmethod to-predicate :cascalog.logic.def/buffer
+(defmethod to-predicate ::d/buffer
   [op input output]
   (->Aggregator (fn [in out]
                   (ops/buffer op in out))
                 input output))
 
-(defmethod to-predicate :cascalog.logic.def/bufferiter
+(defmethod to-predicate ::d/bufferiter
   [op input output]
   (->Aggregator (fn [in out] (ops/bufferiter op in out))
                 input
                 output))
 
-(defmethod to-predicate :cascalog.logic.def/aggregate
+(defmethod to-predicate ::d/aggregate
   [op input output]
   (->Aggregator (fn [in out] (ops/agg op in out))
                 input
                 output))
 
-(defmethod to-predicate :cascalog.logic.def/combiner
+(defmethod to-predicate ::d/combiner
   [op input output]
   (->Aggregator (fn [in out] (ops/parallel-agg op in out))
                 input
