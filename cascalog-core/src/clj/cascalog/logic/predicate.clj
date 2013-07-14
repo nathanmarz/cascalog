@@ -2,7 +2,6 @@
   "TODO: We need to remove all of the Cascading implementations from
    here. The extensions to to-predicate."
   (:require [jackknife.core :as u]
-            [clojure.zip :as zip]
             [cascalog.logic.vars :as v]
             [cascalog.logic.def :as d]
             [cascalog.cascading.util :as casc]
@@ -16,7 +15,6 @@
            [cascading.tap Tap]
            [cascading.operation Filter]
            [jcascalog Subquery ClojureOp]
-           [cascalog.aggregator CombinerSpec]
            [cascalog CascalogFunction
             CascalogFunctionExecutor CascadingFilterToFunction
             CascalogBuffer CascalogBufferExecutor CascalogAggregator
@@ -118,7 +116,6 @@
     (->Operation (d/mapop* op) input output)
     (->FilterOperation (d/filterop* op) input)))
 
-;; TODO: Get rid of this whole mess.
 (defmethod to-predicate :cascalog.logic.def/filter
   [op input output]
   (->FilterOperation op input))
