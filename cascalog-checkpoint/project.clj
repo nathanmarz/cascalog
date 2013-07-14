@@ -1,4 +1,6 @@
-(defproject cascalog/cascalog-checkpoint "1.10.2-SNAPSHOT"
+(def cascalog-version "2.0.0-SNAPSHOT")
+
+(defproject cascalog/cascalog-checkpoint ~cascalog-version
   :description "Workflow checkpoints for the masses."
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
@@ -7,7 +9,7 @@
                  [hadoop-util "0.2.8"]]
   :profiles {:1.3 {:dependencies [[org.clojure/clojure "1.3.0"]]}
              :1.4 {:dependencies [[org.clojure/clojure "1.4.0"]]}
-             :provided {:dependencies [[cascalog/cascalog-core "1.10.2-SNAPSHOT"]]}
+             :provided {:dependencies [[cascalog/cascalog-core ~cascalog-version]]}
              :dev {:dependencies
                    [[org.apache.hadoop/hadoop-core "1.1.2"]]}
              :ci-dev {:dependencies
