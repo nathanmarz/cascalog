@@ -1,3 +1,5 @@
+(def cc-version (or (System/getenv "CASCALOG_CASCADING_VERSION") "2.1.6"))
+
 (defproject cascalog/cascalog-core "1.10.2-SNAPSHOT"
   :description "Cascalog core libraries."
   :url "http://www.cascalog.org"
@@ -15,7 +17,7 @@
                  [org.clojure/tools.macro "0.1.2"]
                  [log4j "1.2.16"]
                  [org.slf4j/slf4j-log4j12 "1.6.6"]
-                 [cascading/cascading-hadoop "2.0.8"
+                 [cascading/cascading-hadoop ~cc-version
                   :exclusions [org.codehaus.janino/janino
                                org.apache.hadoop/hadoop-core]]
                  [cascading.kryo "0.4.6"]

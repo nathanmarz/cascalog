@@ -181,6 +181,7 @@
     (generator (parse/build-rule sq))))
 
 (comment
+  "MOVE these to tests."
   (require '[cascalog.logic.def :as d]
            '[cascalog.logic.parse :refer (<-)]
            '[cascalog.cascading.flow :refer (all-to-memory to-memory graph)])

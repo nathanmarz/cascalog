@@ -18,8 +18,7 @@
             [cascalog.cascading.io :as io]
             [cascalog.cascading.util :refer (generic-cascading-fields?)]
             [hadoop-util.core :as hadoop])
-  (:import [cascading.flow Flow FlowDef]
-           [cascading.flow.hadoop HadoopFlowConnector]
+  (:import [cascading.flow Flow]
            [cascading.tuple Fields]
            [cascading.tap Tap]
            [jcascalog Subquery]))
@@ -77,13 +76,7 @@
 
 (defalias construct parse/parse-subquery)
 
-(defmacro <-
-  "Constructs a query or predicate macro from a list of
-  predicates. Predicate macros support destructuring of the input and
-  output variables."
-  [outvars & predicates]
-  `(v/with-logic-vars
-     (construct ~outvars [~@(map vec predicates)])))
+(defalias <- parse/<-)
 
 (def cross-join
   (<- [:>] (identity 1 :> _)))
@@ -152,6 +145,7 @@
 
 ;; TODO: Obviously these are still a little busted. We need to go
 ;; ahead and rename everyone to the same shit.
+
 (defn union
   "Merge the tuples from the subqueries together into a single
   subquery and ensure uniqueness of tuples."
@@ -217,7 +211,6 @@
 
 (defalias mapfn d/mapfn)
 (defalias bufferfn d/bufferfn)
-
 (defalias defmapcatop d/defmapcatfn)
 (defalias defbufferop d/defbufferfn)
 ;; (defalias defmultibufferop w/defmultibufferop)
