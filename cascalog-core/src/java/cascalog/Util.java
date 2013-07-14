@@ -81,11 +81,11 @@ public class Util {
   }
 
   public static synchronized IFn deserializeFn(byte[] fnSpec) {
-    return (IFn)  bootSimpleFn("cascalog.fluent.fn", "deserialize").invoke(fnSpec);
+    return (IFn)  bootSimpleFn("cascalog.logic.fn", "deserialize").invoke(fnSpec);
   }
 
   public static synchronized byte[] serializeFn(IFn fn) {
-    return (byte[]) bootSimpleFn("cascalog.fluent.fn", "serialize").invoke(fn);
+    return (byte[]) bootSimpleFn("cascalog.logic.fn", "serialize").invoke(fn);
   }
 
   public static ISeq coerceToSeq(Object o) {

@@ -20,7 +20,8 @@ public class Subquery {
   }
 
   public Object getCompiledSubquery() {
-    return Util.bootSimpleFn("cascalog.rules", "build-rule").invoke(_outFields, _preds);
+    return Util.bootSimpleFn("cascalog.logic.parse", "compile-subquery")
+      .invoke(_outFields, _preds);
   }
 
   public Subquery predicate(Object op, Object... fields) {

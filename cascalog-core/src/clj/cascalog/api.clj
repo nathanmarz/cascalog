@@ -1,21 +1,22 @@
 (ns cascalog.api
-  (:use [jackknife.core :only (safe-assert throw-runtime)]
+  (:use [jackknife.core :only (safe-assert throw-runtime uuid)]
         [jackknife.def :only (defalias)]
-        [jackknife.seq :only (unweave collectify)])
+        [jackknife.seq :only (unweave collectify)]
+        [jackknife.meta :only (meta-conj)])
   (:require [clojure.set :as set]
-            [cascalog.vars :as v]
-            [cascalog.predicate :as p]
-            [cascalog.util :as u]
-            [cascalog.parse :as parse]
-            [cascalog.fluent.tap :as tap]
-            [cascalog.fluent.conf :as conf]
-            [cascalog.fluent.flow :as flow]
-            [cascalog.fluent.def :as d]
-            [cascalog.fluent.algebra :as algebra]
-            [cascalog.fluent.operations :as ops]
-            [cascalog.fluent.tap :as tap]
-            [cascalog.fluent.io :as io]
-            [cascalog.fluent.cascading :refer (generic-cascading-fields?)]
+            [cascalog.logic.def :as d]
+            [cascalog.logic.algebra :as algebra]
+            [cascalog.logic.vars :as v]
+            [cascalog.logic.predicate :as p]
+            [cascalog.logic.parse :as parse]
+            [cascalog.cascading.platform :refer (compile-query)]
+            [cascalog.cascading.tap :as tap]
+            [cascalog.cascading.conf :as conf]
+            [cascalog.cascading.flow :as flow]
+            [cascalog.cascading.operations :as ops]
+            [cascalog.cascading.tap :as tap]
+            [cascalog.cascading.io :as io]
+            [cascalog.cascading.util :refer (generic-cascading-fields?)]
             [hadoop-util.core :as hadoop])
   (:import [cascading.flow Flow FlowDef]
            [cascading.flow.hadoop HadoopFlowConnector]
@@ -74,7 +75,7 @@
 
 ;; ## Query creation and execution
 
-(defalias construct cascalog.parse/parse-subquery)
+(defalias construct parse/parse-subquery)
 
 (defmacro <-
   "Constructs a query or predicate macro from a list of
@@ -127,7 +128,7 @@
   If the first argument is a string, that will be used as the name
   for the query and will show up in the JobTracker UI."
   [& args]
-  (apply flow/all-to-memory (map parse/compile-query args)))
+  (apply flow/all-to-memory (map compile-query args)))
 
 (defmacro ?<-
   "Helper that both defines and executes a query in a single call.
@@ -156,16 +157,16 @@
   subquery and ensure uniqueness of tuples."
   [& gens]
   (apply ops/union*
-         (map cascalog.fluent.types/generator gens)))
+         (map cascalog.cascading.types/generator gens)))
 
 (defn combine
   "Merge the tuples from the subqueries together into a single
   subquery. Doesn't ensure uniqueness of tuples."
   [& gens]
-  (algebra/sum (map cascalog.fluent.types/generator gens)))
+  (algebra/sum (map cascalog.cascading.types/generator gens)))
 
 ;; TODO: All of these are actually just calling through to "select*"
-;; in the fluent API.
+;; in the cascading API.
 
 (comment
   (defmulti select-fields
@@ -179,7 +180,7 @@
 
   (defmethod select-fields :tap [tap fields]
     (let [fields (collectify fields)
-          pname  (u/uuid)
+          pname  (uuid)
           outfields (v/gen-nullable-vars (count fields))
           pipe (w/assemble (w/pipe pname)
                            (w/identity fields :fn> outfields :> outfields))]
@@ -248,7 +249,7 @@
     `(do (gen-class :name ~classname
                     :main true
                     :prefix ~(str name "-"))
-         (defn ~(u/meta-conj sym {:no-doc true
-                                  :skip-wiki true})
+         (defn ~(meta-conj sym {:no-doc true
+                                :skip-wiki true})
            ~@forms)
          (defn ~name ~@forms))))

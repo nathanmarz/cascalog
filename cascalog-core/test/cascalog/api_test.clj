@@ -1,11 +1,10 @@
 (ns cascalog.api-test
   (:use clojure.test
         [midje sweet cascalog]
-        [cascalog testing api])
-  (:require [cascalog.ops :as c]
-            [cascalog.util :as u])
-  (:import [cascading.tuple Fields]
-           [cascalog.test KeepEven OneBuffer CountAgg SumAgg]
+        cascalog.logic.testing
+        cascalog.api)
+  (:require [cascalog.logic.ops :as c])
+  (:import [cascalog.test KeepEven OneBuffer CountAgg SumAgg]
            [cascalog.ops IdentityBuffer]))
 
 (defmapop mk-one
@@ -412,8 +411,8 @@
   (mapfn [n] (+ b (* a n))))
 
 (defn sum-plus [a]
-  (cascalog.fluent.def/bufferop*
-   (cascalog.fluent.def/prepfn
+  (cascalog.logic.def/bufferop*
+   (cascalog.logic.def/prepfn
     [_ _]
     (let [x (* 3 a)]
       {:operate (fn [tuples]

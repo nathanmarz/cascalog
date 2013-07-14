@@ -1,10 +1,10 @@
 (ns cascalog.api-secondary-test
     (:use clojure.test
           cascalog.api
-          cascalog.testing)
+          cascalog.logic.testing)
     (:import [cascading.tuple Fields])
-    (:require [cascalog.ops :as c]
-              [cascalog.fluent.io :as io]))
+    (:require [cascalog.logic.ops :as c]
+              [cascalog.cascading.io :as io]))
 
 (comment
   (deftest test-outfields-query
