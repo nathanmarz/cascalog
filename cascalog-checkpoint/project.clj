@@ -1,6 +1,6 @@
 (def cascalog-version "2.0.0-SNAPSHOT")
 
-(defproject cascalog/cascalog-checkpoint ~cascalog-version
+(defproject cascalog/cascalog-checkpoint cascalog-version
   :description "Workflow checkpoints for the masses."
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}

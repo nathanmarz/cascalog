@@ -1,6 +1,6 @@
 (def cascalog-version "2.0.0-SNAPSHOT")
 
-(defproject cascalog/cascalog-lzo ~cascalog-version
+(defproject cascalog/cascalog-lzo cascalog-version
   :description "Lzo compression taps for Cascalog."
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}

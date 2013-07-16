@@ -1,6 +1,6 @@
 (def cascalog-version "2.0.0-SNAPSHOT")
 
-(defproject cascalog/cascalog-more-taps ~cascalog-version
+(defproject cascalog/cascalog-more-taps cascalog-version
   :description "More taps for Cascalog"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}

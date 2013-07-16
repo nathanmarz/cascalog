@@ -1,6 +1,6 @@
 (def cascalog-version "2.0.0-SNAPSHOT")
 
-(defproject cascalog/midje-cascalog ~cascalog-version
+(defproject cascalog/midje-cascalog cascalog-version
   :description "Cascalog functions for Midje."
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}

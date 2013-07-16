@@ -1,6 +1,6 @@
 (def version "2.0.0-SNAPSHOT")
 
-(defproject cascalog ~version
+(defproject cascalog version
   :description "Hadoop without the Hassle."
   :url "http://www.cascalog.org"
   :license {:name "Eclipse Public License"
