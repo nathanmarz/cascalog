@@ -7,6 +7,7 @@
             [cascalog.logic.vars :as v]
             [cascalog.logic.predicate :as p]
             [cascalog.logic.parse :as parse]
+            [cascalog.logic.predmacro :as pm]
             [cascalog.cascading.platform :refer (compile-query)]
             [cascalog.cascading.tap :as tap]
             [cascalog.cascading.conf :as conf]
@@ -138,8 +139,8 @@
   [& args]
   `(first (??- (<- ~@args))))
 
-(defalias predmacro* parse/predmacro*)
-(defalias predmacro parse/predmacro)
+(defalias predmacro* pm/predmacro*)
+(defalias predmacro pm/predmacro)
 
 ;; TODO: Obviously these are still a little busted. We need to go
 ;; ahead and rename everyone to the same shit.

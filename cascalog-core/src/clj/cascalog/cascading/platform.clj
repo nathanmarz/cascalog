@@ -17,8 +17,9 @@
             CascalogBuffer CascalogBufferExecutor CascalogAggregator
             CascalogAggregatorExecutor ClojureParallelAgg ParallelAgg]
            [cascalog.logic.parse TailStruct Projection Application
-            FilterApplication Grouping Join ExistenceNode RawSubquery
+            FilterApplication Grouping Join ExistenceNode
             Unique Merge]
+           [cascalog.logic.predicate RawSubquery]
            [cascalog.logic.def ParallelAggregator Prepared]))
 
 ;; ## Allowed Predicates

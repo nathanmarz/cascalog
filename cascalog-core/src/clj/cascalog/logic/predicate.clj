@@ -1,15 +1,61 @@
 (ns cascalog.logic.predicate
   "TODO: We need to remove all of the Cascading implementations from
    here. The extensions to to-predicate."
-  (:require [jackknife.core :as u]
+  (:require [clojure.string :refer (join)]
+            [jackknife.core :as u]
             [cascalog.logic.vars :as v]
             [cascalog.logic.def :as d]
+            [cascalog.logic.fn :refer (search-for-var)]
             [cascalog.cascading.operations :as ops]
             [cascalog.cascading.types :as types])
   (:import [clojure.lang IFn]
            [cascalog.logic.def ParallelAggregator Prepared]
            [jcascalog Subquery ClojureOp]
            [cascalog CascalogFunction CascalogBuffer CascalogAggregator ParallelAgg]))
+
+(defprotocol IRawPredicate
+  (normalize [_]
+    "Returns a sequence of RawPredicate instances."))
+
+;; Raw Predicate type.
+
+(defrecord RawPredicate [op input output]
+  IRawPredicate
+  (normalize [p] [p]))
+
+;; Output of the subquery, the predicates it contains and the options
+;; in the subquery.
+
+(defrecord RawSubquery [fields predicates])
+
+;; Printing Methods
+;;
+;; The following methods allow a predicate to print properly.
+
+(defmethod print-method RawPredicate
+  [{:keys [op input output]} ^java.io.Writer writer]
+  (binding [*out* writer]
+    (let [op (if (ifn? op)
+               (let [op (or (::d/op (meta op)) op)]
+                 (or (search-for-var op) op))
+               op)]
+      (print (str "(" op " "))
+      (doseq [v (join " " input)]
+        (print v))
+      (when (not-empty output)
+        (print " :> ")
+        (doseq [v (join " " output)]
+          (print v)))
+      (println ")"))))
+
+(defmethod print-method RawSubquery
+  [{:keys [fields predicates]} ^java.io.Writer writer]
+  (binding [*out* writer]
+    (println "(<-" (vec fields))
+    (doseq [pred predicates]
+      (print "    ")
+      (print-method pred writer))
+    (println "    )")))
 
 ;; ## ICouldFilter
 
