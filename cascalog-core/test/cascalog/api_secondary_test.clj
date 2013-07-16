@@ -100,95 +100,81 @@
            [?n]
            (num ?n)))))
 
+(deftest test-cascalog-tap-source-and-sink
+  (with-expected-sinks [sink1 [[4]]]
+    (let [tap (cascalog-tap [[3]] sink1)]
+      (?<- tap [?n]
+           (tap ?raw)
+           (inc ?raw :> ?n)))))
+
+(deftest test-symmetric-ops
+  (let [nums [[1 2 3] [10 20 30] [100 200 300]]]
+    (test?<- [[111 222 333 1 2 3 100 200 300]]
+             [?s1 ?s2 ?s3 ?min1 ?min2 ?min3 ?max1 ?max2 ?max3]
+             (nums ?a ?b ?c)
+             (c/sum ?a ?b ?c :> ?s1 ?s2 ?s3)
+             (c/min ?a ?b ?c :> ?min1 ?min2 ?min3)
+             (c/max ?a ?b ?c :> ?max1 ?max2 ?max3))))
+
+(deftest test-flow-name
+  (let [nums [[1] [2]]]
+    (with-expected-sinks [sink1 [[1] [2]]
+                          sink2 [[2] [3]]]
+      (is (= "lalala"
+             (:name (compile-flow "lalala" (stdout) (<- [?n] (nums ?n))))))
+      (?<- "flow1" sink1
+           [?n]
+           (nums ?n)
+           (:distinct false))
+      (?- "flow2" sink2
+          (<- [?n2]
+              (nums ?n)
+              (inc ?n :> ?n2)
+              (:distinct false)))
+      (is (= '(([1] [2]))
+             (??- "flow3"
+                  (<- [?n]
+                      (nums ?n)
+                      (:distinct false))))))))
+
+(deftest test-data-structure
+  (let [src  [[1 5] [5 6] [8 2]]
+        nums [[1] [2]]]
+    (test?<- [[1 5]]
+             [?a ?b]
+             (nums ?a)
+             (src ?a ?b))))
+
+(deftest test-memory-returns
+  (let [nums [[1] [2] [3]]
+        more-nums [[1 2] [4 5]]
+        people [["alice"] ["bob"]]]
+    (is (= (set [[1] [3]])
+           (set (??<- [?num]
+                      (nums ?num)
+                      (odd? ?num)
+                      (:distinct false)))))
+    (is (= (set [[1 2]])
+           (set (first (??- (<- [?a ?b]
+                                (nums ?b :> true)
+                                (more-nums ?a ?b)))))))
+    (let [res (??- (<- [?val]
+                       (nums ?num)
+                       (inc ?num :> ?val)
+                       (:distinct false))
+                   (<- [?res]
+                       (people ?person)
+                       (str ?person "a" :> ?res)
+                       (:distinct false)))]
+      (is (= (set [[2] [3] [4]])
+             (set (first res))))
+      (is (= (set [["alicea"] ["boba"]])
+             (set (second res)))))))
+
 (comment
-
-
-
-  (deftest test-cascalog-tap-source-and-sink
-    (io/with-log-level :fatal
-      (with-expected-sinks [sink1 [[4]]]
-        (let [tap (cascalog-tap [[3]] sink1)]
-          (?<- tap [?n]
-               (tap ?raw)
-               (inc ?raw :> ?n)
-               (:distinct false))))))
-
-  (deftest test-symmetric-ops
-    (let [nums [[1 2 3] [10 20 30] [100 200 300]]]
-      (test?<- [[111 222 333 1 2 3 100 200 300]]
-               [?s1 ?s2 ?s3 ?min1 ?min2 ?min3 ?max1 ?max2 ?max3]
-               (nums ?a ?b ?c)
-               (c/sum ?a ?b ?c :> ?s1 ?s2 ?s3)
-               (c/min ?a ?b ?c :> ?min1 ?min2 ?min3)
-               (c/max ?a ?b ?c :> ?max1 ?max2 ?max3))))
-
-  (deftest test-first-n
-    (let [sq (name-vars [[1 1] [1 3] [1 2] [2 1] [3 4]]
-                        ["?a" "?b"])]
-      (test?- [[1 1] [1 2]]
-              (c/first-n sq 2 :sort ["?a" "?b"]))
-      (test?- [[3 4] [2 1]]
-              (c/first-n sq 2 :sort "?a" :reverse true))
-      (is (= 2 (count (first (??- (c/first-n sq 2))))))))
-
-  (deftest test-flow-name
-    (let [nums [[1] [2]]]
-      (with-expected-sinks [sink1 [[1] [2]]
-                            sink2 [[2] [3]]]
-        (is (= "lalala"
-               (.getName (compile-flow "lalala" (stdout) (<- [?n] (nums ?n))))))
-        (?<- "flow1" sink1
-             [?n]
-             (nums ?n)
-             (:distinct false))
-        (?- "flow2" sink2
-            (<- [?n2]
-                (nums ?n)
-                (inc ?n :> ?n2)
-                (:distinct false)))
-        (is (= '(([1] [2]))
-               (??- "flow3"
-                    (<- [?n]
-                        (nums ?n)
-                        (:distinct false))))))))
-
-  (deftest test-data-structure
-    (let [src  [[1 5] [5 6] [8 2]]
-          nums [[1] [2]]]
-      (test?<- [[1 5]]
-               [?a ?b]
-               (nums ?a)
-               (src ?a ?b))))
-
-  (deftest test-memory-returns
-    (let [nums [[1] [2] [3]]
-          more-nums [[1 2] [4 5]]
-          people [["alice"] ["bob"]]]
-      (is (= (set [[1] [3]])
-             (set (??<- [?num]
-                        (nums ?num)
-                        (odd? ?num)
-                        (:distinct false)))))
-      (is (= (set [[1 2]])
-             (set (first (??- (<- [?a ?b]
-                                  (nums ?b :> true)
-                                  (more-nums ?a ?b)))))))
-      (let [res (??- (<- [?val]
-                         (nums ?num)
-                         (inc ?num :> ?val)
-                         (:distinct false))
-                     (<- [?res]
-                         (people ?person)
-                         (str ?person "a" :> ?res)
-                         (:distinct false)))]
-        (is (= (set [[2] [3] [4]])
-               (set (first res))))
-        (is (= (set [["alicea"] ["boba"]])
-               (set (second res)))))))
-
   (deftest test-negation
-    (let [age    [["nathan" 25] ["nathan" 24]
-                  ["alice" 23] ["george" 31]]
+    (let [age [["nathan" 25] ["nathan" 24]
+               ["alice" 23] ["george" 31]]
           gender [["nathan" "m"] ["emily" "f"]
                   ["george" "m"] ["bob" "m"]]
           follows [["nathan" "bob"] ["nathan" "alice"]
@@ -250,6 +236,15 @@
                (age ?p _)
                ((c/negate gender) ?p _)
                (:distinct false))))
+
+  (deftest test-first-n
+    (let [sq (name-vars [[1 1] [1 3] [1 2] [2 1] [3 4]]
+                        ["?a" "?b"])]
+      (test?- [[1 1] [1 2]]
+              (c/first-n sq 2 :sort ["?a" "?b"]))
+      (test?- [[3 4] [2 1]]
+              (c/first-n sq 2 :sort "?a" :reverse true))
+      (is (= 2 (count (first (??- (c/first-n sq 2))))))))
 
   ;; TODO: test within massive joins (more than one join field, after
   ;; other joins complete, etc.)
