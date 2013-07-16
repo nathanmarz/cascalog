@@ -81,11 +81,6 @@
 
 ;; ## Sink Typeclasses
 
-(defn normalize-sink-connection [sink subquery]
-  (cond (fn? sink)  (sink subquery)
-        (map? sink) (normalize-sink-connection (:sink sink) subquery)
-        :else       [sink subquery]))
-
 (defprotocol ISink
   (to-sink [this]
     "Returns a Cascading tap into which Cascalog can sink the supplied

@@ -121,6 +121,12 @@
      (let [^Flow flow (compile-flow sink-tap query)]
        (.writeDOT flow outfile))))
 
+(defn normalize-sink-connection [sink subquery]
+  (cond (fn? sink) (sink subquery)
+        (instance? CascalogTap sink)
+        (normalize-sink-connection (:sink sink) subquery)
+        :else [sink subquery]))
+
 (defn ?-
   "Executes 1 or more queries and emits the results of each query to
   the associated tap.
@@ -131,7 +137,10 @@
    If the first argument is a string, that will be used as the name
   for the query and will show up in the JobTracker UI."
   [& bindings]
-  (flow/run! (apply compile-flow bindings)))
+  (let [[name bindings] (flow/parse-exec-args bindings)
+        bindings (mapcat (partial apply normalize-sink-connection)
+                         (partition 2 bindings))]
+    (flow/run! (apply compile-flow name bindings))))
 
 (defn ??-
   "Executes one or more queries and returns a seq of seqs of tuples
@@ -183,17 +192,15 @@
 ;; TODO: All of these are actually just calling through to "select*"
 ;; in the cascading API.
 
-(defmulti select-fields
-  "Select fields of a named generator.
+(comment
+  (defmulti select-fields
+    "Select fields of a named generator.
 
   Example:
   (<- [?a ?b ?sum]
       (+ ?a ?b :> ?sum)
       ((select-fields generator [\"?a\" \"?b\"]) ?a ?b))"
-  generator-selector)
-
-(comment
-
+    generator-selector)
 
   (defmethod select-fields :tap [tap fields]
     (let [fields (collectify fields)

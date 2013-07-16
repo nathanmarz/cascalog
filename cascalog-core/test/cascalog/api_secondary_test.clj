@@ -93,13 +93,12 @@
                                                 (sq ?n)
                                                 (inc ?n :> ?n2)
                                                 (:distinct false))]))
-           [?n] (num ?n)
-           (:distinct false))
+           [?n]
+           (num ?n))
 
       (?<- (cascalog-tap nil (cascalog-tap nil sink3))
            [?n]
-           (num ?n)
-           (:distinct false)))))
+           (num ?n)))))
 
 (comment
 

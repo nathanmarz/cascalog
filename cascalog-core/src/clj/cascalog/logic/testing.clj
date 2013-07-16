@@ -4,7 +4,6 @@
             [jackknife.core :as u]
             [jackknife.seq :refer (unweave collectify multi-set)]
             [cascalog.cascading.tap :as tap]
-            [cascalog.cascading.types :refer (normalize-sink-connection)]
             [cascalog.cascading.io :as io])
   (:import [java.io File]
            [cascading.tuple Fields]))
