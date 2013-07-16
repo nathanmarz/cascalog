@@ -2,6 +2,7 @@
   "TODO: Some of these things need to move into hadoop-util."
   (:require [clojure.java.io :as io]
             [hadoop-util.core :as hadoop]
+            [cascalog.cascading.conf :as conf]
             [jackknife.core :refer (uuid)])
   (:import [java.io PrintWriter]
            [org.apache.log4j Logger Level]
@@ -90,13 +91,24 @@ Raise an exception if any deletion fails unless silently is true."
    (for [t paths]
      (.delete fs (hadoop/path t) true))))
 
-(defmacro with-fs-tmp [[fs-sym & tmp-syms] & body]
-  (let [tmp-paths (mapcat (fn [t]
-                            [t `(str "/tmp/cascalog_reserved/" (uuid))])
-                          tmp-syms)]
+(def tmp-dir-property
+  "Use this variable as key in JobConf if you want to override the
+  root of temporary paths. See with-fs-tmp."
+  "cascalog.tmpdir")
+
+(defmacro with-fs-tmp
+  "Generates unique, temporary path names as subfolders of <root>/cascalog_reserved.
+  <root> by default will be '/tmp', but you can configure it via the
+  JobConf property `cascalog.io/tmp-dir-property`."
+  [[fs-sym & tmp-syms] & body]
+  (let [tmp-root (gensym "tmp-root")]
     `(let [~fs-sym (hadoop/filesystem)
-           ~@tmp-paths]
-       (.mkdirs ~fs-sym (hadoop/path "/tmp/cascalog_reserved"))
+           ~tmp-root (str (get (conf/project-conf) tmp-dir-property "/tmp")
+                          "/cascalog_reserved")
+           ~@(mapcat (fn [t]
+                       [t `(str ~tmp-root "/" (uuid))])
+                     tmp-syms)]
+       (.mkdirs ~fs-sym (hadoop/path ~tmp-root))
        (try
          ~@body
          (finally
