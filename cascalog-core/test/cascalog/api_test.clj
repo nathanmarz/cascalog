@@ -784,6 +784,7 @@
       (fact?- "sample should contain some of the inputs"
               (contains #{[1 2] [3 4] [5 6]} :gaps-ok) sampling-query)))
 
+  ;; TODO: Fix select-fields... maybe project is busted.
   (deftest test-select-fields-query
     (let [wide [[1 2 3 4 5 6]]
           sq (<- [!f1 !f4 !f5 ?f6]
