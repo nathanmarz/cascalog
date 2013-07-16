@@ -680,10 +680,11 @@
   [generators operations]
   (->> generators
        (map (fn [gen]
-              (let [node (if (instance? GeneratorSet gen)
-                           (->ExistenceNode (:generator gen)
-                                            (:join-set-var gen))
-                           gen)]
+              (let [[gen node] (if (instance? GeneratorSet gen)
+                                 [(:generator gen)
+                                  (->ExistenceNode (:generator gen)
+                                                   (:join-set-var gen))]
+                                 [gen gen])]
                 (->TailStruct node
                               (v/fully-ground? (:fields gen))
                               (:fields gen)
@@ -697,7 +698,7 @@
         have-set (set available)]
     (when-not (subset? want-set have-set)
       (let [inter (intersection have-set want-set)
-            diff  (difference have-set want-set)]
+            diff  (difference want-set have-set)]
         (throw-runtime (str "Only able to build to " (vec inter)
                             " but need " (vec needed)
                             ". Missing " (vec diff)))))))

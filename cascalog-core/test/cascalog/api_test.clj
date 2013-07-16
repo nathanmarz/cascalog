@@ -583,15 +583,13 @@
     (test?<- [[0] [2]]
              [?v]
              (vals ?v)
-             ((KeepEven.) ?v)
-             (:distinct false))
+             ((KeepEven.) ?v))
 
     (test?<- [[0 true] [1 false]
               [2 true] [3 false]]
              [?v ?b]
              (vals ?v)
-             ((KeepEven.) ?v :> ?b)
-             (:distinct false))))
+             ((KeepEven.) ?v :> ?b))))
 
 (comment
   "TODO: Fix this Cascalog buffer bullshit."

@@ -4,21 +4,12 @@
   (:require [jackknife.core :as u]
             [cascalog.logic.vars :as v]
             [cascalog.logic.def :as d]
-            [cascalog.cascading.util :as casc]
             [cascalog.cascading.operations :as ops]
-            [cascalog.cascading.types :as types]
-            [cascalog.cascading.flow :as f])
+            [cascalog.cascading.types :as types])
   (:import [clojure.lang IFn]
            [cascalog.logic.def ParallelAggregator Prepared]
-           [cascalog.cascading.types IGenerator]
-           [cascading.pipe Each Every]
-           [cascading.tap Tap]
-           [cascading.operation Filter]
            [jcascalog Subquery ClojureOp]
-           [cascalog CascalogFunction
-            CascalogFunctionExecutor CascadingFilterToFunction
-            CascalogBuffer CascalogBufferExecutor CascalogAggregator
-            CascalogAggregatorExecutor ClojureParallelAgg ParallelAgg]))
+           [cascalog CascalogFunction CascalogBuffer CascalogAggregator ParallelAgg]))
 
 ;; ## ICouldFilter
 
@@ -128,73 +119,42 @@
   [op input output]
   (->Operation op input output))
 
-(defmethod to-predicate Filter
-  [op input output]
-  (u/safe-assert (#{0 1} (count output)) "Must emit 0 or 1 fields from filter")
-  (if (empty? output)
-    (->FilterOperation op input)
-    (->Operation op input output)))
-
 (defmethod to-predicate CascalogFunction
   [op input output]
   (->Operation op input output))
 
 ;; ## Aggregators
-
+;;
+;; TODO: Get these impls out and back into the cascading executor.
 (defmethod to-predicate ::d/buffer
   [op input output]
-  (->Aggregator (fn [in out]
-                  (ops/buffer op in out))
-                input output))
+  (->Aggregator op input output))
 
 (defmethod to-predicate ::d/bufferiter
   [op input output]
-  (->Aggregator (fn [in out] (ops/bufferiter op in out))
-                input
-                output))
+  (->Aggregator op input output))
 
 (defmethod to-predicate ::d/aggregate
   [op input output]
-  (->Aggregator (fn [in out] (ops/agg op in out))
-                input
-                output))
+  (->Aggregator op input output))
 
 (defmethod to-predicate ::d/combiner
   [op input output]
-  (->Aggregator (fn [in out] (ops/parallel-agg op in out))
-                input
-                output))
+  (->Aggregator op input output))
 
 (defmethod to-predicate ParallelAggregator
   [op input output]
-  (->Aggregator (fn [in out]
-                  (ops/parallel-agg (:combine-var op) in out
-                                    :init-var (:init-var op)
-                                    :present-var (:present-var op)))
-                input output))
+  (->Aggregator op input output))
 
 (defmethod to-predicate CascalogBuffer
   [op input output]
-  (->Aggregator (fn [in out]
-                  (reify ops/IBuffer
-                    (add-buffer [_ pipe]
-                      (Every. pipe in
-                              (CascalogBufferExecutor. (casc/fields out) op)))))
-                input
-                output))
+  (->Aggregator op input output))
 
 ;; TODO: jcascalog ParallelAgg.
 
 (defmethod to-predicate CascalogAggregator
   [op input output]
-  (->Aggregator (fn [in out]
-                  (reify ops/IAggregator
-                    (add-aggregator [_ pipe]
-                      (Every. pipe in
-                              (CascalogAggregatorExecutor. (casc/fields out) op)))))
-
-                input
-                output))
+  (->Aggregator op input output))
 
 (defn build-predicate
   "Accepts an option map and a raw predicate and returns a node in the
@@ -206,11 +166,12 @@
         :else                   (to-predicate op input output)))
 
 (comment
+  (require '[cascalog.cascading.flow :as f])
   "TODO: Convert to test."
   (let [gen (-> (types/generator [1 2 3 4])
                 (ops/rename* "?x"))
         pred (to-predicate * ["?a" "?a"] ["?b"])]
     (fact
-     (f/to-memory
-      ((:op pred) gen ["?x" "?x"] "?z"))
-     => [[1 1] [2 4] [3 9] [4 16]])))
+      (f/to-memory
+       ((:op pred) gen ["?x" "?x"] "?z"))
+      => [[1 1] [2 4] [3 9] [4 16]])))

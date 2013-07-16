@@ -1,6 +1,8 @@
 (ns cascalog.cascading.platform
   (:require [jackknife.seq :as s]
+            [jackknife.core :as u]
             [cascalog.cascading.operations :as ops]
+            [cascalog.cascading.util :as casc]
             [cascalog.logic.predicate :as p]
             [cascalog.logic.def :as d]
             [cascalog.logic.parse :as parse]
@@ -9,13 +11,24 @@
             [cascalog.logic.parse :as parse]
             [cascalog.cascading.types :refer (IGenerator generator)])
   (:import [cascading.pipe Each Every]
+           [cascading.operation Filter]
            [cascalog CascalogFunction
             CascalogFunctionExecutor CascadingFilterToFunction
             CascalogBuffer CascalogBufferExecutor CascalogAggregator
             CascalogAggregatorExecutor ClojureParallelAgg ParallelAgg]
            [cascalog.logic.parse TailStruct Projection Application
             FilterApplication Grouping Join ExistenceNode RawSubquery
-            Unique Merge]))
+            Unique Merge]
+           [cascalog.logic.def ParallelAggregator Prepared]))
+
+;; ## Allowed Predicates
+
+(defmethod p/to-predicate Filter
+  [op input output]
+  (u/safe-assert (#{0 1} (count output)) "Must emit 0 or 1 fields from filter")
+  (if (empty? output)
+    (p/->FilterOperation op input)
+    (p/->Operation op input output)))
 
 ;; ## Query Execution
 ;;
@@ -58,6 +71,10 @@
   (fn [op gen input]
     (type op)))
 
+(defmulti agg-cascading
+  (fn [op input output]
+    (type op)))
+
 (defmethod op-cascading cascading.operation.Filter
   [op gen input output]
   ((assem
@@ -89,6 +106,51 @@
   [op gen input]
   ((filter-assem [in] (ops/add-op #(Each. % in op)))
    gen input))
+
+(defmethod agg-cascading ::d/buffer
+  [op input output]
+  (ops/buffer op input output))
+
+(defmethod agg-cascading ::d/bufferiter
+  [op input output]
+  (ops/bufferiter op input output))
+
+(defmethod agg-cascading ::d/aggregate
+  [op input output]
+  (ops/agg op input output))
+
+(defmethod agg-cascading ::d/combiner
+  [op input output]
+  (ops/parallel-agg op input output))
+
+(defmethod agg-cascading ParallelAggregator
+  [op input output]
+  (ops/parallel-agg (:combine-var op) input output
+                    :init-var (:init-var op)
+                    :present-var (:present-var op)))
+
+(defmethod agg-cascading CascalogBuffer
+  [op input output]
+  (reify ops/IBuffer
+    (add-buffer [_ pipe]
+      (Every. pipe input
+              (CascalogBufferExecutor. (casc/fields output) op)))))
+
+(defmethod agg-cascading CascalogAggregator
+  [op input output]
+  (reify ops/IAggregator
+    (add-aggregator [_ pipe]
+      (Every. pipe input
+              (CascalogAggregatorExecutor. (casc/fields output) op)))))
+
+(defn opt-seq
+  "Takes a Cascalog option map and returns a sequence of option, value
+  pairs suitable " [options]
+  (->> (assoc options
+         :sort-fields (:sort options)
+         :reverse? (boolean (:reverse options)))
+       (filter (comp (complement nil?) second))
+       (apply concat)))
 
 (defprotocol IRunner
   (to-generator [item]))
@@ -124,28 +186,14 @@
   Grouping
   (to-generator [{:keys [source aggregators grouping-fields options]}]
     (let [aggs (map (fn [{:keys [op input output]}]
-                      ;; We pass the options in here to support
-                      ;; aggregators that might need to sort, etc.
-                      (op input output))
-                    aggregators)
-          options (assoc options
-                    :sort-fields (:sort options)
-                    :reverse? (boolean (:reverse options)))
-          opts (->> options
-                    (filter (comp (complement nil?) second))
-                    (s/flatten))]
-      (apply ops/group-by* source grouping-fields aggs opts)))
+                      (agg-cascading op input output))
+                    aggregators)]
+      (apply ops/group-by*
+             source grouping-fields aggs (opt-seq options))))
 
   Unique
   (to-generator [{:keys [source fields options]}]
-    (to-generator
-     (-> source
-         (parse/->Grouping
-          [(p/->Aggregator (constantly (ops/unique-aggregator))
-                           fields
-                           fields)]
-          fields
-          options))))
+    (apply ops/unique source fields (opt-seq options)))
 
   Merge
   (to-generator [{:keys [sources]}]
