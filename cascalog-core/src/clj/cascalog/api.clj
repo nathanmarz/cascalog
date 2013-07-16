@@ -2,6 +2,7 @@
   (:use [jackknife.core :only (safe-assert uuid)]
         [jackknife.seq :only (collectify)])
   (:require [clojure.set :as set]
+
             [cascalog.logic.def :as d]
             [cascalog.logic.algebra :as algebra]
             [cascalog.logic.vars :as v]
@@ -20,6 +21,8 @@
             [jackknife.def :as jd :refer (defalias)])
   (:import [cascading.flow Flow]
            [cascading.tap Tap]
+           [cascalog.logic.parse TailStruct]
+           [cascalog.cascading.tap CascalogTap]
            [jcascalog Subquery]))
 
 ;; Functions for creating taps and tap helpers
@@ -38,33 +41,52 @@
 
 ;; ## Query introspection
 
-(defn- generator-selector [gen & _]
-  (cond (instance? Tap gen) :tap
-        (instance? Subquery gen) :java-subquery
-        :else (:type gen)))
+(defprotocol IOutputFields
+  (get-out-fields [_] "Get the fields of a generator."))
 
-(defmulti get-out-fields
-  "Get the fields of a generator."
-  generator-selector)
+(extend-protocol IOutputFields
+  Tap
+  (get-out-fields [tap]
+    (let [cfields (.getSourceFields tap)]
+      (safe-assert (not (generic-cascading-fields? cfields))
+                   (str "Cannot get specific out-fields from tap. Tap source fields: "
+                        cfields))
+      (vec (seq cfields))))
 
-(defmethod get-out-fields :tap [tap]
-  (let [cfields (.getSourceFields tap)]
-    (safe-assert (not (generic-cascading-fields? cfields))
-                 (str "Cannot get specific out-fields from tap. Tap source fields: "
-                      cfields))
-    (vec (seq cfields))))
+  TailStruct
+  (get-out-fields [tail]
+    (:available-fields tail))
 
-(defmethod get-out-fields :generator [query]
-  (:outfields query))
+  Subquery
+  (get-out-fields [sq]
+    (get-out-fields (.getCompiledSubquery sq)))
 
-(defmethod get-out-fields :java-subquery [sq]
-  (get-out-fields (.getCompiledSubquery sq)))
+  CascalogTap
+  (get-out-fields [tap]
+    (get-out-fields (:source tap))))
 
-(defn num-out-fields [gen]
-  (if (or (list? gen) (vector? gen))
-    (count (first gen))
-    ;; TODO: should pluck from Tap if it doesn't define out-fields
-    (count (get-out-fields gen))))
+(defprotocol INumOutFields
+  (num-out-fields [_]))
+
+;; TODO: num-out-fields should try and pluck from Tap if it doesn't
+;; define output fields, rather than just throwing immediately.
+
+(extend-protocol INumOutFields
+  CascalogTap
+  (num-out-fields [tap]
+    (num-out-fields (:source tap)))
+
+  clojure.lang.ISeq
+  (num-out-fields [x]
+    (count (collectify (first x))))
+
+  clojure.lang.IPersistentVector
+  (num-out-fields [x]
+    (count (collectify (peek x))))
+
+  Tap
+  (num-out-fields [x]
+    (count (get-out-fields x))))
 
 ;; ## Knobs for Hadoop
 
@@ -161,15 +183,17 @@
 ;; TODO: All of these are actually just calling through to "select*"
 ;; in the cascading API.
 
-(comment
-  (defmulti select-fields
-    "Select fields of a named generator.
+(defmulti select-fields
+  "Select fields of a named generator.
 
   Example:
   (<- [?a ?b ?sum]
       (+ ?a ?b :> ?sum)
       ((select-fields generator [\"?a\" \"?b\"]) ?a ?b))"
-    generator-selector)
+  generator-selector)
+
+(comment
+
 
   (defmethod select-fields :tap [tap fields]
     (let [fields (collectify fields)

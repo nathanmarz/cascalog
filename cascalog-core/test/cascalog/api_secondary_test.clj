@@ -6,100 +6,104 @@
     (:require [cascalog.logic.ops :as c]
               [cascalog.cascading.io :as io]))
 
+(deftest test-outfields-query
+  (let [age [["nathan" 25]]]
+    (is (= ["?age"]
+           (get-out-fields
+            (<- [?age] (age _ ?age)))))
+    (is (= ["!!age2" "!!age"]
+           (get-out-fields (<- [!!age2 !!age]
+                               (age ?person !!age)
+                               (age ?person !!age2)))))
+    (is (= ["?person" "!a"]
+           (get-out-fields (<- [?person !a]
+                               (age ?person !a)))))
+    (is (= ["!a" "!count"] (get-out-fields (<- [!a !count]
+                                               (age _ !a)
+                                               (c/count !count)))))))
+(deftest test-outfields-tap
+  (is (thrown? AssertionError
+               (get-out-fields (memory-source-tap Fields/ALL []))))
+  (is (= ["!age"]
+         (get-out-fields (memory-source-tap ["!age"] []))))
+  (is (= ["?age" "field2"]
+         (get-out-fields (memory-source-tap ["?age" "field2"] [])))))
+
+(defbufferop sum+1 [tuples]
+  [(inc (reduce + (map first tuples)))])
+
+(defn op-to-pairs [sq op]
+  (<- [?c]
+      (sq ?a ?b)
+      (op ?a ?b :> ?c)
+      (:distinct false)))
+
+
+(deftest test-higher-order
+  (let [nums [[1 1] [2 2] [1 3]]]
+    (test?<- [[2] [4] [4]]
+             [?sum]
+             (nums ?a ?b)
+             (#'+ ?a ?b :> ?sum)
+             (:distinct false))
+    (test?- [[0] [0] [-2]] (op-to-pairs nums -)
+            [[5]]          (op-to-pairs nums sum+1))))
+
+(deftest test-construct
+  (let [age [["alice" 25] ["bob" 30]]
+        gender [["alice" "f"]
+                ["charlie" "m"]]]
+    (test?- [["alice" 26 "f"]
+             ["bob" 31 nil]]
+            (apply construct
+                   ["?p" "?a2" "!!g"]
+                   [(-> [[age "?p" "?a"] [#'inc "?a" :> "?a2"]]
+                        (conj [gender "?p" "!!g"]))]))))
+
+(deftest test-fail-to-construct
+  (let [foos [["alice"] ["bob"]]]
+    (is (thrown-with-msg? RuntimeException #"Missing.*?bar"
+                          (test?- []
+                                  (apply construct
+                                         ["?foo" "?bar"]
+                                         [(-> [[foos "?foo"]])]))))))
+
+(deftest test-cascalog-tap-source
+  (let [num [[1]]
+        gen (<- [?n]
+                (num ?raw)
+                (inc ?raw :> ?n))
+        tap1 (cascalog-tap num nil)]
+    (test?<- [[1]] [?n] (tap1 ?n))
+    (test?<- [[2]] [?n]
+             ((cascalog-tap gen nil) ?n))
+    (test?<- [[1]] [?n]
+             ((cascalog-tap (cascalog-tap tap1 nil) nil) ?n))))
+
+(deftest test-cascalog-tap-sink
+  (let [num [[2]]]
+    (with-expected-sinks [sink1 [[2]]
+                          sink2 [[3]]
+                          sink3 [[2]]]
+      (?<- (cascalog-tap nil sink1)
+           [?n]
+           (num ?n))
+
+      (?<- (cascalog-tap nil (fn [sq] [sink2 (<- [?n2]
+                                                (sq ?n)
+                                                (inc ?n :> ?n2)
+                                                (:distinct false))]))
+           [?n] (num ?n)
+           (:distinct false))
+
+      (?<- (cascalog-tap nil (cascalog-tap nil sink3))
+           [?n]
+           (num ?n)
+           (:distinct false)))))
+
 (comment
-  (deftest test-outfields-query
-    (let [age [["nathan" 25]]]
-      (is (= ["?age"]
-             (get-out-fields
-              (<- [?age] (age _ ?age)))))
-      (is (= ["!!age2" "!!age"]
-             (get-out-fields (<- [!!age2 !!age]
-                                 (age ?person !!age)
-                                 (age ?person !!age2)))))
-      (is (= ["?person" "!a"]
-             (get-out-fields (<- [?person !a]
-                                 (age ?person !a)))))
-      (is (= ["!a" "!count"] (get-out-fields (<- [!a !count]
-                                                 (age _ !a)
-                                                 (c/count !count)))))))
 
-  (deftest test-outfields-tap
-    (is (thrown? AssertionError
-                 (get-out-fields (memory-source-tap Fields/ALL []))))
-    (is (= ["!age"]
-           (get-out-fields (memory-source-tap ["!age"] []))))
-    (is (= ["?age" "field2"]
-           (get-out-fields (memory-source-tap ["?age" "field2"] [])))))
 
-  (defbufferop sum+1 [tuples]
-    [(inc (reduce + (map first tuples)))])
-
-  (defn op-to-pairs [sq op]
-    (<- [?c] (sq ?a ?b)
-        (op ?a ?b :> ?c)
-        (:distinct false)))
-
-  (deftest test-use-var
-    (let [nums [[1 1] [2 2] [1 3]]]
-      (test?<- [[2] [4] [4]]
-               [?sum]
-               (nums ?a ?b)
-               (#'+ ?a ?b :> ?sum)
-               (:distinct false))
-      (test?- [[0] [0] [-2]] (op-to-pairs nums #'-)
-              [[5]]          (op-to-pairs nums #'sum+1)
-              [[5]]          (op-to-pairs nums sum+1))))
-
-  (deftest test-construct
-    (let [age [["alice" 25] ["bob" 30]]
-          gender [["alice" "f"]
-                  ["charlie" "m"]]]
-      (test?- [["alice" 26 "f"]
-               ["bob" 31 nil]]
-              (apply construct
-                     ["?p" "?a2" "!!g"]
-                     [(-> [[age "?p" "?a"] [#'inc "?a" :> "?a2"]]
-                          (conj [gender "?p" "!!g"]))]))))
-
-  (deftest test-fail-to-construct
-    (let [foos [["alice"] ["bob"]]]
-      (is (thrown-with-msg? RuntimeException #"Missing.*?bar"
-                            (test?- []
-                                    (apply construct
-                                           ["?foo" "?bar"]
-                                           [(-> [[foos "?foo"]])]))))))
-
-  (deftest test-cascalog-tap-source
-    (io/with-log-level :fatal
-      (let [num [[1]]
-            gen (<- [?n] (num ?raw) (inc ?raw :> ?n) (:distinct false))
-            tap1 (cascalog-tap num nil)]
-        (test?<- [[1]] [?n] (tap1 ?n) (:distinct false))
-        (test?<- [[2]] [?n] ((cascalog-tap gen nil) ?n) (:distinct false))
-        (test?<- [[1]] [?n] ((cascalog-tap (cascalog-tap tap1 nil) nil) ?n) (:distinct false)))))
-
-  (deftest test-cascalog-tap-sink
-    (io/with-log-level :fatal
-      (let [num    [[2]]]
-        (with-expected-sinks [sink1 [[2]]
-                              sink2 [[3]]
-                              sink3 [[2]]]
-          (?<- (cascalog-tap nil sink1)
-               [?n]
-               (num ?n)
-               (:distinct false))
-
-          (?<- (cascalog-tap nil (fn [sq] [sink2 (<- [?n2]
-                                                     (sq ?n)
-                                                     (inc ?n :> ?n2)
-                                                     (:distinct false))]))
-               [?n] (num ?n)
-               (:distinct false))
-
-          (?<- (cascalog-tap nil (cascalog-tap nil sink3))
-               [?n]
-               (num ?n)
-               (:distinct false))))))
 
   (deftest test-cascalog-tap-source-and-sink
     (io/with-log-level :fatal

@@ -595,7 +595,9 @@
         agg-tail (build-agg-tail joined aggs grouping-fields options)
         {:keys [operations available-fields] :as tail} (add-ops-fixed-point agg-tail)]
     (validate-projection! operations fields available-fields)
-    (chain tail #(->Projection % fields))))
+    (-> tail
+        (chain #(->Projection % fields))
+        (assoc :available-fields fields))))
 
 ;; ## Predicate Parsing
 ;;

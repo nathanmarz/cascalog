@@ -33,7 +33,7 @@
         tmpforms  (->> tmpfiles
                        (mapcat (fn [f]
                                  [f `(File.
-                                      (str (cascalog.io/temp-dir ~(str f))
+                                      (str (cascalog.cascading.io/temp-dir ~(str f))
                                            "/"
                                            (u/uuid)))])))]
     [tmpfiles (vec tmpforms)]))
@@ -89,7 +89,7 @@
   (let [[names specs] (map vec (unweave bindings))
         [tmpfiles tmpforms] (mk-tmpfiles+forms (count names))
         tmptaps (mapcat (fn [n t s]
-                          [n `(cascalog.testing/mk-test-sink ~s ~t)])
+                          [n `(cascalog.logic.testing/mk-test-sink ~s ~t)])
                         names tmpfiles specs)]
     `(cascalog.cascading.io/with-tmp-files ~tmpforms
        (let [~@tmptaps]
