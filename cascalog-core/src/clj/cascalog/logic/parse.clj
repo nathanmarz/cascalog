@@ -575,6 +575,17 @@
     (concat new-preds
             [(assoc pred :output cleaned)])))
 
+(defn project [tail fields]
+  (let [available (:available-fields tail)]
+    (u/safe-assert (subset? (set fields)
+                            (set available))
+                   (format "Cannot select % from %."
+                           fields
+                           available)))
+  (-> tail
+      (chain #(->Projection % fields))
+      (assoc :available-fields fields)))
+
 (defn build-rule
   [{:keys [fields predicates] :as input}]
   (let [[options predicates] (opts/extract-options predicates)
@@ -595,9 +606,7 @@
         agg-tail (build-agg-tail joined aggs grouping-fields options)
         {:keys [operations available-fields] :as tail} (add-ops-fixed-point agg-tail)]
     (validate-projection! operations fields available-fields)
-    (-> tail
-        (chain #(->Projection % fields))
-        (assoc :available-fields fields))))
+    (project tail fields)))
 
 ;; ## Predicate Parsing
 ;;
