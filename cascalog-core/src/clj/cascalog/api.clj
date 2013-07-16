@@ -151,7 +151,8 @@
   If the first argument is a string, that will be used as the name
   for the query and will show up in the JobTracker UI."
   [& args]
-  (apply flow/all-to-memory (map compile-query args)))
+  (let [[name args] (flow/parse-exec-args args)]
+    (apply flow/all-to-memory name (map compile-query args))))
 
 (defmacro ?<-
   "Helper that both defines and executes a query in a single call.
@@ -192,14 +193,19 @@
 ;; TODO: All of these are actually just calling through to "select*"
 ;; in the cascading API.
 
-(comment
-  (defmulti select-fields
-    "Select fields of a named generator.
+(defn select-fields
+  "Select fields of a named generator.
 
   Example:
   (<- [?a ?b ?sum]
       (+ ?a ?b :> ?sum)
       ((select-fields generator [\"?a\" \"?b\"]) ?a ?b))"
+  [sq fields]
+  (parse/project sq fields))
+
+(comment
+  (defmulti select-fields
+
     generator-selector)
 
   (defmethod select-fields :tap [tap fields]

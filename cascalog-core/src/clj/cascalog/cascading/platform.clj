@@ -3,6 +3,7 @@
             [jackknife.core :as u]
             [cascalog.cascading.operations :as ops]
             [cascalog.cascading.util :as casc]
+            [cascalog.cascading.types :as types]
             [cascalog.logic.predicate :as p]
             [cascalog.logic.def :as d]
             [cascalog.logic.parse :as parse]
@@ -157,7 +158,13 @@
   (to-generator [item]))
 
 ;; TODO: Generator should just be a projection.
+;; TODO: Add a validation here that checks if this thing is a
+;; generator and sends a proper error message otherwise.
 (extend-protocol IRunner
+  Object
+  (to-generator [x]
+    (types/generator x))
+
   cascalog.logic.predicate.Generator
   (to-generator [{:keys [gen]}] gen)
 
