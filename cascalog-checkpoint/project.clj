@@ -11,6 +11,4 @@
              :1.4 {:dependencies [[org.clojure/clojure "1.4.0"]]}
              :provided {:dependencies [[cascalog/cascalog-core ~cascalog-version]]}
              :dev {:dependencies
-                   [[org.apache.hadoop/hadoop-core "1.1.2"]]}
-             :ci-dev {:dependencies
-                      [[org.apache.hadoop/hadoop-core "1.1.2"]]}})
+                   [[org.apache.hadoop/hadoop-core "1.1.2"]]}})

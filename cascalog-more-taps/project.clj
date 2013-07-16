@@ -9,7 +9,5 @@
   :profiles {:1.3 {:dependencies [[org.clojure/clojure "1.3.0"]]}
              :1.4 {:dependencies [[org.clojure/clojure "1.4.0"]]}
              :provided {:dependencies [[cascalog/cascalog-core ~cascalog-version]]}
-             :ci-dev {:dependencies [[org.apache.hadoop/hadoop-core "1.1.2"]
-                                     [cascalog/midje-cascalog ~cascalog-version]]}
              :dev {:dependencies [[org.apache.hadoop/hadoop-core "1.1.2"]
                                   [cascalog/midje-cascalog ~cascalog-version]]}})

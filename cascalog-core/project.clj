@@ -33,6 +33,4 @@
                    :plugins [[lein-midje "3.0.0"]]
                    :dependencies
                    [[cascalog/midje-cascalog ~cascalog-version]
-                    [org.apache.hadoop/hadoop-core "0.20.2"]]}
-             :ci-dev [:dev {:dependencies [[cascalog/midje-cascalog "1.10.1"]
-                                           [org.apache.hadoop/hadoop-core "1.1.2"]]}]})
+                    [org.apache.hadoop/hadoop-core "0.20.2"]]}})
