@@ -475,10 +475,10 @@
         declared (declared-fields join-fields renames in-fields)
         to-keep (fields-to-keep gen-seq)
         select-exists (fn [joined]
-                        (->> (map (fn [g join-renames]
-                                    (if (instance? Existence g)
-                                      [(first join-renames) (:out-field g)]))
-                                  gen-seq renames)
+                        (->> (mapcat (fn [g join-renames]
+                                       (if (instance? Existence g)
+                                         [[(first join-renames) (:out-field g)]]))
+                                     gen-seq renames)
                              (reduce (fn [flow [in out]]
                                        (-> flow (identity* in out)))
                                      joined)))]
