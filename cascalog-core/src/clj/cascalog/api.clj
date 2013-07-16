@@ -1,8 +1,6 @@
 (ns cascalog.api
-  (:use [jackknife.core :only (safe-assert throw-runtime uuid)]
-        [jackknife.def :only (defalias)]
-        [jackknife.seq :only (unweave collectify)]
-        [jackknife.meta :only (meta-conj)])
+  (:use [jackknife.core :only (safe-assert uuid)]
+        [jackknife.seq :only (collectify)])
   (:require [clojure.set :as set]
             [cascalog.logic.def :as d]
             [cascalog.logic.algebra :as algebra]
@@ -17,9 +15,9 @@
             [cascalog.cascading.tap :as tap]
             [cascalog.cascading.io :as io]
             [cascalog.cascading.util :refer (generic-cascading-fields?)]
-            [hadoop-util.core :as hadoop])
+            [hadoop-util.core :as hadoop]
+            [jackknife.def :as jd :refer (defalias)])
   (:import [cascading.flow Flow]
-           [cascading.tuple Fields]
            [cascading.tap Tap]
            [jcascalog Subquery]))
 
@@ -230,19 +228,4 @@
 
 ;; ## Class Creation
 
-(defmacro defmain
-  "Defines an AOT-compiled function with the supplied
-  `name`. Containing namespace must be marked for AOT compilation to
-  have any effect."
-  [name & forms]
-  (let [classname (namespace-munge (str *ns* "." name))
-        sym (with-meta
-              (symbol (str name "-main"))
-              (meta name))]
-    `(do (gen-class :name ~classname
-                    :main true
-                    :prefix ~(str name "-"))
-         (defn ~(meta-conj sym {:no-doc true
-                                :skip-wiki true})
-           ~@forms)
-         (defn ~name ~@forms))))
+(defalias defmain jd/defmain)
