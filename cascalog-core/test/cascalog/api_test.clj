@@ -187,19 +187,23 @@
              (evens-vs-odds ?n :> ?e))))
 
 (defn mk-agg-test-tuples []
-  (conj (vec (take 12000 (iterate (fn [[a b]] [(inc a) b]) [0 1]))) [0 10]))
+  (-> (take 10 (iterate (fn [[a b]] [(inc a) b]) [0 1]))
+      (vec)
+      (conj [0 4])))
 
 (defn mk-agg-test-results []
-  (conj (vec (take 11999 (iterate (fn [[a b c]]
-                                    [(inc a) b c])
-                                  [1 1 1])))
-        [0 11 2]))
+  (-> (take 9 (iterate (fn [[a b c]]
+                         [(inc a) b c])
+                       [1 1 1]))
+      (vec)
+      (conj [0 5 2])))
 
-(deftest test-complex-agg-more-than-10000
+(deftest test-complex-agg-more-than-spill-threshold
   (let [num (mk-agg-test-tuples)]
     (test?<- (mk-agg-test-results)
              [?n ?s ?c]
              (num ?n ?v)
+             (:spill-threshold 3)
              (c/sum ?v :> ?s)
              (c/count ?c))))
 
