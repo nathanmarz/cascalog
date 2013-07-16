@@ -1,4 +1,6 @@
 (ns cascalog.logic.def
+  "This namespace contains the tools required to define custom
+   Cascalog operations, instantiated with appropriate metadata."
   (:require [clojure.tools.macro :refer (name-with-attributes)]
             [cascalog.logic.fn :as s]
             [jackknife.core :refer (throw-illegal)]
