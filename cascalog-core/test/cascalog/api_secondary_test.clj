@@ -171,72 +171,84 @@
       (is (= (set [["alicea"] ["boba"]])
              (set (second res)))))))
 
-(comment
-  (deftest test-negation
-    (let [age [["nathan" 25] ["nathan" 24]
-               ["alice" 23] ["george" 31]]
-          gender [["nathan" "m"] ["emily" "f"]
-                  ["george" "m"] ["bob" "m"]]
-          follows [["nathan" "bob"] ["nathan" "alice"]
-                   ["alice" "nathan"] ["alice" "jim"]
-                   ["bob" "nathan"]]]
-      (test?<- [["george"]]
+(deftest test-negation
+  (let [age [["nathan" 25] ["nathan" 24]
+             ["alice" 23] ["george" 31]]
+        gender [["nathan" "m"] ["emily" "f"]
+                ["george" "m"] ["bob" "m"]]
+        follows [["nathan" "bob"] ["nathan" "alice"]
+                 ["alice" "nathan"] ["alice" "jim"]
+                 ["bob" "nathan"]]]
+    (test?<- [["george"]]
+             [?p]
+             (age ?p _)
+             (follows ?p _ :> false)
+             (:distinct false))
+    (test?<- [["nathan"] ["nathan"]
+              ["alice"]]
+             [?p]
+             (age ?p _)
+             (follows ?p _ :> true)
+             (:distinct false))
+    (test?<- [["alice"]]
+             [?p]
+             (age ?p _)
+             (follows ?p "nathan" :> true)
+             (:distinct false))
+    (test?<- [["nathan"] ["nathan"]
+              ["george"]]
+             [?p]
+             (age ?p _)
+             (follows ?p "nathan" :> false)
+             (:distinct false))
+    (test?<- [["nathan" true true] ["nathan" true true]
+              ["alice" true false] ["george" false true]]
+             [?p ?isfollows ?ismale]
+             (age ?p _)
+             (follows ?p _ :> ?isfollows)
+             (gender ?p "m" :> ?ismale)
+             (:distinct false))
+    (test?<- [["nathan" true true]
+              ["nathan" true true]]
+             [?p ?isfollows ?ismale]
+             (age ?p _)
+             (follows ?p _ :> ?isfollows)
+             (gender ?p "m" :> ?ismale)
+             (= ?ismale ?isfollows)
+             (:distinct false))
+    (let [old (<- [?p ?a]
+                  (age ?p ?a)
+                  (> ?a 30)
+                  (:distinct false))]
+      (test?<- [["nathan"] ["bob"]]
                [?p]
-               (age ?p _)
-               (follows ?p _ :> false)
-               (:distinct false))
-      (test?<- [["nathan"] ["nathan"]
-                ["alice"]]
-               [?p]
-               (age ?p _)
-               (follows ?p _ :> true)
-               (:distinct false))
-      (test?<- [["alice"]]
-               [?p]
-               (age ?p _)
-               (follows ?p "nathan" :> true)
-               (:distinct false))
-      (test?<- [["nathan"] ["nathan"]
-                ["george"]]
-               [?p]
-               (age ?p _)
-               (follows ?p "nathan" :> false)
-               (:distinct false))
-      (test?<- [["nathan" true true] ["nathan" true true]
-                ["alice" true false] ["george" false true]]
-               [?p ?isfollows ?ismale]
-               (age ?p _)
-               (follows ?p _ :> ?isfollows)
-               (gender ?p "m" :> ?ismale)
-               (:distinct false))
-      (test?<- [["nathan" true true]
-                ["nathan" true true]]
-               [?p ?isfollows ?ismale]
-               (age ?p _)
-               (follows ?p _ :> ?isfollows)
-               (gender ?p "m" :> ?ismale)
-               (= ?ismale ?isfollows)
-               (:distinct false))
-      (let [old (<- [?p ?a]
-                    (age ?p ?a)
-                    (> ?a 30)
-                    (:distinct false))]
-        (test?<- [["nathan"] ["bob"]]
-                 [?p]
-                 (gender ?p "m")
-                 (old ?p _ :> false)
-                 (:distinct false)))
-      (test?<- [[24] [31]]
-               [?n]
-               (age _ ?n)
-               ([[25] [23]] ?n :> false)
-               (:distinct false))
-      (test?<- [["alice"]]
-               [?p]
-               (age ?p _)
-               ((c/negate gender) ?p _)
-               (:distinct false))))
+               (gender ?p "m")
+               (old ?p _ :> false)
+               (:distinct false)))
+    (test?<- [[24] [31]]
+             [?n]
+             (age _ ?n)
+             ([[25] [23]] ?n :> false)
+             (:distinct false))
+    (test?<- [["alice"]]
+             [?p]
+             (age ?p _)
+             ((c/negate gender) ?p _)
+             (:distinct false))))
 
+  ;; TODO: test within massive joins (more than one join field, after
+  ;; other joins complete, etc.)
+
+(deftest test-negation-operations
+  (let [nums [[1] [2] [3] [4]]
+        pairs [[3 4] [4 5]]]
+    (test?<- [[1] [2] [3]]
+             [?n]
+             (nums ?n)
+             (pairs ?n ?n2 :> false)
+             (odd? ?n2))))
+
+(comment
   (deftest test-first-n
     (let [sq (name-vars [[1 1] [1 3] [1 2] [2 1] [3 4]]
                         ["?a" "?b"])]
@@ -246,17 +258,6 @@
               (c/first-n sq 2 :sort "?a" :reverse true))
       (is (= 2 (count (first (??- (c/first-n sq 2))))))))
 
-  ;; TODO: test within massive joins (more than one join field, after
-  ;; other joins complete, etc.)
-
-  (deftest test-negation-errors
-    (let [nums [[1] [2] [3]]
-          pairs [[3 4] [4 5]]]
-      (thrown?<- Exception
-                 [?n]
-                 (nums ?n)
-                 (pairs ?n ?n2 :> false)
-                 (odd? ?n2))))
 
   (defmultibufferop count-sum [seq1 seq2]
     [[(count seq1) (reduce + (map second seq2))]])

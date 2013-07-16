@@ -639,7 +639,7 @@
               [(conj newseq newval) (merge subs sub)]))
           [[] {}] aseq))
 
-(defn- constant-substitutions
+(defn constant-substitutions
   "Returns a 2-vector of the form
 
    [new variables, {map of newvars to values to substitute}]"

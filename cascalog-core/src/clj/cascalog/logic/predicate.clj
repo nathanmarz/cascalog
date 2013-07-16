@@ -100,19 +100,45 @@
                             (vec unground)
                             " violate(s) the rules.\n\n")))))
 
+;; TODO: This has horrendous duplication with the logically function
+;; inside of operations.clj. The only reason for this duplication is
+;; that I need to know what to name the fields initially -- I need to
+;; know how to run a projection that doesn't clash with any of the
+;; names.
+;;
+;;
+;; I think that the way to fix this is to add a special
+;; "generator-set" type, so that the parsing can properly resolve the
+;; output fields. In the interest of getting the code out the door,
+;; I'm going to push this like it is.
 (defn sanitize-output
   "If the generator has duplicate output fields, this function
   generates duplicates and applies the proper equality operations."
   [gen output]
-  (let [[_ cleaned] (ops/replace-dups output)]
-    [cleaned (reduce (fn [acc [old new]]
-                       (if (= old new)
-                         acc
-                         (-> acc (ops/filter* = [old new]))))
-                     (-> (types/generator gen)
-                         (ops/rename* cleaned)
-                         (ops/filter-nullable-vars cleaned))
-                     (map vector output cleaned))]))
+  (let [[output sub-m] (ops/constant-substitutions output)
+        [_ cleaned] (ops/replace-dups output)
+        gen (reduce (fn [acc [old new]]
+                      (let [acc (if (= old new)
+                                  acc
+                                  (-> acc (ops/filter* = [old new])))]
+                        acc
+                        (if-let [const (sub-m new)]
+                          (if (or (fn? const)
+                                  (u/multifn? const))
+                            (-> acc
+                                (ops/filter* const [old new])
+                                (ops/discard* new))
+                            (let [new-v (v/uniquify-var new)]
+                              (-> acc
+                                  (ops/insert* new-v const)
+                                  (ops/filter* = [new new-v])
+                                  (ops/discard* new-v))))
+                          acc)))
+                    (-> (types/generator gen)
+                        (ops/rename* cleaned)
+                        (ops/filter-nullable-vars cleaned))
+                    (map vector output cleaned))]
+    [cleaned gen]))
 
 (defn generator-node
   "Converts the supplied generator into the proper type of node."

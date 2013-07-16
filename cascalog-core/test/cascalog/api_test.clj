@@ -655,7 +655,157 @@
       (is (thrown? IllegalArgumentException (union e1)))
       (is (thrown? IllegalArgumentException (combine e1))))))
 
+(deftest test-keyword-args
+  (test?<- [[":onetwo"]]
+           [?b]
+           ([["two"]] ?a)
+           (str :one ?a :> ?b))
+
+  (test?<- [["face"]]
+           [?a]
+           ([["face" :cake]] ?a :cake)))
+
+(deftest test-function-sink
+  (let [pairs [[1 2] [2 10]]
+        double-second-sink (fn [sq]
+                             [[[1 2 4] [2 10 20]]
+                              (<- [?a ?b ?c]
+                                  (sq ?a ?b)
+                                  (* 2 ?b :> ?c)
+                                  (:distinct false)) ])]
+    (test?- double-second-sink pairs)))
+
+(deftest test-constant-substitution
+  (let [pairs [[1 2] [1 3] [2 5]]]
+    (test?<- [[1 2]]
+             [?a ?b]
+             (pairs ?a ?b)
+             (* 2 ?b :> 4)
+             (:distinct false))
+
+    (test?<- [[1]]
+             [?a]
+             (pairs ?a ?b)
+             (c/count 2))
+
+    (test?<- [[2]] [?a]
+             (pairs ?a _)
+             (odd? ?a :> false))
+
+    (future-fact
+     "Constants should work in aggregator predicates. See
+      https://github.com/nathanmarz/cascalog/issues/26"
+     (<- [?a ?count]
+         (pairs ?a _)
+         (c/sum 2 :> ?count)) => (produces [[1 4] [2 2]]))))
+
+(defmulti multi-test class)
+(defmethod multi-test String [x] "string!")
+(defmethod multi-test Long [x] "number!")
+(defmethod multi-test Integer [x] "number!")
+(defmethod multi-test Double [x] "double!")
+
+(deftest test-multimethod-support
+  (let [src [["word."] [1] [1.0]]]
+    (test?<- [["string!"] ["number!"] ["double!"]]
+             [?result]
+             (src ?thing)
+             (multi-test ?thing :> ?result))))
+
+
+(defn var-apply [v]
+  "Applies the supplied var v to the supplied `xs`."
+  (mapfn [& xs] (apply v xs)))
+
+(deftest test-var-constants
+  (let [coll-src [[[3 2 4 1]]
+                  [[1 2 3 4 5]]]
+        num-src  [[1 2] [3 4]]]
+    "Each tuple in source is a vector; the sum of each vector
+             should be reflected in the output."
+    (test?<- [[10] [15]]
+             [?sum]
+             (coll-src ?coll)
+             (reduce #'+ ?coll :> ?sum))
+
+    "Operation parameters can be vars or anything kryo serializable."
+    (test?<- [[1 2 2] [3 4 12]]
+             [?x ?y ?z]
+             (num-src ?x ?y)
+             ((var-apply *) ?x ?y :> ?z))
+
+    "Regexes are serializable w/ Kryo."
+    (test?<- [["a" "b"]]
+             [?a ?b]
+             ([["a\tb"]] ?s)
+             ((c/re-parse #"[^\s]+") :< ?s :> ?a ?b))))
+
+(def bob-set
+  (d/filterop* #{"bob"}))
+
+(deftest test-ifn-implementers
+  (let [people [["bob"] ["sam"]]]
+    (fact?<- "A set can be used as a predicate op, provided it's bound
+             to a var."
+             [["bob"]]
+             [?person]
+             (people ?person)
+             (bob-set ?person))))
+
+
+(future-fact "test outer join with functions.")
+
+(future-fact "test mongo"
+             "function required for join"
+             "2 inner join, 2 outer join portion"
+             "functions -> joins -> functions -> joins"
+             "functions that run after outer join"
+             "no aggregator")
+
+(future-fact "Test only complex aggregators.")
+(future-fact "Test only non-complex aggregators.")
+(future-fact "test only one buffer.")
+(future-fact "Test error on missing output fields.")
+
 (comment
+  (deftest test-sample-count
+    (let [numbers [[1] [2] [3] [4] [5] [6] [7] [8] [9] [10]]
+          sampling-query (c/fixed-sample numbers 5)]
+      (fact?<- "sample should return a number of samples equal to the specified
+             sample size param"
+               [[5]]
+               [?count]
+               (sampling-query ?s)
+               (c/count ?count))))
+
+  (deftest test-sample-contents
+    (let [numbers [[1 2] [3 4] [5 6] [7 8] [9 10]]
+          sampling-query (c/fixed-sample numbers 5)]
+      (fact?- "sample should contain some of the inputs"
+              (contains #{[1 2] [3 4] [5 6]} :gaps-ok) sampling-query)))
+
+  (deftest test-select-fields-query
+    (let [wide [[1 2 3 4 5 6]]
+          sq (<- [!f1 !f4 !f5 ?f6]
+                 (wide !f1 !f2 !f3 !f4 !f5 ?f6)
+                 (:distinct false))]
+      (test?- [[1]]     (select-fields sq "!f1"))
+      (test?- [[1 6]]   (select-fields sq ["!f1" "?f6"]))
+      (test?- [[1 6]]   (select-fields sq ["!f1" "?f6"]))
+      (test?- [[5 4 6]] (select-fields sq ["!f5" "!f4" "?f6"]))))
+
+
+  (deftest test-select-fields-tap
+    (let [data (memory-source-tap ["f1" "f2" "f3" "f4"]
+                                  [[1 2 3 4] [11 12 13 14] [21 22 23 24]])]
+      (test?<- [[4 2] [14 12] [24 22]]
+               [?a ?b]
+               ((select-fields data ["f4" "f2"]) ?a ?b))
+
+      #_(test?<- [[1 3 4] [11 13 14] [21 23 24]]
+                 [?f1 ?f2 ?f3]
+                 ((select-fields data ["f1" "f3" "f4"]) ?f1 ?f2 ?f3))))
+
   (deftest memory-self-join-test
     (let [src [["a"]]
           src2 (memory-source-tap [["a"]])]
@@ -804,153 +954,4 @@
                      (:trap trap1))]
           (test?<- [[2]]
                    [?n]
-                   (sq ?n))))))
-
-  (deftest test-select-fields-tap
-    (let [data (memory-source-tap ["f1" "f2" "f3" "f4"]
-                                  [[1 2 3 4] [11 12 13 14] [21 22 23 24]])]
-      (test?<- [[4 2] [14 12] [24 22]]
-               [?a ?b]
-               ((select-fields data ["f4" "f2"]) ?a ?b))
-
-      (test?<- [[1 3 4] [11 13 14] [21 23 24]]
-               [?f1 ?f2 ?f3]
-               ((select-fields data ["f1" "f3" "f4"]) ?f1 ?f2 ?f3))))
-
-  (deftest test-keyword-args
-    (test?<- [[":onetwo"]]
-             [?b]
-             ([["two"]] ?a)
-             (str :one ?a :> ?b))
-
-    (test?<- [["face"]]
-             [?a]
-             ([["face" :cake]] ?a :cake)))
-
-  (deftest test-select-fields-query
-    (let [wide [[1 2 3 4 5 6]]
-          sq (<- [!f1 !f4 !f5 ?f6]
-                 (wide !f1 !f2 !f3 !f4 !f5 ?f6)
-                 (:distinct false))]
-      (test?- [[1]]     (select-fields sq "!f1"))
-      (test?- [[1 6]]   (select-fields sq ["!f1" "?f6"]))
-      (test?- [[1 6]]   (select-fields sq ["!f1" "?f6"]))
-      (test?- [[5 4 6]] (select-fields sq ["!f5" "!f4" "?f6"]))))
-
-  (deftest test-function-sink
-    (let [pairs [[1 2] [2 10]]
-          double-second-sink (fn [sq]
-                               [[[1 2 4] [2 10 20]]
-                                (<- [?a ?b ?c]
-                                    (sq ?a ?b)
-                                    (* 2 ?b :> ?c)
-                                    (:distinct false)) ])]
-      (test?- double-second-sink pairs)))
-
-  (deftest test-constant-substitution
-    (let [pairs [[1 2] [1 3] [2 5]]]
-      (test?<- [[1 2]]
-               [?a ?b]
-               (pairs ?a ?b)
-               (* 2 ?b :> 4)
-               (:distinct false))
-
-      (test?<- [[1]]
-               [?a]
-               (pairs ?a ?b)
-               (c/count 2))
-
-      (test?<- [[2]] [?a]
-               (pairs ?a _)
-               (odd? ?a :> false))
-
-      (future-fact
-       "Constants should work in aggregator predicates. See
-      https://github.com/nathanmarz/cascalog/issues/26"
-       (<- [?a ?count]
-           (pairs ?a _)
-           (c/sum 2 :> ?count)) => (produces [[1 4] [2 2]]))))
-
-  (defmulti multi-test class)
-  (defmethod multi-test String [x] "string!")
-  (defmethod multi-test Long [x] "number!")
-  (defmethod multi-test Integer [x] "number!")
-  (defmethod multi-test Double [x] "double!")
-
-  (deftest test-multimethod-support
-    (let [src [["word."] [1] [1.0]]]
-      (test?<- [["string!"] ["number!"] ["double!"]]
-               [?result]
-               (src ?thing)
-               (multi-test ?thing :> ?result))))
-
-  (defmapop [var-apply [v]]
-    "Applies the supplied var v to the supplied `xs`."
-    [& xs]
-    (apply v xs))
-
-  (deftest test-var-constants
-    (let [coll-src [[[3 2 4 1]]
-                    [[1 2 3 4 5]]]
-          num-src  [[1 2] [3 4]]]
-      (fact?<- "Each tuple in source is a vector; the sum of each vector
-             should be reflected in the output."
-               [[10] [15]]
-               [?sum]
-               (coll-src ?coll)
-               (reduce #'+ ?coll :> ?sum))
-
-      (fact?- "Operation parameters can be vars or anything kryo
-             serializable."
-              [[1 2 2] [3 4 12]]
-              (<- [?x ?y ?z]
-                  (num-src ?x ?y)
-                  (var-apply [#'*] ?x ?y :> ?z))
-
-              "Regexes are serializable w/ Kryo."
-              [["a" "b"]]
-              (<- [?a ?b]
-                  ([["a\tb"]] ?s)
-                  (c/re-parse [#"[^\s]+"] :< ?s :> ?a ?b)))))
-
-  (def bob-set #{"bob"})
-
-  (deftest test-ifn-implementers
-    (let [people [["bob"] ["sam"]]]
-      (fact?<- "A set can be used as a predicate op, provided it's bound
-             to a var."
-               [["bob"]]
-               [?person]
-               (people ?person)
-               (bob-set ?person))))
-
-  (deftest test-sample-count
-    (let [numbers [[1] [2] [3] [4] [5] [6] [7] [8] [9] [10]]
-          sampling-query (c/fixed-sample numbers 5)]
-      (fact?<- "sample should return a number of samples equal to the specified
-             sample size param"
-               [[5]]
-               [?count]
-               (sampling-query ?s)
-               (c/count ?count))))
-
-  (deftest test-sample-contents
-    (let [numbers [[1 2] [3 4] [5 6] [7 8] [9 10]]
-          sampling-query (c/fixed-sample numbers 5)]
-      (fact?- "sample should contain some of the inputs"
-              (contains #{[1 2] [3 4] [5 6]} :gaps-ok) sampling-query)))
-
-  (future-fact "test outer join with functions.")
-
-  (future-fact "test mongo"
-               "function required for join"
-               "2 inner join, 2 outer join portion"
-               "functions -> joins -> functions -> joins"
-               "functions that run after outer join"
-               "no aggregator")
-
-  (future-fact "Test only complex aggregators.")
-  (future-fact "Test only non-complex aggregators.")
-  (future-fact "test only one buffer.")
-  (future-fact "Test error on missing output fields.")
-  )
+                   (sq ?n)))))))
