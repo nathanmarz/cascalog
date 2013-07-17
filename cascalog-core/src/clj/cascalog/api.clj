@@ -2,7 +2,6 @@
   (:use [jackknife.core :only (safe-assert uuid)]
         [jackknife.seq :only (collectify)])
   (:require [clojure.set :as set]
-
             [cascalog.logic.def :as d]
             [cascalog.logic.algebra :as algebra]
             [cascalog.logic.vars :as v]
@@ -15,6 +14,7 @@
             [cascalog.cascading.flow :as flow]
             [cascalog.cascading.operations :as ops]
             [cascalog.cascading.tap :as tap]
+            [cascalog.cascading.types :as types]
             [cascalog.cascading.io :as io]
             [cascalog.cascading.util :refer (generic-cascading-fields?)]
             [hadoop-util.core :as hadoop]
@@ -193,52 +193,34 @@
 ;; TODO: All of these are actually just calling through to "select*"
 ;; in the cascading API.
 
-(defn select-fields
-  "Select fields of a named generator.
+(defprotocol ISelectFields
+  (select-fields [gen fields]
+    "Select fields of a named generator.
 
   Example:
   (<- [?a ?b ?sum]
       (+ ?a ?b :> ?sum)
-      ((select-fields generator [\"?a\" \"?b\"]) ?a ?b))"
-  [sq fields]
-  (parse/project sq fields))
+      ((select-fields generator [\"?a\" \"?b\"]) ?a ?b))"))
 
-(comment
-  (defmulti select-fields
+(extend-protocol ISelectFields
+  TailStruct
+  (select-fields [sq fields]
+    (parse/project sq fields))
 
-    generator-selector)
+  Subquery
+  (select-fields [sq fields]
+    (select-fields (.getCompiledSubquery sq) fields))
 
-  (defmethod select-fields :tap [tap fields]
-    (let [fields (collectify fields)
-          pname  (uuid)
-          outfields (v/gen-nullable-vars (count fields))
-          pipe (w/assemble (w/pipe pname)
-                           (w/identity fields :fn> outfields :> outfields))]
-      (p/predicate p/generator nil true {pname tap} pipe outfields {})))
+  Tap
+  (select-fields [tap fields]
+    (-> (types/generator tap)
+        (ops/select* fields))))
 
-  (defmethod select-fields :generator [query select-fields]
-    (let [select-fields (collectify select-fields)
-          outfields     (:outfields query)]
-      (safe-assert (set/subset? (set select-fields)
-                                (set outfields))
-                   (format "Cannot select % from %."
-                           select-fields
-                           outfields))
-      (merge query
-             {:pipe (w/assemble (:pipe query) (w/select select-fields))
-              :outfields select-fields})))
-
-  (defmethod select-fields :java-subquery [sq fields]
-    (select-fields (.getCompiledSubquery sq)
-                   fields))
-
-  ;; TODO: This should only call rename* on the underlying pipe.
-
-  (defn name-vars [gen vars]
-    (let [vars (collectify vars)]
-      (<- vars
-          (gen :>> vars)
-          (:distinct false)))))
+(defn name-vars [gen vars]
+  (let [vars (collectify vars)]
+    (<- vars
+        (gen :>> vars)
+        (:distinct false))))
 
 ;; ## Defining custom operations
 

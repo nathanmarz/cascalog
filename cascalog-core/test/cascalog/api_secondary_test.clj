@@ -258,7 +258,6 @@
               (c/first-n sq 2 :sort "?a" :reverse true))
       (is (= 2 (count (first (??- (c/first-n sq 2))))))))
 
-
   (defmultibufferop count-sum [seq1 seq2]
     [[(count seq1) (reduce + (map second seq2))]])
 

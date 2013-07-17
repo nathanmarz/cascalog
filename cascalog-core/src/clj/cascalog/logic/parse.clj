@@ -576,18 +576,20 @@
             [(assoc pred :output cleaned)])))
 
 (defn project [tail fields]
-  (let [available (:available-fields tail)]
+  (let [fields (s/collectify fields)
+        available (:available-fields tail)]
     (u/safe-assert (subset? (set fields)
                             (set available))
                    (format "Cannot select % from %."
                            fields
-                           available)))
-  (-> tail
-      (chain #(->Projection % fields))
-      (assoc :available-fields fields)))
+                           available))
+    (-> tail
+        (chain #(->Projection % fields))
+        (assoc :available-fields fields))))
 
 (defn build-rule
   [{:keys [fields predicates] :as input}]
+  (validate-predicates! predicates)
   (let [[options predicates] (opts/extract-options predicates)
         grouped (->> predicates
                      (mapcat expand-outvars)
@@ -629,9 +631,8 @@
   (let [output-fields (v/sanitize output-fields)
         raw-predicates (mapcat p/normalize raw-predicates)]
     (if (query-signature? output-fields)
-      (do (validate-predicates! raw-predicates)
-          (build-rule
-           (p/->RawSubquery output-fields raw-predicates)))
+      (build-rule
+       (p/->RawSubquery output-fields raw-predicates))
       (let [parsed (parse-variables output-fields :<)]
         (pm/build-predmacro (:input parsed)
                             (:output parsed)

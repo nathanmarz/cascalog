@@ -767,6 +767,30 @@
 (future-fact "test only one buffer.")
 (future-fact "Test error on missing output fields.")
 
+;; TODO: Fix select-fields... maybe project is busted.
+(deftest test-select-fields-query
+  (let [wide [[1 2 3 4 5 6]]
+        sq (<- [!f1 !f4 !f5 ?f6]
+               (wide !f1 !f2 !f3 !f4 !f5 ?f6)
+               (:distinct false))]
+    (test?- [[1]]     (select-fields sq "!f1"))
+    (test?- [[1 6]]   (select-fields sq ["!f1" "?f6"]))
+    (test?- [[1 6]]   (select-fields sq ["!f1" "?f6"]))
+    (test?- [[5 4 6]] (select-fields sq ["!f5" "!f4" "?f6"]))))
+
+
+(deftest test-select-fields-tap
+  (let [data (memory-source-tap ["f1" "f2" "f3" "f4"]
+                                [[1 2 3 4] [11 12 13 14] [21 22 23 24]])]
+    (test?<- [[4 2] [14 12] [24 22]]
+             [?a ?b]
+             ((select-fields data ["f4" "f2"]) ?a ?b))
+
+    (test?<- [[1 3 4] [11 13 14] [21 23 24]]
+             [?f1 ?f2 ?f3]
+             ((select-fields data ["f1" "f3" "f4"]) ?f1 ?f2 ?f3))))
+
+
 (comment
   (deftest test-sample-count
     (let [numbers [[1] [2] [3] [4] [5] [6] [7] [8] [9] [10]]
@@ -784,31 +808,8 @@
       (fact?- "sample should contain some of the inputs"
               (contains #{[1 2] [3 4] [5 6]} :gaps-ok) sampling-query)))
 
-  ;; TODO: Fix select-fields... maybe project is busted.
-  (deftest test-select-fields-query
-    (let [wide [[1 2 3 4 5 6]]
-          sq (<- [!f1 !f4 !f5 ?f6]
-                 (wide !f1 !f2 !f3 !f4 !f5 ?f6)
-                 (:distinct false))]
-      (test?- [[1]]     (select-fields sq "!f1"))
-      (test?- [[1 6]]   (select-fields sq ["!f1" "?f6"]))
-      (test?- [[1 6]]   (select-fields sq ["!f1" "?f6"]))
-      (test?- [[5 4 6]] (select-fields sq ["!f5" "!f4" "?f6"]))))
-
-
-  (deftest test-select-fields-tap
-    (let [data (memory-source-tap ["f1" "f2" "f3" "f4"]
-                                  [[1 2 3 4] [11 12 13 14] [21 22 23 24]])]
-      (test?<- [[4 2] [14 12] [24 22]]
-               [?a ?b]
-               ((select-fields data ["f4" "f2"]) ?a ?b))
-
-      #_(test?<- [[1 3 4] [11 13 14] [21 23 24]]
-                 [?f1 ?f2 ?f3]
-                 ((select-fields data ["f1" "f3" "f4"]) ?f1 ?f2 ?f3))))
-
   (deftest memory-self-join-test
-    (let [src [["a"]]
+    (let [src  [["a"]]
           src2 (memory-source-tap [["a"]])]
       (with-expected-sink-sets [empty1 [], empty2 []]
         (test?<- src
