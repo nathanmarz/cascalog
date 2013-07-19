@@ -24,7 +24,7 @@
                  [cascading.kryo "0.4.6"]
                  [com.twitter/carbonite "1.3.2"]
                  [com.twitter/maple "0.2.2"]
-                 [jackknife "0.1.3"]
+                 [jackknife "0.1.4-SNAPSHOT"]
                  [hadoop-util "0.3.0"]]
   :profiles {:1.3 {:dependencies [[org.clojure/clojure "1.3.0"]]}
              :1.4 {:dependencies [[org.clojure/clojure "1.4.0"]]}
