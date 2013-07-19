@@ -1,6 +1,6 @@
 (ns cascalog.math.stats
   (:use cascalog.api)
-  (:require [cascalog.ops :as c]))
+  (:require [cascalog.logic.ops :as c]))
 
 (def variance
   "Predicate macro that calculates the variance of the supplied input
