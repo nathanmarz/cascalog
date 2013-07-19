@@ -5,7 +5,7 @@
         midje.cascalog
         [midje.cascalog.impl :only [execute]]
         [clojure.math.combinatorics :only [permutations]])
-  (:require [cascalog.ops :as c]))
+  (:require [cascalog.logic.ops :as c]))
 
 ;; ## Testing Battery
 
