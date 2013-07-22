@@ -1,7 +1,7 @@
 (ns cascalog.lzo-test
   (:use [cascalog lzo api]
         [midje sweet cascalog])
-  (:require [cascalog.io :as io]))
+  (:require [cascalog.cascading.io :as io]))
 
 (fact "Test round tripping."
   (io/with-fs-tmp [_ tmp]
