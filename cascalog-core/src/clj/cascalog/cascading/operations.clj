@@ -300,8 +300,8 @@
 (defn unique
   "Performs a unique on the input pipe by the supplied fields."
   ([flow] (unique flow Fields/ALL))
-  ([flow unique-fields]
-     (group-by* flow unique-fields [(unique-aggregator)])))
+  ([flow unique-fields & options]
+     (apply group-by* flow unique-fields [(unique-aggregator)] options)))
 
 (defn union*
   "Merges the supplied flows and ensures uniqueness of the resulting
@@ -475,10 +475,10 @@
         declared (declared-fields join-fields renames in-fields)
         to-keep (fields-to-keep gen-seq)
         select-exists (fn [joined]
-                        (->> (map (fn [g join-renames]
-                                    (if (instance? Existence g)
-                                      [(first join-renames) (:out-field g)]))
-                                  gen-seq renames)
+                        (->> (mapcat (fn [g join-renames]
+                                       (if (instance? Existence g)
+                                         [[(first join-renames) (:out-field g)]]))
+                                     gen-seq renames)
                              (reduce (fn [flow [in out]]
                                        (-> flow (identity* in out)))
                                      joined)))]
@@ -639,7 +639,7 @@
               [(conj newseq newval) (merge subs sub)]))
           [[] {}] aseq))
 
-(defn- constant-substitutions
+(defn constant-substitutions
   "Returns a 2-vector of the form
 
    [new variables, {map of newvars to values to substitute}]"

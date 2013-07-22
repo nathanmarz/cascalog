@@ -1,26 +1,28 @@
 (ns cascalog.api
-  (:use [jackknife.core :only (safe-assert throw-runtime uuid)]
-        [jackknife.def :only (defalias)]
-        [jackknife.seq :only (unweave collectify)]
-        [jackknife.meta :only (meta-conj)])
+  (:use [jackknife.core :only (safe-assert uuid)]
+        [jackknife.seq :only (collectify)])
   (:require [clojure.set :as set]
             [cascalog.logic.def :as d]
             [cascalog.logic.algebra :as algebra]
             [cascalog.logic.vars :as v]
             [cascalog.logic.predicate :as p]
             [cascalog.logic.parse :as parse]
+            [cascalog.logic.predmacro :as pm]
             [cascalog.cascading.platform :refer (compile-query)]
             [cascalog.cascading.tap :as tap]
             [cascalog.cascading.conf :as conf]
             [cascalog.cascading.flow :as flow]
             [cascalog.cascading.operations :as ops]
             [cascalog.cascading.tap :as tap]
+            [cascalog.cascading.types :as types]
             [cascalog.cascading.io :as io]
             [cascalog.cascading.util :refer (generic-cascading-fields?)]
-            [hadoop-util.core :as hadoop])
+            [hadoop-util.core :as hadoop]
+            [jackknife.def :as jd :refer (defalias)])
   (:import [cascading.flow Flow]
-           [cascading.tuple Fields]
            [cascading.tap Tap]
+           [cascalog.logic.parse TailStruct]
+           [cascalog.cascading.tap CascalogTap]
            [jcascalog Subquery]))
 
 ;; Functions for creating taps and tap helpers
@@ -39,33 +41,52 @@
 
 ;; ## Query introspection
 
-(defn- generator-selector [gen & _]
-  (cond (instance? Tap gen) :tap
-        (instance? Subquery gen) :java-subquery
-        :else (:type gen)))
+(defprotocol IOutputFields
+  (get-out-fields [_] "Get the fields of a generator."))
 
-(defmulti get-out-fields
-  "Get the fields of a generator."
-  generator-selector)
+(extend-protocol IOutputFields
+  Tap
+  (get-out-fields [tap]
+    (let [cfields (.getSourceFields tap)]
+      (safe-assert (not (generic-cascading-fields? cfields))
+                   (str "Cannot get specific out-fields from tap. Tap source fields: "
+                        cfields))
+      (vec (seq cfields))))
 
-(defmethod get-out-fields :tap [tap]
-  (let [cfields (.getSourceFields tap)]
-    (safe-assert (not (generic-cascading-fields? cfields))
-                 (str "Cannot get specific out-fields from tap. Tap source fields: "
-                      cfields))
-    (vec (seq cfields))))
+  TailStruct
+  (get-out-fields [tail]
+    (:available-fields tail))
 
-(defmethod get-out-fields :generator [query]
-  (:outfields query))
+  Subquery
+  (get-out-fields [sq]
+    (get-out-fields (.getCompiledSubquery sq)))
 
-(defmethod get-out-fields :java-subquery [sq]
-  (get-out-fields (.getCompiledSubquery sq)))
+  CascalogTap
+  (get-out-fields [tap]
+    (get-out-fields (:source tap))))
 
-(defn num-out-fields [gen]
-  (if (or (list? gen) (vector? gen))
-    (count (first gen))
-    ;; TODO: should pluck from Tap if it doesn't define out-fields
-    (count (get-out-fields gen))))
+(defprotocol INumOutFields
+  (num-out-fields [_]))
+
+;; TODO: num-out-fields should try and pluck from Tap if it doesn't
+;; define output fields, rather than just throwing immediately.
+
+(extend-protocol INumOutFields
+  CascalogTap
+  (num-out-fields [tap]
+    (num-out-fields (:source tap)))
+
+  clojure.lang.ISeq
+  (num-out-fields [x]
+    (count (collectify (first x))))
+
+  clojure.lang.IPersistentVector
+  (num-out-fields [x]
+    (count (collectify (peek x))))
+
+  Tap
+  (num-out-fields [x]
+    (count (get-out-fields x))))
 
 ;; ## Knobs for Hadoop
 
@@ -100,6 +121,12 @@
      (let [^Flow flow (compile-flow sink-tap query)]
        (.writeDOT flow outfile))))
 
+(defn normalize-sink-connection [sink subquery]
+  (cond (fn? sink) (sink subquery)
+        (instance? CascalogTap sink)
+        (normalize-sink-connection (:sink sink) subquery)
+        :else [sink subquery]))
+
 (defn ?-
   "Executes 1 or more queries and emits the results of each query to
   the associated tap.
@@ -110,7 +137,10 @@
    If the first argument is a string, that will be used as the name
   for the query and will show up in the JobTracker UI."
   [& bindings]
-  (flow/run! (apply compile-flow bindings)))
+  (let [[name bindings] (flow/parse-exec-args bindings)
+        bindings (mapcat (partial apply normalize-sink-connection)
+                         (partition 2 bindings))]
+    (flow/run! (apply compile-flow name bindings))))
 
 (defn ??-
   "Executes one or more queries and returns a seq of seqs of tuples
@@ -121,7 +151,8 @@
   If the first argument is a string, that will be used as the name
   for the query and will show up in the JobTracker UI."
   [& args]
-  (apply flow/all-to-memory (map compile-query args)))
+  (let [[name args] (flow/parse-exec-args args)]
+    (apply flow/all-to-memory name (map compile-query args))))
 
 (defmacro ?<-
   "Helper that both defines and executes a query in a single call.
@@ -140,8 +171,8 @@
   [& args]
   `(first (??- (<- ~@args))))
 
-(defalias predmacro* parse/predmacro*)
-(defalias predmacro parse/predmacro)
+(defalias predmacro* pm/predmacro*)
+(defalias predmacro pm/predmacro)
 
 ;; TODO: Obviously these are still a little busted. We need to go
 ;; ahead and rename everyone to the same shit.
@@ -162,47 +193,34 @@
 ;; TODO: All of these are actually just calling through to "select*"
 ;; in the cascading API.
 
-(comment
-  (defmulti select-fields
+(defprotocol ISelectFields
+  (select-fields [gen fields]
     "Select fields of a named generator.
 
   Example:
   (<- [?a ?b ?sum]
       (+ ?a ?b :> ?sum)
-      ((select-fields generator [\"?a\" \"?b\"]) ?a ?b))"
-    generator-selector)
+      ((select-fields generator [\"?a\" \"?b\"]) ?a ?b))"))
 
-  (defmethod select-fields :tap [tap fields]
-    (let [fields (collectify fields)
-          pname  (uuid)
-          outfields (v/gen-nullable-vars (count fields))
-          pipe (w/assemble (w/pipe pname)
-                           (w/identity fields :fn> outfields :> outfields))]
-      (p/predicate p/generator nil true {pname tap} pipe outfields {})))
+(extend-protocol ISelectFields
+  TailStruct
+  (select-fields [sq fields]
+    (parse/project sq fields))
 
-  (defmethod select-fields :generator [query select-fields]
-    (let [select-fields (collectify select-fields)
-          outfields     (:outfields query)]
-      (safe-assert (set/subset? (set select-fields)
-                                (set outfields))
-                   (format "Cannot select % from %."
-                           select-fields
-                           outfields))
-      (merge query
-             {:pipe (w/assemble (:pipe query) (w/select select-fields))
-              :outfields select-fields})))
+  Subquery
+  (select-fields [sq fields]
+    (select-fields (.getCompiledSubquery sq) fields))
 
-  (defmethod select-fields :java-subquery [sq fields]
-    (select-fields (.getCompiledSubquery sq)
-                   fields))
+  Tap
+  (select-fields [tap fields]
+    (-> (types/generator tap)
+        (ops/select* fields))))
 
-  ;; TODO: This should only call rename* on the underlying pipe.
-
-  (defn name-vars [gen vars]
-    (let [vars (collectify vars)]
-      (<- vars
-          (gen :>> vars)
-          (:distinct false)))))
+(defn name-vars [gen vars]
+  (let [vars (collectify vars)]
+    (<- vars
+        (gen :>> vars)
+        (:distinct false))))
 
 ;; ## Defining custom operations
 
@@ -230,19 +248,4 @@
 
 ;; ## Class Creation
 
-(defmacro defmain
-  "Defines an AOT-compiled function with the supplied
-  `name`. Containing namespace must be marked for AOT compilation to
-  have any effect."
-  [name & forms]
-  (let [classname (namespace-munge (str *ns* "." name))
-        sym (with-meta
-              (symbol (str name "-main"))
-              (meta name))]
-    `(do (gen-class :name ~classname
-                    :main true
-                    :prefix ~(str name "-"))
-         (defn ~(meta-conj sym {:no-doc true
-                                :skip-wiki true})
-           ~@forms)
-         (defn ~name ~@forms))))
+(defalias defmain jd/defmain)

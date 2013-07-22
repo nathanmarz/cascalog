@@ -1,7 +1,6 @@
 (ns cascalog.logic.parse
   (:require [clojure.string :refer (join)]
             [clojure.set :refer (difference intersection union subset?)]
-            [clojure.walk :refer (postwalk)]
             [clojure.zip :as czip]
             [jackknife.core :as u :refer (throw-illegal throw-runtime)]
             [jackknife.seq :as s]
@@ -10,132 +9,13 @@
             [cascalog.logic.vars :as v]
             [cascalog.logic.zip :as zip]
             [cascalog.logic.predicate :as p]
+            [cascalog.logic.predmacro :as pm]
             [cascalog.logic.options :as opts]
             [cascalog.cascading.types :refer (generator?)])
   (:import [jcascalog Predicate PredicateMacro PredicateMacroTemplate]
            [cascalog.logic.predicate Operation FilterOperation Aggregator
-            Generator GeneratorSet]
+            Generator GeneratorSet RawPredicate]
            [clojure.lang IPersistentVector]))
-
-(defprotocol IRawPredicate
-  (normalize [_]
-    "Returns a sequence of RawPredicate instances."))
-
-;; Raw Predicate type.
-
-(defrecord RawPredicate [op input output]
-  IRawPredicate
-  (normalize [p] [p]))
-
-;; ## Predicate Macro Building Functions
-
-;; TODO: expand should return a vector of RawPredicate instances.
-;;
-;; "expand" is called from "normalize" in cascalog.parse. The parsing
-;;  code takes care of the recursive expansion needed on the results
-;;  of a call to "expand".
-
-(defprotocol IPredMacro
-  (expand [_ input output]
-    "Returns a sequence of vectors suitable to feed into
-    cascalog.parse/normalize."))
-
-(extend-protocol p/ICouldFilter
-  cascalog.logic.parse.IPredMacro
-  (filter? [_] true))
-
-(extend-protocol IPredMacro
-  ;; Predicate macro templates really should just extend this protocol
-  ;; directly. getCompiledPredMacro calls into build-predmacro below
-  ;; and returns a reified instance of IPredMacro.
-  PredicateMacroTemplate
-  (expand [p input output]
-    ((.getCompiledPredMacro p) input output))
-
-  ;; TODO: jCascalog shold just use these interfaces directly. If this
-  ;; were the case, we wouldn't have to extend the protocol here.
-  PredicateMacro
-  (expand [p input output]
-    (letfn [(to-fields [fields]
-              (jcascalog.Fields. (or fields [])))]
-      (-> p (.getPredicates (to-fields input)
-                            (to-fields output))))))
-
-(defn predmacro? [o]
-  (satisfies? IPredMacro o))
-
-;; kind of a hack, simulate using pred macros like filters
-
-(defn use-as-filter?
-  "If a predicate macro had a single output variable defined and you
-  try to use it with no output variables, the predicate macro acts as
-  a filter."
-  [output-decl outvars]
-  (and (empty? outvars)
-       (sequential? output-decl)
-       (= 1 (count output-decl))))
-
-(defn predmacro*
-  "Functional version of predmacro. See predmacro for details."
-  [fun]
-  (reify IPredMacro
-    (expand [_ invars outvars]
-      (fun invars outvars))))
-
-(defmacro predmacro
-  "A more general but more verbose way to create predicate macros.
-
-   Creates a function that takes in [invars outvars] and returns a
-   list of predicates. When making predicate macros this way, you must
-   create intermediate variables with gen-nullable-var(s). This is
-   because unlike the (<- [?a :> ?b] ...) way of doing pred macros,
-   Cascalog doesn't have a declaration for the inputs/outputs.
-
-   See https://github.com/nathanmarz/cascalog/wiki/Predicate-macros
-  "
-  [& body]
-  `(predmacro* (fn ~@body)))
-
-(defn validate-declarations!
-  "Assert that the same variables aren't used on input and output when
-  defining a predicate macro."
-  [input-decl output-decl]
-  (when (seq (intersection (set input-decl)
-                           (set output-decl)))
-    ;; TODO: ignore destructuring characters and check that no
-    ;; constants are present.
-    (throw-runtime (format
-                    (str "Cannot declare the same var as "
-                         "an input and output to predicate macro: %s %s")
-                    input-decl output-decl))))
-
-(defn build-predmacro
-  "Build a predicate macro via input and output declarations. This
-  function takes a sequence of declared inputs, a seq of declared
-  outputs and a sequence of raw predicates. Upon use, any variable
-  name not in the input or output declarations will be replaced with a
-  random Cascalog variable (uniqued by appending a suffix, so nullable
-  vs non-nullable will be maintained)."
-  [input-decl output-decl raw-predicates]
-  (validate-declarations! input-decl output-decl)
-  (reify IPredMacro
-    (expand [_ invars outvars]
-      (let [outvars (if (use-as-filter? output-decl outvars)
-                      [true]
-                      outvars)
-            replacement-m (s/mk-destructured-seq-map input-decl invars
-                                                     output-decl outvars)
-            update (memoize (fn [v]
-                              (if (v/cascalog-var? v)
-                                (replacement-m (str v) (v/uniquify-var v))
-                                v)))]
-        (->> raw-predicates
-             (mapcat (fn [pred]
-                       (map (fn [{:keys [input output] :as p}]
-                              (-> p
-                                  (assoc :input  (postwalk update input))
-                                  (assoc :output (postwalk update output))))
-                            (normalize pred)))))))))
 
 ;; ## Variable Parsing
 
@@ -223,19 +103,19 @@
           (p/filter? op))
     :< :>))
 
-(extend-protocol IRawPredicate
+(extend-protocol p/IRawPredicate
   Predicate
   (normalize [p]
-    (normalize (into [] (.toRawCascalogPredicate p))))
+    (p/normalize (into [] (.toRawCascalogPredicate p))))
 
   IPersistentVector
   (normalize [[op & rest]]
     (let [mk-single (fn [op in out]
-                      [(->RawPredicate op (not-empty in) (not-empty out))])
+                      [(p/->RawPredicate op (not-empty in) (not-empty out))])
           default (default-selector op)
           {:keys [input output]} (parse-variables rest (default-selector op))]
-      (if (predmacro? op)
-        (mapcat normalize (expand op input output))
+      (if (pm/predmacro? op)
+        (mapcat p/normalize (pm/expand op input output))
         (mk-single op input output)))))
 
 ;; ## Unground Var Validation
@@ -274,40 +154,6 @@
     (throw-illegal "Cannot specify a sort when there are no aggregators"))
   (when (> (count buffers) 1)
     (throw-illegal "Multiple buffers aren't allowed in the same subquery.")))
-
-;; Output of the subquery, the predicates it contains and the options
-;; in the subquery.
-;;
-(defrecord RawSubquery [fields predicates])
-
-;; Printing Methods
-;;
-;; The following methods allow a predicate to print properly.
-
-(defmethod print-method RawPredicate
-  [{:keys [op input output]} ^java.io.Writer writer]
-  (binding [*out* writer]
-    (let [op (if (ifn? op)
-               (let [op (or (::d/op (meta op)) op)]
-                 (or (search-for-var op) op))
-               op)]
-      (print (str "(" op " "))
-      (doseq [v (join " " input)]
-        (print v))
-      (when (not-empty output)
-        (print " :> ")
-        (doseq [v (join " " output)]
-          (print v)))
-      (println ")"))))
-
-(defmethod print-method RawSubquery
-  [{:keys [fields predicates]} ^java.io.Writer writer]
-  (binding [*out* writer]
-    (println "(<-" (vec fields))
-    (doseq [pred predicates]
-      (print "    ")
-      (print-method pred writer))
-    (println "    )")))
 
 (defn validate-predicates! [preds]
   (let [grouped (group-by (fn [x]
@@ -680,10 +526,11 @@
   [generators operations]
   (->> generators
        (map (fn [gen]
-              (let [node (if (instance? GeneratorSet gen)
-                           (->ExistenceNode (:generator gen)
-                                            (:join-set-var gen))
-                           gen)]
+              (let [[gen node] (if (instance? GeneratorSet gen)
+                                 [(:generator gen)
+                                  (->ExistenceNode (:generator gen)
+                                                   (:join-set-var gen))]
+                                 [gen gen])]
                 (->TailStruct node
                               (v/fully-ground? (:fields gen))
                               (:fields gen)
@@ -697,7 +544,7 @@
         have-set (set available)]
     (when-not (subset? want-set have-set)
       (let [inter (intersection have-set want-set)
-            diff  (difference have-set want-set)]
+            diff  (difference want-set have-set)]
         (throw-runtime (str "Only able to build to " (vec inter)
                             " but need " (vec needed)
                             ". Missing " (vec diff)))))))
@@ -716,10 +563,10 @@
               (let [newvar (v/gen-nullable-var)]
                 [(conj new-output newvar)
                  (conj pred-acc
-                       (map->RawPredicate (if (or (fn? v)
-                                                  (u/multifn? v))
-                                            {:op v :input [newvar]}
-                                            {:op = :input [v newvar]})))])))
+                       (p/map->RawPredicate (if (or (fn? v)
+                                                    (u/multifn? v))
+                                              {:op v :input [newvar]}
+                                              {:op = :input [v newvar]})))])))
           [[] []]
           output))
 
@@ -728,8 +575,21 @@
     (concat new-preds
             [(assoc pred :output cleaned)])))
 
+(defn project [tail fields]
+  (let [fields (s/collectify fields)
+        available (:available-fields tail)]
+    (u/safe-assert (subset? (set fields)
+                            (set available))
+                   (format "Cannot select % from %."
+                           fields
+                           available))
+    (-> tail
+        (chain #(->Projection % fields))
+        (assoc :available-fields fields))))
+
 (defn build-rule
   [{:keys [fields predicates] :as input}]
+  (validate-predicates! predicates)
   (let [[options predicates] (opts/extract-options predicates)
         grouped (->> predicates
                      (mapcat expand-outvars)
@@ -748,7 +608,7 @@
         agg-tail (build-agg-tail joined aggs grouping-fields options)
         {:keys [operations available-fields] :as tail} (add-ops-fixed-point agg-tail)]
     (validate-projection! operations fields available-fields)
-    (chain tail #(->Projection % fields))))
+    (project tail fields)))
 
 ;; ## Predicate Parsing
 ;;
@@ -769,15 +629,14 @@
   "Parses predicates and output fields and returns a proper subquery."
   [output-fields raw-predicates]
   (let [output-fields (v/sanitize output-fields)
-        raw-predicates (mapcat normalize raw-predicates)]
+        raw-predicates (mapcat p/normalize raw-predicates)]
     (if (query-signature? output-fields)
-      (do (validate-predicates! raw-predicates)
-          (build-rule
-           (->RawSubquery output-fields raw-predicates)))
+      (build-rule
+       (p/->RawSubquery output-fields raw-predicates))
       (let [parsed (parse-variables output-fields :<)]
-        (build-predmacro (:input parsed)
-                         (:output parsed)
-                         raw-predicates)))))
+        (pm/build-predmacro (:input parsed)
+                            (:output parsed)
+                            raw-predicates)))))
 
 (defmacro <-
   "Constructs a query or predicate macro from a list of

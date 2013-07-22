@@ -1,24 +1,61 @@
 (ns cascalog.logic.predicate
   "TODO: We need to remove all of the Cascading implementations from
    here. The extensions to to-predicate."
-  (:require [jackknife.core :as u]
+  (:require [clojure.string :refer (join)]
+            [jackknife.core :as u]
             [cascalog.logic.vars :as v]
             [cascalog.logic.def :as d]
-            [cascalog.cascading.util :as casc]
+            [cascalog.logic.fn :refer (search-for-var)]
             [cascalog.cascading.operations :as ops]
-            [cascalog.cascading.types :as types]
-            [cascalog.cascading.flow :as f])
+            [cascalog.cascading.types :as types])
   (:import [clojure.lang IFn]
            [cascalog.logic.def ParallelAggregator Prepared]
-           [cascalog.cascading.types IGenerator]
-           [cascading.pipe Each Every]
-           [cascading.tap Tap]
-           [cascading.operation Filter]
            [jcascalog Subquery ClojureOp]
-           [cascalog CascalogFunction
-            CascalogFunctionExecutor CascadingFilterToFunction
-            CascalogBuffer CascalogBufferExecutor CascalogAggregator
-            CascalogAggregatorExecutor ClojureParallelAgg ParallelAgg]))
+           [cascalog CascalogFunction CascalogBuffer CascalogAggregator ParallelAgg]))
+
+(defprotocol IRawPredicate
+  (normalize [_]
+    "Returns a sequence of RawPredicate instances."))
+
+;; Raw Predicate type.
+
+(defrecord RawPredicate [op input output]
+  IRawPredicate
+  (normalize [p] [p]))
+
+;; Output of the subquery, the predicates it contains and the options
+;; in the subquery.
+
+(defrecord RawSubquery [fields predicates])
+
+;; Printing Methods
+;;
+;; The following methods allow a predicate to print properly.
+
+(defmethod print-method RawPredicate
+  [{:keys [op input output]} ^java.io.Writer writer]
+  (binding [*out* writer]
+    (let [op (if (ifn? op)
+               (let [op (or (::d/op (meta op)) op)]
+                 (or (search-for-var op) op))
+               op)]
+      (print (str "(" op " "))
+      (doseq [v (join " " input)]
+        (print v))
+      (when (not-empty output)
+        (print " :> ")
+        (doseq [v (join " " output)]
+          (print v)))
+      (println ")"))))
+
+(defmethod print-method RawSubquery
+  [{:keys [fields predicates]} ^java.io.Writer writer]
+  (binding [*out* writer]
+    (println "(<-" (vec fields))
+    (doseq [pred predicates]
+      (print "    ")
+      (print-method pred writer))
+    (println "    )")))
 
 ;; ## ICouldFilter
 
@@ -63,19 +100,45 @@
                             (vec unground)
                             " violate(s) the rules.\n\n")))))
 
+;; TODO: This has horrendous duplication with the logically function
+;; inside of operations.clj. The only reason for this duplication is
+;; that I need to know what to name the fields initially -- I need to
+;; know how to run a projection that doesn't clash with any of the
+;; names.
+;;
+;;
+;; I think that the way to fix this is to add a special
+;; "generator-set" type, so that the parsing can properly resolve the
+;; output fields. In the interest of getting the code out the door,
+;; I'm going to push this like it is.
 (defn sanitize-output
   "If the generator has duplicate output fields, this function
   generates duplicates and applies the proper equality operations."
   [gen output]
-  (let [[_ cleaned] (ops/replace-dups output)]
-    [cleaned (reduce (fn [acc [old new]]
-                       (if (= old new)
-                         acc
-                         (-> acc (ops/filter* = [old new]))))
-                     (-> (types/generator gen)
-                         (ops/rename* cleaned)
-                         (ops/filter-nullable-vars cleaned))
-                     (map vector output cleaned))]))
+  (let [[output sub-m] (ops/constant-substitutions output)
+        [_ cleaned] (ops/replace-dups output)
+        gen (reduce (fn [acc [old new]]
+                      (let [acc (if (= old new)
+                                  acc
+                                  (-> acc (ops/filter* = [old new])))]
+                        acc
+                        (if-let [const (sub-m new)]
+                          (if (or (fn? const)
+                                  (u/multifn? const))
+                            (-> acc
+                                (ops/filter* const [old new])
+                                (ops/discard* new))
+                            (let [new-v (v/uniquify-var new)]
+                              (-> acc
+                                  (ops/insert* new-v const)
+                                  (ops/filter* = [new new-v])
+                                  (ops/discard* new-v))))
+                          acc)))
+                    (-> (types/generator gen)
+                        (ops/rename* cleaned)
+                        (ops/filter-nullable-vars cleaned))
+                    (map vector output cleaned))]
+    [cleaned gen]))
 
 (defn generator-node
   "Converts the supplied generator into the proper type of node."
@@ -128,73 +191,42 @@
   [op input output]
   (->Operation op input output))
 
-(defmethod to-predicate Filter
-  [op input output]
-  (u/safe-assert (#{0 1} (count output)) "Must emit 0 or 1 fields from filter")
-  (if (empty? output)
-    (->FilterOperation op input)
-    (->Operation op input output)))
-
 (defmethod to-predicate CascalogFunction
   [op input output]
   (->Operation op input output))
 
 ;; ## Aggregators
-
+;;
+;; TODO: Get these impls out and back into the cascading executor.
 (defmethod to-predicate ::d/buffer
   [op input output]
-  (->Aggregator (fn [in out]
-                  (ops/buffer op in out))
-                input output))
+  (->Aggregator op input output))
 
 (defmethod to-predicate ::d/bufferiter
   [op input output]
-  (->Aggregator (fn [in out] (ops/bufferiter op in out))
-                input
-                output))
+  (->Aggregator op input output))
 
 (defmethod to-predicate ::d/aggregate
   [op input output]
-  (->Aggregator (fn [in out] (ops/agg op in out))
-                input
-                output))
+  (->Aggregator op input output))
 
 (defmethod to-predicate ::d/combiner
   [op input output]
-  (->Aggregator (fn [in out] (ops/parallel-agg op in out))
-                input
-                output))
+  (->Aggregator op input output))
 
 (defmethod to-predicate ParallelAggregator
   [op input output]
-  (->Aggregator (fn [in out]
-                  (ops/parallel-agg (:combine-var op) in out
-                                    :init-var (:init-var op)
-                                    :present-var (:present-var op)))
-                input output))
+  (->Aggregator op input output))
 
 (defmethod to-predicate CascalogBuffer
   [op input output]
-  (->Aggregator (fn [in out]
-                  (reify ops/IBuffer
-                    (add-buffer [_ pipe]
-                      (Every. pipe in
-                              (CascalogBufferExecutor. (casc/fields out) op)))))
-                input
-                output))
+  (->Aggregator op input output))
 
 ;; TODO: jcascalog ParallelAgg.
 
 (defmethod to-predicate CascalogAggregator
   [op input output]
-  (->Aggregator (fn [in out]
-                  (reify ops/IAggregator
-                    (add-aggregator [_ pipe]
-                      (Every. pipe in
-                              (CascalogAggregatorExecutor. (casc/fields out) op)))))
-
-                input
-                output))
+  (->Aggregator op input output))
 
 (defn build-predicate
   "Accepts an option map and a raw predicate and returns a node in the
@@ -206,11 +238,12 @@
         :else                   (to-predicate op input output)))
 
 (comment
+  (require '[cascalog.cascading.flow :as f])
   "TODO: Convert to test."
   (let [gen (-> (types/generator [1 2 3 4])
                 (ops/rename* "?x"))
         pred (to-predicate * ["?a" "?a"] ["?b"])]
     (fact
-     (f/to-memory
-      ((:op pred) gen ["?x" "?x"] "?z"))
-     => [[1 1] [2 4] [3 9] [4 16]])))
+      (f/to-memory
+       ((:op pred) gen ["?x" "?x"] "?z"))
+      => [[1 1] [2 4] [3 9] [4 16]])))
