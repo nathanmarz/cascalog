@@ -174,14 +174,15 @@
 
 (defn get-version [dep]
   ;; read the project version from the pom.properties file in the jar
-  (let [path (str "META-INF/maven/"(name dep) "/pom.properties")
+  (let [path (str "META-INF/maven/" (name dep) "/pom.properties")
         props (io/resource path)]
     (when props
       (with-open [stream (io/input-stream props)]
         (let [props (doto (Properties.) (.load stream))]
           (.getProperty props "version"))))))
 
-; being a good citizen in the cascading ecosystem and set the framework property
 (System/setProperty AppProps/APP_FRAMEWORKS 
+  ;; being a good citizen in the cascading ecosystem and set the framework 
+  ;; property
        (s/join "", ["cascalog", ":" 
             (get-version "cascalog/cascalog-core")]))
