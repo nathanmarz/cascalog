@@ -3,8 +3,8 @@
         [jackknife.core :only (update-vals)]
         [jackknife.seq :only (unweave merge-to-vec collectify)])
   (:require [clojure.string :as s])
+  (:require [clojure.java.io :as io]) 
   (:import [java.util UUID]))
-
 (defn multifn? [x]
   (instance? clojure.lang.MultiFn x))
 
@@ -167,4 +167,3 @@
        (filter (complement recent-eval?))
        (sort-by (fn [v] (if (-> v meta :dynamic) 1 0)))
        first))
-
