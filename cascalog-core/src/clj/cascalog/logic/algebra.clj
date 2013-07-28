@@ -19,7 +19,6 @@
 
   clojure.lang.IPersistentMap
   (plus [l r]
-    (prn l r)
     (merge-with plus l r)))
 
 (defn sum [items]

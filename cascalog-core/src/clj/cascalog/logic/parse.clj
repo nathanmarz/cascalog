@@ -189,54 +189,61 @@
   zip/TreeNode
   (branch? [_] true)
   (children [_] sources)
-  (make-node [_ children]
-             (->Merge children)))
+  (make-node [node children]
+             (assoc node :sources children)))
 
 (p/defnode TailStruct [node ground? available-fields operations]
   algebra/Semigroup
   (plus [l r]
         (assert (and (:ground? l) (:ground? r))
                 "Both tails must be ground.")
-        (p/node-assoc l
+        (assoc l
           :node (->Merge [(:node l) (:node r)])
           :operations (union (:operations l)
                              (:operations r))))
   zip/TreeNode
   (branch? [_] true)
   (children [_] [node])
-  (make-node [_ children]
-             (->TailStruct (first children) ground? available-fields operations)))
+  (make-node [this children]
+             (assoc this :node (first children))))
 
 ;; ExistenceNode is the same as a GeneratorSet, basically.
 (p/defnode ExistenceNode [source output-field]
   zip/TreeNode
   (branch? [_] true)
   (children [_] [source])
-  (make-node [_ children]
-             (->ExistenceNode (first children) output-field)))
+  (make-node [node children]
+             (assoc node :source (first children))))
 
 ;; For function applications.
 (p/defnode Application [source operation]
   zip/TreeNode
   (branch? [_] true)
   (children [_] [source])
-  (make-node [_ children]
-             (->Application (first children) operation)))
+  (make-node [node children]
+             (assoc node :source (first children))))
+
+(p/defnode Rename [source fields]
+  zip/TreeNode
+  (branch? [_] true)
+  (children [_] [source])
+  (make-node [node children]
+             (assoc node :source (first children))))
 
 (p/defnode Projection [source fields]
   zip/TreeNode
   (branch? [_] true)
   (children [_] [source])
-  (make-node [_ children]
-             (->Projection (first children) fields)))
+  (make-node [node children]
+             (assoc node :source (first children))))
 
 ;; For filters.
 (p/defnode FilterApplication [source filter]
   zip/TreeNode
   (branch? [_] true)
   (children [_] [source])
-  (make-node [_ children]
-             (->FilterApplication (first children) filter)))
+  (make-node [node children]
+             (assoc node :source (first children))))
 
 ;; TODO: Potentially add aggregations into the join. This node
 ;; combines many sources.
@@ -244,25 +251,25 @@
   zip/TreeNode
   (branch? [_] true)
   (children [_] sources)
-  (make-node [_ children]
+  (make-node [node children]
              (assert (= (count children)
                         (count type-seq)))
-             (->Join children join-fields type-seq)))
+             (assoc node :sources children)))
 
 (p/defnode Unique [source fields options]
   zip/TreeNode
   (branch? [_] true)
   (children [_] [source])
-  (make-node [_ children]
-             (->Unique (first children) fields options)))
+  (make-node [node children]
+             (assoc node :source (first children))))
 
 ;; Build one of these from many aggregators.
 (p/defnode Grouping [source aggregators grouping-fields options]
   zip/TreeNode
   (branch? [_] true)
   (children [_] [source])
-  (make-node [_ children]
-             (->Grouping (first children) aggregators grouping-fields options)))
+  (make-node [node children]
+             (assoc node :source (first children))))
 
 (defn existence-field
   "Returns true if this location directly descends from an
@@ -344,7 +351,6 @@
 
 (defn chain [tail f]
   (-> tail
-      (p/node-assoc)
       (update-in [:node] f)))
 
 (extend-protocol IApplyToTail
@@ -391,8 +397,8 @@
     (if-not (seq candidates)
       tail
       (let [[operation & remaining] (sort-by prefer-filter candidates)]
-        (recur (apply-to-tail operation (p/node-assoc tail :operations
-                                                      (concat remaining failed))))))))
+        (recur (apply-to-tail operation (assoc tail :operations
+                                               (concat remaining failed))))))))
 
 ;; ## Join Field Detection
 
@@ -631,9 +637,7 @@
                     fields
                     available))
     (-> tail
-        (chain #(->Application % (p/->Operation (d/mapop* vector)
-                                                (:available-fields %)
-                                                fields)))
+        (chain #(->Rename % fields))
         (assoc :available-fields fields))))
 
 (defn build-rule
@@ -650,7 +654,6 @@
         operations (concat (grouped Operation)
                            (grouped FilterOperation))
         aggs       (grouped Aggregator)
-        _ (prn (map :identifier nodes))
         tails      (concat (initial-tails generators operations)
                            (map (fn [{:keys [op output]}]
                                   (-> op

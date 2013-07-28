@@ -103,11 +103,6 @@
                   (-> {:identifier (u/uuid)}
                       (merge m#))))))))
 
-(defn node-assoc [node & pairs]
-  (apply assoc node
-         :identifier (u/uuid)
-         pairs))
-
 ;; Leaves of the tree:
 (defnode Generator [gen fields])
 
@@ -226,7 +221,7 @@
   (cond (types/generator? op) (generator-node op input output)
         (instance? Prepared op) (build-predicate options
                                                  (assoc pred :op ((:op op) options)))
-        :else                   (to-predicate op input output)))
+        :else (to-predicate op input output)))
 
 (comment
   (require '[cascalog.cascading.flow :as f])

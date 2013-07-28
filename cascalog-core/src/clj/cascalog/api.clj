@@ -174,26 +174,23 @@
 (defalias predmacro* pm/predmacro*)
 (defalias predmacro pm/predmacro)
 
-;; TODO: Obviously these are still a little busted. We need to go
-;; ahead and rename everyone to the same shit.
-
 (defn union
   "Merge the tuples from the subqueries together into a single
   subquery and ensure uniqueness of tuples."
   [& gens]
-  (apply ops/unique
-         (cascalog.cascading.types/generator
-          (algebra/sum gens))))
+  (apply ops/unique (apply combine gens)))
+
+;; TODO: Handle cases where don't have ALL of the same
+;; type. (combining a tap with a query, for example. This is the
+;; normalization step.) group by type, get them to generators, then
+;; combine each generator.
 
 (defn combine
   "Merge the tuples from the subqueries together into a single
   subquery. Doesn't ensure uniqueness of tuples."
   [& gens]
-  (algebra/sum
-   (map cascalog.cascading.types/generator gens)))
-
-;; TODO: All of these are actually just calling through to "select*"
-;; in the cascading API.
+  (cascalog.cascading.types/generator
+   (algebra/sum gens)))
 
 (defprotocol ISelectFields
   (select-fields [gen fields]

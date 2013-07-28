@@ -19,7 +19,7 @@
             CascalogAggregatorExecutor ClojureParallelAgg ParallelAgg]
            [cascalog.logic.parse TailStruct Projection Application
             FilterApplication Grouping Join ExistenceNode
-            Unique Merge]
+            Unique Merge Rename]
            [cascalog.logic.predicate RawSubquery]
            [cascalog.logic.def ParallelAggregator Prepared]
            [cascalog.cascading.types ClojureFlow]))
@@ -212,6 +212,12 @@
   (to-generator [{:keys [source fields]}]
     (-> source
         (ops/select* fields)
+        (ops/filter-nullable-vars fields)))
+
+  Rename
+  (to-generator [{:keys [source fields]}]
+    (-> source
+        (ops/rename* fields)
         (ops/filter-nullable-vars fields)))
 
   TailStruct
