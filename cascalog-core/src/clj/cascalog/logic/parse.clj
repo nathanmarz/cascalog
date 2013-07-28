@@ -575,6 +575,17 @@
             [[] []]
             (map vector output cleaned))))
 
+(defn validate-generator-set!
+  "GeneratorSets can't be unground, ever."
+  [input output]
+  (when (not-empty input)
+    (when (> (count output) 1)
+      (u/throw-illegal "Only one output variable allowed in a generator-as-set."))
+    (when-let [unground (not-empty (filter v/unground-var? (concat input output)))]
+      (u/throw-illegal (str "Can't use unground vars in generators-as-sets. "
+                            (vec unground)
+                            " violate(s) the rules.\n\n")))))
+
 (defn expand-outvars [{:keys [op input output] :as pred}]
   (when (p/can-generate? op)
     (p/validate-generator-set! input output))
