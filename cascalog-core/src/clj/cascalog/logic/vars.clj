@@ -1,7 +1,7 @@
 (ns cascalog.logic.vars
   "This namespace deals with all Cascalog variable
   transformations."
-  (:require [clojure.set :refer (intersection)]
+  (:require [clojure.set :refer (intersection difference)]
             [clojure.walk :refer (postwalk)]
             [jackknife.seq :as s]))
 
@@ -171,3 +171,18 @@ interpreted as a logic variable."
                     gen-ungrounding-var
                     gen-nullable-var)]
     (postwalk (sanitize-fn generator) pred)))
+
+(defn replace-dups
+  "Accepts a sequence returns the set of replacements, plus a new
+  sequence with all duplicates replaced by a call to `gen`."
+  [coll]
+  (let [[uniques cleaned-fields]
+        (reduce (fn [[seen-set acc] elem]
+                  (if (contains? seen-set elem)
+                    [seen-set (conj acc (uniquify-var elem))]
+                    [(conj seen-set elem) (conj acc elem)]))
+                [#{} []]
+                (s/collectify coll))]
+    [(difference (set cleaned-fields)
+                 uniques)
+     cleaned-fields]))

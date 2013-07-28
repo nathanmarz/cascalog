@@ -21,7 +21,8 @@
             FilterApplication Grouping Join ExistenceNode
             Unique Merge]
            [cascalog.logic.predicate RawSubquery]
-           [cascalog.logic.def ParallelAggregator Prepared]))
+           [cascalog.logic.def ParallelAggregator Prepared]
+           [cascalog.cascading.types ClojureFlow]))
 
 ;; ## Allowed Predicates
 
@@ -225,8 +226,9 @@
   (zip/postwalk-edit
    (zip/cascalog-zip query)
    identity
-   (fn [x _]
-     (to-generator x))))
+   (fn [x _] (to-generator x))
+   :encoder (fn [x]
+              (or (:identifier x) x))))
 
 (extend-protocol IGenerator
   TailStruct

@@ -119,7 +119,7 @@
      (explain outfile (stdout) query))
   ([^String outfile sink-tap query]
      (let [^Flow flow (compile-flow sink-tap query)]
-       (.writeDOT flow outfile))))
+       (flow/graph flow outfile))))
 
 (defn normalize-sink-connection [sink subquery]
   (cond (fn? sink) (sink subquery)

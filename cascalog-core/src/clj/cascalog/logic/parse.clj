@@ -110,13 +110,11 @@
 
   IPersistentVector
   (normalize [[op & rest]]
-    (let [mk-single (fn [op in out]
-                      [(p/->RawPredicate op (not-empty in) (not-empty out))])
-          default (default-selector op)
+    (let [default (default-selector op)
           {:keys [input output]} (parse-variables rest (default-selector op))]
       (if (pm/predmacro? op)
         (mapcat p/normalize (pm/expand op input output))
-        (mk-single op input output)))))
+        [(p/->RawPredicate op (not-empty input) (not-empty output))]))))
 
 ;; ## Unground Var Validation
 
@@ -185,76 +183,77 @@
 
 ;; this is the root of the tree, used to account for all variables as
 ;; they're built up.
-(defrecord TailStruct [node ground? available-fields operations]
+
+(p/defnode TailStruct [node ground? available-fields operations]
   zip/TreeNode
   (branch? [_] true)
   (children [_] [node])
   (make-node [_ children]
-    (->TailStruct (first children) ground? available-fields operations)))
+             (->TailStruct (first children) ground? available-fields operations)))
 
 ;; ExistenceNode is the same as a GeneratorSet, basically.
-(defrecord ExistenceNode [source output-field]
+(p/defnode ExistenceNode [source output-field]
   zip/TreeNode
   (branch? [_] true)
   (children [_] [source])
   (make-node [_ children]
-    (->ExistenceNode (first children) output-field)))
+             (->ExistenceNode (first children) output-field)))
 
 ;; For function applications.
-(defrecord Application [source operation]
+(p/defnode Application [source operation]
   zip/TreeNode
   (branch? [_] true)
   (children [_] [source])
   (make-node [_ children]
-    (->Application (first children) operation)))
+             (->Application (first children) operation)))
 
-(defrecord Projection [source fields]
+(p/defnode Projection [source fields]
   zip/TreeNode
   (branch? [_] true)
   (children [_] [source])
   (make-node [_ children]
-    (->Projection (first children) fields)))
+             (->Projection (first children) fields)))
 
 ;; For filters.
-(defrecord FilterApplication [source filter]
+(p/defnode FilterApplication [source filter]
   zip/TreeNode
   (branch? [_] true)
   (children [_] [source])
   (make-node [_ children]
-    (->FilterApplication (first children) filter)))
+             (->FilterApplication (first children) filter)))
 
 ;; TODO: Potentially add aggregations into the join. This node
 ;; combines many sources.
-(defrecord Join [sources join-fields type-seq]
+(p/defnode Join [sources join-fields type-seq]
   zip/TreeNode
   (branch? [_] true)
   (children [_] sources)
   (make-node [_ children]
-    (assert (= (count children)
-               (count type-seq)))
-    (->Join children join-fields type-seq)))
+             (assert (= (count children)
+                        (count type-seq)))
+             (->Join children join-fields type-seq)))
 
-(defrecord Merge [sources]
+(p/defnode Merge [sources]
   zip/TreeNode
   (branch? [_] true)
   (children [_] sources)
   (make-node [_ children]
-    (->Merge sources)))
+             (->Merge sources)))
 
-(defrecord Unique [source fields options]
+(p/defnode Unique [source fields options]
   zip/TreeNode
   (branch? [_] true)
   (children [_] [source])
   (make-node [_ children]
-    (->Unique (first children) fields options)))
+             (->Unique (first children) fields options)))
 
 ;; Build one of these from many aggregators.
-(defrecord Grouping [source aggregators grouping-fields options]
+(p/defnode Grouping [source aggregators grouping-fields options]
   zip/TreeNode
   (branch? [_] true)
   (children [_] [source])
   (make-node [_ children]
-    (->Grouping (first children) aggregators grouping-fields options)))
+             (->Grouping (first children) aggregators grouping-fields options)))
 
 (defn existence-field
   "Returns true if this location directly descends from an
@@ -515,6 +514,7 @@
    logic, these tails try to consume as many operations as possible
    before giving up at a fixed point."
   [tails]
+  (assert (not-empty tails) "Tails required in merge-tails.")
   (if (= 1 (count tails))
     (add-ops-fixed-point (assoc (first tails) :ground? true))
     (let [tails (map add-ops-fixed-point tails)]
@@ -557,23 +557,35 @@
   By creating a new output predicate for every constant in the output
   field."
   [output]
-  (reduce (fn [[new-output pred-acc] v]
-            (if (v/cascalog-var? v)
-              [(conj new-output v) pred-acc]
-              (let [newvar (v/gen-nullable-var)]
-                [(conj new-output newvar)
-                 (conj pred-acc
-                       (p/map->RawPredicate (if (or (fn? v)
-                                                    (u/multifn? v))
-                                              {:op v :input [newvar]}
-                                              {:op = :input [v newvar]})))])))
-          [[] []]
-          output))
+  (let [[_ cleaned] (v/replace-dups output)]
+    (reduce (fn [[new-output pred-acc] [v clean]]
+              (if (v/cascalog-var? v)
+                (if (= v clean)
+                  [(conj new-output v) pred-acc]
+                  [(conj new-output clean)
+                   (conj pred-acc
+                         (p/map->RawPredicate {:op = :input [v clean]}))])
+                (let [newvar (v/gen-nullable-var)]
+                  [(conj new-output newvar)
+                   (conj pred-acc
+                         (p/map->RawPredicate (if (or (fn? v)
+                                                      (u/multifn? v))
+                                                {:op v :input [newvar]}
+                                                {:op = :input [v newvar]})))])))
+            [[] []]
+            (map vector output cleaned))))
 
-(defn expand-outvars [pred]
-  (let [[cleaned new-preds] (split-outvar-constants (:output pred))]
+(defn expand-outvars [{:keys [op input output] :as pred}]
+  (when (p/can-generate? op)
+    (p/validate-generator-set! input output))
+  (let [[cleaned new-preds] (split-outvar-constants output)]
     (concat new-preds
-            [(assoc pred :output cleaned)])))
+            (if (and (not-empty input) (p/can-generate? op))
+              (expand-outvars
+               (p/->RawPredicate (p/->GeneratorSet op (first cleaned))
+                                 []
+                                 input))
+              [(assoc pred :output cleaned)]))))
 
 (defn project [tail fields]
   (let [fields (s/collectify fields)

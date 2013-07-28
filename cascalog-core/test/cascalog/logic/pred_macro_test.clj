@@ -5,6 +5,12 @@
         midje.sweet)
   (:require [cascalog.logic.ops :as c]))
 
+#_(let [a (memory-source-tap [1 2 3])
+        b (<- [!b] (a !a) (* !a !a :> !b))
+        c (<- [!a] (b !a))
+        d (<- [!a] (b !a))]
+    (explain "/tmp/dotfile.dot" (combine c d)))
+
 (def mac2
   (<- [:< ?a]
       (* ?a ?a :> ?a)))

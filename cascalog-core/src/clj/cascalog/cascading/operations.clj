@@ -457,7 +457,9 @@
                  (grouped Outer)
                  (grouped Existence))
          (map (fn [g]
-                (update-in g [:gen] #(select* % (:available-fields g))))))))
+                (update-in g [:gen] #(-> %
+                                         (select* (:available-fields g))
+                                         (rename-pipe))))))))
 
 (defn build-triplet
   [gen join-fields]
@@ -557,7 +559,7 @@
 (defn write* [flow sink]
   (let [sink (to-sink sink)]
     (-> flow
-        (in-branch (.getIdentifier sink)
+        (in-branch (uuid)
                    (fn [subflow name]
                      (-> subflow
                          (update-in [:tails] conj (:pipe subflow))
@@ -587,22 +589,6 @@
 
 ;; ## Logic Variable Substitution Rules
 
-(defn replace-dups
-  "Accepts a sequence and a (probably stateful) generator and returns
-  the set of replacements, plus a new sequence with all duplicates
-  replaced by a call to `gen`."
-  [coll]
-  (let [[uniques cleaned-fields]
-        (reduce (fn [[seen-set acc] elem]
-                  (if (contains? seen-set elem)
-                    [seen-set (conj acc (v/uniquify-var elem))]
-                    [(conj seen-set elem) (conj acc elem)]))
-                [#{} []]
-                (collectify coll))]
-    [(difference (set cleaned-fields)
-                 uniques)
-     cleaned-fields]))
-
 (defn with-duplicate-inputs
   "Accepts a flow, some fields, and a function from (flow,
   unique-fields, new-fields) => flow and appropriately handles
@@ -616,7 +602,7 @@
   (if (or (empty? from-fields)
           (apply distinct? (collectify from-fields)))
     (f flow from-fields [])
-    (let [[delta cleaned-fields] (replace-dups from-fields)]
+    (let [[delta cleaned-fields] (v/replace-dups from-fields)]
       (-> (reduce (fn [subflow [field gen]]
                     (if (= field gen)
                       subflow

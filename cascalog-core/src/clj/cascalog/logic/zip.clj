@@ -37,29 +37,69 @@
    algorithm if it matters (ie, call leftmost-descendant first thing
    before processing a node)."
   [loc]
-  (if (= :end (loc 1)) ;; If it's the end, return the end.
+  (if (zip/end? loc) ;; If it's the end, return the end.
     loc
     (if (nil? (zip/up loc))
       [(zip/node loc) :end]
       (or (and (zip/right loc) (leftmost-descendant (zip/right loc)))
           (zip/up loc)))))
 
-(defn postwalk-edit [zipper matcher editor]
-  (loop [loc (leftmost-descendant zipper)]
+(defn postwalk-edit [zipper matcher editor & {:keys [encoder]
+                                              :or {encoder identity}}]
+  (loop [visited {}
+         loc (leftmost-descendant zipper)]
     (if (zip/end? loc)
       (zip/root loc)
-      (if-let [matcher-result (matcher (zip/node loc))]
-        (recur (my-next (zip/edit loc (partial editor matcher-result))))
-        (recur (my-next loc))))))
+      (if-let [res (visited (encoder (zip/node loc)))]
+        (recur visited (my-next (zip/replace loc res)))
+        (if-let [matcher-result (matcher (zip/node loc))]
+          (let [res (editor matcher-result (zip/node loc))]
+            (recur (assoc visited (encoder (zip/node loc)) res)
+                   (my-next (zip/replace loc res))))
+          (recur visited (my-next loc)))))))
+
+
 
 (comment
+  (defn postwalk-edit [zipper matcher editor & {:keys [encoder]
+                                                :or {encoder identity}}]
+    (loop [visited {}
+           loc (leftmost-descendant zipper)]
+      (if (zip/end? loc)
+        (zip/root loc)
+        (if-let [res (visited (encoder (zip/node loc)))]
+          (do (prn "A MATCH")
+              (recur visited (my-next (zip/replace loc res))))
+          (do (prn (encoder (zip/node loc)))
+              (prn "TYPES" (contains? visited (str (encoder (zip/node loc))))
+                   (encoder (zip/node loc))
+                   "OUT OF" (keys visited))
+
+              (if-let [matcher-result (matcher (zip/node loc))]
+                (let [res (editor matcher-result (zip/node loc))]
+                  (do (println "ACK" (count visited))
+                      (recur (assoc visited (encoder (zip/node loc)) res)
+                             (my-next (zip/replace loc res)))))
+                (do (println "HELLO" (matcher (zip/node loc)))
+                    (recur visited (my-next loc)))))))))
+
   (extend-protocol TreeNode
     clojure.lang.IPersistentMap
-    (branch? [node] false)
+    (branch? [node] true)
     (children [node]
       (collectify (:children node)))
     (make-node [node children]
       (with-meta children (meta node))))
+
+  (let [a {:children [1 2 3]}
+        b {:children [a {:children [4 5]}]}
+        c {:children [a {:children [8 9]}]}]
+    (postwalk-edit (cascalog-zip {:children [b c]})
+                   identity
+                   (fn [x _] (do (println x) (if (number? x) (inc x) x)))))
+
+  {:children [{:children [1 2 3]}
+              {:children [4 5]}]}
   (-> (cascalog-zip {:children [{:children [1 2 3]}
                                 {:children [4 5]}]})
       zip/down

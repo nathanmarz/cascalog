@@ -182,62 +182,60 @@
     (test?<- [["george"]]
              [?p]
              (age ?p _)
-             (follows ?p _ :> false)
-             (:distinct false))
+             (follows ?p _ :> false))
+
     (test?<- [["nathan"] ["nathan"]
               ["alice"]]
              [?p]
              (age ?p _)
-             (follows ?p _ :> true)
-             (:distinct false))
+             (follows ?p _ :> true))
+
     (test?<- [["alice"]]
              [?p]
              (age ?p _)
-             (follows ?p "nathan" :> true)
-             (:distinct false))
+             (follows ?p "nathan" :> true))
+
     (test?<- [["nathan"] ["nathan"]
               ["george"]]
              [?p]
              (age ?p _)
-             (follows ?p "nathan" :> false)
-             (:distinct false))
+             (follows ?p "nathan" :> false))
+
     (test?<- [["nathan" true true] ["nathan" true true]
               ["alice" true false] ["george" false true]]
              [?p ?isfollows ?ismale]
              (age ?p _)
              (follows ?p _ :> ?isfollows)
-             (gender ?p "m" :> ?ismale)
-             (:distinct false))
+             (gender ?p "m" :> ?ismale))
+
     (test?<- [["nathan" true true]
               ["nathan" true true]]
              [?p ?isfollows ?ismale]
              (age ?p _)
              (follows ?p _ :> ?isfollows)
              (gender ?p "m" :> ?ismale)
-             (= ?ismale ?isfollows)
-             (:distinct false))
+             (= ?ismale ?isfollows))
+
     (let [old (<- [?p ?a]
                   (age ?p ?a)
-                  (> ?a 30)
-                  (:distinct false))]
+                  (> ?a 30))]
       (test?<- [["nathan"] ["bob"]]
                [?p]
                (gender ?p "m")
-               (old ?p _ :> false)
-               (:distinct false)))
+               (old ?p _ :> false)))
+
     (test?<- [[24] [31]]
              [?n]
              (age _ ?n)
-             ([[25] [23]] ?n :> false)
-             (:distinct false))
+             ([[25] [23]] ?n :> false))
+
     (test?<- [["alice"]]
              [?p]
              (age ?p _)
-             ((c/negate gender) ?p _)
-             (:distinct false))))
+             ((c/negate gender) ?p _))))
 
-  ;; TODO: test within massive joins (more than one join field, after
-  ;; other joins complete, etc.)
+;; TODO: test within massive joins (more than one join field, after
+;; other joins complete, etc.)
 
 (deftest test-negation-operations
   (let [nums [[1] [2] [3] [4]]

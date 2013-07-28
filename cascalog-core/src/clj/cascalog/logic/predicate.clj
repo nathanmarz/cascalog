@@ -76,8 +76,35 @@
   clojure.lang.MultiFn
   (filter? [_] true))
 
+(defprotocol INode
+  (node? [_] "Returns true if the object is a node, false otherwise."))
+
+(extend-protocol INode
+  Object (node? [_] false))
+
+(defmacro defnode [sym fields & more]
+  {:pre [(not (contains? fields 'identifier))]}
+  (let [ns-part   (namespace-munge *ns*)
+        classname (symbol (str ns-part "." sym))
+        docstring (str "Positional factory function for class " classname ".")]
+    `(do (defrecord ~sym [~@(cons 'identifier fields)]
+           INode
+           (node? [_] true)
+           ~@more)
+         (defn ~(symbol (str '-> sym))
+           ~docstring
+           [~@fields]
+           (new ~classname (u/uuid) ~@fields))
+         (defn ~(symbol (str 'map-> sym))
+           ~(str "Factory function for class "
+                 classname
+                 ", taking a map of keywords to field values.")
+           ([m#] (~(symbol (str classname "/create"))
+                  (-> {:identifier (u/uuid)}
+                      (merge m#))))))))
+
 ;; Leaves of the tree:
-(defrecord Generator [gen fields])
+(defnode Generator [gen fields])
 
 ;; GeneratorSets can't be unground, ever.
 (defrecord GeneratorSet [generator join-set-var])
@@ -100,57 +127,18 @@
                             (vec unground)
                             " violate(s) the rules.\n\n")))))
 
-;; TODO: This has horrendous duplication with the logically function
-;; inside of operations.clj. The only reason for this duplication is
-;; that I need to know what to name the fields initially -- I need to
-;; know how to run a projection that doesn't clash with any of the
-;; names.
-;;
-;;
-;; I think that the way to fix this is to add a special
-;; "generator-set" type, so that the parsing can properly resolve the
-;; output fields. In the interest of getting the code out the door,
-;; I'm going to push this like it is.
-(defn sanitize-output
-  "If the generator has duplicate output fields, this function
-  generates duplicates and applies the proper equality operations."
-  [gen output]
-  (let [[output sub-m] (ops/constant-substitutions output)
-        [_ cleaned] (ops/replace-dups output)
-        gen (reduce (fn [acc [old new]]
-                      (let [acc (if (= old new)
-                                  acc
-                                  (-> acc (ops/filter* = [old new])))]
-                        acc
-                        (if-let [const (sub-m new)]
-                          (if (or (fn? const)
-                                  (u/multifn? const))
-                            (-> acc
-                                (ops/filter* const [old new])
-                                (ops/discard* new))
-                            (let [new-v (v/uniquify-var new)]
-                              (-> acc
-                                  (ops/insert* new-v const)
-                                  (ops/filter* = [new new-v])
-                                  (ops/discard* new-v))))
-                          acc)))
-                    (-> (types/generator gen)
-                        (ops/rename* cleaned)
-                        (ops/filter-nullable-vars cleaned))
-                    (map vector output cleaned))]
-    [cleaned gen]))
+(def can-generate?
+  (some-fn node? types/generator?))
 
+;; TODO: Move this into a Cascading execution context.
 (defn generator-node
   "Converts the supplied generator into the proper type of node."
   [gen input output]
-  {:pre [(types/generator? gen)]}
-  (if-not (empty? input)
-    (do (validate-generator-set! input output)
-        (-> (generator-node gen [] input)
-            (->GeneratorSet (first output))))
-    (let [[cleaned gen] (sanitize-output gen output)
-          {:keys [pipe source-map trap-map]} gen]
-      (->Generator gen cleaned))))
+  {:pre [(can-generate? gen) (empty? input)]}
+  (->Generator (-> (types/generator gen)
+                   (ops/rename* output)
+                   (ops/filter-nullable-vars output))
+               output))
 
 ;; The following multimethod converts operations (in the first
 ;; position of a parsed cascalog predicate) to nodes in the graph.
@@ -168,6 +156,15 @@
 (defmethod to-predicate Subquery
   [op input output]
   (to-predicate (.getCompiledSubquery op) input output))
+
+(defmethod to-predicate GeneratorSet
+  [{:keys [generator] :as op} input output]
+  (assert (empty? input)
+          (str "GeneratorSet <" op "> can't have input: " input))
+  (assert ((some-fn node? types/generator?) generator)
+          (str "Only Nodes or Generators allowed: " generator))
+  (assoc op
+    :generator (generator-node generator input output)))
 
 (defmethod to-predicate ClojureOp
   [op input output]
@@ -232,7 +229,7 @@
   "Accepts an option map and a raw predicate and returns a node in the
   Cascalog graph."
   [options {:keys [op input output] :as pred}]
-  (cond (types/generator? op)   (generator-node op input output)
+  (cond (can-generate? op) (generator-node op input output)
         (instance? Prepared op) (build-predicate options
                                                  (assoc pred :op ((:op op) options)))
         :else                   (to-predicate op input output)))
