@@ -181,14 +181,16 @@
   "Merge the tuples from the subqueries together into a single
   subquery and ensure uniqueness of tuples."
   [& gens]
-  (apply ops/union*
-         (map cascalog.cascading.types/generator gens)))
+  (apply ops/unique
+         (cascalog.cascading.types/generator
+          (algebra/sum gens))))
 
 (defn combine
   "Merge the tuples from the subqueries together into a single
   subquery. Doesn't ensure uniqueness of tuples."
   [& gens]
-  (algebra/sum (map cascalog.cascading.types/generator gens)))
+  (algebra/sum
+   (map cascalog.cascading.types/generator gens)))
 
 ;; TODO: All of these are actually just calling through to "select*"
 ;; in the cascading API.

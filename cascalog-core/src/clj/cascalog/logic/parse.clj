@@ -5,6 +5,7 @@
             [jackknife.core :as u :refer (throw-illegal throw-runtime)]
             [jackknife.seq :as s]
             [cascalog.logic.def :as d :refer (bufferop? aggregateop?)]
+            [cascalog.logic.algebra :as algebra]
             [cascalog.logic.fn :refer (search-for-var)]
             [cascalog.logic.vars :as v]
             [cascalog.logic.zip :as zip]
@@ -184,7 +185,22 @@
 ;; this is the root of the tree, used to account for all variables as
 ;; they're built up.
 
+(p/defnode Merge [sources]
+  zip/TreeNode
+  (branch? [_] true)
+  (children [_] sources)
+  (make-node [_ children]
+             (->Merge children)))
+
 (p/defnode TailStruct [node ground? available-fields operations]
+  algebra/Semigroup
+  (plus [l r]
+        (assert (and (:ground? l) (:ground? r))
+                "Both tails must be ground.")
+        (p/node-assoc l
+          :node (->Merge [(:node l) (:node r)])
+          :operations (union (:operations l)
+                             (:operations r))))
   zip/TreeNode
   (branch? [_] true)
   (children [_] [node])
@@ -232,13 +248,6 @@
              (assert (= (count children)
                         (count type-seq)))
              (->Join children join-fields type-seq)))
-
-(p/defnode Merge [sources]
-  zip/TreeNode
-  (branch? [_] true)
-  (children [_] sources)
-  (make-node [_ children]
-             (->Merge sources)))
 
 (p/defnode Unique [source fields options]
   zip/TreeNode
@@ -334,7 +343,9 @@
     [[] op]))
 
 (defn chain [tail f]
-  (update-in tail [:node] f))
+  (-> tail
+      (p/node-assoc)
+      (update-in [:node] f)))
 
 (extend-protocol IApplyToTail
   Object
@@ -380,8 +391,8 @@
     (if-not (seq candidates)
       tail
       (let [[operation & remaining] (sort-by prefer-filter candidates)]
-        (recur (apply-to-tail operation (assoc tail :operations
-                                               (concat remaining failed))))))))
+        (recur (apply-to-tail operation (p/node-assoc tail :operations
+                                                      (concat remaining failed))))))))
 
 ;; ## Join Field Detection
 
@@ -588,7 +599,7 @@
 
 (defn expand-outvars [{:keys [op input output] :as pred}]
   (when (p/can-generate? op)
-    (p/validate-generator-set! input output))
+    (validate-generator-set! input output))
   (let [[cleaned new-preds] (split-outvar-constants output)]
     (concat new-preds
             (if (and (not-empty input) (p/can-generate? op))
@@ -610,12 +621,28 @@
         (chain #(->Projection % fields))
         (assoc :available-fields fields))))
 
+(defn rename [tail fields]
+  (let [fields (s/collectify fields)
+        available (:available-fields tail)]
+    (u/safe-assert (= (count available)
+                      (count fields))
+                   (format
+                    "Must rename to the same number of fields. % to % is invalid."
+                    fields
+                    available))
+    (-> tail
+        (chain #(->Application % (p/->Operation (d/mapop* vector)
+                                                (:available-fields %)
+                                                fields)))
+        (assoc :available-fields fields))))
+
 (defn build-rule
   [{:keys [fields predicates] :as input}]
   (validate-predicates! predicates)
   (let [[options predicates] (opts/extract-options predicates)
-        grouped (->> predicates
-                     (mapcat expand-outvars)
+        expanded (mapcat expand-outvars predicates)
+        [nodes expanded] (s/separate #(instance? TailStruct (:op %)) expanded)
+        grouped (->> expanded
                      (map (partial p/build-predicate options))
                      (group-by type))
         generators (concat (grouped Generator)
@@ -623,7 +650,13 @@
         operations (concat (grouped Operation)
                            (grouped FilterOperation))
         aggs       (grouped Aggregator)
-        tails      (initial-tails generators operations)
+        _ (prn (map :identifier nodes))
+        tails      (concat (initial-tails generators operations)
+                           (map (fn [{:keys [op output]}]
+                                  (-> op
+                                      (rename output)
+                                      (assoc :operations operations)))
+                                nodes))
         joined     (merge-tails tails)
         grouping-fields (seq (intersection
                               (set (:available-fields joined))

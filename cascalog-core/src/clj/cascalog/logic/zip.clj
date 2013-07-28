@@ -58,8 +58,6 @@
                    (my-next (zip/replace loc res))))
           (recur visited (my-next loc)))))))
 
-
-
 (comment
   (defn postwalk-edit [zipper matcher editor & {:keys [encoder]
                                                 :or {encoder identity}}]
@@ -68,20 +66,14 @@
       (if (zip/end? loc)
         (zip/root loc)
         (if-let [res (visited (encoder (zip/node loc)))]
-          (do (prn "A MATCH")
+          (do (println "A HIT!" (encoder (zip/node loc)))
               (recur visited (my-next (zip/replace loc res))))
-          (do (prn (encoder (zip/node loc)))
-              (prn "TYPES" (contains? visited (str (encoder (zip/node loc))))
-                   (encoder (zip/node loc))
-                   "OUT OF" (keys visited))
-
+          (do (println "A MISS!" (encoder (zip/node loc)))
               (if-let [matcher-result (matcher (zip/node loc))]
                 (let [res (editor matcher-result (zip/node loc))]
-                  (do (println "ACK" (count visited))
-                      (recur (assoc visited (encoder (zip/node loc)) res)
-                             (my-next (zip/replace loc res)))))
-                (do (println "HELLO" (matcher (zip/node loc)))
-                    (recur visited (my-next loc)))))))))
+                  (recur (assoc visited (encoder (zip/node loc)) res)
+                         (my-next (zip/replace loc res))))
+                (recur visited (my-next loc))))))))
 
   (extend-protocol TreeNode
     clojure.lang.IPersistentMap

@@ -103,6 +103,11 @@
                   (-> {:identifier (u/uuid)}
                       (merge m#))))))))
 
+(defn node-assoc [node & pairs]
+  (apply assoc node
+         :identifier (u/uuid)
+         pairs))
+
 ;; Leaves of the tree:
 (defnode Generator [gen fields])
 
@@ -123,7 +128,7 @@
 (defn generator-node
   "Converts the supplied generator into the proper type of node."
   [gen input output]
-  {:pre [(can-generate? gen) (empty? input)]}
+  {:pre [(types/generator? gen) (empty? input)]}
   (->Generator (-> (types/generator gen)
                    (ops/rename* output)
                    (ops/filter-nullable-vars output))
@@ -218,7 +223,7 @@
   "Accepts an option map and a raw predicate and returns a node in the
   Cascalog graph."
   [options {:keys [op input output] :as pred}]
-  (cond (can-generate? op) (generator-node op input output)
+  (cond (types/generator? op) (generator-node op input output)
         (instance? Prepared op) (build-predicate options
                                                  (assoc pred :op ((:op op) options)))
         :else                   (to-predicate op input output)))
