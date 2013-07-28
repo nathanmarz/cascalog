@@ -5,7 +5,7 @@
         midje.cascalog
         [midje.cascalog.impl :only [execute]]
         [clojure.math.combinatorics :only [permutations]])
-  (:require [cascalog.ops :as c]))
+  (:require [cascalog.logic.ops :as c]))
 
 ;; ## Testing Battery
 
@@ -102,7 +102,7 @@
     (a-query [[10]]) => (produces [[10]])
     (<- [?a ?b]
         ([[10 11] [12 13]] ?a ?b)
-        ([[11]] ?b :> true)) => (produces [[10 11]])
+        ([[11]] ?b)) => (produces [[10 11]])
     (against-background
       (whoop) => [[10 11] [12 13]]
       (bang)  => [[11]]))
@@ -125,7 +125,6 @@
                [5 2] [5 9]]
         query (<- [?x ?sum]
                   (src ?x ?y)
-                  (:sort ?x)
                   (c/sum ?y :> ?sum))]
     (facts
       "Executing the query produces proper sums in either order."

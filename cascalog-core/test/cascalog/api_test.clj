@@ -475,6 +475,15 @@
              (person ?p)
              (follows ?p !!p2 _))))
 
+(deftest test-negate-join
+  (let [left  [["a" 1]
+               ["b" 2]]
+        right [["b"]]]
+    (future-fact "Join negation"
+      (<- [?x ?y]
+          (left ?x ?y)
+          (right ?x :> false)) => (produces [["a" 1]]))))
+
 (defbufferiterop itersum [tuples-iter]
   [(->> (iterator-seq tuples-iter)
         (map first)
