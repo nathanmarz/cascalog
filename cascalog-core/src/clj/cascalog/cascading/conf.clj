@@ -105,10 +105,8 @@
 
 ;; being a good citizen in the cascading ecosystem and set the
 ;; framework property
-(comment
-  "TODO: Fix this once I get building again on Cascading 2.2."
-  (System/setProperty AppProps/APP_FRAMEWORKS
-                      (str "cascalog:" (get-version "cascalog/cascalog-core"))))
+(System/setProperty AppProps/APP_FRAMEWORKS
+                    (str "cascalog:" (get-version "cascalog/cascalog-core")))
 
 (defmacro with-job-conf
   "Modifies the job conf for queries executed within the form. Nested

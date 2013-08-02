@@ -1,7 +1,7 @@
 (ns cascalog.more-taps-test
   (:use [cascalog api more-taps]
         [midje sweet cascalog])
-  (:require [cascalog.io :as io]))
+  (:require [cascalog.cascading.io :as io]))
 
 (fact
   (io/with-fs-tmp [_ tmp]

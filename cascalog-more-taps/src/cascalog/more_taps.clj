@@ -1,8 +1,8 @@
 (ns cascalog.more-taps
   (:use cascalog.api)
-  (:require [cascalog.tap :as tap]
-            [cascalog.vars :as v]
-            [cascalog.workflow :as w])
+  (:require [cascalog.cascading.tap :as tap]
+            [cascalog.cascading.util :as w]
+            [cascalog.logic.vars :as v])
   (:import [cascading.scheme.hadoop TextDelimited WritableSequenceFile]
            cascading.scheme.hadoop.TextLine$Compress
            [cascading.tuple Fields]))

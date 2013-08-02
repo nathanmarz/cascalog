@@ -15,7 +15,8 @@
                  [cascalog/midje-cascalog ~version]]
   :plugins [[lein-sub "0.2.1"]
             [codox "0.6.4"]]
-  :sub ["cascalog-core"
+  :sub [
+        ;; "cascalog-core"
         "cascalog-checkpoint"
         "cascalog-more-taps"
         "cascalog-math"
