@@ -17,55 +17,56 @@
 
 package cascalog;
 
-import cascalog.hadoop.ClojureKryoSerialization;
+import java.io.ByteArrayOutputStream;
+
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
+
 import org.apache.log4j.Logger;
 
-import java.io.ByteArrayOutputStream;
+import cascalog.hadoop.ClojureKryoSerialization;
 
 public class KryoService {
-    
-    private static final ThreadLocal<Kryo> kryo = new ThreadLocal<Kryo>();
-    private static final ThreadLocal<ByteArrayOutputStream> byteStream = new ThreadLocal<ByteArrayOutputStream>();
 
-    public static final Logger LOG = Logger.getLogger(KryoService.class);
+  private static final ThreadLocal<Kryo> kryo = new ThreadLocal<Kryo>();
+  private static final ThreadLocal<ByteArrayOutputStream> byteStream =
+      new ThreadLocal<ByteArrayOutputStream>();
 
-    public static Kryo getKryo() {
-        if (kryo.get() == null)
-            kryo.set(freshKryo());
+  public static final Logger LOG = Logger.getLogger(KryoService.class);
 
-        return kryo.get();
-    }
-    
-    public static ByteArrayOutputStream getByteStream() {
-        if (byteStream.get() == null)
-            byteStream.set(new ByteArrayOutputStream());
+  public static Kryo getKryo() {
+    if (kryo.get() == null) { kryo.set(freshKryo()); }
 
-        return byteStream.get();
-    }
+    return kryo.get();
+  }
 
-    private static Kryo freshKryo() {
-        Kryo k = new ClojureKryoSerialization().populatedKryo();
-        k.setRegistrationRequired(false);
-        return k;
-    }
+  public static ByteArrayOutputStream getByteStream() {
+    if (byteStream.get() == null) { byteStream.set(new ByteArrayOutputStream()); }
 
-    public static byte[] serialize(Object obj) {
-        LOG.debug("Serializing " + obj);
-        getByteStream().reset();
-        Output ko = new Output(getByteStream());
-        getKryo().writeClassAndObject(ko, obj);
-        ko.flush();
-        byte[] bytes = getByteStream().toByteArray();
+    return byteStream.get();
+  }
 
-        return bytes;
-    }
+  private static Kryo freshKryo() {
+    Kryo k = new ClojureKryoSerialization().populatedKryo();
+    k.setRegistrationRequired(false);
+    return k;
+  }
 
-    public static Object deserialize(byte[] serialized) {
-        Object o = getKryo().readClassAndObject(new Input(serialized));
-        LOG.debug("Deserialized " + o);
-        return o;
-    }
+  public static byte[] serialize(Object obj) {
+    LOG.debug("Serializing " + obj);
+    getByteStream().reset();
+    Output ko = new Output(getByteStream());
+    getKryo().writeClassAndObject(ko, obj);
+    ko.flush();
+    byte[] bytes = getByteStream().toByteArray();
+
+    return bytes;
+  }
+
+  public static Object deserialize(byte[] serialized) {
+    Object o = getKryo().readClassAndObject(new Input(serialized));
+    LOG.debug("Deserialized " + o);
+    return o;
+  }
 }

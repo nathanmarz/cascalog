@@ -1,11 +1,11 @@
 (ns cascalog.api-test
   (:use clojure.test
         [midje sweet cascalog]
-        [cascalog testing api])
-  (:require [cascalog.ops :as c]
-            [cascalog.util :as u])
-  (:import [cascading.tuple Fields]
-           [cascalog.test KeepEven OneBuffer CountAgg SumAgg]
+        cascalog.logic.testing
+        cascalog.api)
+  (:require [cascalog.logic.ops :as c]
+            [cascalog.logic.def :as d])
+  (:import [cascalog.test KeepEven OneBuffer CountAgg SumAgg]
            [cascalog.ops IdentityBuffer]))
 
 (defmapop mk-one
@@ -17,13 +17,13 @@
     (test?<- [[1 1] [2 1] [3 1]]
              [?n ?n2]
              (nums ?n)
-             (mk-one ?n2))
+             (mk-one :> ?n2))
     (test?<- [[1 1] [1 2] [1 3]
               [2 1] [2 2] [2 3]
               [3 1] [3 2] [3 3]]
              [?n ?n3]
              (nums ?n)
-             (mk-one ?n2)
+             (mk-one :> ?n2)
              (nums ?n3))))
 
 (deftest test-simple-query
@@ -112,15 +112,23 @@
   (let [sentence [["hello this is a"]
                   ["say hello hello to the man"]
                   ["this is the cool beans man"]]]
-    (test?<- [["hello" 3] ["this" 2] ["is" 2]
-              ["a" 1] ["say" 1] ["to" 1] ["the" 2]
-              ["man" 2] ["cool" 1] ["beans" 1]]
+    (test?<- :info [["hello" 3] ["this" 2] ["is" 2]
+                    ["a" 1] ["say" 1] ["to" 1] ["the" 2]
+                    ["man" 2] ["cool" 1] ["beans" 1]]
              [?w ?c]
              (sentence ?s)
              (split ?s :> ?w)
              (c/count ?c))))
 
-(deftest test-multi-sink)
+(deftest test-multi-agg
+  (let [value [["a" 1] ["a" 2] ["b" 10]
+               ["c" 3] ["b" 2] ["a" 6]] ]
+    (test?<- [["a" 12] ["b" 14] ["c" 4]]
+             [?v ?a]
+             (value ?v ?n)
+             (c/count ?c)
+             (c/sum ?n :> ?s)
+             (+ ?s ?c :> ?a))))
 
 (deftest test-multi-agg
   (let [value [["a" 1] ["a" 2] ["b" 10]
@@ -179,19 +187,23 @@
              (evens-vs-odds ?n :> ?e))))
 
 (defn mk-agg-test-tuples []
-  (conj (vec (take 12000 (iterate (fn [[a b]] [(inc a) b]) [0 1]))) [0 10]))
+  (-> (take 10 (iterate (fn [[a b]] [(inc a) b]) [0 1]))
+      (vec)
+      (conj [0 4])))
 
 (defn mk-agg-test-results []
-  (conj (vec (take 11999 (iterate (fn [[a b c]]
-                                    [(inc a) b c])
-                                  [1 1 1])))
-        [0 11 2]))
+  (-> (take 9 (iterate (fn [[a b c]]
+                         [(inc a) b c])
+                       [1 1 1]))
+      (vec)
+      (conj [0 5 2])))
 
-(deftest test-complex-agg-more-than-10000
+(deftest test-complex-agg-more-than-spill-threshold
   (let [num (mk-agg-test-tuples)]
     (test?<- (mk-agg-test-results)
              [?n ?s ?c]
              (num ?n ?v)
+             (:spill-threshold 3)
              (c/sum ?v :> ?s)
              (c/count ?c))))
 
@@ -396,43 +408,43 @@
              (age-tokens ?p ?a2 !!t)
              (nil? !!t))))
 
-(defmapop [hof-add [a]]
+(defn hof-add [a]
   "Adds the static variable `a` to dynamic input `n`."
-  [n]
-  (+ a n))
+  (mapfn [n] (+ a n)))
 
-(defmapop [hof-arithmetic [a b]] [n]
-  (+ b (* a n)))
+(defn hof-arithmetic [a b]
+  (mapfn [n] (+ b (* a n))))
 
-;; TODO: stateful operations should return a map containing :init,
-;; :op, :finish
-(defbufferop [sum-plus [a]]
-  {:stateful true}
-  ([] (* 3 a))
-  ([state tuples] [(apply + state (map first tuples))])
-  ([state] nil))
+(defn sum-plus [a]
+  (d/bufferop*
+   (d/prepfn
+    [_ _]
+    (let [x (* 3 a)]
+      {:operate (fn [tuples]
+                  [(apply + x (map first tuples))])}))))
 
 (deftest test-hof-ops
   (let [integer [[1] [2] [6]]]
     (test?<- [[4] [5] [9]]
              [?n]
              (integer ?v)
-             (hof-add 3 ?v :> ?n))
+             ((hof-add 3) ?v :> ?n))
 
     (test?<- [[-5] [-4] [0]]
              [?n]
              (integer ?v)
-             (hof-add [-6] ?v :> ?n))
+             ((hof-add -6) ?v :> ?n))
 
     (test?<- [[3] [5] [13]]
              [?n]
              (integer ?v)
-             (hof-arithmetic [2 1] ?v :> ?n))
+             ((hof-arithmetic 2 1) ?v :> ?n))
 
     (test?<- [[72]]
              [?n]
              (integer ?v)
-             (sum-plus [21] ?v :> ?n))))
+             ((sum-plus 21) ?v :> ?n))))
+
 
 (defn lala-appended [source]
   (let [outvars ["?a"]]
@@ -454,70 +466,6 @@
 
 (defbufferop nothing-buf [tuples] tuples)
 
-(deftest test-limit
-  (let [pair [["a" 1] ["a" 3] ["a" 2]
-              ["a" 4] ["b" 1] ["b" 6]
-              ["b" 7] ["c" 0]]]
-    (test?<- [[0] [1] [1] [2]
-              [3] [4] [6] [7]]
-             [?n2]
-             (pair _ ?n)
-             (:sort ?n)
-             (nothing-buf ?n :> ?n2))
-
-    (test?<- [[0] [1]]
-             [?n2]
-             (pair _ ?n)
-             (:sort ?n)
-             (c/limit [2] ?n :> ?n2))
-
-    (test?<- [[1 1] [2 2] [3 3]
-              [4 4] [1 5]]
-             [?n2 ?r]
-             (pair ?l ?n)
-             (:sort ?l ?n)
-             (c/limit-rank [5] ?n :> ?n2 ?r))
-
-    (test?<- [["c" 0] ["b" 7]]
-             [?l2 ?n2]
-             (pair ?l ?n)
-             (:sort ?l ?n)
-             (:reverse true)
-             (c/limit [2] ?l ?n :> ?l2 ?n2))
-
-    (test?<- [[0] [1] [1]]
-             [?n2]
-             (pair _ ?n)
-             (:sort ?n)
-             (c/limit [3] ?n :> ?n2))
-
-    (test?<- [[0 1] [1 2] [1 3]]
-             [?n2 ?r]
-             (pair _ ?n)
-             (:sort ?n)
-             (c/limit-rank [3] ?n :> ?n2 ?r))
-
-    (test?<- [[6] [7]]
-             [?n2]
-             (pair _ ?n)
-             (:sort ?n)
-             (:reverse true)
-             (c/limit [2] ?n :> ?n2))
-
-    (test?<- [[6 2] [7 1]]
-             [?n2 ?r]
-             (pair _ ?n)
-             (:sort ?n)
-             (:reverse true)
-             (c/limit-rank [2] ?n :> ?n2 ?r))
-
-    (test?<- [["a" 1] ["a" 2] ["b" 1]
-              ["b" 6] ["c" 0]]
-             [?l ?n2]
-             (pair ?l ?n)
-             (:sort ?n)
-             (c/limit [2] ?n :> ?n2))))
-
 (deftest test-outer-join-anon
   (let [person  [["a"] ["b"] ["c"]]
         follows [["a" "b" 1] ["c" "e" 2] ["c" "d" 3]]]
@@ -526,6 +474,15 @@
              [?p !!p2]
              (person ?p)
              (follows ?p !!p2 _))))
+
+(deftest test-negate-join
+  (let [left  [["a" 1]
+               ["b" 2]]
+        right [["b"]]]
+    (future-fact "Join negation"
+                 (<- [?x ?y]
+                     (left ?x ?y)
+                     (right ?x :> false)) => (produces [["a" 1]]))))
 
 (defbufferiterop itersum [tuples-iter]
   [(->> (iterator-seq tuples-iter)
@@ -557,6 +514,7 @@
     (test?<- [["b"]]
              [?a]
              (wide :#> 5 {0 ?a 1 ?b 4 ?b}))))
+
 
 (deftest test-avg
   (let [num1 [[1] [2] [3] [4] [10]]
@@ -599,27 +557,264 @@
   (if (= "a" n)
     (throw (RuntimeException.)) true))
 
+(defn multipagg-init [v1 v2 v3]
+  [v1 (+ v2 v3)])
+
+(defn multipagg-combiner [v1 v2 v3 v4]
+  [(+ v1 v3)
+   (* v2 v4)])
+
+(defparallelagg multipagg
+  :init-var #'multipagg-init
+  :combine-var #'multipagg-combiner)
+
+(defaggregateop slow-count
+  ([] 0)
+  ([context val] (inc context))
+  ([context] [context]))
+
+(deftest test-multi-parallel-agg
+  (let [vals [[1 2 3] [4 5 6] [7 8 9]]]
+    (test?<- [[12 935 3]]
+             [?d ?e ?count]
+             (vals ?a ?b ?c)
+             (multipagg ?a ?b ?c :> ?d ?e)
+             (c/count ?count))
+
+    (test?<- [[12 935 3]]
+             [?d ?e ?count]
+             (vals ?a ?b ?c)
+             (multipagg ?a ?b ?c :> ?d ?e)
+             (slow-count ?c :> ?count))))
+
+(deftest test-cascading-filter
+  (let [vals [[0] [1] [2] [3]]]
+    (test?<- [[0] [2]]
+             [?v]
+             (vals ?v)
+             ((KeepEven.) ?v))
+
+    (test?<- [[0 true] [1 false]
+              [2 true] [3 false]]
+             [?v ?b]
+             (vals ?v)
+             ((KeepEven.) ?v :> ?b))))
+
+(deftest test-java-buffer
+  (let [vals [["a" 1 10] ["a" 2 20] ["b" 3 31]]]
+    (test?<- [["a" 1] ["b" 1]]
+             [?f1 ?o]
+             (vals ?f1 _ _)
+             ((OneBuffer.) :> ?o))
+
+    (test?<- [["a" 1 10] ["a" 2 20] ["b" 3 31]]
+             [?f1 ?f2out ?f3out]
+             (vals ?f1 ?f2 ?f3)
+             ((IdentityBuffer.) ?f2 ?f3 :> ?f2out ?f3out))))
+
+(deftest test-java-aggregator
+  (let [vals [["a" 1] ["a" 2] ["b" 3] ["c" 8] ["c" 13] ["b" 1] ["d" 5] ["c" 8]]]
+    (test?<- [["a" 2] ["b" 2] ["c" 3] ["d" 1]]
+             [?f1 ?o]
+             (vals ?f1 _)
+             ((CountAgg.) :> ?o))
+
+    (test?<- [["a" 3 2] ["b" 4 2] ["c" 29 3] ["d" 5 1]]
+             [?key ?sum ?count]
+             (vals ?key ?val)
+             ((CountAgg.) ?count)
+             ((SumAgg.) ?val :> ?sum))))
+
+"TODO: These need union and combine to do proper renames."
+(defn run-union-combine-tests
+  "Runs a series of tests on the union and combine operations. v1,
+  v2 and v3 must produce
+
+    [[1] [2] [3]]
+    [[3] [4] [5]]
+    [[2] [4] [6]]"
+  [v1 v2 v3]
+  (test?- [[1] [2] [3] [4] [5]]                 (union v1 v2)
+          [[1] [2] [3] [4] [5] [6]]             (union v1 v2 v3)
+          [[3] [4] [5]]                         (union v2)
+          [[1] [2] [3] [2] [4] [6]]             (combine v1 v3)
+          [[1] [2] [3] [3] [4] [5] [2] [4] [6]] (combine v1 v2 v3)))
+
+(deftest test-vector-union-combine
+  (run-union-combine-tests [[1] [2] [3]]
+                           [[3] [4] [5]]
+                           [[2] [4] [6]]))
+
+(deftest test-query-union-combine
+  (run-union-combine-tests (<- [?v] ([[1] [2] [3]] ?v))
+                           (<- [?v] ([[3] [4] [5]] ?v))
+                           (<- [?v] ([[2] [4] [6]] ?v))))
+
+(deftest test-cascading-union-combine
+  (let [v1 [[1] [2] [3]]
+        v2 [[3] [4] [5]]
+        v3 [[2] [4] [6]]
+        e1 []]
+    (run-union-combine-tests v1 v2 v3)
+
+    "Can't use empty taps inside of a union or combine."
+    (is (thrown? IllegalArgumentException (union e1)))
+    (is (thrown? IllegalArgumentException (combine e1)))))
+
+(deftest test-keyword-args
+  (test?<- [[":onetwo"]]
+           [?b]
+           ([["two"]] ?a)
+           (str :one ?a :> ?b))
+
+  (test?<- [["face"]]
+           [?a]
+           ([["face" :cake]] ?a :cake)))
+
+(deftest test-function-sink
+  (let [pairs [[1 2] [2 10]]
+        double-second-sink (fn [sq]
+                             [[[1 2 4] [2 10 20]]
+                              (<- [?a ?b ?c]
+                                  (sq ?a ?b)
+                                  (* 2 ?b :> ?c)
+                                  (:distinct false)) ])]
+    (test?- double-second-sink pairs)))
+
+(deftest test-constant-substitution
+  (let [pairs [[1 2] [1 3] [2 5]]]
+    (test?<- [[1 2]]
+             [?a ?b]
+             (pairs ?a ?b)
+             (* 2 ?b :> 4)
+             (:distinct false))
+
+    (test?<- [[1]]
+             [?a]
+             (pairs ?a ?b)
+             (c/count 2))
+
+    (test?<- [[2]] [?a]
+             (pairs ?a _)
+             (odd? ?a :> false))
+
+    (future-fact
+     "Constants should work in aggregator predicates. See
+      https://github.com/nathanmarz/cascalog/issues/26"
+     (<- [?a ?count]
+         (pairs ?a _)
+         (c/sum 2 :> ?count)) => (produces [[1 4] [2 2]]))))
+
+(defmulti multi-test class)
+(defmethod multi-test String [x] "string!")
+(defmethod multi-test Long [x] "number!")
+(defmethod multi-test Integer [x] "number!")
+(defmethod multi-test Double [x] "double!")
+
+(deftest test-multimethod-support
+  (let [src [["word."] [1] [1.0]]]
+    (test?<- [["string!"] ["number!"] ["double!"]]
+             [?result]
+             (src ?thing)
+             (multi-test ?thing :> ?result))))
+
+
+(defn var-apply [v]
+  "Applies the supplied var v to the supplied `xs`."
+  (mapfn [& xs] (apply v xs)))
+
+(deftest test-var-constants
+  (let [coll-src [[[3 2 4 1]]
+                  [[1 2 3 4 5]]]
+        num-src  [[1 2] [3 4]]]
+    "Each tuple in source is a vector; the sum of each vector
+             should be reflected in the output."
+    (test?<- [[10] [15]]
+             [?sum]
+             (coll-src ?coll)
+             (reduce #'+ ?coll :> ?sum))
+
+    "Operation parameters can be vars or anything kryo serializable."
+    (test?<- [[1 2 2] [3 4 12]]
+             [?x ?y ?z]
+             (num-src ?x ?y)
+             ((var-apply *) ?x ?y :> ?z))
+
+    "Regexes are serializable w/ Kryo."
+    (test?<- [["a" "b"]]
+             [?a ?b]
+             ([["a\tb"]] ?s)
+             ((c/re-parse #"[^\s]+") :< ?s :> ?a ?b))))
+
+(def bob-set
+  (d/filterop* #{"bob"}))
+
+(deftest test-ifn-implementers
+  (let [people [["bob"] ["sam"]]]
+    (fact?<- "A set can be used as a predicate op, provided it's bound
+             to a var."
+             [["bob"]]
+             [?person]
+             (people ?person)
+             (bob-set ?person))))
+
+
+(future-fact "test outer join with functions.")
+
+(future-fact "test mongo"
+             "function required for join"
+             "2 inner join, 2 outer join portion"
+             "functions -> joins -> functions -> joins"
+             "functions that run after outer join"
+             "no aggregator")
+
+(future-fact "Test only complex aggregators.")
+(future-fact "Test only non-complex aggregators.")
+(future-fact "test only one buffer.")
+(future-fact "Test error on missing output fields.")
+
+;; TODO: Fix select-fields... maybe project is busted.
+(deftest test-select-fields-query
+  (let [wide [[1 2 3 4 5 6]]
+        sq (<- [!f1 !f4 !f5 ?f6]
+               (wide !f1 !f2 !f3 !f4 !f5 ?f6)
+               (:distinct false))]
+    (test?- [[1]]     (select-fields sq "!f1"))
+    (test?- [[1 6]]   (select-fields sq ["!f1" "?f6"]))
+    (test?- [[1 6]]   (select-fields sq ["!f1" "?f6"]))
+    (test?- [[5 4 6]] (select-fields sq ["!f5" "!f4" "?f6"]))))
+
+
+(deftest test-select-fields-tap
+  (let [data (memory-source-tap ["f1" "f2" "f3" "f4"]
+                                [[1 2 3 4] [11 12 13 14] [21 22 23 24]])]
+    (test?<- [[4 2] [14 12] [24 22]]
+             [?a ?b]
+             ((select-fields data ["f4" "f2"]) ?a ?b))
+
+    (test?<- [[1 3 4] [11 13 14] [21 23 24]]
+             [?f1 ?f2 ?f3]
+             ((select-fields data ["f1" "f3" "f4"]) ?f1 ?f2 ?f3))))
+
 (deftest memory-self-join-test
-  (let [src [["a"]]
+  (let [src  [["a"]]
         src2 (memory-source-tap [["a"]])]
     (with-expected-sink-sets [empty1 [], empty2 []]
       (test?<- src
                [!a]
                (src !a)
                (src !a)
-               (:distinct false)
                (:trap empty1))
 
       (test?<- src
                [!a]
                (src2 !a)
                (src2 !a)
-               (:distinct false)
                (:trap empty2)))))
 
 (deftest test-trap
   (let [num [[1] [2]]]
-    (with-expected-sink-sets [trap1 [[1]] ]
+    (with-expected-sink-sets [trap1 [[1]]]
       (test?<- [[2]]
                [?n]
                (num ?n)
@@ -685,235 +880,76 @@
                  [?n]
                  (sq ?n))))))
 
-(defn multipagg-init [v1 v2 v3]
-  [v1 (+ v2 v3)])
+(deftest test-limit
+  (let [pair [["a" 1] ["a" 3] ["a" 2]
+              ["a" 4] ["b" 1] ["b" 6]
+              ["b" 7] ["c" 0]]]
+    (test?<- [[0] [1] [1] [2]
+              [3] [4] [6] [7]]
+             [?n2]
+             (pair _ ?n)
+             (:sort ?n)
+             (nothing-buf ?n :> ?n2))
 
-(defn multipagg-combiner [v1 v2 v3 v4]
-  [(+ v1 v3)
-   (* v2 v4)])
+    (test?<- [[0] [1]]
+             [?n2]
+             (pair _ ?n)
+             (:sort ?n)
+             ((c/limit 2) ?n :> ?n2))
 
-(defparallelagg multipagg
-  :init-var #'multipagg-init
-  :combine-var #'multipagg-combiner)
+    (test?<- [[1 1] [2 2] [3 3]
+              [4 4] [1 5]]
+             [?n2 ?r]
+             (pair ?l ?n)
+             (:sort ?l ?n)
+             ((c/limit-rank 5) ?n :> ?n2 ?r))
 
-(defaggregateop slow-count
-  ([] 0)
-  ([context val] (inc context))
-  ([context] [context]))
+    (test?<- [["c" 0] ["b" 7]]
+             [?l2 ?n2]
+             (pair ?l ?n)
+             (:sort ?l ?n)
+             (:reverse true)
+             ((c/limit 2) ?l ?n :> ?l2 ?n2))
 
-(deftest test-multi-parallel-agg
-  (let [vals [[1 2 3] [4 5 6] [7 8 9]]]
-    (test?<- [[12 935 3]]
-             [?d ?e ?count]
-             (vals ?a ?b ?c)
-             (multipagg ?a ?b ?c :> ?d ?e)
-             (c/count ?count))
+    (test?<- [[0] [1] [1]]
+             [?n2]
+             (pair _ ?n)
+             (:sort ?n)
+             ((c/limit 3) ?n :> ?n2))
 
-    (test?<- [[12 935 3]]
-             [?d ?e ?count]
-             (vals ?a ?b ?c)
-             (multipagg ?a ?b ?c :> ?d ?e)
-             (slow-count ?c :> ?count))))
+    (test?<- [[0 1] [1 2] [1 3]]
+             [?n2 ?r]
+             (pair _ ?n)
+             (:sort ?n)
+             ((c/limit-rank 3) ?n :> ?n2 ?r))
 
-(deftest test-cascading-filter
-  (let [vals [[0] [1] [2] [3]]]
-    (test?<- [[0] [2]]
-             [?v]
-             (vals ?v)
-             ((KeepEven.) ?v)
-             (:distinct false))
+    (test?<- [[6] [7]]
+             [?n2]
+             (pair _ ?n)
+             (:sort ?n)
+             (:reverse true)
+             ((c/limit 2) ?n :> ?n2))
 
-    (test?<- [[0 true] [1 false]
-              [2 true] [3 false]]
-             [?v ?b]
-             (vals ?v)
-             ((KeepEven.) ?v :> ?b)
-             (:distinct false))))
+    (test?<- [[6 2] [7 1]]
+             [?n2 ?r]
+             (pair _ ?n)
+             (:sort ?n)
+             (:reverse true)
+             ((c/limit-rank 2) ?n :> ?n2 ?r))
 
-(deftest test-java-buffer
-  (let [vals [["a" 1 10] ["a" 2 20] ["b" 3 31]]]
-    (test?<- [["a" 1] ["b" 1]]
-             [?f1 ?o]
-             (vals ?f1 _ _)
-             ((OneBuffer.) :> ?o))
-
-    (test?<- [["a" 1 10] ["a" 2 20] ["b" 3 31]]
-             [?f1 ?f2out ?f3out]
-             (vals ?f1 ?f2 ?f3)
-             ((IdentityBuffer.) ?f2 ?f3 :> ?f2out ?f3out))))
-
-(deftest test-java-aggregator
-  (let [vals [["a" 1] ["a" 2] ["b" 3] ["c" 8] ["c" 13] ["b" 1] ["d" 5] ["c" 8]]]
-    (test?<- [["a" 2] ["b" 2] ["c" 3] ["d" 1]]
-             [?f1 ?o]
-             (vals ?f1 _)
-             ((CountAgg.) :> ?o))
-
-    (test?<- [["a" 3 2] ["b" 4 2] ["c" 29 3] ["d" 5 1]]
-             [?key ?sum ?count]
-             (vals ?key ?val)
-             ((CountAgg.) ?count)
-             ((SumAgg.) ?val :> ?sum))))
-
-(defn run-union-combine-tests
-  "Runs a series of tests on the union and combine operations. v1,
-  v2 and v3 must produce
-
-    [[1] [2] [3]]
-    [[3] [4] [5]]
-    [[2] [4] [6]]"
-  [v1 v2 v3]
-  (test?- [[1] [2] [3] [4] [5]]                 (union v1 v2)
-          [[1] [2] [3] [4] [5] [6]]             (union v1 v2 v3)
-          [[3] [4] [5]]                         (union v2)
-          [[1] [2] [3] [2] [4] [6]]             (combine v1 v3)
-          [[1] [2] [3] [3] [4] [5] [2] [4] [6]] (combine v1 v2 v3)))
-
-(deftest test-vector-union-combine
-  (run-union-combine-tests [[1] [2] [3]]
-                           [[3] [4] [5]]
-                           [[2] [4] [6]]))
-
-(deftest test-query-union-combine
-  (run-union-combine-tests (<- [?v] ([[1] [2] [3]] ?v) (:distinct false))
-                           (<- [?v] ([[3] [4] [5]] ?v) (:distinct false))
-                           (<- [?v] ([[2] [4] [6]] ?v) (:distinct false))))
-
-(deftest test-cascading-union-combine
-  (let [v1 [[1] [2] [3]]
-        v2 [[3] [4] [5]]
-        v3 [[2] [4] [6]]
-        e1 []]
-    (run-union-combine-tests v1 v2 v3)
-
-    "Can't use empty taps inside of a union or combine."
-    (is (thrown? IllegalArgumentException (union e1)))
-    (is (thrown? IllegalArgumentException (combine e1)))))
-
-(deftest test-select-fields-tap
-  (let [data (memory-source-tap ["f1" "f2" "f3" "f4"]
-                                [[1 2 3 4] [11 12 13 14] [21 22 23 24]])]
-    (test?<- [[4 2] [14 12] [24 22]]
-             [?a ?b]
-             ((select-fields data ["f4" "f2"]) ?a ?b))
-
-    (test?<- [[1 3 4] [11 13 14] [21 23 24]]
-             [?f1 ?f2 ?f3]
-             ((select-fields data ["f1" "f3" "f4"]) ?f1 ?f2 ?f3))))
-
-(deftest test-keyword-args
-  (test?<- [[":onetwo"]]
-           [?b]
-           ([["two"]] ?a)
-           (str :one ?a :> ?b))
-
-  (test?<- [["face"]]
-           [?a]
-           ([["face" :cake]] ?a :cake)))
-
-(deftest test-select-fields-query
-  (let [wide [[1 2 3 4 5 6]]
-        sq (<- [!f1 !f4 !f5 ?f6]
-               (wide !f1 !f2 !f3 !f4 !f5 ?f6)
-               (:distinct false))]
-    (test?- [[1]]     (select-fields sq "!f1"))
-    (test?- [[1 6]]   (select-fields sq ["!f1" "?f6"]))
-    (test?- [[1 6]]   (select-fields sq ["!f1" "?f6"]))
-    (test?- [[5 4 6]] (select-fields sq ["!f5" "!f4" "?f6"]))))
-
-(deftest test-function-sink
-  (let [pairs [[1 2] [2 10]]
-        double-second-sink (fn [sq]
-                             [[[1 2 4] [2 10 20]]
-                              (<- [?a ?b ?c]
-                                  (sq ?a ?b)
-                                  (* 2 ?b :> ?c)
-                                  (:distinct false)) ])]
-    (test?- double-second-sink pairs)))
-
-(deftest test-constant-substitution
-  (let [pairs [[1 2] [1 3] [2 5]]]
-    (test?<- [[1 2]]
-             [?a ?b]
-             (pairs ?a ?b)
-             (* 2 ?b :> 4)
-             (:distinct false))
-
-    (test?<- [[1]]
-             [?a]
-             (pairs ?a ?b)
-             (c/count 2))
-
-    (test?<- [[2]] [?a]
-             (pairs ?a _)
-             (odd? ?a :> false))
-
-    (future-fact
-     "Constants should work in aggregator predicates. See
-      https://github.com/nathanmarz/cascalog/issues/26"
-     (<- [?a ?count]
-         (pairs ?a _)
-         (c/sum 2 :> ?count)) => (produces [[1 4] [2 2]]))))
-
-(defmulti multi-test class)
-(defmethod multi-test String [x] "string!")
-(defmethod multi-test Long [x] "number!")
-(defmethod multi-test Integer [x] "number!")
-(defmethod multi-test Double [x] "double!")
-
-(deftest test-multimethod-support
-  (let [src [["word."] [1] [1.0]]]
-    (test?<- [["string!"] ["number!"] ["double!"]]
-             [?result]
-             (src ?thing)
-             (multi-test ?thing :> ?result))))
-
-(defmapop [var-apply [v]]
-  "Applies the supplied var v to the supplied `xs`."
-  [& xs]
-  (apply v xs))
-
-(deftest test-var-constants
-  (let [coll-src [[[3 2 4 1]]
-                  [[1 2 3 4 5]]]
-        num-src  [[1 2] [3 4]]]
-    (fact?<- "Each tuple in source is a vector; the sum of each vector
-             should be reflected in the output."
-             [[10] [15]]
-             [?sum]
-             (coll-src ?coll)
-             (reduce #'+ ?coll :> ?sum))
-
-    (fact?- "Operation parameters can be vars or anything kryo
-             serializable."
-            [[1 2 2] [3 4 12]]
-            (<- [?x ?y ?z]
-                (num-src ?x ?y)
-                (var-apply [#'*] ?x ?y :> ?z))
-
-            "Regexes are serializable w/ Kryo."
-            [["a" "b"]]
-            (<- [?a ?b]
-                ([["a\tb"]] ?s)
-                (c/re-parse [#"[^\s]+"] :< ?s :> ?a ?b)))))
-
-(def bob-set #{"bob"})
-
-(deftest test-ifn-implementers
-  (let [people [["bob"] ["sam"]]]
-    (fact?<- "A set can be used as a predicate op, provided it's bound
-             to a var."
-             [["bob"]]
-             [?person]
-             (people ?person)
-             (bob-set ?person))))
+    (test?<- [["a" 1] ["a" 2] ["b" 1]
+              ["b" 6] ["c" 0]]
+             [?l ?n2]
+             (pair ?l ?n)
+             (:sort ?n)
+             ((c/limit 2) ?n :> ?n2))))
 
 (deftest test-sample-count
+  "sample should return a number of samples equal to the specified
+     sample size param"
   (let [numbers [[1] [2] [3] [4] [5] [6] [7] [8] [9] [10]]
         sampling-query (c/fixed-sample numbers 5)]
-    (fact?<- "sample should return a number of samples equal to the specified
-             sample size param"
-             [[5]]
+    (test?<- [[5]]
              [?count]
              (sampling-query ?s)
              (c/count ?count))))
@@ -922,18 +958,5 @@
   (let [numbers [[1 2] [3 4] [5 6] [7 8] [9 10]]
         sampling-query (c/fixed-sample numbers 5)]
     (fact?- "sample should contain some of the inputs"
-             (contains #{[1 2] [3 4] [5 6]} :gaps-ok) sampling-query)))
-
-(future-fact "test outer join with functions.")
-
-(future-fact "test mongo"
-  "function required for join"
-  "2 inner join, 2 outer join portion"
-  "functions -> joins -> functions -> joins"
-  "functions that run after outer join"
-  "no aggregator")
-
-(future-fact "Test only complex aggregators.")
-(future-fact "Test only non-complex aggregators.")
-(future-fact "test only one buffer.")
-(future-fact "Test error on missing output fields.")
+            (contains #{[1 2] [3 4] [5 6]} :gaps-ok)
+            sampling-query)))

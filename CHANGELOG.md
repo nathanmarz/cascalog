@@ -1,3 +1,12 @@
+### 2.0.0
+
+* Anonymous function support
+* prepfn
+* Functions as guards
+* Standalone Cascading DSL
+
+(Much more, to be detailed!)
+
 ### 1.10.2
 * Upgrade to Cascading 2.1.6, Hadoop 1.1.2
 * Set cascading framework property correctly (fs111)

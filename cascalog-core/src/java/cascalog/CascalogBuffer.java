@@ -18,19 +18,19 @@
 
 package cascalog;
 
+import java.io.Serializable;
+
 import cascading.flow.FlowProcess;
 import cascading.operation.BufferCall;
 import cascading.operation.OperationCall;
 
-import java.io.Serializable;
-
 public abstract class CascalogBuffer implements Serializable {
-    public void prepare(FlowProcess flowProcess, OperationCall operationCall) {
-    }
+  public void prepare(FlowProcess flowProcess, OperationCall operationCall) {
+  }
 
-    public abstract void operate(FlowProcess flowProcess, BufferCall bufCall);
+  public abstract void operate(FlowProcess flowProcess, BufferCall bufCall);
 
-    public void cleanup(FlowProcess flowProcess, OperationCall operationCall) {
+  public void cleanup(FlowProcess flowProcess, OperationCall operationCall) {
 
-    }
+  }
 }

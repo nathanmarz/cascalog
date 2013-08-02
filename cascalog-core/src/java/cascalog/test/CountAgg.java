@@ -24,21 +24,21 @@ import cascalog.CascalogAggregator;
 
 public class CountAgg extends CascalogAggregator {
 
-    @Override
-    public void start(FlowProcess flowProcess, AggregatorCall aggregatorCall) {
-        aggregatorCall.setContext(0);
-    }
+  @Override
+  public void start(FlowProcess flowProcess, AggregatorCall aggregatorCall) {
+    aggregatorCall.setContext(0);
+  }
 
-    @Override
-    public void aggregate(FlowProcess flowProcess, AggregatorCall aggregatorCall) {
-        int count = (Integer) aggregatorCall.getContext();
-        aggregatorCall.setContext(count + 1);
-    }
+  @Override
+  public void aggregate(FlowProcess flowProcess, AggregatorCall aggregatorCall) {
+    int count = (Integer) aggregatorCall.getContext();
+    aggregatorCall.setContext(count + 1);
+  }
 
-    @Override
-    public void complete(FlowProcess flowProcess, AggregatorCall aggregatorCall) {
-        int count = (Integer) aggregatorCall.getContext();
-        aggregatorCall.getOutputCollector().add(new Tuple(count));
-    }
-    
+  @Override
+  public void complete(FlowProcess flowProcess, AggregatorCall aggregatorCall) {
+    int count = (Integer) aggregatorCall.getContext();
+    aggregatorCall.getOutputCollector().add(new Tuple(count));
+  }
+
 }

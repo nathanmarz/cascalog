@@ -21,15 +21,16 @@ package cascalog;
 import cascading.flow.FlowProcess;
 import cascading.operation.Filter;
 import cascading.operation.FilterCall;
+import clojure.lang.IFn;
 import clojure.lang.ISeq;
 
 public class ClojureFilter extends ClojureCascadingBase implements Filter {
-    public ClojureFilter(Object[] fn_spec, boolean stateful) {
-        super(fn_spec, stateful);
-    }
+  public ClojureFilter(IFn fn) {
+    super(fn);
+  }
 
-    public boolean isRemove(FlowProcess flow_process, FilterCall filter_call) {
-        ISeq fn_args_seq = Util.coerceFromTuple(filter_call.getArguments().getTuple());
-        return !Util.truthy(applyFunction(fn_args_seq));
-    }
+  public boolean isRemove(FlowProcess fp, FilterCall call) {
+    ISeq fnArgs = Util.coerceFromTuple(call.getArguments().getTuple());
+    return !Util.truthy(applyFunction(fnArgs));
+  }
 }

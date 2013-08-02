@@ -17,32 +17,34 @@
 
 package cascalog;
 
-import cascading.flow.FlowProcess;
-import cascading.operation.OperationCall;
-import clojure.lang.IFn;
-import clojure.lang.RT;
 import java.util.List;
 
+import cascading.flow.FlowProcess;
+import cascalog.aggregator.CombinerSpec;
+import clojure.lang.IFn;
+import clojure.lang.RT;
+
 public class ClojureParallelAgg implements ParallelAgg {
-    CombinerSpec _spec;
-    IFn _initFn;
-    IFn _combinerFn;
-    
-    public ClojureParallelAgg(CombinerSpec spec) {
-        _spec = spec;
-    }
-    
-    public void prepare(FlowProcess flowProcess, OperationCall operationCall) {
-        _initFn = Util.bootFn(_spec.init_spec);
-        _combinerFn = Util.bootFn(_spec.combiner_spec);
-    }
+  CombinerSpec _spec;
+  IFn _initFn;
+  IFn _combinerFn;
 
-    public List<Object> init(List<Object> input) {
-        return Util.coerceToList(_initFn.applyTo(RT.seq(input)));
-    }
+  public ClojureParallelAgg(CombinerSpec spec) {
+    _spec = spec;
+  }
 
-    public List<Object> combine(List<Object> val1, List<Object> val2) {
-        return Util.coerceToList(_combinerFn.applyTo(Util.cat(RT.seq(val1), RT.seq(val2))));
-    }
-    
+  // TODO: Remove this once we have a functor properly in place.
+  public void prepare(FlowProcess flowProcess) {
+    _initFn = Util.deserializeFn(_spec.prepareFn);
+    _combinerFn = Util.deserializeFn(_spec.combineFn);
+  }
+
+  public List<Object> init(List<Object> input) {
+    return Util.coerceToList(_initFn.applyTo(RT.seq(input)));
+  }
+
+  public List<Object> combine(List<Object> val1, List<Object> val2) {
+    return Util.coerceToList(_combinerFn.applyTo(Util.cat(RT.seq(val1), RT.seq(val2))));
+  }
+
 }

@@ -1,5 +1,5 @@
 (ns cascalog.playground
-  (:require [cascalog.conf :as conf])
+  (:require [cascalog.cascading.conf :as conf])
   (:import [java.io PrintStream]
            [cascalog WriterOutputStream]
            [org.apache.log4j Logger WriterAppender SimpleLayout]))
@@ -8,8 +8,7 @@
   (use 'cascalog.api
        '[jackknife.seq :only (find-first)])
   (conf/set-job-conf! {"io.sort.mb" 1})
-  (require '(cascalog [workflow :as w]
-                      [ops :as c]
+  (require '(cascalog [ops :as c]
                       [vars :as v])))
 
 (defn bootstrap-emacs []

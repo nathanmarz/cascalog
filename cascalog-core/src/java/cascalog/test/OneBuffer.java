@@ -25,8 +25,8 @@ import cascalog.CascalogBuffer;
 
 public class OneBuffer extends CascalogBuffer {
 
-    public void operate(FlowProcess flowProcess, BufferCall bufCall) {
-        bufCall.getOutputCollector().add(new Tuple(1));
-    }
+  public void operate(FlowProcess flowProcess, BufferCall bufCall) {
+    bufCall.getOutputCollector().add(new Tuple(1));
+  }
 }
 
