@@ -1,3 +1,14 @@
+### 1.10.2
+* Upgrade to Cascading 2.1.6, Hadoop 1.1.2
+* Set cascading framework property correctly (fs111)
+* Add config setting to retain outputcollector (fs111)
+* Use gensym for symbol generation rather than maintaining state (MichaelDrogalis)
+* Add Java api for lfsTextline (sourabhchaki)
+* Use Clojure's combinatorics implementation (MichaelDrogalis)
+* hfs-textline :compress? and :quote options
+* Use Merge instead of GroupBy for `combine` (ipostelnik)
+* Add explain function to output dotfile of cascading workflow (alexrobbins)
+
 ### 1.10.1
 * Upgrade to Cascading 2.0.8, Clojure 1.5.1
 * Incorporate cascalog-contrib libraries
