@@ -1,5 +1,5 @@
 (def cc-version (or (System/getenv "CASCALOG_CASCADING_VERSION") "2.1.6"))
-(defproject cascalog/cascalog-core "1.10.2-SNAPSHOT"
+(defproject cascalog/cascalog-core "1.10.2"
   :description "Cascalog core libraries."
   :url "http://www.cascalog.org"
   :license {:name "Eclipse Public License"
@@ -32,5 +32,5 @@
              :dev {:resource-paths ["dev"]
                    :plugins [[lein-midje "3.0.0"]]
                    :dependencies
-                   [[cascalog/midje-cascalog "1.10.2-SNAPSHOT"]
+                   [[cascalog/midje-cascalog "1.10.2"]
                     [org.apache.hadoop/hadoop-core "1.1.2" :exclusions [[org.slf4j/slf4j-log4j12] [log4j] [commons-codec] commons-logging]]]}})
