@@ -418,7 +418,7 @@
   (mapfn [n] (+ b (* a n))))
 
 (defn sum-plus [a]
-  (d/bufferop*
+  (d/bufferop
    (d/prepfn
     [_ _]
     (let [x (* 3 a)]
@@ -749,7 +749,7 @@
              ((c/re-parse #"[^\s]+") :< ?s :> ?a ?b))))
 
 (def bob-set
-  (d/filterop* #{"bob"}))
+  (d/filterop #{"bob"}))
 
 (deftest test-ifn-implementers
   (let [people [["bob"] ["sam"]]]

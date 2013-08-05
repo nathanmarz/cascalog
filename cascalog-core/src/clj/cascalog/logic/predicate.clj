@@ -166,8 +166,8 @@
 (defmethod to-predicate IFn
   [op input output]
   (if-let [output (not-empty output)]
-    (->Operation (d/mapop* op) input output)
-    (->FilterOperation (d/filterop* op) input)))
+    (->Operation (d/mapop op) input output)
+    (->FilterOperation (d/filterop op) input)))
 
 (defmethod to-predicate ::d/filter
   [op input output]

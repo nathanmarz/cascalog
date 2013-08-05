@@ -20,7 +20,7 @@
   (square 10) => 100
 
   "And still works as a mapop. The behavior is unchanged."
-  ((mapop* square) 3) => 9
+  ((mapop square) 3) => 9
 
   "anonymous mapops work as functions"
   ((mapfn [x] (* x 5)) 4) => 20

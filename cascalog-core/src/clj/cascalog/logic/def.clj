@@ -59,12 +59,12 @@
   (def bufferop (attach ::buffer))
   (def bufferiterop (attach ::bufferiter)))
 
-(defmacro mapfn [& body] `(mapop* (s/fn ~@body)))
-(defmacro mapcatfn [& body] `(mapcatop* (s/fn ~@body)))
-(defmacro filterfn [& body] `(filterop* (s/fn ~@body)))
-(defmacro aggregatefn [& body] `(aggregateop* (s/fn ~@body)))
-(defmacro bufferfn [& body] `(bufferop* (s/fn ~@body)))
-(defmacro bufferiterfn [& body] `(bufferiterop* (s/fn ~@body)))
+(defmacro mapfn [& body] `(mapop (s/fn ~@body)))
+(defmacro mapcatfn [& body] `(mapcatop (s/fn ~@body)))
+(defmacro filterfn [& body] `(filterop (s/fn ~@body)))
+(defmacro aggregatefn [& body] `(aggregateop (s/fn ~@body)))
+(defmacro bufferfn [& body] `(bufferop (s/fn ~@body)))
+(defmacro bufferiterfn [& body] `(bufferiterop (s/fn ~@body)))
 
 (defn- update-arglists
     "Scans the forms of a def* operation and adds an appropriate
