@@ -250,20 +250,40 @@
 ;; ## Defining custom operations
 
 (defalias prepfn d/prepfn)
+(defalias defprepfn d/defprepfn)
+
+;; These functions allow you to lift a vanilla function up into
+;; Cascalog. For example, (mapcatop vector) is identical to
+
+(defalias mapop d/mapop)
+(defalias filterop d/filterop)
+(defalias mapcatop d/mapcatop)
+(defalias bufferop d/bufferop)
+(defalias aggregateop d/aggregateop)
+(defalias bufferiterop d/bufferiterop)
+(defalias parallelagg d/parallelagg)
 
 (defalias mapfn d/mapfn)
 (defalias filterfn d/filterfn)
 (defalias mapcatfn d/mapcatfn)
 (defalias bufferfn d/bufferfn)
-(defalias aggregatefn d/aggregatefn)
 (defalias bufferiterfn d/bufferiterfn)
+(defalias aggregatefn d/aggregatefn)
 
-(defalias defmapop d/defmapfn)
-(defalias deffilterop d/deffilterfn)
-(defalias defmapcatop d/defmapcatfn)
-(defalias defbufferop d/defbufferfn)
-(defalias defbufferiterop d/defbufferiterfn)
-(defalias defaggregateop d/defaggregatefn)
+(defalias defmapfn d/defmapfn)
+(defalias deffilterfn d/deffilterfn)
+(defalias defmapcatfn d/defmapcatfn)
+(defalias defbufferfn d/defbufferfn)
+(defalias defbufferiterfn d/defbufferiterfn)
+(defalias defaggregatefn d/defaggregatefn)
+
+(defalias defmapop d/defmapop)
+(defalias deffilterop d/deffilterop)
+(defalias defmapcatop d/defmapcatop)
+(defalias defbufferop d/defbufferop)
+(defalias defbufferiterop d/defbufferiterop)
+(defalias defaggregateop d/defaggregateop)
+
 (defalias defparallelagg d/defparallelagg)
 
 ;; ## Miscellaneous helpers

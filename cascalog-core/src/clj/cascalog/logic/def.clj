@@ -51,13 +51,13 @@
                  (apply afn args))
                #(merge % (meta afn) {::op afn
                                      :type type})))))]
-  (def mapop* (attach ::map))
-  (def mapcatop* (attach ::mapcat))
-  (def filterop* (attach ::filter))
-  (def aggregateop* (attach ::aggregate))
-  (def parallelagg* (attach ::combiner))
-  (def bufferop* (attach ::buffer))
-  (def bufferiterop* (attach ::bufferiter)))
+  (def mapop (attach ::map))
+  (def mapcatop (attach ::mapcat))
+  (def filterop (attach ::filter))
+  (def aggregateop (attach ::aggregate))
+  (def parallelagg (attach ::combiner))
+  (def bufferop (attach ::buffer))
+  (def bufferiterop (attach ::bufferiter)))
 
 (defmacro mapfn [& body] `(mapop* (s/fn ~@body)))
 (defmacro mapcatfn [& body] `(mapcatop* (s/fn ~@body)))
@@ -93,6 +93,10 @@
   "Defines a map operation."
   `mapfn)
 
+(defdefop defprepfn
+  "Defines a prepared operation."
+  `prepfn)
+
 (defdefop defmapcatfn
   "Defines a mapcat operation."
   `mapcatfn)
@@ -121,7 +125,7 @@
      (println ~(format "Warning, %s is deprecated; use %s."
                        (resolve old)
                        (resolve new)))
-     `(defmapcatfn ~sym# ~@body#)))
+     `(~'~new ~sym# ~@body#)))
 
 (defdeprecated defmapop defmapfn)
 (defdeprecated deffilterop deffilterfn)

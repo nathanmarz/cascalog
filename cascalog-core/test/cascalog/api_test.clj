@@ -8,7 +8,7 @@
   (:import [cascalog.test KeepEven OneBuffer CountAgg SumAgg]
            [cascalog.ops IdentityBuffer]))
 
-(defmapop mk-one
+(defmapfn mk-one
   "Returns 1 for any input."
   [& tuple] 1)
 
@@ -105,7 +105,7 @@
              (gender !p !gender)
              (:distinct true))))
 
-(defmapcatop split [^String words]
+(defmapcatfn split [^String words]
   (seq (.split words "\\s+")))
 
 (deftest test-countall
@@ -165,7 +165,7 @@
              (c/sum ?n :> ?s)
              (* 2 ?s :> ?s2))))
 
-(defaggregateop evens-vs-odds
+(defaggregatefn evens-vs-odds
   "Decrements state for odd inputs, increases for even. Returns final
    state as a 1-tuple."
   ([] 0)
@@ -263,7 +263,7 @@
              (nums ?n2 ?n2)
              (* 6 ?n :> ?n2))))
 
-(defbufferop select-first [tuples]
+(defbufferfn select-first [tuples]
   [(first tuples)])
 
 (deftest test-sort
@@ -284,13 +284,13 @@
 (defn existence2str [obj]
   (if obj "some" "none"))
 
-(defmapop outer-join-tester [obj]
+(defmapfn outer-join-tester [obj]
   (if obj "o" "n"))
 
-(defmapop outer-join-tester2 [obj]
+(defmapfn outer-join-tester2 [obj]
   (if obj "o2" "n2"))
 
-(defmapcatop outer-join-tester3 [obj]
+(defmapcatfn outer-join-tester3 [obj]
   (if obj [1] [1 1]))
 
 (deftest test-outer-join-basic
@@ -466,7 +466,7 @@
              (sentence :>> [?line])
              (str :<< ["?line" "a"] :>> ["?out"]))))
 
-(defbufferop nothing-buf [tuples] tuples)
+(defbufferfn nothing-buf [tuples] tuples)
 
 (deftest test-outer-join-anon
   (let [person  [["a"] ["b"] ["c"]]
@@ -486,7 +486,7 @@
                      (left ?x ?y)
                      (right ?x :> false)) => (produces [["a" 1]]))))
 
-(defbufferiterop itersum [tuples-iter]
+(defbufferiterfn itersum [tuples-iter]
   [(->> (iterator-seq tuples-iter)
         (map first)
         (reduce +))])
@@ -551,11 +551,11 @@
              (follows ?p _)
              (c/count !c))))
 
-(deffilterop odd-fail [n & all]
+(deffilterfn odd-fail [n & all]
   (or (even? n)
       (throw (RuntimeException.))))
 
-(deffilterop a-fail [n & all]
+(deffilterfn a-fail [n & all]
   (if (= "a" n)
     (throw (RuntimeException.)) true))
 
@@ -570,7 +570,7 @@
   :init-var #'multipagg-init
   :combine-var #'multipagg-combiner)
 
-(defaggregateop slow-count
+(defaggregatefn slow-count
   ([] 0)
   ([context val] (inc context))
   ([context] [context]))

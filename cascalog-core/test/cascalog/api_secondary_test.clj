@@ -29,7 +29,7 @@
   (is (= ["?age" "field2"]
          (get-out-fields (memory-source-tap ["?age" "field2"] [])))))
 
-(defbufferop sum+1 [tuples]
+(defbufferfn sum+1 [tuples]
   [(inc (reduce + (map first tuples)))])
 
 (defn op-to-pairs [sq op]
