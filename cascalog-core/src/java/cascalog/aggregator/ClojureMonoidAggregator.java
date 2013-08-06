@@ -48,7 +48,7 @@ public class ClojureMonoidAggregator extends BaseOperation<Tuple> implements Agg
   }
 
   public void aggregate(FlowProcess fp, AggregatorCall<Tuple> call) {
-    ISeq fnArgs = Util.coerceFromTuple(call.getArguments().getTuple());
+    ISeq fnArgs = RT.seq(Util.tupleToList(call.getArguments()));
     if (null != prepareFn) {
       fnArgs = RT.seq(Util.coerceToList(prepareFn.applyTo(fnArgs)));
     }

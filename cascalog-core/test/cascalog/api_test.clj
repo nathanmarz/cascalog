@@ -198,16 +198,14 @@
       (vec)
       (conj [0 5 2])))
 
-(comment
-  "TODO: Resolve the tuple reuse issue and fix this test."
-  (deftest test-complex-agg-more-than-spill-threshold
-    (let [num (mk-agg-test-tuples)]
-      (test?<- (mk-agg-test-results)
-               [?n ?s ?c]
-               (num ?n ?v)
-               (:spill-threshold 3)
-               (c/sum ?v :> ?s)
-               (c/count ?c)))))
+(deftest test-complex-agg-more-than-spill-threshold
+  (let [num (mk-agg-test-tuples)]
+    (test?<- (mk-agg-test-results)
+             [?n ?s ?c]
+             (num ?n ?v)
+             (:spill-threshold 3)
+             (c/sum ?v :> ?s)
+             (c/count ?c))))
 
 (deftest test-multi-rule
   (let [age [["n" 24] ["c" 40] ["j" 23] ["g" 50]]

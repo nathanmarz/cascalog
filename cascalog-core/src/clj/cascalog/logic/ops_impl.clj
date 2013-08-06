@@ -65,7 +65,7 @@
                      tuples
                      (iterate inc 1)))))
 
-(defaggregateop distinct-count-agg
+(defaggregatefn distinct-count-agg
   ([] [nil 0])
   ([[prev cnt] & tuple]
      [tuple (if (= tuple prev) cnt (inc cnt))])

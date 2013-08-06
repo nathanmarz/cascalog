@@ -175,7 +175,7 @@
 (defn append-! [v]
   (str v "!"))
 
-(deffilterop small-op? [v]
+(deffilterfn small-op? [v]
   (< v 4))
 
 (deftest test-each
@@ -183,28 +183,31 @@
     (test?<-[["1!" "2!"] ["3!" "4!"]]
             [!v1 !v2]
             (triples !a !b !c)
-            ((c/each #'append-!) !a !b :> !v1 !v2)
-            (:distinct false))
+            ((c/each #'append-!) !a !b :> !v1 !v2))
 
     (test?<-[["2!"] ["4!"]]
             [!v]
             (triples !a !b !c)
-            ((c/each #'append-!) !b :> !v)
-            (:distinct false))
+            ((c/each #'append-!) !b :> !v))
 
     (test?<-[[3 1 2]]
             [!c !a !b]
             (triples !a !b !c)
-            ((c/each small-op?) !a !b !c)
-            (:distinct false))))
+            ((c/each small-op?) !a !b !c))))
+
+(def pm1
+  (predmacro [invars outvars]
+             (map (fn [i v] [#'append-! i :> v]) invars outvars)))
+
+(def pm2
+  "Nested predmacro. Note that we're using a VAR attached to a
+  predicate macro here, rather than the actual predmacro value."
+  (predmacro [invars outvars]
+             [[#'pm1 :<< invars :>> outvars]
+              [small-op? (first invars)]]))
 
 (deftest test-nested-predmacro
-  (let [integers [[1] [4]]
-        pm1 (predmacro [invars outvars]
-                       (map (fn [i v] [#'append-! i :> v]) invars outvars))
-        pm2 (predmacro [invars outvars]
-                       [[pm1 :<< invars :>> outvars]
-                        [small-op? (first invars)]])]
+  (let [integers [[1] [4]]]
     (test?<- [["1!"]]
              [?v]
              (integers ?i)

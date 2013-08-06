@@ -30,10 +30,11 @@ public class ClojureMonoidFunctor extends FoldFunctor<ISeq> {
   }
 
   public ISeq applyPrepareFn(TupleEntry args) {
+    ISeq input = RT.seq(Util.tupleToList(args));
     if (null != prepareFn) {
-      return RT.seq(Util.coerceToList(prepareFn.applyTo(Util.coerceFromTuple(args))));
+      return RT.seq(Util.coerceToList(prepareFn.applyTo(input)));
     } else {
-      return RT.seq(Util.coerceFromTuple(args));
+      return input;
     }
   }
 
