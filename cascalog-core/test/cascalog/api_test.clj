@@ -681,6 +681,22 @@
                                   (:distinct false)) ])]
     (test?- double-second-sink pairs)))
 
+(deftest test-complex-constraints
+  (let [pairs [[1 2] [2 4] [3 3]]
+        double-times (mapfn [x y] [(* 2 x) y])]
+    "Both output variables must be equal."
+    (test?<- [[1 2] [2 4]]
+             [?a ?b]
+             (double-times ?a ?b :> ?b ?b)
+             (pairs ?a ?b))
+
+    "Function guard on a source, and a function guard on the
+    operation's output."
+    (test?<- [[2]]
+             [?b]
+             (* ?b 3 :> even?)
+             (pairs odd? ?b))))
+
 (deftest test-constant-substitution
   (let [pairs [[1 2] [1 3] [2 5]]]
     (test?<- [[1 2]]
