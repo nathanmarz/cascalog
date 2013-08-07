@@ -589,7 +589,7 @@
              (slow-count ?c :> ?count))))
 
 (deftest test-cascading-function
-  (test?<- [["2013-01-01" 1356825660000]]
+  (test?<- :info [["2013-01-01" 1356825660000]]
            [!date !date-millis]
            ([["2013-01-01"]] !date)
            ((DateParser. "YYYY-mm-dd") !date :> !date-millis)))
