@@ -6,7 +6,8 @@
   (:require [cascalog.logic.ops :as c]
             [cascalog.logic.def :as d])
   (:import [cascalog.test KeepEven OneBuffer CountAgg SumAgg]
-           [cascalog.ops IdentityBuffer]))
+           [cascalog.ops IdentityBuffer]
+           [cascading.operation.text DateParser]))
 
 (defmapfn mk-one
   "Returns 1 for any input."
@@ -586,6 +587,12 @@
              (vals ?a ?b ?c)
              (multipagg ?a ?b ?c :> ?d ?e)
              (slow-count ?c :> ?count))))
+
+(deftest test-cascading-function
+  (test?<- [["2013-01-01" 1356998400000]]
+           [!date !date-millis]
+           ([["2013-01-01"]] !date)
+           ((DateParser. "yyyy-MM-dd") !date :> !date-millis)))
 
 (deftest test-cascading-filter
   (let [vals [[0] [1] [2] [3]]]
