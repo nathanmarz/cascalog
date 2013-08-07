@@ -15,12 +15,13 @@
             [cascalog.cascading.types :refer (IGenerator generator)])
   (:import [cascading.pipe Each Every]
            [cascading.tuple Fields]
-           [cascading.operation Filter]
+           [cascading.operation Function Filter]
            [cascalog.aggregator CombinerSpec ClojureMonoidAggregator
             ClojureParallelAggregator]
            [cascalog CascalogFunction ClojureBufferCombiner
             CascalogFunctionExecutor CascadingFilterToFunction
-            CascalogBuffer CascalogBufferExecutor CascalogAggregator
+            CascadingFunctionWrapper CascalogBuffer
+            CascalogBufferExecutor CascalogAggregator
             CascalogAggregatorExecutor ParallelAgg]
            [cascalog.logic.parse TailStruct Projection Application
             FilterApplication Grouping Join ExistenceNode
@@ -44,6 +45,10 @@
   (if (empty? output)
     (p/->FilterOperation op input)
     (p/->Operation op input output)))
+
+(defmethod p/to-predicate Function
+  [op input output]
+  (p/->Operation op input output))
 
 (defmethod p/to-predicate ParallelAgg
   [op input output]
@@ -98,11 +103,18 @@
   (fn [op input output]
     (type op)))
 
-(defmethod op-cascading cascading.operation.Filter
+(defmethod op-cascading Filter
   [op gen input output]
   ((assem
     [in out]
     (ops/each #(CascadingFilterToFunction. (first %) op) in out))
+   gen input output))
+
+(defmethod op-cascading Function
+  [op gen input output]
+
+  ((assem [in out]
+          (ops/each #(CascadingFunctionWrapper. % op) in out))
    gen input output))
 
 (defmethod op-cascading CascalogFunction
