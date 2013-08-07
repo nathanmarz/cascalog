@@ -23,12 +23,14 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.log4j.Logger;
 
+import cascading.flow.FlowProcess;
+import cascading.flow.hadoop.HadoopFlowProcess;
 import cascalog.hadoop.ClojureKryoSerialization;
 
 public class KryoService {
-
   private static final ThreadLocal<Kryo> kryo = new ThreadLocal<Kryo>();
   private static final ThreadLocal<ByteArrayOutputStream> byteStream =
       new ThreadLocal<ByteArrayOutputStream>();
@@ -36,7 +38,11 @@ public class KryoService {
   public static final Logger LOG = Logger.getLogger(KryoService.class);
 
   public static Kryo getKryo() {
-    if (kryo.get() == null) { kryo.set(freshKryo()); }
+    return getKryo(clojureConf());
+  }
+
+  public static Kryo getKryo(Configuration conf) {
+    if (kryo.get() == null) { kryo.set(freshKryo(conf)); }
 
     return kryo.get();
   }
@@ -47,17 +53,31 @@ public class KryoService {
     return byteStream.get();
   }
 
+  private static Configuration clojureConf() {
+    return (Configuration)
+        Util.bootSimpleFn("hadoop-util.core", "job-conf").invoke(
+            Util.bootSimpleFn("cascalog.cascading.conf", "project-conf").invoke());
+  }
+
   private static Kryo freshKryo() {
-    Kryo k = new ClojureKryoSerialization().populatedKryo();
+    return freshKryo(clojureConf());
+  }
+
+  private static Kryo freshKryo(Configuration conf) {
+    Kryo k = new ClojureKryoSerialization(conf).populatedKryo();
     k.setRegistrationRequired(false);
     return k;
   }
 
   public static byte[] serialize(Object obj) {
+    return serialize(clojureConf(), obj);
+  }
+
+  public static byte[] serialize(Configuration conf, Object obj) {
     LOG.debug("Serializing " + obj);
     getByteStream().reset();
     Output ko = new Output(getByteStream());
-    getKryo().writeClassAndObject(ko, obj);
+    getKryo(conf).writeClassAndObject(ko, obj);
     ko.flush();
     byte[] bytes = getByteStream().toByteArray();
 
@@ -65,7 +85,11 @@ public class KryoService {
   }
 
   public static Object deserialize(byte[] serialized) {
-    Object o = getKryo().readClassAndObject(new Input(serialized));
+    return deserialize(clojureConf(), serialized);
+  }
+
+  public static Object deserialize(Configuration conf, byte[] serialized) {
+    Object o = getKryo(conf).readClassAndObject(new Input(serialized));
     LOG.debug("Deserialized " + o);
     return o;
   }
