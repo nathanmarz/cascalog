@@ -17,32 +17,33 @@ The best way to get started with Cascalog is experiment with the toy datasets th
 1. Install [leiningen](http://github.com/technomancy/leiningen)
 2. Make sure you have Java 1.6 (run `java -version`)
 3. Start a new leiningen project with `lein new <project name>`, replacing `<project name>`
-4. Include dependency on Cascalog in your project by adding `[cascalog "1.10.1"]` into your project's `project.clj` file.
+4. Include dependency on Cascalog in your project by adding `[cascalog "1.10.2"]` into your project's `project.clj` file.
 5. Work through the examples in the [Getting Started Guide](http://cascalog.org/articles/getting_started.html).
 
 # Using Cascalog within a project
 
-Cascalog is hosted at [Clojars](http://clojars.org/cascalog). Clojars is a maven repo that's easy to use with maven or leiningen.
+Cascalog is hosted at [Clojars](http://clojars.org/cascalog), and some of its dependencies are hosted at [Conjars](http://conjars.org/). Both Clo/Con-jars are maven repos that's easy to use with maven or leiningen.
 
 To include Cascalog in your leiningen or cake project, add the following to your `project.clj`:
 
 General
 
-    [cascalog "1.10.1"] ;; under :dependencies
+    [cascalog "1.10.2"] ;; under :dependencies
     [org.apache.hadoop/hadoop-core "1.1.2"] ;; under :dev-dependencies
 
 Leiningen 2.0
 
-    :dependencies [cascalog "1.10.1"]
+    :repositories {"conjars" "http://conjars.org/repo"}
+    :dependencies [cascalog "1.10.2"]
     :profiles { :dev {:dependencies [[org.apache.hadoop/hadoop-core "1.1.2"]]}}
 
 Leiningen < 2.0
 
-    :dependencies [cascalog "1.10.1"] 
+    :dependencies [cascalog "1.10.2"]
     :dev-dependencies [[org.apache.hadoop/hadoop-core "1.1.2"]]
 
-Note that Cascalog is compatible with Clojure 1.2.0, 1.2.1, 1.3.0, 1.4.0, and 1.5.1. 
-    
+Note that Cascalog is compatible with Clojure 1.2.0, 1.2.1, 1.3.0, 1.4.0, and 1.5.1.
+
 # Documentation and Issue Tracker
 
 - The [Cascalog website](http://cascalog.org/) contains more information and links to Various articles and tutorials.
