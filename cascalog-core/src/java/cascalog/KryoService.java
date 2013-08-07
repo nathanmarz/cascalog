@@ -36,11 +36,7 @@ public class KryoService {
   public static final Logger LOG = Logger.getLogger(KryoService.class);
 
   public static Kryo getKryo() {
-    return getKryo(clojureConf());
-  }
-
-  public static Kryo getKryo(Configuration conf) {
-    if (kryo.get() == null) { kryo.set(freshKryo(conf)); }
+    if (kryo.get() == null) { kryo.set(freshKryo(clojureConf())); }
 
     return kryo.get();
   }
@@ -57,10 +53,6 @@ public class KryoService {
             Util.bootSimpleFn("cascalog.cascading.conf", "project-conf").invoke());
   }
 
-  private static Kryo freshKryo() {
-    return freshKryo(clojureConf());
-  }
-
   private static Kryo freshKryo(Configuration conf) {
     Kryo k = new ClojureKryoSerialization(conf).populatedKryo();
     k.setRegistrationRequired(false);
@@ -68,14 +60,10 @@ public class KryoService {
   }
 
   public static byte[] serialize(Object obj) {
-    return serialize(clojureConf(), obj);
-  }
-
-  public static byte[] serialize(Configuration conf, Object obj) {
     LOG.debug("Serializing " + obj);
     getByteStream().reset();
     Output ko = new Output(getByteStream());
-    getKryo(conf).writeClassAndObject(ko, obj);
+    getKryo().writeClassAndObject(ko, obj);
     ko.flush();
     byte[] bytes = getByteStream().toByteArray();
 
@@ -83,11 +71,7 @@ public class KryoService {
   }
 
   public static Object deserialize(byte[] serialized) {
-    return deserialize(clojureConf(), serialized);
-  }
-
-  public static Object deserialize(Configuration conf, byte[] serialized) {
-    Object o = getKryo(conf).readClassAndObject(new Input(serialized));
+    Object o = getKryo().readClassAndObject(new Input(serialized));
     LOG.debug("Deserialized " + o);
     return o;
   }
