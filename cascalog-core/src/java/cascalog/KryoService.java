@@ -23,12 +23,12 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.log4j.Logger;
 
 import cascalog.hadoop.ClojureKryoSerialization;
 
 public class KryoService {
-
   private static final ThreadLocal<Kryo> kryo = new ThreadLocal<Kryo>();
   private static final ThreadLocal<ByteArrayOutputStream> byteStream =
       new ThreadLocal<ByteArrayOutputStream>();
@@ -36,7 +36,7 @@ public class KryoService {
   public static final Logger LOG = Logger.getLogger(KryoService.class);
 
   public static Kryo getKryo() {
-    if (kryo.get() == null) { kryo.set(freshKryo()); }
+    if (kryo.get() == null) { kryo.set(freshKryo(clojureConf())); }
 
     return kryo.get();
   }
@@ -47,8 +47,14 @@ public class KryoService {
     return byteStream.get();
   }
 
-  private static Kryo freshKryo() {
-    Kryo k = new ClojureKryoSerialization().populatedKryo();
+  private static Configuration clojureConf() {
+    return (Configuration)
+        Util.bootSimpleFn("hadoop-util.core", "job-conf").invoke(
+            Util.bootSimpleFn("cascalog.cascading.conf", "project-conf").invoke());
+  }
+
+  private static Kryo freshKryo(Configuration conf) {
+    Kryo k = new ClojureKryoSerialization(conf).populatedKryo();
     k.setRegistrationRequired(false);
     return k;
   }
