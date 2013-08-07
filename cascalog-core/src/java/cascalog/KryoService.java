@@ -26,8 +26,6 @@ import com.esotericsoftware.kryo.io.Output;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.log4j.Logger;
 
-import cascading.flow.FlowProcess;
-import cascading.flow.hadoop.HadoopFlowProcess;
 import cascalog.hadoop.ClojureKryoSerialization;
 
 public class KryoService {
