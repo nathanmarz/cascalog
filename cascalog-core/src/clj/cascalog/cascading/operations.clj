@@ -346,7 +346,7 @@
   (map rename-pipe flows))
 
 (defn co-group*
-  [flows group-fields decl-fields aggs & {:keys [reducers join] :or {join :inner}}]
+  [flows group-fields & {:keys [decl-fields aggs reducers join] :or {join :inner}}]
   (-> flows
       ensure-unique-pipes
       lift-pipes
@@ -357,29 +357,29 @@
                     (add-co-group-aggs (or aggs [])))))))
 
 (defn join-with-smaller
-  [larger-flow fields1 smaller-flow fields2 aggs & {:keys [reducers] :as opts}]
+  [larger-flow fields1 smaller-flow fields2 & opts]
   (apply co-group*
          [larger-flow smaller-flow]
          [fields1 fields2]
-         nil aggs (assoc opts :join (InnerJoin.))))
+         (concat opts [:join (InnerJoin.)])))
 
 (defn join-with-larger
-  [smaller-flow fields1 larger-flow fields2 group-fields aggs & {:keys [reducers] :as opts}]
-  (apply join-with-smaller larger-flow fields2 smaller-flow fields1 aggs opts))
+  [smaller-flow fields1 larger-flow fields2 group-fields aggs & opts]
+  (apply join-with-smaller larger-flow fields2 smaller-flow fields1 opts))
 
 (defn left-join-with-smaller
-  [larger-flow fields1 smaller-flow fields2 aggs & {:keys [reducers] :as opts}]
+  [larger-flow fields1 smaller-flow fields2 aggs & opts]
   (apply co-group*
          [larger-flow smaller-flow]
          [fields1 fields2]
-         nil aggs (assoc opts :join (LeftJoin.))))
+         (concat opts [:join (LeftJoin.)])))
 
 (defn left-join-with-larger
-  [smaller-flow fields1 larger-flow fields2 aggs & {:keys [reducers] :as opts}]
+  [smaller-flow fields1 larger-flow fields2 aggs & {:as opts}]
   (apply co-group*
          [larger-flow smaller-flow]
          [fields2 fields1]
-         nil aggs (assoc opts :join (RightJoin.))))
+         (concat opts [:join (RightJoin.)])))
 
 (defn- cascalog-joiner-type
   [join]
@@ -392,15 +392,13 @@
   "Takes a sequence of [pipe, join-fields, join-type] triplets along
    with other co-group arguments and performs a mixed join. Allowed
    join types are :inner, :outer, and :exists."
-  [flow-joins decl-fields & {:keys [reducers aggs] :as opts}]
+  [flow-joins decl-fields & opts]
   (let [[flows group-fields join-types] (apply map vector flow-joins)
         join-types (map cascalog-joiner-type join-types)]
     (apply co-group*
            flows
            group-fields
-           decl-fields
-           aggs
-           (concat opts [:join (CascalogJoiner. join-types)]))))
+           (concat opts [:decl-fields decl-fields :join (CascalogJoiner. join-types)]))))
 
 
 (defn hash-join*
@@ -411,7 +409,7 @@
 
    Note: full or right outer joins have odd behavior in hash joins.
          See Cascading documentation for details."
-  [flows join-fields decl-fields & {:keys [join] :or {join :inner}}]
+  [flows join-fields & {:keys [join decl-fields] :or {join :inner}}]
   (safe-assert (= (count flows) (count join-fields))
                "Expected same number of flows and join fields")
   (-> flows
@@ -424,14 +422,12 @@
 (defn hash-join-with-tiny
   [larger-flow fields1 tiny-flow fields2]
   (hash-join* [larger-flow tiny-flow]
-              [fields1 fields2]
-              nil))
+              [fields1 fields2]))
 
 (defn left-hash-join-with-tiny
   [larger-flow fields1 tiny-flow fields2]
   (hash-join* [larger-flow tiny-flow]
               [fields1 fields2]
-              nil
               :join (LeftJoin.)))
 
 (defn hash-join-many
@@ -446,7 +442,7 @@
         join-types (map cascalog-joiner-type join-types)]
     (hash-join* flows
                 group-fields
-                decl-fields
+                :decl-fields decl-fields
                 :join (CascalogJoiner. join-types))))
 
 
