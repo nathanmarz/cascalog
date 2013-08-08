@@ -128,13 +128,13 @@
         b      (-> source
                    (rename* ["x" "y"]))]
     (fact "Join joins stuff"
-      (-> (co-group* [a b] [["a"] ["x"]] ["a" "x" "b" "c" "y"]  [])
+      (-> (co-group* [a b] [["a"] ["x"]] :decl-fields ["a" "x" "b" "c" "y"])
           (map* str "y" "q"))
       => (produces [[3 3 9 3 3 "3"] [4 4 16 4 4 "4"]]))
 
     (let [a (-> (generator [[1 1] [1 2] [2 2]]) (rename* ["a" "b"]))
           b (-> (generator [[1 10] [2 15]]) (rename* ["x" "y"]))
-          q (co-group* [a b] [["a"] ["x"]] nil [((partial parallel-agg +) "y" "s")])]
+          q (co-group* [a b] [["a"] ["x"]] :aggs [((partial parallel-agg +) "y" "s")])]
       (fact "Agg after join"
         q => (produces [[1 1 20] [2 2 15]])))))
 
@@ -153,6 +153,23 @@
           (map* str "y" "q"))
       => (produces [[3 3 9 3 3 "9"]
                     [4 4 16 4 4 "16"]]))))
+
+
+(deftest hash-join-many-test
+  (let [source (-> (generator [[1 1] [2 2] [3 3] [4 4]]))
+        a      (-> source
+                   (rename* ["a" "b"])
+                   (filter* gt2 "a")
+                   (map* square "b" "c"))
+        b      (-> source
+                   (rename* ["x" "a"]))]
+    (fact "hash join many..."
+          (-> (hash-join-many [[a ["a"] :inner]
+                               [b ["x"] :inner]]
+                              ["a" "b" "y" "x" "c"])
+              (map* str "y" "q"))
+          => (produces [[3 3 9 3 3 "9"]
+                        [4 4 16 4 4 "16"]]))))
 
 (defn count-sum [seq1 seq2]
   [[(count seq1) (reduce + (map second seq2))]])

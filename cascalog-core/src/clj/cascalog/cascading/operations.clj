@@ -15,7 +15,7 @@
            [cascading.operation Identity Debug NoOp]
            [cascading.operation.filter Sample]
            [cascading.operation.aggregator First Count Sum Min Max]
-           [cascading.pipe Pipe Each Every GroupBy CoGroup Merge ]
+           [cascading.pipe Pipe Each Every GroupBy CoGroup Merge HashJoin]
            [cascading.pipe.joiner Joiner InnerJoin LeftJoin RightJoin OuterJoin]
            [cascading.pipe.joiner CascalogJoiner CascalogJoiner$JoinType]
            [cascading.pipe.assembly Rename AggregateBy]
@@ -322,13 +322,13 @@
       :outer (OuterJoin.)
       (throw-illegal "Can't create joiner from " join))))
 
-(defn- co-group
-  [pipes group-fields decl-fields join]
-  (let [group-fields (into-array Fields (map fields group-fields))
-        joiner       (join->joiner join)
-        decl-fields  (when decl-fields
-                       (fields decl-fields))]
-    (CoGroup. pipes group-fields decl-fields joiner)))
+(defmacro build-join-group
+  [group-op pipes group-fields decl-fields join]
+  `(let [group-fields# (into-array Fields (map fields ~group-fields))
+         joiner#       (join->joiner ~join)
+         d#            ~decl-fields
+         decl-fields#  (when d# (fields d#))]
+     (~group-op ~pipes group-fields# decl-fields# joiner#)))
 
 (defn- add-co-group-aggs
   [pipe aggs]
@@ -346,40 +346,40 @@
   (map rename-pipe flows))
 
 (defn co-group*
-  [flows group-fields decl-fields aggs & {:keys [reducers join] :or {join :inner}}]
+  [flows group-fields & {:keys [decl-fields aggs reducers join] :or {join :inner}}]
   (-> flows
       ensure-unique-pipes
       lift-pipes
       sum
       (add-op (fn [pipes]
-                (-> (co-group pipes group-fields decl-fields join)
+                (-> (build-join-group CoGroup. pipes group-fields decl-fields join)
                     (set-reducers reducers)
-                    (add-co-group-aggs aggs))))))
+                    (add-co-group-aggs (or aggs [])))))))
 
 (defn join-with-smaller
-  [larger-flow fields1 smaller-flow fields2 aggs & {:keys [reducers] :as opts}]
+  [larger-flow fields1 smaller-flow fields2 & opts]
   (apply co-group*
          [larger-flow smaller-flow]
          [fields1 fields2]
-         nil aggs (assoc opts :join (InnerJoin.))))
+         (concat opts [:join (InnerJoin.)])))
 
 (defn join-with-larger
-  [smaller-flow fields1 larger-flow fields2 group-fields aggs & {:keys [reducers] :as opts}]
-  (apply join-with-smaller larger-flow fields2 smaller-flow fields1 aggs opts))
+  [smaller-flow fields1 larger-flow fields2 group-fields aggs & opts]
+  (apply join-with-smaller larger-flow fields2 smaller-flow fields1 opts))
 
 (defn left-join-with-smaller
-  [larger-flow fields1 smaller-flow fields2 aggs & {:keys [reducers] :as opts}]
+  [larger-flow fields1 smaller-flow fields2 aggs & opts]
   (apply co-group*
          [larger-flow smaller-flow]
          [fields1 fields2]
-         nil aggs (assoc opts :join (LeftJoin.))))
+         (concat opts [:join (LeftJoin.)])))
 
 (defn left-join-with-larger
-  [smaller-flow fields1 larger-flow fields2 aggs & {:keys [reducers] :as opts}]
+  [smaller-flow fields1 larger-flow fields2 aggs & {:as opts}]
   (apply co-group*
          [larger-flow smaller-flow]
          [fields2 fields1]
-         nil aggs (assoc opts :join (RightJoin.))))
+         (concat opts [:join (RightJoin.)])))
 
 (defn- cascalog-joiner-type
   [join]
@@ -392,16 +392,59 @@
   "Takes a sequence of [pipe, join-fields, join-type] triplets along
    with other co-group arguments and performs a mixed join. Allowed
    join types are :inner, :outer, and :exists."
-  [flow-joins decl-fields & {:keys [reducers aggs] :as opts}]
-  (let [join-types   (map (comp cascalog-joiner-type #(nth % 2)) flow-joins)
-        group-fields (map second flow-joins)
-        flows        (map first flow-joins)]
+  [flow-joins decl-fields & opts]
+  (let [[flows group-fields join-types] (apply map vector flow-joins)
+        join-types (map cascalog-joiner-type join-types)]
     (apply co-group*
            flows
            group-fields
-           decl-fields
-           (or aggs [])
-           (concat opts [:join (CascalogJoiner. join-types)]))))
+           (concat opts [:decl-fields decl-fields :join (CascalogJoiner. join-types)]))))
+
+
+(defn hash-join*
+  "Performs a map-side join of flows on join-fields. By default
+   does an inner join, but callers can specify a join type using
+   :join keyword argument, which can be :inner, :outer, or a
+   Cascading Joiner implementation.
+
+   Note: full or right outer joins have odd behavior in hash joins.
+         See Cascading documentation for details."
+  [flows join-fields & {:keys [join decl-fields] :or {join :inner}}]
+  (safe-assert (= (count flows) (count join-fields))
+               "Expected same number of flows and join fields")
+  (-> flows
+      ensure-unique-pipes
+      lift-pipes
+      sum
+      (add-op (fn [pipes]
+                (build-join-group HashJoin. pipes join-fields decl-fields join)))))
+
+(defn hash-join-with-tiny
+  [larger-flow fields1 tiny-flow fields2]
+  (hash-join* [larger-flow tiny-flow]
+              [fields1 fields2]))
+
+(defn left-hash-join-with-tiny
+  [larger-flow fields1 tiny-flow fields2]
+  (hash-join* [larger-flow tiny-flow]
+              [fields1 fields2]
+              :join (LeftJoin.)))
+
+(defn hash-join-many
+  "Takes a sequence of [pipe, join-fields, join-type] triplets along
+   with other hash-join arguments and performs a mixed join. Allowed
+   join types are :inner, :outer, and :exists. The first entry must
+   be of join type :inner."
+  [flow-joins decl-fields]
+  (safe-assert (= :inner (-> flow-joins (first) (nth 2)))
+               "First (left-most) flow must be inner joined.")
+  (let [[flows group-fields join-types] (apply map vector flow-joins)
+        join-types (map cascalog-joiner-type join-types)]
+    (hash-join* flows
+                group-fields
+                :decl-fields decl-fields
+                :join (CascalogJoiner. join-types))))
+
 
 (defn generate-join-fields [numfields numpipes]
   (repeatedly numpipes (partial v/gen-nullable-vars numfields)))
