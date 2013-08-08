@@ -12,6 +12,7 @@
   :javac-options ["-target" "1.6" "-source" "1.6"]
   :source-paths ["src/clj"]
   :java-source-paths ["src/java"]
+  :jar-exclusions [#"\.java$"]
   :repositories {"conjars" "http://conjars.org/repo/"}
   :exclusions [log4j/log4j org.slf4j/slf4j-log4j12]
   :dependencies [[org.clojure/clojure "1.5.1"]
