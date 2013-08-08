@@ -15,7 +15,7 @@
            [cascading.operation Identity Debug NoOp]
            [cascading.operation.filter Sample]
            [cascading.operation.aggregator First Count Sum Min Max]
-           [cascading.pipe Pipe Each Every GroupBy CoGroup Merge ]
+           [cascading.pipe Pipe Each Every GroupBy CoGroup Merge HashJoin]
            [cascading.pipe.joiner Joiner InnerJoin LeftJoin RightJoin OuterJoin]
            [cascading.pipe.joiner CascalogJoiner CascalogJoiner$JoinType]
            [cascading.pipe.assembly Rename AggregateBy]
@@ -322,13 +322,13 @@
       :outer (OuterJoin.)
       (throw-illegal "Can't create joiner from " join))))
 
-(defn- co-group
-  [pipes group-fields decl-fields join]
-  (let [group-fields (into-array Fields (map fields group-fields))
-        joiner       (join->joiner join)
-        decl-fields  (when decl-fields
-                       (fields decl-fields))]
-    (CoGroup. pipes group-fields decl-fields joiner)))
+(defmacro build-join-group
+  [group-op pipes group-fields decl-fields join]
+  `(let [group-fields# (into-array Fields (map fields ~group-fields))
+         joiner#       (join->joiner ~join)
+         d#            ~decl-fields
+         decl-fields#  (when d# (fields d#))]
+     (~group-op ~pipes group-fields# decl-fields# joiner#)))
 
 (defn- add-co-group-aggs
   [pipe aggs]
@@ -352,9 +352,9 @@
       lift-pipes
       sum
       (add-op (fn [pipes]
-                (-> (co-group pipes group-fields decl-fields join)
+                (-> (build-join-group CoGroup. pipes group-fields decl-fields join)
                     (set-reducers reducers)
-                    (add-co-group-aggs aggs))))))
+                    (add-co-group-aggs (or aggs [])))))))
 
 (defn join-with-smaller
   [larger-flow fields1 smaller-flow fields2 aggs & {:keys [reducers] :as opts}]
@@ -400,8 +400,57 @@
            flows
            group-fields
            decl-fields
-           (or aggs [])
+           aggs
            (concat opts [:join (CascalogJoiner. join-types)]))))
+
+
+(defn hash-join*
+  "Performs a map-side join of flows on join-fields. By default
+   does an inner join, but callers can specify a join type using
+   :join keyword argument, which can be :inner, :outer, or a
+   Cascading Joiner implementation.
+
+   Note: full or right outer joins have odd behavior in hash joins.
+         See Cascading documentation for details."
+  [flows join-fields decl-fields & {:keys [join] :or {join :inner}}]
+  (safe-assert (= (count flows) (count join-fields))
+               "Expected same number of flows and join fields")
+  (-> flows
+      ensure-unique-pipes
+      lift-pipes
+      sum
+      (add-op (fn [pipes]
+                (build-join-group HashJoin. pipes join-fields decl-fields join)))))
+
+(defn hash-join-with-tiny
+  [larger-flow fields1 tiny-flow fields2]
+  (co-group* [larger-flow tiny-flow]
+             [fields1 fields2]
+             nil))
+
+(defn left-hash-join-with-tiny
+  [larger-flow fields1 tiny-flow fields2]
+  (co-group* [larger-flow tiny-flow]
+             [fields1 fields2]
+             nil
+             :join (LeftJoin.)))
+
+(defn hash-join-many
+  "Takes a sequence of [pipe, join-fields, join-type] triplets along
+   with other hash-join arguments and performs a mixed join. Allowed
+   join types are :inner, :outer, and :exists. The first entry must
+   be of join type :inner."
+  [flow-joins decl-fields]
+  (safe-assert (= :inner (-> flow-joins (first) (nth 2)))
+               "First (left-most) flow must be inner joined.")
+  (let [join-types   (map (comp cascalog-joiner-type #(nth % 2)) flow-joins)
+        group-fields (map second flow-joins)
+        flows        (map first flow-joins)]
+    (hash-join* flows
+                group-fields
+                decl-fields
+                :join (CascalogJoiner. join-types))))
+
 
 (defn generate-join-fields [numfields numpipes]
   (repeatedly numpipes (partial v/gen-nullable-vars numfields)))
