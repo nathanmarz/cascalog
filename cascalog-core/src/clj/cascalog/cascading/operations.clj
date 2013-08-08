@@ -393,9 +393,8 @@
    with other co-group arguments and performs a mixed join. Allowed
    join types are :inner, :outer, and :exists."
   [flow-joins decl-fields & {:keys [reducers aggs] :as opts}]
-  (let [join-types   (map (comp cascalog-joiner-type #(nth % 2)) flow-joins)
-        group-fields (map second flow-joins)
-        flows        (map first flow-joins)]
+  (let [[flows group-fields join-types] (apply map vector flow-joins)
+        join-types (map cascalog-joiner-type join-types)]
     (apply co-group*
            flows
            group-fields
@@ -424,16 +423,16 @@
 
 (defn hash-join-with-tiny
   [larger-flow fields1 tiny-flow fields2]
-  (co-group* [larger-flow tiny-flow]
-             [fields1 fields2]
-             nil))
+  (hash-join* [larger-flow tiny-flow]
+              [fields1 fields2]
+              nil))
 
 (defn left-hash-join-with-tiny
   [larger-flow fields1 tiny-flow fields2]
-  (co-group* [larger-flow tiny-flow]
-             [fields1 fields2]
-             nil
-             :join (LeftJoin.)))
+  (hash-join* [larger-flow tiny-flow]
+              [fields1 fields2]
+              nil
+              :join (LeftJoin.)))
 
 (defn hash-join-many
   "Takes a sequence of [pipe, join-fields, join-type] triplets along
@@ -443,9 +442,8 @@
   [flow-joins decl-fields]
   (safe-assert (= :inner (-> flow-joins (first) (nth 2)))
                "First (left-most) flow must be inner joined.")
-  (let [join-types   (map (comp cascalog-joiner-type #(nth % 2)) flow-joins)
-        group-fields (map second flow-joins)
-        flows        (map first flow-joins)]
+  (let [[flows group-fields join-types] (apply map vector flow-joins)
+        join-types (map cascalog-joiner-type join-types)]
     (hash-join* flows
                 group-fields
                 decl-fields
