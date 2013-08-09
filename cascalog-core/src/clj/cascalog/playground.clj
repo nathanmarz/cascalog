@@ -8,8 +8,8 @@
   (use 'cascalog.api
        '[jackknife.seq :only (find-first)])
   (conf/set-job-conf! {"io.sort.mb" 1})
-  (require '(cascalog [ops :as c]
-                      [vars :as v])))
+  (require '(cascalog.logic [ops :as c]
+                            [vars :as v])))
 
 (defn bootstrap-emacs []
   (bootstrap)
