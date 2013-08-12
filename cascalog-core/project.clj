@@ -31,7 +31,12 @@
              :1.4 {:dependencies [[org.clojure/clojure "1.4.0"]]}
              :provided {:dependencies [[org.apache.hadoop/hadoop-core "1.1.2"]]}
              :dev {:resource-paths ["dev"]
-                   :plugins [[lein-midje "3.0.0"]]
+                   :plugins [[lein-midje "3.0.0"]
+                             [codox "0.6.4"]]
                    :dependencies
                    [[cascalog/midje-cascalog ~cascalog-version]
-                    [org.apache.hadoop/hadoop-core "1.1.2"]]}})
+                    [org.apache.hadoop/hadoop-core "1.1.2"]]}}
+  :codox {:src-dir-uri "http://github.com/nathanmarz/cascalog/blob/master"
+          :src-linenum-anchor-prefix "L"
+          :sources ["src"
+                    ]})

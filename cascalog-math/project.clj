@@ -9,4 +9,6 @@
              :1.4 {:dependencies [[org.clojure/clojure "1.4.0"]]}
              :provided {:dependencies [[cascalog/cascalog-core ~cascalog-version]]}
              :dev {:dependencies [[org.apache.hadoop/hadoop-core "1.1.2"]
-                                  [cascalog/midje-cascalog ~cascalog-version]]}})
+                                  [cascalog/midje-cascalog ~cascalog-version]
+                                  [org.clojure/clojure "1.5.1"]]
+                   :plugins [[codox "0.6.4"]]}})

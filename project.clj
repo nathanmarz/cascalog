@@ -19,11 +19,4 @@
         "cascalog-checkpoint"
         "cascalog-more-taps"
         "cascalog-math"
-        "midje-cascalog"]
-  :codox {:src-dir-uri "http://github.com/nathanmarz/cascalog/blob/master"
-          :src-linenum-anchor-prefix "L"
-          :sources ["cascalog-core/src"
-                    "cascalog-checkpoint/src"
-                    "cascalog-more-taps/src"
-                    "cascalog-math/src"
-                    "midje-cascalog/src"]})
+        "midje-cascalog"])
