@@ -14,4 +14,6 @@
              :provided {:dependencies [[cascalog/cascalog-core ~cascalog-version]
                                        [org.apache.httpcomponents/httpclient "4.2.3"]]}
              :dev {:dependencies [[org.apache.hadoop/hadoop-core "1.1.2"]
-                                  [cascalog/midje-cascalog ~cascalog-version]]}})
+                                  [cascalog/midje-cascalog ~cascalog-version]
+                                  [org.clojure/clojure "1.5.1"]]
+                   :plugins [[codox "0.6.4"]]}})
