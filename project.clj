@@ -13,7 +13,7 @@
                  [cascalog/cascalog-more-taps ~version]
                  [cascalog/cascalog-math ~version]
                  [cascalog/midje-cascalog ~version]]
-  :plugins [[lein-sub "0.2.1"]
+  :plugins [[lein-sub "0.2.4"]
             [codox "0.6.4"]]
   :sub ["cascalog-core"
         "cascalog-checkpoint"
