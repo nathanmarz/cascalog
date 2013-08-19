@@ -11,7 +11,7 @@
                  [cascalog/cascalog-more-taps "1.10.2-SNAPSHOT"]
                  [cascalog/cascalog-math "1.10.2-SNAPSHOT"]
                  [cascalog/midje-cascalog "1.10.2-SNAPSHOT"]]
-  :plugins [[lein-sub "0.2.1"]
+  :plugins [[lein-sub "0.2.4"]
             [codox "0.6.4"]]
   :sub ["cascalog-core"
         "cascalog-checkpoint"
