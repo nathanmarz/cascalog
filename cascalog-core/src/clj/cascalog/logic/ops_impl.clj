@@ -8,6 +8,34 @@
 
 (defn existence-int [v] (if v 1 0))
 
+(defn nil-safe-combiner 
+  "Takes a function f of two variables, and returns a function
+   of two variables that calls f on its arguments only if both
+   are non-nil. If one argument is nil, it prefers the other argument,
+   and if both are nil it returns nil."
+  [f]
+  (fn [x y]
+    (cond 
+     (and (nil? x) (nil? y)) nil
+     (nil? x) y
+     (nil? y) x
+     :else (f x y))))
+
+(defn smaller [x y]
+  (if (neg? (compare x y)) x y))
+
+(defn larger [x y]
+  (if (pos? (compare x y)) x y))
+
+(def comparable-min-impl (nil-safe-combiner smaller))
+
+(def comparable-max-impl (nil-safe-combiner larger))
+
+(defn distinct-count-impl [prev cnt tuple]
+  (if (or (every? nil? tuple) (= tuple prev))
+    cnt
+    (inc cnt)))
+
 (defparallelagg sum-parallel
   :init-var #'identity
   :combine-var #'+)
@@ -16,11 +44,19 @@
   :init-var #'identity
   :combine-var #'min)
 
+(defparallelagg comparable-min-parallel 
+  :init-var #'identity
+  :combine-var #'comparable-min-impl)
+
 (defparallelagg max-parallel
   :init-var #'identity
   :combine-var #'max)
 
-(defparallelagg !count-parallel
+(defparallelagg comparable-max-parallel 
+  :init-var #'identity
+  :combine-var #'comparable-max-impl)
+
+(defparallelagg count-parallel!
   :init-var #'existence-int
   :combine-var #'+)
 

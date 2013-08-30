@@ -78,3 +78,94 @@
                [?sum]
                (src ?a ?b ?c ?d ?e)
                (multi-combine ?a ?b ?c ?d ?e :> ?sum)))))
+
+(deftest min!-test
+  (facts "Null safe min aggregate"
+         (let [src [[0] [1] [2] [nil]]]
+           (fact?<- [[0]]
+                    [?min]
+                    (src ?x)
+                    (cascalog.logic.ops/min! ?x :> ?min)))
+         (let [src [[-99] [nil] [nil]]]
+           (fact?<- [[-99]]
+                    [?min]
+                    [src ?x]
+                    (cascalog.logic.ops/min! ?x :> ?min)))
+         (let [src [[nil]]]
+           (fact?<- []
+                    [?min]
+                    [src ?x]
+                    (cascalog.logic.ops/min! ?x :> ?min)))))
+
+(deftest max!-test
+  (facts "Null safe max aggregate"
+         (let [src [[0] [1] [2] [nil]]]
+           (fact?<- [[2]]
+                    [?max]
+                    (src ?x)
+                    (cascalog.logic.ops/max! ?x :> ?max)))
+         (let [src [[-99] [nil] [nil]]]
+           (fact?<- [[-99]]
+                    [?max]
+                    [src ?x]
+                    (cascalog.logic.ops/max! ?x :> ?max)))
+         (let [src [[nil]]]
+           (fact?<- []
+                    [?max]
+                    [src ?x]
+                    (cascalog.logic.ops/max! ?x :> ?max)))))
+
+(deftest sum!-test
+  (facts "Null safe sum aggregate"
+         (let [src [[0] [1] [2] [nil]]]
+           (fact?<- [[3]]
+                    [?sum]
+                    (src ?x)
+                    (cascalog.logic.ops/sum! ?x :> ?sum)))
+         (let [src [[-99] [nil] [nil]]]
+           (fact?<- [[-99]]
+                    [?sum]
+                    [src ?x]
+                    (cascalog.logic.ops/sum! ?x :> ?sum)))
+         (let [src [[nil]]]
+           (fact?<- []
+                    [?sum]
+                    [src ?x]
+                    (cascalog.logic.ops/sum! ?x :> ?sum)))))
+
+(deftest avg!-test
+  (facts "Null safe avg aggregate"
+         (let [src [[0] [1] [2] [nil]]]
+           (fact?<- [[1]]
+                    [?avg]
+                    (src ?x)
+                    (cascalog.logic.ops/avg! ?x :> ?avg)))
+         (let [src [[-99] [nil] [nil]]]
+           (fact?<- [[-99]]
+                    [?avg]
+                    [src ?x]
+                    (cascalog.logic.ops/avg! ?x :> ?avg)))
+         (let [src [[nil]]]
+           (fact?<- []
+                    [?avg]
+                    [src ?x]
+                    (cascalog.logic.ops/avg! ?x :> ?avg)))))
+
+(deftest distinct-count!-test
+  (facts "Null safe distinct count aggregate"
+         (let [src [[0] [1] [2] [2] [nil]]]
+           (fact?<- [[3]]
+                    [?count]
+                    (src ?x)
+                    (cascalog.logic.ops/distinct-count! ?x :> ?count)))
+         (let [src [[-99] [nil] [nil]]]
+           (fact?<- [[1]]
+                    [?count]
+                    [src ?x]
+                    (cascalog.logic.ops/distinct-count! ?x :> ?count)))
+         (let [src [[nil]]]
+           (fact?<- []
+                    [?count]
+                    [src ?x]
+                    (cascalog.logic.ops/distinct-count! ?x :> ?count)))))
+
