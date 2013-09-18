@@ -6,7 +6,8 @@
   (:require [cascalog.cascading.io :as io]
             [cascalog.cascading.tap :as tap]
             [cascalog.cascading.util :refer (fields)])
-  (:import [cascading.tuple Fields]
+  (:import [cascading.scheme.hadoop TextLine$Compress]
+           [cascading.tuple Fields]
            [cascading.tap Tap]
            [cascading.tap.hadoop Hfs Lfs GlobHfs TemplateTap]))
 
@@ -46,6 +47,20 @@
     (fields Fields/ALL)  []
     (fields ["?a"])      [:outfields ["?a"]]
     (fields ["?a" "!b"]) [:outfields ["?a" "!b"]]))
+
+(deftest api-compression-test
+  (tabular
+   (facts "api compression testing"
+     (-> (apply tap/hfs-textline "path" ?opts)
+         (tap-sink)
+         (.getScheme)
+         (.getSinkCompression)
+         (.ordinal)) => ?compression-value)
+   ?compression-value                     ?opts
+   (.ordinal TextLine$Compress/DEFAULT)   []
+   (.ordinal TextLine$Compress/DEFAULT)   [:compression :default]
+   (.ordinal TextLine$Compress/ENABLE)    [:compression :enable]
+   (.ordinal TextLine$Compress/DISABLE)   [:compression :disable]))
 
 (deftest taps-type-test
   (tabular

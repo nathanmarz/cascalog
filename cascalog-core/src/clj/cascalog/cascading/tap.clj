@@ -9,7 +9,7 @@
            [cascading.tap.hadoop Hfs Lfs GlobHfs TemplateTap]
            [cascading.tuple TupleEntryCollector]
            [cascading.scheme Scheme]
-           [cascading.scheme.hadoop TextLine SequenceFile TextDelimited]
+           [cascading.scheme.hadoop TextLine TextLine$Compress SequenceFile TextDelimited]
            [cascading.flow.hadoop HadoopFlowProcess]
            [cascading.tuple Fields Tuple TupleEntry]
            [com.twitter.maple.tap StdoutTap MemorySourceTap]))
@@ -49,7 +49,9 @@ identity.  identity."
   ([field-names]
      (TextLine. (fields field-names) (fields field-names)))
   ([source-fields sink-fields]
-     (TextLine. (fields source-fields) (fields sink-fields))))
+     (TextLine. (fields source-fields) (fields sink-fields)))
+  ([source-fields sink-fields compression]
+     (TextLine. (fields source-fields) (fields sink-fields) compression)))
 
 (defn hfs
   ([scheme path-or-file]
@@ -154,16 +156,25 @@ identity.  identity."
 
 (defn hfs-textline
   "Creates a tap on HDFS using textline format. Different filesystems
-   can be selected by using different prefixes for `path`.
+   can be selected by using different prefixes for `path`. Supported
+   keyword options are:
 
-  Supports keyword option for `:outfields`. See
-  `cascalog.cascading.tap/hfs-tap` for more keyword arguments.
+   `:outfields` - used to select the fields written to the tap
+
+   `:compression` - one of `:enable`, `:disable` or `:default`
+
+   See `cascalog.cascading.tap/hfs-tap` for more keyword arguments.
 
    See http://www.cascading.org/javadoc/cascading/tap/Hfs.html and
    http://www.cascading.org/javadoc/cascading/scheme/TextLine.html"
   [path & opts]
-  (let [scheme (->> (:outfields (apply array-map opts) Fields/ALL)
-                    (text-line ["line"]))]
+  (let [opts-map (apply array-map opts)
+        scheme (text-line ["line"]
+                          (:outfields opts-map Fields/ALL)
+                          (case (:compression opts-map)
+                            :enable TextLine$Compress/ENABLE
+                            :disable TextLine$Compress/DISABLE
+                            TextLine$Compress/DEFAULT))]
     (apply hfs-tap scheme path opts)))
 
 (defn lfs-textline
