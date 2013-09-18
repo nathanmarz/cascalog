@@ -184,7 +184,6 @@
   (each impl/comparable-max-parallel))
 
 (def !count (each impl/!count-parallel))
-(def count! (each impl/!count-parallel))
 
 (def null-safe-sum (impl/nil-safe-combiner +))
 
@@ -201,8 +200,6 @@
   "Same as sum, but discards nil values. Result is the sum of all
   numeric values, or nil if all inputs are nil."
   (each !sum-parallel))
-
-(def sum! !sum)
 
 (def !avg
   "Same as avg, but discards nil values. Result is the sum of all
