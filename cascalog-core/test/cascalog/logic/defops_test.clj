@@ -1,7 +1,8 @@
 (ns cascalog.logic.defops-test
   (:use cascalog.api
         clojure.test
-        [midje sweet cascalog]))
+        [midje sweet cascalog])
+  (:require [cascalog.logic.ops]))
 
 (defmapop ident [x] x)
 
@@ -79,93 +80,73 @@
                (src ?a ?b ?c ?d ?e)
                (multi-combine ?a ?b ?c ?d ?e :> ?sum)))))
 
-(deftest min!-test
-  (facts "Null safe min aggregate"
-         (let [src [[0] [1] [2] [nil]]]
-           (fact?<- [[0]]
-                    [?min]
-                    (src ?x)
-                    (cascalog.logic.ops/min! ?x :> ?min)))
-         (let [src [[-99] [nil] [nil]]]
-           (fact?<- [[-99]]
-                    [?min]
-                    [src ?x]
-                    (cascalog.logic.ops/min! ?x :> ?min)))
-         (let [src [[nil]]]
-           (fact?<- []
-                    [?min]
-                    [src ?x]
-                    (cascalog.logic.ops/min! ?x :> ?min)))))
+(deftest !sum-test
+  (let [src [["a" 1]
+             ["a" 2]
+             ["b" 5]
+             ["b" nil]
+             ["c" nil]]]
+    (fact
+     (<- [?id !total]
+         (src ?id !x)
+         (cascalog.logic.ops/!sum !x :> !total))
+     => (produces [["a" 3]
+                   ["b" 5]
+                   ["c" nil]]))))
 
-(deftest max!-test
-  (facts "Null safe max aggregate"
-         (let [src [[0] [1] [2] [nil]]]
-           (fact?<- [[2]]
-                    [?max]
-                    (src ?x)
-                    (cascalog.logic.ops/max! ?x :> ?max)))
-         (let [src [[-99] [nil] [nil]]]
-           (fact?<- [[-99]]
-                    [?max]
-                    [src ?x]
-                    (cascalog.logic.ops/max! ?x :> ?max)))
-         (let [src [[nil]]]
-           (fact?<- []
-                    [?max]
-                    [src ?x]
-                    (cascalog.logic.ops/max! ?x :> ?max)))))
+(deftest !avg-test
+  (let [src [["a" 1]
+             ["a" 2]
+             ["b" 5]
+             ["b" nil]
+             ["c" nil]]]
+    (fact
+     (<- [?id !avg]
+         (src ?id !x)
+         (cascalog.logic.ops/!avg !x :> !avg))
+     => (produces [["a" 1.5]
+                   ["b" 5.0]
+                   ["c" nil]]))))
 
-(deftest sum!-test
-  (facts "Null safe sum aggregate"
-         (let [src [[0] [1] [2] [nil]]]
-           (fact?<- [[3]]
-                    [?sum]
-                    (src ?x)
-                    (cascalog.logic.ops/sum! ?x :> ?sum)))
-         (let [src [[-99] [nil] [nil]]]
-           (fact?<- [[-99]]
-                    [?sum]
-                    [src ?x]
-                    (cascalog.logic.ops/sum! ?x :> ?sum)))
-         (let [src [[nil]]]
-           (fact?<- []
-                    [?sum]
-                    [src ?x]
-                    (cascalog.logic.ops/sum! ?x :> ?sum)))))
+(deftest !min-test
+  (let [src [["a" 1]
+             ["a" 2]
+             ["b" 5]
+             ["b" nil]
+             ["c" nil]]]
+    (fact
+     (<- [?id !min]
+         (src ?id !x)
+         (cascalog.logic.ops/!min !x :> !min))
+     => (produces [["a" 1]
+                   ["b" 5]
+                   ["c" nil]]))))
 
-(deftest avg!-test
-  (facts "Null safe avg aggregate"
-         (let [src [[0] [1] [2] [nil]]]
-           (fact?<- [[1]]
-                    [?avg]
-                    (src ?x)
-                    (cascalog.logic.ops/avg! ?x :> ?avg)))
-         (let [src [[-99] [nil] [nil]]]
-           (fact?<- [[-99]]
-                    [?avg]
-                    [src ?x]
-                    (cascalog.logic.ops/avg! ?x :> ?avg)))
-         (let [src [[nil]]]
-           (fact?<- []
-                    [?avg]
-                    [src ?x]
-                    (cascalog.logic.ops/avg! ?x :> ?avg)))))
+(deftest !max-test
+  (let [src [["a" 1]
+             ["a" 2]
+             ["b" 5]
+             ["b" nil]
+             ["c" nil]]]
+    (fact
+     (<- [?id !max]
+         (src ?id !x)
+         (cascalog.logic.ops/!max !x :> !max))
+     => (produces [["a" 2]
+                   ["b" 5]
+                   ["c" nil]]))))
 
-(deftest distinct-count!-test
-  (facts "Null safe distinct count aggregate"
-         (let [src [[0] [1] [2] [2] [nil]]]
-           (fact?<- [[3]]
-                    [?count]
-                    (src ?x)
-                    (cascalog.logic.ops/distinct-count! ?x :> ?count)))
-         (let [src [[-99] [nil] [nil]]]
-           (fact?<- [[1]]
-                    [?count]
-                    [src ?x]
-                    (cascalog.logic.ops/distinct-count! ?x :> ?count)))
-         (let [src [[nil]]]
-           (fact?<- []
-                    [?count]
-                    [src ?x]
-                    (cascalog.logic.ops/distinct-count! ?x :> ?count)))))
+(deftest !distinct-count-test
+  (let [src [["a" 1]
+             ["a" 2]
+             ["b" 5]
+             ["b" nil]
+             ["c" nil]]]
+    (fact
+     (<- [?id !distinct-count]
+         (src ?id !x)
+         (cascalog.logic.ops/!distinct-count !x :> !distinct-count))
+     => (produces [["a" 2]
+                   ["b" 1]
+                   ["c" 0]]))))
 

@@ -56,7 +56,7 @@
   :init-var #'identity
   :combine-var #'comparable-max-impl)
 
-(defparallelagg count-parallel!
+(defparallelagg !count-parallel
   :init-var #'existence-int
   :combine-var #'+)
 

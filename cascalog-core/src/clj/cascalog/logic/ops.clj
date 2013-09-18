@@ -171,21 +171,24 @@
 
 (def min (each impl/min-parallel))
 
-(def min!
-  "Same as min, but discards nil values."
+(def !min
+  "Same as min, but discards nil values. Returns the minimum of all
+  non-nil values, or nil if all inputs are nil."
   (each impl/comparable-min-parallel))
 
 (def max (each impl/max-parallel))
 
-(def max!
-  "Same as max, but discards nil values."
+(def !max
+  "Same as max, but discards nil values. Returns the maximum of all
+  non-nil values, or nil if all inputs are nil."
   (each impl/comparable-max-parallel))
 
-(def !count (each impl/count-parallel!))
+(def !count (each impl/!count-parallel))
+(def count! (each impl/!count-parallel))
 
 (def null-safe-sum (impl/nil-safe-combiner +))
 
-(defn nil-save-div [numer denom]
+(defn nil-safe-div [numer denom]
   (if (zero? denom)
     nil
     (/ (double numer) denom)))
@@ -194,25 +197,30 @@
   :init-var #'identity
   :combine-var #'null-safe-sum)
 
-(def sum!
-  "Same as sum, but discards nil values."
+(def !sum
+  "Same as sum, but discards nil values. Result is the sum of all
+  numeric values, or nil if all inputs are nil."
   (each !sum-parallel))
 
-(def avg!
-  "Same as avg, but discards nil values."
-  (<- [!v :> !avg]
+(def sum! !sum)
+
+(def !avg
+  "Same as avg, but discards nil values. Result is the sum of all
+  non-nil values plus the count of all non-nil values, or nil if all
+  inputs are nil."
+  (<- [!v :> !result]
       (!count !v :> !c)
       (!sum !v :> !s)
-      (nil-save-div !s !c :> !avg)))
+      (nil-safe-div !s !c :> !result)))
 
-(def distinct-count!
+(def !distinct-count
   "Predicate operation that produces a count of all distinct
    values of the supplied input variable. For example:
 
    (let [src [[1] [2] [2]]]
      (<- [?count]
          (src ?x)
-         (distinct-count! ?x :> ?count)))
+         (!distinct-count ?x :> ?count)))
    ;;=> ([2])"
   (<- [:<< !invars :> !c]
       (:sort :<< !invars)
