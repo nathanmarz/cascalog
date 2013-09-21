@@ -170,7 +170,9 @@ interpreted as a logic variable."
   (let [generator (if (some unground-var? (s/flatten pred))
                     gen-ungrounding-var
                     gen-nullable-var)]
-    (postwalk (sanitize-fn generator) pred)))
+    (if (and (seq? pred) (every? #(instance? clojure.lang.IRecord %) pred))
+              pred
+              (postwalk (sanitize-fn generator) pred))))
 
 (defn replace-dups
   "Accepts a sequence returns the set of replacements, plus a new
