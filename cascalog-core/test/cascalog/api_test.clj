@@ -849,6 +849,34 @@
                                     (num ?n)
                                     (odd-fail ?n))))))
 
+(deftest test-trap
+  (let [num [[1] [2]]]
+    (with-expected-sink-sets [trap1 [[1]]]
+      (test?<- [[2]]
+               [?n]
+               (num ?n)
+               (odd-fail ?n)
+               (:trap trap1)))
+
+    (is (thrown? Exception (test?<- [[2]]
+                                    [?n]
+                                    (num ?n)
+                                    (odd-fail ?n))))))
+
+(deftest test-cascalog-tap-trap
+  (let [num [[1] [2]]]
+    (with-expected-sink-sets [trap1 [[1]]]
+      (test?<- [[2]]
+               [?n]
+               (num ?n)
+               (odd-fail ?n)
+               (:trap (cascalog-tap nil trap1))))
+
+    (is (thrown? Exception (test?<- [[2]]
+                                    [?n]
+                                    (num ?n)
+                                    (odd-fail ?n))))))
+
 (deftest test-trap-joins
   (let [age    [["A" 20] ["B" 21]]
         gender [["A" "m"] ["B" "f"]]]
