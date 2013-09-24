@@ -1,7 +1,8 @@
 (ns cascalog.logic.defops-test
   (:use cascalog.api
         clojure.test
-        [midje sweet cascalog]))
+        [midje sweet cascalog])
+  (:require [cascalog.logic.ops]))
 
 (defmapop ident [x] x)
 
@@ -78,3 +79,74 @@
                [?sum]
                (src ?a ?b ?c ?d ?e)
                (multi-combine ?a ?b ?c ?d ?e :> ?sum)))))
+
+(deftest !sum-test
+  (let [src [["a" 1]
+             ["a" 2]
+             ["b" 5]
+             ["b" nil]
+             ["c" nil]]]
+    (fact
+     (<- [?id !total]
+         (src ?id !x)
+         (cascalog.logic.ops/!sum !x :> !total))
+     => (produces [["a" 3]
+                   ["b" 5]
+                   ["c" nil]]))))
+
+(deftest !avg-test
+  (let [src [["a" 1]
+             ["a" 2]
+             ["b" 5]
+             ["b" nil]
+             ["c" nil]]]
+    (fact
+     (<- [?id !avg]
+         (src ?id !x)
+         (cascalog.logic.ops/!avg !x :> !avg))
+     => (produces [["a" 1.5]
+                   ["b" 5.0]
+                   ["c" nil]]))))
+
+(deftest !min-test
+  (let [src [["a" 1]
+             ["a" 2]
+             ["b" 5]
+             ["b" nil]
+             ["c" nil]]]
+    (fact
+     (<- [?id !min]
+         (src ?id !x)
+         (cascalog.logic.ops/!min !x :> !min))
+     => (produces [["a" 1]
+                   ["b" 5]
+                   ["c" nil]]))))
+
+(deftest !max-test
+  (let [src [["a" 1]
+             ["a" 2]
+             ["b" 5]
+             ["b" nil]
+             ["c" nil]]]
+    (fact
+     (<- [?id !max]
+         (src ?id !x)
+         (cascalog.logic.ops/!max !x :> !max))
+     => (produces [["a" 2]
+                   ["b" 5]
+                   ["c" nil]]))))
+
+(deftest !distinct-count-test
+  (let [src [["a" 1]
+             ["a" 2]
+             ["b" 5]
+             ["b" nil]
+             ["c" nil]]]
+    (fact
+     (<- [?id !distinct-count]
+         (src ?id !x)
+         (cascalog.logic.ops/!distinct-count !x :> !distinct-count))
+     => (produces [["a" 2]
+                   ["b" 1]
+                   ["c" 0]]))))
+

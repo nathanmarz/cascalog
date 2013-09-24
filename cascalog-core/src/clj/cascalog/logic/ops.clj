@@ -161,13 +161,67 @@
   :init-var #'impl/one
   :combine-var #'+)
 
+(defaggregateop distinct-count-agg!
+  ([] [nil 0])
+  ([[prev cnt] & tuple]
+     [tuple (impl/distinct-count-impl prev cnt tuple)])
+  ([state] [(second state)]))
+
 (def sum (each impl/sum-parallel))
 
 (def min (each impl/min-parallel))
 
+(def !min
+  "Same as min, but discards nil values. Returns the minimum of all
+  non-nil values, or nil if all inputs are nil."
+  (each impl/comparable-min-parallel))
+
 (def max (each impl/max-parallel))
 
+(def !max
+  "Same as max, but discards nil values. Returns the maximum of all
+  non-nil values, or nil if all inputs are nil."
+  (each impl/comparable-max-parallel))
+
 (def !count (each impl/!count-parallel))
+
+(def null-safe-sum (impl/nil-safe-combiner +))
+
+(defn nil-safe-div [numer denom]
+  (if (zero? denom)
+    nil
+    (/ (double numer) denom)))
+
+(defparallelagg !sum-parallel
+  :init-var #'identity
+  :combine-var #'null-safe-sum)
+
+(def !sum
+  "Same as sum, but discards nil values. Result is the sum of all
+  numeric values, or nil if all inputs are nil."
+  (each !sum-parallel))
+
+(def !avg
+  "Same as avg, but discards nil values. Result is the sum of all
+  non-nil values plus the count of all non-nil values, or nil if all
+  inputs are nil."
+  (<- [!v :> !result]
+      (!count !v :> !c)
+      (!sum !v :> !s)
+      (nil-safe-div !s !c :> !result)))
+
+(def !distinct-count
+  "Predicate operation that produces a count of all distinct
+   values of the supplied input variable. For example:
+
+   (let [src [[1] [2] [2]]]
+     (<- [?count]
+         (src ?x)
+         (!distinct-count ?x :> ?count)))
+   ;;=> ([2])"
+  (<- [:<< !invars :> !c]
+      (:sort :<< !invars)
+      (distinct-count-agg! :<< !invars :> !c)))
 
 (defn limit-init [sort-tuple & tuple]
   ;; this is b/c CombinerBase does coerceToSeq on everything and
