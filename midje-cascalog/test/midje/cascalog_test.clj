@@ -29,69 +29,13 @@
                       (fact (whoop :a) => 10)))
 
 ;; Similar to clojure.test's "are".
-(deftest tabular?-test
-  (tabular?-
-    (fact?- ?res (apply ?func ?args))
-    ?res    ?func    ?args
-    [[3 5]] my-query [3 3 5]
-    [[1]]   a-query  [[1]])
+(deftest tabular-test
   (tabular
     (fact
       (apply ?func ?args) => (produces ?res))
     ?res    ?func    ?args
     [[3 5]] my-query [3 3 5]
     [[1]]   a-query  [[1]]))
-
-(deftest fact?<-test
-  "Use fact?<- to tests and define a function at the same time."
-  (fact?<- [[10]]
-           [?a]
-           ((whoop :a) ?a)
-           (provided (whoop :a) => [[10]])))
-
-(comment ;; test failing because of external binding
-  (let [result-seq [[3 5]]]
-    "Showing that we can draw from the background."
-    (fact?- result-seq (my-query .a. .a. .b.)
-            [[3 10]]   (my-query .a. .a. .c.)
-            (against-background
-              (whoop .a.) => [[3]]
-              (bang .a. .b.) => [[3 5]]
-              (bang .a. .c.) => [[3 10]]))))
-
-(fact?- "the first query pulls from the stuff defined in
-          against-background down below."
-
-          [[12 15]] (my-query .a. .a. .b.)
-
-          "The provided block applies to this query..."
-          [[100 2]] (my-query .a. .a. .b.)
-          (provided (whoop .a.) => [[100]]
-                    (bang .a. .b.) => [[100 2]])
-
-          "And, again, drawing from the background."
-          [] (my-query .a. .d. .e.)
-
-          (against-background
-            (whoop .a.) => [[12]]
-            (bang .a. .b.) => [[12 15]]
-            (bang .d. .e.) => [[10 15]]))
-
-(fact?<- "the provided and background clauses work at the end of
-           fact?<- as well."
-           [[10]]
-           [?a]
-           ((whoop) ?a)
-           (provided (whoop) => [[10]]))
-(fact?<- "the provided and background clauses work at the end of
-         fact?<- as well."
-         [[10 11]]
-         [?a ?b]
-         ((whoop) ?a ?b)
-         ((bang) ?b)
-         (against-background
-           (whoop) => [[10 11] [12 13]]
-           (bang)  => [[11]]))
 
 ;; ## Standard Checker Tests
 
