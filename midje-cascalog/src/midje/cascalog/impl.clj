@@ -34,9 +34,10 @@
   and returns a 2-vector with the log level (or nil if it wasn't
   present) and the non-log-level elements of the sequence."
   [bindings]
-  (if-let [ll (first (filter io/log-levels bindings))]
-    [ll (disj (set bindings) ll)]
-    [default-log-level bindings]))
+  (let [[pre [ll & more]] (split-with (complement io/log-levels) bindings)]
+    (if ll
+      [ll (concat pre more)]
+      [default-log-level bindings])))
 
 (defn execute
   "Executes the supplied query and returns the sequence of tuples it
