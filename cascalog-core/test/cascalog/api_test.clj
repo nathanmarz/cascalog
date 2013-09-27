@@ -774,12 +774,11 @@
 
 (deftest test-ifn-implementers
   (let [people [["bob"] ["sam"]]]
-    (fact?<- "A set can be used as a predicate op, provided it's bound
-             to a var."
-             [["bob"]]
-             [?person]
-             (people ?person)
-             (bob-set ?person))))
+    (fact "A set can be used as a predicate op, provided it's bound
+           to a var."
+      (<- [?person]
+          (people ?person)
+          (bob-set ?person)) => (produces [["bob"]]))))
 
 
 (future-fact "test outer join with functions.")
@@ -1008,6 +1007,5 @@
 (deftest test-sample-contents
   (let [numbers [[1 2] [3 4] [5 6] [7 8] [9 10]]
         sampling-query (c/fixed-sample numbers 5)]
-    (fact?- "sample should contain some of the inputs"
-            (contains #{[1 2] [3 4] [5 6]} :gaps-ok)
-            sampling-query)))
+    (fact "sample should contain some of the inputs"
+      sampling-query => (produces-some [[1 2] [3 4] [5 6]]))))

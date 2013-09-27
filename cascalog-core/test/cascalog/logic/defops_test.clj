@@ -74,7 +74,7 @@
     (let [src [[1 2 3 4 5] [5 6 7 8 9]]]
       "init-var takes n args, outputs x. combine-var takes 2*x args,
      outputs x."
-      (fact?<- [[50]]
-               [?sum]
-               (src ?a ?b ?c ?d ?e)
-               (multi-combine ?a ?b ?c ?d ?e :> ?sum)))))
+      (<- [?sum]
+          (src ?a ?b ?c ?d ?e)
+          (multi-combine ?a ?b ?c ?d ?e :> ?sum))
+      => (produces [[50]]))))
