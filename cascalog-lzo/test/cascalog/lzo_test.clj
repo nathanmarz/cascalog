@@ -9,5 +9,5 @@
     (?- (hfs-lzo-textline tmp) [["a line of text!"]])
     (with-job-conf lzo-settings
       "The same line of text should come back out."
-      (fact?- [["a line of text!"]]
-              (hfs-lzo-textline tmp)))))
+      (fact
+        (hfs-lzo-textline tmp) => (produces [["a line of text!"]])))))

@@ -1,7 +1,9 @@
 (ns cascalog.math.stats-test
   (:use [cascalog.math.stats]
+        [cascalog.api]
         [clojure.test]
         [midje sweet cascalog]))
 
 ;; TODO add test
-(fact?<- [[1]] [?x] ([[1]] ?x))
+(fact
+  (<- [?x] ([[1]] ?x)) => (produces [[1]]))
