@@ -1,13 +1,13 @@
 (ns cascalog.math.stats
   (:use cascalog.api)
   (:require [cascalog.logic.ops :as c]
-            [cascalog.predicate :as p]
+            [cascalog.logic.def :as d]
             [clojure.contrib [accumulators :as acc]]))
 
 (defn initialize-mean-variance-parallel [& X]
   (map (fn [x] (acc/mean-variance {:mean x :variance 0 :n 1})) X))
 
-(p/defparallelagg mean-variance-parallel
+(d/defparallelagg mean-variance-parallel
   :init-var #'initialize-mean-variance-parallel
   :combine-var #'acc/combine)
 
@@ -20,11 +20,6 @@
   (<- [!val :> !var]
       (mean-variance-parallel :< !val :> !ret)
       (get-variance :< !ret :> !var)))
-
-(def mean-parallel
-  (<- [!val :> !var]
-      (mean-variance-parallel :< !val :> !ret)
-      (get-mean :< !ret :> !var)))
 
 (def variance
   "Predicate macro that calculates the variance of the supplied input
