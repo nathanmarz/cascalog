@@ -18,7 +18,7 @@
   #^{:author "Stephen C. Gilardi",
     :doc "def.clj provides variants of def that make including doc strings and
 making private definitions more succinct."} 
-  clojure.contrib.def)
+  cascalog.math.contrib.def)
 
 (defmacro defvar
   "Defines a var with an optional intializer and doc string"

@@ -22,10 +22,10 @@
   ^{:author "Konrad Hinsen"
      :doc "A generic accumulator interface and implementations of various
            accumulators."}
-  clojure.contrib.accumulators
+  cascalog.math.contrib.accumulators
   (:refer-clojure :exclude (deftype))
-  (:use [clojure.contrib.types :only (deftype)])
-  (:use [clojure.contrib.def :only (defvar)]))
+  (:use [cascalog.math.contrib.types :only (deftype)])
+  (:use [cascalog.math.contrib.def :only (defvar)]))
 
 (defmulti add
   "Add item to the accumulator acc. The exact meaning of adding an

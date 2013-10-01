@@ -2,7 +2,7 @@
   (:use cascalog.api)
   (:require [cascalog.logic.ops :as c]
             [cascalog.logic.def :as d]
-            [clojure.contrib [accumulators :as acc]]))
+            [cascalog.math.contrib [accumulators :as acc]]))
 
 (defn initialize-mean-variance-parallel [& X]
   (map (fn [x] (acc/mean-variance {:mean x :variance 0 :n 1})) X))

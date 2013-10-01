@@ -14,9 +14,9 @@
 (ns
   ^{:author "Konrad Hinsen"
      :doc "General and algebraic data types"}
-  clojure.contrib.types
+  cascalog.math.contrib.types
   (:refer-clojure :exclude (deftype))
-  (:use [clojure.contrib.def :only (name-with-attributes)]))
+  (:use [cascalog.math.contrib.def :only (name-with-attributes)]))
 
 ;
 ; Utility functions
