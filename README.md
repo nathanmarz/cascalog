@@ -10,6 +10,12 @@ Follow the getting started steps, check out the tutorial, and you'll be running 
 
 To get started with JCascalog, Cascalog's pure-Java API, see [this wiki page](https://github.com/nathanmarz/cascalog/wiki/JCascalog). The jcascalog.Playground class has in-memory datasets that you can play with to learn the basics.
 
+# Latest Version
+
+Cascalog is hosted on [Clojars](https://clojars.org):
+
+[![Current Version](https://clojars.org/cascalog/latest-version.svg)](https://clojars.org/cascalog)
+
 # Getting started with Clojure Cascalog
 
 The best way to get started with Cascalog is experiment with the toy datasets that ship with the project. These datasets are served from memory and can be played with purely from the REPL. Just follow these steps and you'll be on your way:
