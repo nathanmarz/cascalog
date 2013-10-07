@@ -36,7 +36,7 @@
 (defalias text-line tap/text-line)
 (defalias hfs-textline tap/hfs-textline)
 (defalias lfs-textline tap/lfs-textline)
-(defalias hfs-seqfile tap/lfs-seqfile)
+(defalias hfs-seqfile tap/hfs-seqfile)
 (defalias lfs-seqfile tap/lfs-seqfile)
 (defalias stdout tap/stdout)
 
