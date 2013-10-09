@@ -166,54 +166,54 @@
 (defmethod to-predicate IFn
   [op input output]
   (if-let [output (not-empty output)]
-    (->Operation (d/mapop op) input output)
-    (->FilterOperation (d/filterop op) input)))
+    (Operation. (d/mapop op) input output)
+    (FilterOperation. (d/filterop op) input)))
 
 (defmethod to-predicate ::d/filter
   [op input output]
-  (->FilterOperation op input))
+  (FilterOperation. op input))
 
 (defmethod to-predicate ::d/map
   [op input output]
-  (->Operation op input output))
+  (Operation. op input output))
 
 (defmethod to-predicate ::d/mapcat
   [op input output]
-  (->Operation op input output))
+  (Operation. op input output))
 
 (defmethod to-predicate CascalogFunction
   [op input output]
-  (->Operation op input output))
+  (Operation. op input output))
 
 ;; ## Aggregators
 
 (defmethod to-predicate ::d/buffer
   [op input output]
-  (->Aggregator op input output))
+  (Aggregator. op input output))
 
 (defmethod to-predicate ::d/bufferiter
   [op input output]
-  (->Aggregator op input output))
+  (Aggregator. op input output))
 
 (defmethod to-predicate ::d/aggregate
   [op input output]
-  (->Aggregator op input output))
+  (Aggregator. op input output))
 
 (defmethod to-predicate ::d/combiner
   [op input output]
-  (->Aggregator op input output))
+  (Aggregator. op input output))
 
 (defmethod to-predicate ParallelAggregator
   [op input output]
-  (->Aggregator op input output))
+  (Aggregator. op input output))
 
 (defmethod to-predicate ParallelBuffer
   [op input output]
-  (->Aggregator op input output))
+  (Aggregator. op input output))
 
 (defmethod to-predicate CascalogAggregator
   [op input output]
-  (->Aggregator op input output))
+  (Aggregator. op input output))
 
 (defn build-predicate
   "Accepts an option map and a raw predicate and returns a node in the

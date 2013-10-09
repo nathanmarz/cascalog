@@ -32,7 +32,7 @@
         (ops/rename* fields)
         (ops/filter-nullable-vars fields))))
 
-(def ^:dynamic *context* (->CascadingPlatform))
+(def ^:dynamic *context* (CascadingPlatform.))
 
 (defn gen? [g]
   (generator? *context* g))

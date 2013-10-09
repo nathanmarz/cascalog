@@ -22,6 +22,9 @@
 ;; TODO: Plug in support here.
 (defrecord CascalogTap [source sink])
 
+(defn cascalog-tap [source sink] 
+  (CascalogTap. source sink))
+
 (def valid-sinkmode? #{:keep :update :replace})
 
 (defn- sink-mode [kwd]
@@ -96,7 +99,7 @@ identity.  identity."
         sink (if sink-template
                (template-tap parent sink-template templatefields)
                parent)]
-    (->CascalogTap source sink)))
+    (CascalogTap. source sink)))
 
 (defn hfs-tap
   "Returns a Cascading Hfs tap with support for the supplied scheme,

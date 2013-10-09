@@ -7,7 +7,8 @@
             [cascalog.logic.def :as d]
             [cascalog.logic.fn :as s]
             [cascalog.logic.ops-impl :as impl]
-            [cascalog.logic.vars :as v]))
+            [cascalog.logic.vars :as v])
+  (:import [cascalog.logic.def Prepared ParallelBuffer]))
 
 ;; Operation composition functions
 
@@ -210,9 +211,9 @@
     (take n (map #(conj (vec %1) %2) tuples (iterate inc 1)))))
 
 (defn- limit-maker [n buffer-fn]
-  (d/->Prepared
+  (d/Prepared.
    (fn [options]
-     (d/->ParallelBuffer #'limit-init
+     (d/ParallelBuffer. #'limit-init
                          (limit-combine options n)
                          (limit-extract options n)
                          (fn [infields outfields]

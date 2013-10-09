@@ -29,7 +29,7 @@
 ;; Functions for creating taps and tap helpers
 
 (defalias memory-source-tap tap/memory-source-tap)
-(defalias cascalog-tap tap/->CascalogTap)
+(defalias cascalog-tap tap/cascalog-tap)
 (defalias hfs-tap tap/hfs-tap)
 (defalias lfs-tap tap/lfs-tap)
 (defalias sequence-file tap/sequence-file)
