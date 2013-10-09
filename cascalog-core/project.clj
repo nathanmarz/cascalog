@@ -13,6 +13,13 @@
   :source-paths ["src/clj"]
   :java-source-paths ["src/java"]
   :jar-exclusions [#"\.java$"]
+  :aot [cascalog.logic.def        ;; AOT any ns with defrecord
+        cascalog.logic.predicate
+        cascalog.logic.parse
+        cascalog.logic.platform
+        cascalog.cascading.types
+        cascalog.cascading.operations
+        cascalog.cascading.tap]
   :repositories {"conjars" "http://conjars.org/repo/"}
   :exclusions [log4j/log4j org.slf4j/slf4j-log4j12]
   :dependencies [[org.clojure/clojure "1.5.1"]
