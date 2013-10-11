@@ -98,7 +98,7 @@
           {:keys [input output]} (parse-variables rest (default-selector op))]
       (if (pm/predmacro? op)
         (mapcat p/normalize (pm/expand op input output))
-        [(p/->RawPredicate op (not-empty input) (not-empty output))]))))
+        [(p/RawPredicate. op (not-empty input) (not-empty output))]))))
 
 ;; ## Unground Var Validation
 
@@ -600,7 +600,7 @@
     (concat new-preds
             (if (and (not-empty input) (p/can-generate? op))
               (expand-outvars
-               (p/->RawPredicate (p/->GeneratorSet op (first cleaned))
+               (p/RawPredicate. (p/GeneratorSet. op (first cleaned))
                                  []
                                  input))
               [(assoc pred :output cleaned)]))))

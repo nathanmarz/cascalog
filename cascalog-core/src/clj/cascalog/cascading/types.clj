@@ -76,8 +76,7 @@
   Tap
   (generator [tap]
     (let [id (u/uuid)]
-      (map->ClojureFlow {:source-map {id tap}
-                         :pipe (Pipe. id)}))))
+      (ClojureFlow. {id tap} nil nil nil (Pipe. id) nil))))
 
 ;; ## Sink Typeclasses
 
@@ -113,7 +112,7 @@
   (plus [l r]
     (letfn [(merge-k [k] (merge (k l) (k r)))
             (plus-k [k] (plus (k l) (k r)))]
-      (->ClojureFlow (merge-k :source-map)
+      (ClojureFlow. (merge-k :source-map)
                      (plus-k :sink-map)
                      (merge-k :trap-map)
                      (plus-k (comp vec :tails))
