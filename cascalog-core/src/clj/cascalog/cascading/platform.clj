@@ -27,7 +27,8 @@
             FilterApplication Grouping Join ExistenceNode
             Unique Merge Rename]
            [cascalog.logic.predicate RawSubquery]
-           [cascalog.cascading.operations IAggregateBy IAggregator]
+           [cascalog.cascading.operations IAggregateBy IAggregator
+            Inner Outer Existence]
            [cascalog.logic.def ParallelAggregator ParallelBuffer Prepared]
            [cascalog.cascading.types ClojureFlow]
            [jcascalog Predicate]))
@@ -228,9 +229,9 @@
   (to-generator [{:keys [sources join-fields type-seq]}]
     (-> (ops/cascalog-join (map (fn [source [available type]]
                                   (condp = type
-                                    :inner (ops/->Inner source available)
-                                    :outer (ops/->Outer source available)
-                                    (ops/->Existence source available type)))
+                                    :inner (Inner. source available)
+                                    :outer (Outer. source available)
+                                    (Existence. source available type)))
                                 sources type-seq)
                            join-fields)
         (ops/rename-pipe (.getName (:pipe (first sources))))))
