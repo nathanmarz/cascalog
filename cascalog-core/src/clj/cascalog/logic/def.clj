@@ -156,8 +156,13 @@
                           buffer-var]}])}
   [name & body]
   (let [[name body] (name-with-attributes name body)]
-    `(def ~name
-       (map->ParallelBuffer (hash-map ~@body)))))
+    `(let [args# (hash-map ~@body)]
+       (def ~name
+         (ParallelBuffer. (:init-var args#)
+                          (:combine-var args#)
+                          (:present-var args#)
+                          (:num-intermediate-vars-fn args#)
+                          (:buffer-var args#))))))
 
 (defmacro defparallelagg
   "Binds an efficient aggregator to the supplied symbol. A parallel
