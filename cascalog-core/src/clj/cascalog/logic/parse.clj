@@ -13,7 +13,7 @@
             [cascalog.logic.options :as opts])
   (:import [cascalog.logic.predicate
             Operation FilterOperation Aggregator Generator
-            GeneratorSet RawPredicate]
+            GeneratorSet RawPredicate RawSubquery]
            [clojure.lang IPersistentVector]))
 
 ;; ## Variable Parsing
@@ -571,14 +571,14 @@
                   [(conj new-output v) pred-acc]
                   [(conj new-output clean)
                    (conj pred-acc
-                         (p/map->RawPredicate {:op = :input [v clean]}))])
+                         (p/RawPredicate. = [v clean] nil))])
                 (let [newvar (v/gen-nullable-var)]
                   [(conj new-output newvar)
                    (conj pred-acc
-                         (p/map->RawPredicate (if (or (fn? v)
-                                                      (u/multifn? v))
-                                                {:op v :input [newvar]}
-                                                {:op = :input [v newvar]})))])))
+                         (if (or (fn? v)
+                                 (u/multifn? v))
+                           (p/RawPredicate. v [newvar] nil)
+                           (p/RawPredicate. = [v newvar] nil)))])))
             [[] []]
             (map vector output cleaned))))
 
@@ -601,8 +601,8 @@
             (if (and (not-empty input) (p/can-generate? op))
               (expand-outvars
                (p/RawPredicate. (p/GeneratorSet. op (first cleaned))
-                                 []
-                                 input))
+                                []
+                                input))
               [(assoc pred :output cleaned)]))))
 
 (defn project [tail fields]
@@ -675,7 +675,7 @@
   (let [[options predicates] (opts/extract-options raw-predicates)
         expanded (mapcat expand-outvars predicates)]
     (validate-predicates! expanded options)
-    (p/->RawSubquery output-fields expanded options)))
+    (p/RawSubquery. output-fields expanded options)))
 
 (defn parse-subquery
   "Parses predicates and output fields and returns a proper subquery."
