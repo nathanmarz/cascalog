@@ -67,13 +67,13 @@
 (defmacro bufferiterfn [& body] `(bufferiterop (s/fn ~@body)))
 
 (defn- update-arglists
-    "Scans the forms of a def* operation and adds an appropriate
+  "Scans the forms of a def* operation and adds an appropriate
   `:arglists` entry to the supplied `sym`'s metadata."
-    [sym [form :as args]]
-    (let [arglists (if (vector? form)
-                     (list form)
-                     (clojure.core/map clojure.core/first args))]
-      (meta-conj sym {:arglists (list 'quote arglists)})))
+  [sym [form :as args]]
+  (let [arglists (if (vector? form)
+                   (list form)
+                   (clojure.core/map clojure.core/first args))]
+    (meta-conj sym {:arglists (list 'quote arglists)})))
 
 (defn defhelper [name op-sym body]
   (let [[name body] (name-with-attributes name body)
@@ -81,13 +81,13 @@
     `(def ~name (~op-sym ~@body))))
 
 (defmacro defdefop
-    "Helper macro to define the def*op macros."
-    [sym & body]
-    (let [[sym [delegate]] (name-with-attributes sym body)]
-      `(defmacro ~sym
-         {:arglists '~'([name doc-string? attr-map? [fn-args*] body])}
-         [sym# & body#]
-         (defhelper sym# ~delegate body#))))
+  "Helper macro to define the def*op macros."
+  [sym & body]
+  (let [[sym [delegate]] (name-with-attributes sym body)]
+    `(defmacro ~sym
+       {:arglists '~'([name doc-string? attr-map? [fn-args*] body])}
+       [sym# & body#]
+       (defhelper sym# ~delegate body#))))
 
 (defdefop defmapfn
   "Defines a map operation."
@@ -184,5 +184,6 @@
                 & {:keys [init-var combine-var present-var]}])}
   [name & body]
   (let [[name body] (name-with-attributes name body)]
-    `(def ~name
-       (map->ParallelAggregator (hash-map ~@body)))))
+    `(let [args# (hash-map ~@body)]
+       (def ~name
+         (ParallelAggregator. (:init-var args#) (:combine-var args#) (:present-var args#))))))
