@@ -1,5 +1,5 @@
 (def cc-version (or (System/getenv "CASCALOG_CASCADING_VERSION") "2.1.6"))
-(defproject cascalog/cascalog-core "1.10.2"
+(defproject cascalog/cascalog-core "1.10.3-SNAPSHOT"
   :description "Cascalog core libraries."
   :url "http://www.cascalog.org"
   :license {:name "Eclipse Public License"
