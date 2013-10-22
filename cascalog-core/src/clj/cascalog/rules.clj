@@ -301,9 +301,11 @@
     (throw (RuntimeException. "Planner exception: Generator has inbound nodes")))
   pred)
 
+(def non-nil-fields (complement (partial every? nil?)))
+
 (w/defmapop [join-fields-selector [num-fields]] [& args]
   (let [joins (partition num-fields args)]
-    (or (s/find-first (partial s/some? (complement nil?)) joins)
+    (or (s/find-first non-nil-fields joins)
         (repeat num-fields nil))))
 
 (w/defmapop truthy? [arg]
@@ -357,7 +359,7 @@
         joined      (apply w/assemble inpipes
                            (concat
                             [(w/co-group (repeat (count inpipes) join-fields)
-                                         rename-fields (CascalogJoiner. cascalogjoin))]
+                                         rename-fields (CascalogJoiner. (vec cascalogjoin)))]
                             (mapcat
                              (fn [gen joinfields]
                                (if-let [join-set-var (:join-set-var gen)]
