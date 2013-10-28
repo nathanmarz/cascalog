@@ -4,7 +4,9 @@
   (:require [clojure.tools.macro :refer (name-with-attributes)]
             [cascalog.logic.fn :as s]
             [jackknife.core :refer (throw-illegal)]
-            [jackknife.meta :refer (meta-update meta-conj)]))
+            [jackknife.meta :refer (meta-update meta-conj)])
+  (:import  [cascading.flow.hadoop HadoopFlowProcess]
+            [cascading.operation ConcreteCall]))
 
 ;; ## Macros
 
@@ -192,3 +194,16 @@
     `(let [args# (hash-map ~@body)]
        (def ~name
          (ParallelAggregator. (:init-var args#) (:combine-var args#) (:present-var args#))))))
+
+;; A useful interface to hadoop counters
+;;
+;; To use - grab a counter function in the query 
+;;   (counterfn :> ?inc-counter)
+;; Then pass that around to a function that uses it
+;;   (inc-counter "wordcount" "words" (count words))
+(defprepfn counterfn 
+  [^HadoopFlowProcess fp ^ConcreteCall b]
+  (fn []
+    [(mapfn 
+      ([group nam]   (.increment fp group nam 1))
+      ([group nam n] (.increment fp group nam n)))]))
