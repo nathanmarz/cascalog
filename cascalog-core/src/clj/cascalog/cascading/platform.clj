@@ -26,7 +26,8 @@
            [cascalog.logic.parse TailStruct Projection Application
             FilterApplication Grouping Join ExistenceNode
             Unique Merge Rename]
-           [cascalog.logic.predicate RawSubquery]
+           [cascalog.logic.predicate RawSubquery FilterOperation
+            Operation Aggregator]
            [cascalog.cascading.operations IAggregateBy IAggregator
             Inner Outer Existence]
            [cascalog.logic.def ParallelAggregator ParallelBuffer Prepared]
@@ -44,20 +45,20 @@
   [op input output]
   (u/safe-assert (#{0 1} (count output)) "Must emit 0 or 1 fields from filter")
   (if (empty? output)
-    (p/->FilterOperation op input)
-    (p/->Operation op input output)))
+    (FilterOperation. op input)
+    (Operation. op input output)))
 
 (defmethod p/to-predicate Function
   [op input output]
-  (p/->Operation op input output))
+  (Operation. op input output))
 
 (defmethod p/to-predicate ParallelAgg
   [op input output]
-  (p/->Aggregator op input output))
+  (Aggregator. op input output))
 
 (defmethod p/to-predicate CascalogBuffer
   [op input output]
-  (p/->Aggregator op input output))
+  (Aggregator. op input output))
 
 ;; ## Query Execution
 ;;

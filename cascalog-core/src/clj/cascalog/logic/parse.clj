@@ -365,7 +365,8 @@
     (chain tail #(->FilterApplication % op))))
 
 (comment
-  "TODO: Make a test."
+  "TODO: Make a test.
+This won't work in distributed mode because of the ->Record functions."
   (let [good-op (p/->FilterOperation = [10 "?a"])
         bad-op  (p/->FilterOperation = [10 "?b"])
         tail (map->TailStruct {:ground? true
