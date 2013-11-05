@@ -1,4 +1,4 @@
-(def cascalog-version "2.0.0-SNAPSHOT")
+(def cascalog-version "2.0.0")
 
 (defproject cascalog/cascalog-more-taps cascalog-version
   :description "More taps for Cascalog"

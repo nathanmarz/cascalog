@@ -1,4 +1,4 @@
-(def cascalog-version "2.0.0-SNAPSHOT")
+(def cascalog-version "2.0.0")
 
 (defproject cascalog/cascalog-checkpoint cascalog-version
   :description "Workflow checkpoints for the masses."

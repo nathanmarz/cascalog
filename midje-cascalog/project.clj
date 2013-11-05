@@ -1,4 +1,4 @@
-(def cascalog-version "2.0.0-SNAPSHOT")
+(def cascalog-version "2.0.0")
 
 (defproject cascalog/midje-cascalog cascalog-version
   :description "Cascalog functions for Midje."

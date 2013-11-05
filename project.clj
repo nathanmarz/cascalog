@@ -1,4 +1,4 @@
-(def version "2.0.0-SNAPSHOT")
+(def version "2.0.0")
 
 (defproject cascalog version
   :description "Hadoop without the Hassle."

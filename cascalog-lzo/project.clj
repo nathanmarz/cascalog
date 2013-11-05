@@ -1,4 +1,4 @@
-(def cascalog-version "2.0.0-SNAPSHOT")
+(def cascalog-version "2.0.0")
 
 (defproject cascalog/cascalog-lzo cascalog-version
   :description "Lzo compression taps for Cascalog."
