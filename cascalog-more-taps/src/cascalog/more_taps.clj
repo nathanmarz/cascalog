@@ -1,16 +1,18 @@
 (ns cascalog.more-taps
   (:use cascalog.api)
-  (:require [cascalog.tap :as tap]
-            [cascalog.vars :as v]
-            [cascalog.workflow :as w])
+  (:require [cascalog.cascading.tap :as tap]
+            [cascalog.cascading.util :as w]
+            [cascalog.logic.vars :as v])
   (:import [cascading.scheme.hadoop TextDelimited WritableSequenceFile]
            cascading.scheme.hadoop.TextLine$Compress
            [cascading.tuple Fields]))
 
 (defn- delimited
-  [field-seq delim & {:keys [classes compress? skip-header? quote write-header? strict? safe?]
-                      :or {quote "\"", strict? true, safe? true}}]
-  (let [[skip-header? write-header? strict? safe?] (map boolean [skip-header? write-header? strict? safe?])
+  [field-seq delim
+   & {:keys [classes compress? skip-header? quote write-header? strict? safe?]
+      :or {quote "\"", strict? true, safe? true}}]
+  (let [[skip-header? write-header? strict? safe?]
+        (map boolean [skip-header? write-header? strict? safe?])
         field-seq    (w/fields field-seq)
         field-seq    (if (and classes (not (.isDefined field-seq)))
                        (w/fields (v/gen-nullable-vars (count classes)))
@@ -28,8 +30,9 @@
   prefixes for `path`.
 
   Supports TextDelimited keyword option for `:outfields`, `:classes`,
-  `:compress?`, `:skip-header?`, `:delimiter`, `:write-header?`, `:strict?`,
-  `safe?`, and `:quote`.
+  `:compress?`, `:skip-header?`, `:delimiter`, `:write-header?`,
+  `:strict?`, `safe?`, and `:quote`.
+
   See `cascalog.tap/hfs-tap` for more keyword arguments.
 
   See http://www.cascading.org/javadoc/cascading/tap/Hfs.html and
@@ -50,8 +53,9 @@
   using different prefixes for `path`.
 
   Supports TextDelimited keyword option for `:outfields`, `:classes`,
-  `:compress?`, `:skip-header?`, `:delimiter`, `:write-header?`, `:strict?`,
-  `safe?`, and `:quote`.
+  `:compress?`, `:skip-header?`, `:delimiter`, `:write-header?`,
+  `:strict?`, `safe?`, and `:quote`.
+
   See `cascalog.tap/hfs-tap` for more keyword arguments.
 
   See http://www.cascading.org/javadoc/cascading/tap/Hfs.html and

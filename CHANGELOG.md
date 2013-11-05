@@ -1,4 +1,29 @@
-### 1.10.2
+# 2.x
+
+## 2.0.0
+
+### Core changes
+
+* Anonymous function support
+* prepfn
+* Functions as guards
+* Standalone Cascading DSL
+
+(Much more, to be detailed!)
+
+### Minor improvements
+
+* Cascading HashJoin support
+* Compression support to textline taps
+* Removed `fact?<-` midje test form in favour of midje style checkers
+
+### Special Thanks
+
+@fs111, @ipostelnik, @MichaelDrogalis, Sean Whitbeck
+
+# 1.x
+
+## 1.10.2
 * Upgrade to Cascading 2.1.6, Hadoop 1.1.2
 * Set cascading framework property correctly (fs111)
 * Add config setting to retain outputcollector (fs111)
@@ -9,19 +34,19 @@
 * Use Merge instead of GroupBy for `combine` (ipostelnik)
 * Add explain function to output dotfile of cascading workflow (alexrobbins)
 
-### 1.10.1
+## 1.10.1
 * Upgrade to Cascading 2.0.8, Clojure 1.5.1
 * Incorporate cascalog-contrib libraries
 * Midje 1.5, elephant-bird-cascading2 3.0.7, elephantdb 0.4.0-RC1
 * Kryo 2.17 (via `cascading.kryo`)
 
-### 1.10.0
+## 1.10.0
 
 * Upgraded Kryo to 2.16 (via `cascading.kryo` and `carbonite` upgrades)
 * Redid JCascalog interface with a fluent API
 * Added PredicateMacroTemplate to JCascalog
 
-### 1.9.0
+## 1.9.0
 
 * Cascalog now uses the Apache 2.0 license (formerly used GNU)
 * Support for Cascading 2.0 (Hadoop planner only, for now)

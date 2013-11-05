@@ -2,7 +2,7 @@
   (:use [clojure.test]
         [cascalog api more-taps]
         [midje sweet cascalog])
-  (:require [cascalog.io :as io]))
+  (:require [cascalog.cascading.io :as io]))
 
 (deftest roundtrip-test
   (fact
@@ -27,7 +27,7 @@
 (deftest compress-test
   (fact
     (io/with-fs-tmp [_ tmp]
-      (?- (hfs-delimited tmp :delimiter "," :compress? true)   ;; write line
+      (?- (hfs-delimited tmp :delimiter "," :compress? true) ;; write line
           [["Proin" false 3]])
       (fact "Compression"
         (<- [?a ?b ?c]

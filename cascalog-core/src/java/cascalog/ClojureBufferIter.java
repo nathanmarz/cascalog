@@ -23,23 +23,24 @@ import cascading.operation.Buffer;
 import cascading.operation.BufferCall;
 import cascading.tuple.Fields;
 import cascading.tuple.TupleEntryCollector;
+import clojure.lang.IFn;
 import clojure.lang.ISeq;
 import clojure.lang.RT;
 
 public class ClojureBufferIter extends ClojureCascadingBase implements Buffer {
 
-    public ClojureBufferIter(Fields out_fields, Object[] fn_spec, boolean stateful) {
-        super(out_fields, fn_spec, stateful);
-    }
+  public ClojureBufferIter(Fields outputFields, IFn fn) {
+    super(outputFields, fn);
+  }
 
-    public void operate(FlowProcess flow_process, BufferCall buff_call) {
-        ISeq result_seq =
-            RT.seq(invokeFunction(new TupleSeqConverter(buff_call.getArgumentsIterator())));
-        TupleEntryCollector collector = buff_call.getOutputCollector();
-        while (result_seq != null) {
-            Object obj = result_seq.first();
-            collector.add(Util.coerceToTuple(obj));
-            result_seq = result_seq.next();
-        }
+  public void operate(FlowProcess flow_process, BufferCall call) {
+    ISeq resultSeq =
+        RT.seq(invokeFunction(new TupleSeqConverter(call.getArgumentsIterator())));
+    TupleEntryCollector collector = call.getOutputCollector();
+    while (resultSeq != null) {
+      Object obj = resultSeq.first();
+      collector.add(Util.coerceToTuple(obj));
+      resultSeq = resultSeq.next();
     }
+  }
 }

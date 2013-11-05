@@ -26,23 +26,23 @@ import cascading.operation.OperationCall;
 import cascading.tuple.Fields;
 
 public class CascalogFunctionExecutor extends BaseOperation implements Function {
-    CascalogFunction fn;
+  CascalogFunction fn;
 
-    public CascalogFunctionExecutor(Fields out_fields, CascalogFunction fn) {
-        super(out_fields);
-        this.fn = fn;
-    }
+  public CascalogFunctionExecutor(Fields out_fields, CascalogFunction fn) {
+    super(out_fields);
+    this.fn = fn;
+  }
 
-    public void prepare(FlowProcess flowProcess, OperationCall operationCall) {
-        fn.prepare(flowProcess, operationCall);
-    }
+  public void prepare(FlowProcess flowProcess, OperationCall operationCall) {
+    fn.prepare(flowProcess, operationCall);
+  }
 
-    public void operate(FlowProcess flow_process, FunctionCall fn_call) {
-        fn.operate(flow_process, fn_call);
-    }
+  public void operate(FlowProcess flow_process, FunctionCall fn_call) {
+    fn.operate(flow_process, fn_call);
+  }
 
-    public void cleanup(FlowProcess flowProcess, OperationCall operationCall) {
-        fn.cleanup(flowProcess, operationCall);
-    }
+  public void cleanup(FlowProcess flowProcess, OperationCall operationCall) {
+    fn.cleanup(flowProcess, operationCall);
+  }
 
 }

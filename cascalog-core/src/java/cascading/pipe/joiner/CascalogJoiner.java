@@ -18,73 +18,74 @@
 
 package cascading.pipe.joiner;
 
-import cascading.tuple.Tuple;
-
 import java.util.Iterator;
 import java.util.List;
 
+import cascading.tuple.Tuple;
+
 
 public class CascalogJoiner implements Joiner {
-    public static enum JoinType {
-        INNER,
-        OUTER,
-        EXISTS;
+  public static enum JoinType {
+    INNER,
+    OUTER,
+    EXISTS;
+  }
+
+  private final List<JoinType> joins;
+
+  public CascalogJoiner(List<JoinType> joins) {
+    this.joins = joins;
+  }
+
+  @Override public Iterator<Tuple> getIterator(JoinerClosure closure) {
+    return new JoinIterator(closure);
+  }
+
+  public int numJoins() {
+    return joins.size() - 1;
+  }
+
+  protected class JoinIterator extends OuterJoin.JoinIterator {
+    public JoinIterator(JoinerClosure closure) {
+      super(closure);
     }
 
-    private final List<JoinType> joins;
-
-    public CascalogJoiner(List<JoinType> joins) {
-        this.joins = joins;
+    @Override protected boolean isOuter(int i) {
+      return joins.get(i) != JoinType.INNER && super.isOuter(i);
     }
 
-    @Override public Iterator<Tuple> getIterator(JoinerClosure closure) {
-        return new JoinIterator(closure);
-    }
+    @Override protected Iterator getIterator(int i) {
+      if (joins.get(i) == JoinType.EXISTS) {
+        final boolean isEmpty = closure.isEmpty(i);
+        final Iterator wrapped = super.getIterator(i);
+        return new Iterator() {
+          private boolean emittedOne = false;
 
-    public int numJoins() {
-        return joins.size()-1;
-    }
+          public boolean hasNext() {
+            return !emittedOne && wrapped.hasNext();
+          }
 
-    protected class JoinIterator extends OuterJoin.JoinIterator {
-        public JoinIterator(JoinerClosure closure) {
-            super(closure);
-        }
-
-        @Override protected boolean isOuter(int i) {
-            return joins.get(i)!=JoinType.INNER && super.isOuter( i );
-        }
-
-        @Override protected Iterator getIterator(int i) {
-            if(joins.get(i)==JoinType.EXISTS) {
-                final boolean isEmpty = closure.isEmpty(i);
-                final Iterator wrapped = super.getIterator(i);
-                return new Iterator() {
-                    private boolean emittedOne = false;
-
-                    public boolean hasNext() {
-                        return !emittedOne && wrapped.hasNext();
-                    }
-
-                    public Object next() {
-                        if(emittedOne)
-                            throw new RuntimeException("Shouldn't be accessing outerjoin_first more than once");
-                        emittedOne = true;
-                        Tuple t = (Tuple) wrapped.next();
-                        Tuple ret = new Tuple();
-                        for(int i=0; i<t.size(); i++) {
-                            ret.add(!isEmpty);
-                        }
-                        return ret;
-                    }
-
-                    public void remove() {
-                        //not implemented
-                    }
-
-                };
-            } else {
-                return super.getIterator(i);
+          public Object next() {
+            if (emittedOne) {
+              throw new RuntimeException("Shouldn't be accessing outerjoin_first more than once");
             }
-        }
+            emittedOne = true;
+            Tuple t = (Tuple) wrapped.next();
+            Tuple ret = new Tuple();
+            for (int i = 0; i < t.size(); i++) {
+              ret.add(!isEmpty);
+            }
+            return ret;
+          }
+
+          public void remove() {
+            //not implemented
+          }
+
+        };
+      } else {
+        return super.getIterator(i);
+      }
     }
+  }
 }

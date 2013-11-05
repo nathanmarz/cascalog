@@ -18,27 +18,27 @@
 
 package cascalog;
 
+import java.util.Iterator;
+
 import cascading.tuple.TupleEntry;
 import clojure.lang.ISeq;
 
-import java.util.Iterator;
-
 public class TupleSeqConverter implements Iterator<ISeq> {
-    private Iterator<TupleEntry> _tuples;
+  private Iterator<TupleEntry> _tuples;
 
-    public TupleSeqConverter(Iterator<TupleEntry> tuples) {
-        _tuples = tuples;
-    }
+  public TupleSeqConverter(Iterator<TupleEntry> tuples) {
+    _tuples = tuples;
+  }
 
-    public boolean hasNext() {
-        return _tuples.hasNext();
-    }
+  public boolean hasNext() {
+    return _tuples.hasNext();
+  }
 
-    public ISeq next() {
-        return Util.coerceFromTuple(_tuples.next().getTuple());
-    }
+  public ISeq next() {
+    return Util.coerceFromTuple(_tuples.next().getTuple());
+  }
 
-    public void remove() {
-        _tuples.remove();
-    }
+  public void remove() {
+    _tuples.remove();
+  }
 }

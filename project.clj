@@ -1,4 +1,6 @@
-(defproject cascalog "1.10.2"
+(def version "2.0.0-SNAPSHOT")
+
+(defproject cascalog version
   :description "Hadoop without the Hassle."
   :url "http://www.cascalog.org"
   :license {:name "Eclipse Public License"
@@ -6,12 +8,12 @@
   :mailing-list {:name "Cascalog user mailing list"
                  :archive "https://groups.google.com/d/forum/cascalog-user"
                  :post "cascalog-user@googlegroups.com"}
-  :dependencies [[cascalog/cascalog-core "1.10.2"]
-                 [cascalog/cascalog-checkpoint "1.10.2"]
-                 [cascalog/cascalog-more-taps "1.10.2"]
-                 [cascalog/cascalog-math "1.10.2"]
-                 [cascalog/midje-cascalog "1.10.2"]]
-  :plugins [[lein-sub "0.2.1"]
+  :dependencies [[cascalog/cascalog-core ~version]
+                 [cascalog/cascalog-checkpoint ~version]
+                 [cascalog/cascalog-more-taps ~version]
+                 [cascalog/cascalog-math ~version]
+                 [cascalog/midje-cascalog ~version]]
+  :plugins [[lein-sub "0.2.4"]
             [codox "0.6.4"]]
   :sub ["cascalog-core"
         "cascalog-checkpoint"
