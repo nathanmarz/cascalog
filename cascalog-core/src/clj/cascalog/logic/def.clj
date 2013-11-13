@@ -123,7 +123,7 @@
   `(defmacro ~old
      [sym# & body#]
      (println ~(format "Warning, %s is deprecated; use %s."
-                       (resolve old)
+                       old
                        (resolve new)))
      `(~'~new ~sym# ~@body#)))
 
