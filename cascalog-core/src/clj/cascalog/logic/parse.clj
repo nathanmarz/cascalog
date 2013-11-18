@@ -237,7 +237,7 @@
 
 ;; TODO: Potentially add aggregations into the join. This node
 ;; combines many sources.
-(p/defnode Join [sources join-fields type-seq]
+(p/defnode Join [sources join-fields type-seq options]
   zip/TreeNode
   (branch? [_] true)
   (children [_] sources)
@@ -440,7 +440,7 @@ This won't work in distributed mode because of the ->Record functions."
 
 (defn attempt-join
   "Attempt to reduce the supplied set of tails by joining."
-  [tails]
+  [tails options]
   (let [max-join (select-join tails)
         [join-set remaining] (s/separate #(joinable? % max-join) tails)
         ;; All join fields survive from normal generators; from
@@ -460,7 +460,8 @@ This won't work in distributed mode because of the ->Record functions."
                                     :outer
                                     (or (existence-field g)
                                         :inner))])
-                               join-set))
+                               join-set)
+                          options)
         new-ops (when-let [ops (seq (map (comp set :operations) join-set))]
                   (apply intersection ops))]
     (conj remaining (->TailStruct join-node
@@ -521,12 +522,12 @@ This won't work in distributed mode because of the ->Record functions."
    list of operations that could be applied. Based on the op-allowed
    logic, these tails try to consume as many operations as possible
    before giving up at a fixed point."
-  [tails]
+  [tails options]
   (assert (not-empty tails) "Tails required in merge-tails.")
   (if (= 1 (count tails))
     (add-ops-fixed-point (assoc (first tails) :ground? true))
     (let [tails (map add-ops-fixed-point tails)]
-      (recur (attempt-join tails)))))
+      (recur (attempt-join tails options) options))))
 
 (defn initial-tails
   "Builds up a sequence of tail structs from the supplied generators
@@ -648,7 +649,7 @@ This won't work in distributed mode because of the ->Record functions."
                                       (rename output)
                                       (assoc :operations operations)))
                                 nodes))
-        joined     (merge-tails tails)
+        joined     (merge-tails tails options)
         grouping-fields (seq (intersection
                               (set (:available-fields joined))
                               (set fields)))

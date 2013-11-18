@@ -392,7 +392,7 @@
   "Takes a sequence of [pipe, join-fields, join-type] triplets along
    with other co-group arguments and performs a mixed join. Allowed
    join types are :inner, :outer, and :exists."
-  [flow-joins decl-fields & opts]
+  [flow-joins decl-fields opts]
   (let [[flows group-fields join-types] (apply map vector flow-joins)
         join-types (map cascalog-joiner-type join-types)]
     (apply co-group*
@@ -511,7 +511,7 @@
                             Outer :outer
                             Existence :exists)])
 (defn cascalog-join
-  [gen-seq join-fields]
+  [gen-seq join-fields options]
   (let [final-name (new-pipe-name gen-seq)
         gen-seq (ensure-project gen-seq)
         in-fields (map :available-fields gen-seq)
@@ -528,7 +528,8 @@
                                        (-> flow (identity* in out)))
                                      joined)))]
     (-> (join-many (map #(build-triplet % join-fields) gen-seq)
-                   declared)
+                   declared
+                   options)
         (select-exists)
         (map* (join-fields-selector join-size)
               (flatten renames)
