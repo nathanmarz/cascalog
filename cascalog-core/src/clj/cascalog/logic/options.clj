@@ -22,7 +22,8 @@
    :sort nil
    :reverse nil
    :trap nil
-   :spill-threshold nil})
+   :spill-threshold nil
+   :reducers nil})
 
 (defn careful-merge
   "Semigroup that keeps the right value of it's not nil or not equal

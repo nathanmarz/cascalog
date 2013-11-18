@@ -58,7 +58,8 @@
     (fact
       (cascalog-join [(->Inner a ["a" "b" "c"])
                       (->Inner b ["a" "b"])]
-                     ["a" "b"])
+                     ["a" "b"]
+                     [])
       => (produces [[3 4 16] [4 5 25]]))))
 
 (future-fact
@@ -149,7 +150,8 @@
     (fact "join many..."
       (-> (join-many [[a ["a"] :inner]
                       [b ["x"] :inner]]
-                     ["a" "b" "y" "x" "c"])
+                     ["a" "b" "y" "x" "c"]
+                     [])
           (map* str "y" "q"))
       => (produces [[3 3 9 3 3 "9"]
                     [4 4 16 4 4 "16"]]))))
