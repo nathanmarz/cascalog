@@ -273,7 +273,8 @@
 (defop group-by*
   "Applies a grouping operation to the supplied generator."
   [group-fields aggs
-   & {:keys [reducers spill-threshold sort-fields reverse? reduce-only]}]
+   & {:keys [reducers spill-threshold sort-fields reverse? reduce-only]
+      :or {spill-threshold 0}}]
   (fn [pipe]
     (let [group-fields (fields group-fields)
           build-group  (fn [thunk]
