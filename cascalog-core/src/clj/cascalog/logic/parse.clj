@@ -630,7 +630,8 @@ This won't work in distributed mode because of the ->Record functions."
                     available))
     (-> tail
         (chain #(->Rename % fields))
-        (assoc :available-fields fields))))
+        (assoc :available-fields fields)
+        (assoc :ground? (v/fully-ground? fields)))))
 
 (defn build-rule
   [{:keys [fields predicates options] :as input}]
