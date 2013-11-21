@@ -5,7 +5,8 @@
             [cascalog.logic.vars :as v])
   (:import [cascading.scheme.hadoop TextDelimited WritableSequenceFile]
            cascading.scheme.hadoop.TextLine$Compress
-           [cascading.tuple Fields]))
+           [cascading.tuple Fields]
+           [cascalog.moreTaps WholeFile]))
 
 (defn- delimited
   [field-seq delim
@@ -100,3 +101,18 @@
   (let [scheme (-> (:outfields (apply array-map opts) Fields/ALL)
                    (writable-sequence-file key-type value-type))]
     (apply tap/lfs-tap scheme path opts)))
+
+(defn- whole-file
+  "Custom scheme for dealing with entire files."
+  [field-names]
+  (WholeFile. (w/fields field-names)))
+
+(defn hfs-wholefile
+  "Subquery to return distinct files in the supplied directory. Files
+  will be returned as 2-tuples, formatted as `<filename, file>` The
+  filename is a text object, while the entire, unchopped file is
+  encoded as a Hadoop `BytesWritable` object."
+  [path & opts]
+  (let [scheme (-> (:outfields (apply array-map opts) Fields/ALL)
+                   (whole-file))]
+    (apply hfs-tap scheme path opts)))
