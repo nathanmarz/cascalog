@@ -651,9 +651,9 @@ This won't work in distributed mode because of the ->Record functions."
                                       (assoc :operations operations)))
                                 nodes))
         joined     (merge-tails tails options)
-        grouping-fields (seq (intersection
-                              (set (:available-fields joined))
-                              (set fields)))
+        grouping-fields (filter 
+                         (set (:available-fields joined))
+                         fields)
         agg-tail (build-agg-tail joined aggs grouping-fields options)
         {:keys [operations available-fields] :as tail} (add-ops-fixed-point agg-tail)]
     (validate-projection! operations fields available-fields)
