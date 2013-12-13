@@ -245,6 +245,11 @@
   Tap
   (select-fields [tap fields]
     (-> (types/generator tap)
+        (ops/select* fields)))
+
+  CascalogTap
+  (select-fields [tap fields]
+    (-> (types/generator tap)
         (ops/select* fields))))
 
 ;; ## Defining custom operations
