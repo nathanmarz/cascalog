@@ -776,9 +776,9 @@
   (let [people [["bob"] ["sam"]]]
     (fact "A set can be used as a predicate op, provided it's bound
            to a var."
-      (<- [?person]
-          (people ?person)
-          (bob-set ?person)) => (produces [["bob"]]))))
+          (<- [?person]
+              (people ?person)
+              (bob-set ?person)) => (produces [["bob"]]))))
 
 
 (future-fact "test outer join with functions.")
@@ -1008,4 +1008,12 @@
   (let [numbers [[1 2] [3 4] [5 6] [7 8] [9 10]]
         sampling-query (c/fixed-sample numbers 5)]
     (fact "sample should contain some of the inputs"
-      sampling-query => (produces-some [[1 2] [3 4] [5 6]]))))
+          sampling-query => (produces-some [[1 2] [3 4] [5 6]]))))
+
+(deftest select-fields-supports-cascalogtap
+  (let [data (memory-source-tap ["f1" "f2" "f3" "f4"]
+                                [[1 2 3 4] [11 12 13 14] [21 22 23 24]])
+        cascalog-tap (cascalog-tap data nil)]
+    (test?<- [[4 2] [14 12] [24 22]]
+             [?a ?b]
+             ((select-fields cascalog-tap ["f4" "f2"]) ?a ?b))))

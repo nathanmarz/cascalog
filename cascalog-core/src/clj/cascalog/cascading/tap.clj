@@ -22,7 +22,7 @@
 ;; TODO: Plug in support here.
 (defrecord CascalogTap [source sink])
 
-(defn cascalog-tap [source sink] 
+(defn cascalog-tap [source sink]
   (CascalogTap. source sink))
 
 (def valid-sinkmode? #{:keep :update :replace})
