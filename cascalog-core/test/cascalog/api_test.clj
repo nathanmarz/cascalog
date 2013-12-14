@@ -1017,3 +1017,10 @@
     (test?<- [[4 2] [14 12] [24 22]]
              [?a ?b]
              ((select-fields cascalog-tap ["f4" "f2"]) ?a ?b))))
+
+(deftest vector-args-should-work
+  (let [data [[{:a {:b 2}}]]]
+    (test?<- [[2]]
+             [?b]
+             (data ?a)
+             (get-in ?a [:a :b] :> ?b))))

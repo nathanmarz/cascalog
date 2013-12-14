@@ -678,7 +678,7 @@
 (defn insert-subs [flow sub-m]
   (if (empty? sub-m)
     flow
-    (apply insert* flow (s/flatten sub-m))))
+    (apply insert* flow (apply concat sub-m))))
 
 (defn with-constants
   "Allows constant substitution on inputs."
