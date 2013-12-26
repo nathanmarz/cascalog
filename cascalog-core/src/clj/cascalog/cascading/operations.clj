@@ -11,7 +11,6 @@
             [jackknife.seq :as s :refer (unweave collectify)])
   (:import [cascading.tuple Fields]
            [cascalog.ops KryoInsert]
-           [cascading.tuple Fields]
            [cascading.operation Identity Debug NoOp]
            [cascading.operation.filter Sample]
            [cascading.operation.aggregator First Count Sum Min Max]
