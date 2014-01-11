@@ -487,7 +487,7 @@
 (defn- mk-null-check [fields]
   (let [non-null-fields (filter v/non-nullable-var? fields)]
     (if (not-empty non-null-fields)
-      (non-null? non-null-fields)
+      (w/filter-nulls non-null-fields)
       identity)))
 
 (defmulti enhance-predicate (fn [pred & rest] (:type pred)))

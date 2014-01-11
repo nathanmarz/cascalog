@@ -26,6 +26,7 @@
            [cascading.operation.aggregator First Count Sum Min Max]
            [cascading.pipe Pipe Each Every GroupBy CoGroup Merge]
            [cascading.pipe.joiner InnerJoin]
+           [cascading.operation.filter FilterNull]
            [com.twitter.maple.tap MemorySourceTap]
            [cascalog ClojureFilter ClojureMapcat ClojureMap
             ClojureAggregator Util ClojureBuffer ClojureBufferIter
@@ -121,6 +122,11 @@
   (pipes-array (if (instance? Pipe pipe-or-pipes)
                  [pipe-or-pipes]
                  pipe-or-pipes)))
+
+(defn filter-nulls [args]
+  "Inserts filter for null fields. Much faster than pure clojure version."
+  (fn [previous]
+    (Each. previous (fields args) (FilterNull.))))
 
 ;; with a :fn> defined, turns into a function
 (defn filter [& args]
