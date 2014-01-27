@@ -95,7 +95,11 @@
 (deftest sink-template-test
   (fact
     ":sink-template option should set path template on cascading tap."
-    (.getPathTemplate (hfs-test-sink :sink-template "%s/")) => "%s/"))
+    (.getPathTemplate (hfs-test-sink :sink-template "%s/")) => "%s/")
+  (fact 
+   ":open-threshold should set open taps threshold"
+   (.getOpenTapsThreshold 
+    (hfs-test-sink :sink-template "%s/" :open-threshold 10)) => 10))
 
 (deftest template-tap-test
   (fact
