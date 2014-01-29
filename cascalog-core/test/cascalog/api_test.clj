@@ -27,6 +27,12 @@
              (mk-one :> ?n2)
              (nums ?n3))))
 
+(deftest test-empty-vector-input
+  (let [empty-vector []]
+    (test?<- []
+             [?a]
+             (empty-vector ?a))))
+
 (deftest test-simple-query
   (let [age [["n" 24] ["n" 23] ["i" 31] ["c" 30] ["j" 21] ["q" nil]]]
     (test?<- [["j"] ["n"]]
