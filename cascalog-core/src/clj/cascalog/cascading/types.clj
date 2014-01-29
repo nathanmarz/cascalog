@@ -62,7 +62,7 @@
   (generator [tap] (generator (:source tap)))
 
   clojure.lang.IPersistentVector
-  (generator [v] (generator (seq v)))
+  (generator [v] (generator (or (seq v) ())))
 
   clojure.lang.ISeq
   (generator [v]
