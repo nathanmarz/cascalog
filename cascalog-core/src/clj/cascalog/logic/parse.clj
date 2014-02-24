@@ -511,8 +511,7 @@ This won't work in distributed mode because of the ->Record functions."
     (let [total-fields (grouping-output aggs grouping-fields)]
       (validate-aggregation! tail aggs options)
       (-> tail
-          ;; TODO: Make this work properly.
-          ;; (chain #(->Projection % total-fields))
+          (chain #(->Projection % total-fields))
           (chain #(->Grouping % aggs grouping-fields options))
           (assoc :available-fields total-fields)))))
 
