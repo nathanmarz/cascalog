@@ -493,6 +493,15 @@ This won't work in distributed mode because of the ->Record functions."
        (apply union (set grouping-fields))
        (vec)))
 
+(defn projection-input
+  "These are the fields that go into a projection."
+  [aggs grouping-fields options]
+  (let [sort-fields (:sort options)]
+    (->> aggs
+        (map #(set (:input %)))
+        (apply union (set (concat grouping-fields sort-fields)))
+        (vec))))
+
 (defn validate-aggregation!
   "Makes sure that all fields are available for the aggregation."
   [tail aggs options]
@@ -509,11 +518,11 @@ This won't work in distributed mode because of the ->Record functions."
     (if (:distinct options)
       (chain tail #(->Unique % grouping-fields options))
       tail)
-    (let [total-fields (grouping-output aggs grouping-fields)]
+    (let [total-fields (grouping-output aggs grouping-fields)
+          projection-fields (projection-input aggs grouping-fields options)]
       (validate-aggregation! tail aggs options)
       (-> tail
-          ;; TODO: Make this work properly.
-          ;; (chain #(->Projection % total-fields))
+          (chain #(->Projection % projection-fields))
           (chain #(->Grouping % aggs grouping-fields options))
           (assoc :available-fields total-fields)))))
 
@@ -651,7 +660,7 @@ This won't work in distributed mode because of the ->Record functions."
                                       (assoc :operations operations)))
                                 nodes))
         joined     (merge-tails tails options)
-        grouping-fields (filter 
+        grouping-fields (filter
                          (set (:available-fields joined))
                          fields)
         agg-tail (build-agg-tail joined aggs grouping-fields options)
