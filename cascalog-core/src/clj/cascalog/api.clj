@@ -1,7 +1,6 @@
 (ns cascalog.api
   (:use [jackknife.seq :only (collectify)])
   (:require [clojure.set :as set]
-            [clojure.pprint :refer (pprint)]
             [cascalog.logic.def :as d]
             [cascalog.logic.algebra :as algebra]
             [cascalog.logic.vars :as v]
@@ -142,7 +141,7 @@
      (let [{outvars# :output-fields
             predicates# :predicates}
            (parse/prepare-subquery ~outvars [~@(map vec predicates)])]
-       (pprint (parse/build-query outvars# predicates#)))))
+       (print (parse/build-query outvars# predicates#)))))
 
 (defn normalize-sink-connection [sink subquery]
   (cond (fn? sink) (sink subquery)
