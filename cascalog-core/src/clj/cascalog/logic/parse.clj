@@ -689,11 +689,18 @@ This won't work in distributed mode because of the ->Record functions."
     (validate-predicates! expanded options)
     (p/RawSubquery. output-fields expanded options)))
 
+(defn prepare-subquery [output-fields raw-predicates]
+  (let [output-fields (v/sanitize output-fields)
+        raw-predicates (mapcat p/normalize raw-predicates)]
+    {:output-fields output-fields
+     :predicates raw-predicates}))
+
 (defn parse-subquery
   "Parses predicates and output fields and returns a proper subquery."
   [output-fields raw-predicates]
-  (let [output-fields (v/sanitize output-fields)
-        raw-predicates (mapcat p/normalize raw-predicates)]
+  (let [{output-fields :output-fields
+         raw-predicates :predicates}
+        (prepare-subquery output-fields raw-predicates)]
     (if (query-signature? output-fields)
       (build-rule
        (build-query output-fields raw-predicates))

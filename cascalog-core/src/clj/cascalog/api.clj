@@ -1,6 +1,7 @@
 (ns cascalog.api
   (:use [jackknife.seq :only (collectify)])
   (:require [clojure.set :as set]
+            [clojure.pprint :refer (pprint)]
             [cascalog.logic.def :as d]
             [cascalog.logic.algebra :as algebra]
             [cascalog.logic.vars :as v]
@@ -130,6 +131,18 @@
   ([^String outfile sink-tap query]
      (let [^Flow flow (compile-flow sink-tap query)]
        (flow/graph flow outfile))))
+
+(defmacro expand-query [outvars & predicates]
+  "Printes Expanded operations and predicates
+
+  Syntax: (expand-query outvars & predicates)
+
+  Ex: (expand-query [?person] (age ?person 25))"
+  `(v/with-logic-vars
+     (let [{outvars# :output-fields
+            predicates# :predicates}
+           (parse/prepare-subquery ~outvars [~@(map vec predicates)])]
+       (pprint (parse/build-query outvars# predicates#)))))
 
 (defn normalize-sink-connection [sink subquery]
   (cond (fn? sink) (sink subquery)
