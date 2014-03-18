@@ -31,7 +31,7 @@
   will throw an exception."
   [l r]
   (if-not (or (nil? l) (= l r))
-    (throw-illegal (format "Same option set to conflicting values: % vs %."
+    (throw-illegal (format "Same option set to conflicting values: %s vs %s."
                            l r))
     r))
 
