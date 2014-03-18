@@ -621,7 +621,7 @@ This won't work in distributed mode because of the ->Record functions."
         available (:available-fields tail)]
     (u/safe-assert (subset? (set fields)
                             (set available))
-                   (format "Cannot select % from %."
+                   (format "Cannot select %s from %s."
                            fields
                            available))
     (-> tail
@@ -634,7 +634,7 @@ This won't work in distributed mode because of the ->Record functions."
     (u/safe-assert (= (count available)
                       (count fields))
                    (format
-                    "Must rename to the same number of fields. % to % is invalid."
+                    "Must rename to the same number of fields. %s to %s is invalid."
                     fields
                     available))
     (-> tail
