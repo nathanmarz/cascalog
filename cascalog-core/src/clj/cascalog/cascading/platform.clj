@@ -246,7 +246,8 @@
                   "Only one buffer allowed per subquery.")
           (let [{:keys [op input output]} (first bufs)
                 {:keys [init-var combine-var present-var
-                        num-intermediate-vars-fn buffer-var]} op
+                        num-intermediate-vars-fn buffer-var
+                        buffer-iter?]} op
                 temps (v/gen-nullable-vars
                        (num-intermediate-vars-fn input output))
                 spec (-> (CombinerSpec. combine-var)
@@ -263,7 +264,8 @@
             (apply ops/group-by*
                    source
                    grouping-fields
-                   [(ops/buffer buffer-var temps output)]
+                   [((if buffer-iter? ops/bufferiter ops/buffer)
+                     buffer-var temps output)]
                    (opt-seq options))))
       (let [aggs (map (fn [{:keys [op input output]}]
                         (agg-cascading op input output))
