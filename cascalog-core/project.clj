@@ -1,4 +1,4 @@
-(def cc-version (or (System/getenv "CASCALOG_CASCADING_VERSION") "2.5.1"))
+(def cc-version (or (System/getenv "CASCALOG_CASCADING_VERSION") "2.5.2"))
 (def cascalog-version "2.0.1-SNAPSHOT")
 
 (defproject cascalog/cascalog-core cascalog-version
