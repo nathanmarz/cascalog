@@ -1,6 +1,7 @@
 (ns cascalog.logic.fn
   (:refer-clojure :exclude (fn))
-  (:import [cascalog Util KryoService]))
+  (:import [cascalog Util]
+           [cascalog.kryo KryoService]))
 
 (defn- save-env [bindings form]
   ;; cascalog.logic.fn/fn, not core/fn
