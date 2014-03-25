@@ -6,7 +6,7 @@ import cascading.operation.Function;
 import cascading.operation.FunctionCall;
 import cascading.tuple.Fields;
 import cascading.tuple.Tuple;
-import cascalog.KryoService;
+import cascalog.kryo.KryoService;
 
 public class KryoInsert extends BaseOperation implements Function {
   /** Field values */

@@ -22,8 +22,8 @@
                  [cascading/cascading-hadoop ~cc-version
                   :exclusions [org.codehaus.janino/janino
                                org.apache.hadoop/hadoop-core]]
-                 [cascading.kryo "0.4.6"]
-                 [com.twitter/carbonite "1.3.2"]
+                 [com.twitter/chill-hadoop "0.3.5"]
+                 [com.twitter/carbonite "1.3.3"]
                  [com.twitter/maple "0.2.2"]
                  [jackknife "0.1.6"]
                  [hadoop-util "0.3.0"]]
