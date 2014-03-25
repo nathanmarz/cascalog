@@ -1,4 +1,4 @@
-(def cc-version (or (System/getenv "CASCALOG_CASCADING_VERSION") "2.5.2"))
+(def cc-version (or (System/getenv "CASCALOG_CASCADING_VERSION") "2.5.3"))
 (def cascalog-version "2.0.1-SNAPSHOT")
 
 (defproject cascalog/cascalog-core cascalog-version
@@ -29,6 +29,7 @@
                  [hadoop-util "0.3.0"]]
   :profiles {:1.3 {:dependencies [[org.clojure/clojure "1.3.0"]]}
              :1.4 {:dependencies [[org.clojure/clojure "1.4.0"]]}
+             :1.6 {:dependencies [[org.clojure/clojure "1.6.0-RC3"]]}
              :provided {:dependencies [[org.apache.hadoop/hadoop-core "1.2.1"]]}
              :dev {:resource-paths ["dev"]
                    :plugins [[lein-midje "3.0.0"]]

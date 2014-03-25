@@ -2,8 +2,9 @@ package cascalog.kryo;
 
 import com.twitter.chill.KryoInstantiator;
 import com.twitter.chill.KryoPool;
-import com.twitter.chill.config.ConfigurationException;
 import com.twitter.chill.hadoop.HadoopConfig;
+import com.twitter.chill.config.ConfiguredInstantiator;
+import com.twitter.chill.config.ConfigurationException;
 
 import static cascalog.Util.clojureConf;
 
@@ -17,8 +18,12 @@ public class KryoService {
   public static KryoPool defaultPool() {
     synchronized(_mutex) {
       if (_kpool == null) {
-        KryoInstantiator kryoInst = new ClojureKryoInstantiator();
-        _kpool = KryoPool.withByteArrayOutputStream(MAX_CACHED_KRYO, kryoInst);
+        try {
+          KryoInstantiator kryoInst = new ConfiguredInstantiator(new HadoopConfig(clojureConf()));
+          _kpool = KryoPool.withByteArrayOutputStream(MAX_CACHED_KRYO, kryoInst);
+        } catch (ConfigurationException cx) {
+          throw new RuntimeException(cx);
+        }
       }
       return _kpool;
     }
