@@ -2,7 +2,7 @@
 (def MODULES (-> "MODULES" slurp (.split "\n")))
 (def DEPENDENCIES (for [m MODULES] [(symbol (str "cascalog/" m)) VERSION]))
 
-(eval `(defproject cascalog ~VERSION
+(eval `(defproject cascalog/cascalog ~VERSION
          :description "Hadoop without the Hassle."
          :url "http://www.cascalog.org"
          :license {:name "Eclipse Public License"
