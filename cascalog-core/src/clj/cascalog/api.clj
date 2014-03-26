@@ -131,6 +131,18 @@
      (let [^Flow flow (compile-flow sink-tap query)]
        (flow/graph flow outfile))))
 
+(defmacro expand-query [outvars & predicates]
+  "Printes Expanded operations and predicates
+
+  Syntax: (expand-query outvars & predicates)
+
+  Ex: (expand-query [?person] (age ?person 25))"
+  `(v/with-logic-vars
+     (let [{outvars# :output-fields
+            predicates# :predicates}
+           (parse/prepare-subquery ~outvars [~@(map vec predicates)])]
+       (print (parse/build-query outvars# predicates#)))))
+
 (defn normalize-sink-connection [sink subquery]
   (cond (fn? sink) (sink subquery)
         (instance? CascalogTap sink)
@@ -243,6 +255,11 @@
     (select-fields (.getCompiledSubquery sq) fields))
 
   Tap
+  (select-fields [tap fields]
+    (-> (types/generator tap)
+        (ops/select* fields)))
+
+  CascalogTap
   (select-fields [tap fields]
     (-> (types/generator tap)
         (ops/select* fields))))

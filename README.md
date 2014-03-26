@@ -23,7 +23,7 @@ The best way to get started with Cascalog is experiment with the toy datasets th
 1. Install [leiningen](http://github.com/technomancy/leiningen)
 2. Make sure you have Java 1.6 (run `java -version`)
 3. Start a new leiningen project with `lein new <project name>`, replacing `<project name>`
-4. Include dependency on Cascalog in your project by adding `[cascalog/cascalog-core "2.0.0"]` into your project's `project.clj` file.
+4. Include dependency on Cascalog in your project by adding `[cascalog/cascalog-core "2.1.0"]` into your project's `project.clj` file.
 5. Work through the examples in the [Getting Started Guide](http://cascalog.org/articles/getting_started.html).
 
 # Using Cascalog within a project
@@ -34,19 +34,19 @@ To include Cascalog in your leiningen or cake project, add the following to your
 
 General
 
-    [cascalog/cascalog-core "2.0.0"] ;; under :dependencies
-    [org.apache.hadoop/hadoop-core "1.1.2"] ;; under :dev-dependencies
+    [cascalog/cascalog-core "2.1.0"] ;; under :dependencies
+    [org.apache.hadoop/hadoop-core "1.2.1"] ;; under :dev-dependencies
 
 Leiningen 2.0
 
     :repositories {"conjars" "http://conjars.org/repo"}
-    :dependencies [cascalog/cascalog-core "2.0.0"]
-    :profiles { :dev {:dependencies [[org.apache.hadoop/hadoop-core "1.1.2"]]}}
+    :dependencies [cascalog/cascalog-core "2.1.0"]
+    :profiles { :provided {:dependencies [[org.apache.hadoop/hadoop-core "1.2.1"]]}}
 
 Leiningen < 2.0
 
-    :dependencies [cascalog/cascalog-core "2.0.0"]
-    :dev-dependencies [[org.apache.hadoop/hadoop-core "1.1.2"]]
+    :dependencies [cascalog/cascalog-core "2.1.0"]
+    :dev-dependencies [[org.apache.hadoop/hadoop-core "1.2.1"]]
 
 Note that Cascalog is compatible with Clojure 1.2.0, 1.2.1, 1.3.0, 1.4.0, and 1.5.1.
 

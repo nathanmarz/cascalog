@@ -237,7 +237,7 @@
 
 ;; TODO: Potentially add aggregations into the join. This node
 ;; combines many sources.
-(p/defnode Join [sources join-fields type-seq]
+(p/defnode Join [sources join-fields type-seq options]
   zip/TreeNode
   (branch? [_] true)
   (children [_] sources)
@@ -440,7 +440,7 @@ This won't work in distributed mode because of the ->Record functions."
 
 (defn attempt-join
   "Attempt to reduce the supplied set of tails by joining."
-  [tails]
+  [tails options]
   (let [max-join (select-join tails)
         [join-set remaining] (s/separate #(joinable? % max-join) tails)
         ;; All join fields survive from normal generators; from
@@ -460,7 +460,8 @@ This won't work in distributed mode because of the ->Record functions."
                                     :outer
                                     (or (existence-field g)
                                         :inner))])
-                               join-set))
+                               join-set)
+                          options)
         new-ops (when-let [ops (seq (map (comp set :operations) join-set))]
                   (apply intersection ops))]
     (conj remaining (->TailStruct join-node
@@ -492,6 +493,15 @@ This won't work in distributed mode because of the ->Record functions."
        (apply union (set grouping-fields))
        (vec)))
 
+(defn projection-input
+  "These are the fields that go into a projection."
+  [aggs grouping-fields options]
+  (let [sort-fields (:sort options)]
+    (->> aggs
+        (map #(set (:input %)))
+        (apply union (set (concat grouping-fields sort-fields)))
+        (vec))))
+
 (defn validate-aggregation!
   "Makes sure that all fields are available for the aggregation."
   [tail aggs options]
@@ -508,11 +518,11 @@ This won't work in distributed mode because of the ->Record functions."
     (if (:distinct options)
       (chain tail #(->Unique % grouping-fields options))
       tail)
-    (let [total-fields (grouping-output aggs grouping-fields)]
+    (let [total-fields (grouping-output aggs grouping-fields)
+          projection-fields (projection-input aggs grouping-fields options)]
       (validate-aggregation! tail aggs options)
       (-> tail
-          ;; TODO: Make this work properly.
-          ;; (chain #(->Projection % total-fields))
+          (chain #(->Projection % projection-fields))
           (chain #(->Grouping % aggs grouping-fields options))
           (assoc :available-fields total-fields)))))
 
@@ -521,12 +531,12 @@ This won't work in distributed mode because of the ->Record functions."
    list of operations that could be applied. Based on the op-allowed
    logic, these tails try to consume as many operations as possible
    before giving up at a fixed point."
-  [tails]
+  [tails options]
   (assert (not-empty tails) "Tails required in merge-tails.")
   (if (= 1 (count tails))
     (add-ops-fixed-point (assoc (first tails) :ground? true))
     (let [tails (map add-ops-fixed-point tails)]
-      (recur (attempt-join tails)))))
+      (recur (attempt-join tails options) options))))
 
 (defn initial-tails
   "Builds up a sequence of tail structs from the supplied generators
@@ -611,7 +621,7 @@ This won't work in distributed mode because of the ->Record functions."
         available (:available-fields tail)]
     (u/safe-assert (subset? (set fields)
                             (set available))
-                   (format "Cannot select % from %."
+                   (format "Cannot select %s from %s."
                            fields
                            available))
     (-> tail
@@ -624,12 +634,13 @@ This won't work in distributed mode because of the ->Record functions."
     (u/safe-assert (= (count available)
                       (count fields))
                    (format
-                    "Must rename to the same number of fields. % to % is invalid."
+                    "Must rename to the same number of fields. %s to %s is invalid."
                     fields
                     available))
     (-> tail
         (chain #(->Rename % fields))
-        (assoc :available-fields fields))))
+        (assoc :available-fields fields)
+        (assoc :ground? (v/fully-ground? fields)))))
 
 (defn build-rule
   [{:keys [fields predicates options] :as input}]
@@ -648,10 +659,10 @@ This won't work in distributed mode because of the ->Record functions."
                                       (rename output)
                                       (assoc :operations operations)))
                                 nodes))
-        joined     (merge-tails tails)
-        grouping-fields (seq (intersection
-                              (set (:available-fields joined))
-                              (set fields)))
+        joined     (merge-tails tails options)
+        grouping-fields (filter
+                         (set (:available-fields joined))
+                         fields)
         agg-tail (build-agg-tail joined aggs grouping-fields options)
         {:keys [operations available-fields] :as tail} (add-ops-fixed-point agg-tail)]
     (validate-projection! operations fields available-fields)
@@ -678,11 +689,18 @@ This won't work in distributed mode because of the ->Record functions."
     (validate-predicates! expanded options)
     (p/RawSubquery. output-fields expanded options)))
 
+(defn prepare-subquery [output-fields raw-predicates]
+  (let [output-fields (v/sanitize output-fields)
+        raw-predicates (mapcat p/normalize raw-predicates)]
+    {:output-fields output-fields
+     :predicates raw-predicates}))
+
 (defn parse-subquery
   "Parses predicates and output fields and returns a proper subquery."
   [output-fields raw-predicates]
-  (let [output-fields (v/sanitize output-fields)
-        raw-predicates (mapcat p/normalize raw-predicates)]
+  (let [{output-fields :output-fields
+         raw-predicates :predicates}
+        (prepare-subquery output-fields raw-predicates)]
     (if (query-signature? output-fields)
       (build-rule
        (build-query output-fields raw-predicates))

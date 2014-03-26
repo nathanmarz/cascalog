@@ -227,14 +227,15 @@
   (to-generator [{:keys [source]}] source)
 
   Join
-  (to-generator [{:keys [sources join-fields type-seq]}]
+  (to-generator [{:keys [sources join-fields type-seq options]}]
     (-> (ops/cascalog-join (map (fn [source [available type]]
                                   (condp = type
                                     :inner (ops/Inner. source available)
                                     :outer (ops/Outer. source available)
                                     (ops/Existence. source available type)))
                                 sources type-seq)
-                           join-fields)
+                           join-fields
+                           (opt-seq options))
         (ops/rename-pipe (.getName (:pipe (first sources))))))
 
   Grouping

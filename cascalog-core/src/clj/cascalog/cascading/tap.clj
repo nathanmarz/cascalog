@@ -22,7 +22,7 @@
 ;; TODO: Plug in support here.
 (defrecord CascalogTap [source sink])
 
-(defn cascalog-tap [source sink] 
+(defn cascalog-tap [source sink]
   (CascalogTap. source sink))
 
 (def valid-sinkmode? #{:keep :update :replace})
@@ -80,24 +80,24 @@ identity.  identity."
 (defn template-tap
   ([^Hfs parent sink-template]
      (TemplateTap. parent sink-template))
-  ([^Hfs parent sink-template templatefields]
-     (TemplateTap. parent
-                   sink-template
-                   (fields templatefields))))
+  ([^Hfs parent sink-template {:keys [templatefields open-threshold]
+                               :or {templatefields Fields/ALL
+                                    open-threshold 300}}]
+     (TemplateTap. parent sink-template (fields templatefields) open-threshold)))
 
 (defn- patternize
   "If `pattern` is truthy, returns the supplied parent `Hfs` or `Lfs`
   tap wrapped that responds as a `TemplateTap` when used as a sink,
   and a `GlobHfs` tap when used as a source. Otherwise, acts as
   identity."
-  [scheme type path-or-file sinkmode sink-template source-pattern templatefields]
+  [scheme type path-or-file sinkmode sink-template source-pattern options]
   (let [tap-maker ({:hfs hfs :lfs lfs} type)
         parent (tap-maker scheme path-or-file sinkmode)
         source (if source-pattern
                  (glob-hfs scheme path-or-file source-pattern)
                  parent)
         sink (if sink-template
-               (template-tap parent sink-template templatefields)
+               (template-tap parent sink-template options)
                parent)]
     (CascalogTap. source sink)))
 
@@ -122,13 +122,14 @@ identity.  identity."
 
   See f.ex. the
   http://docs.cascading.org/cascading/2.0/javadoc/cascading/scheme/local/TextDelimited.html
-  scheme."  [^Scheme scheme path-or-file & {:keys
-  [sinkmode sinkparts sink-template source-pattern templatefields]
-                          :or {templatefields Fields/ALL}}]
+  scheme."  
+  [^Scheme scheme path-or-file & {:keys [sinkmode sinkparts sink-template 
+                                         source-pattern templatefields]
+                                  :as options}]
   (-> scheme
       (set-sinkparts! sinkparts)
       (patternize :hfs path-or-file sinkmode
-                  sink-template source-pattern templatefields)))
+                  sink-template source-pattern options)))
 
 (defn lfs-tap
   "Returns a Cascading Lfs tap with support for the supplied scheme,
@@ -150,12 +151,12 @@ identity.  identity."
   naming scheme."
 
   [scheme path-or-file & {:keys [sinkmode sinkparts sink-template
-                                 source-pattern templatefields]
-                          :or {templatefields Fields/ALL}}]
+                                 source-pattern templatefields] 
+                          :as options}]
   (-> scheme
       (set-sinkparts! sinkparts)
       (patternize :lfs path-or-file sinkmode
-                  sink-template source-pattern templatefields)))
+                  sink-template source-pattern options)))
 
 (defn hfs-textline
   "Creates a tap on HDFS using textline format. Different filesystems

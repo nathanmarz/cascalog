@@ -4,8 +4,6 @@ target
 out
 lib
 pom.xml
-# use glob syntax.
-syntax: glob
 *.class
 *.jar
 *~
@@ -16,7 +14,6 @@ syntax: glob
 *.project
 *.settings
 *.dot
-.cake/
 .lein-failures
 .lein-deps-sum
 doc

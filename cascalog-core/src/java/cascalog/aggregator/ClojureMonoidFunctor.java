@@ -10,9 +10,9 @@ import clojure.lang.RT;
 
 public class ClojureMonoidFunctor extends FoldFunctor<ISeq> {
   final CombinerSpec combinerSpec;
-  protected IFn prepareFn;
-  protected IFn combineFn;
-  boolean isPrepared = false;
+  transient IFn prepareFn;
+  transient IFn combineFn;
+  transient boolean isPrepared = false;
 
   public ClojureMonoidFunctor(Fields fields, CombinerSpec combinerSpec) {
     super(fields);

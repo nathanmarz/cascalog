@@ -44,6 +44,6 @@
                 (ops/rename* "?x"))
         pred (to-predicate * ["?a" "?a"] ["?b"])]
     (fact
-      (f/to-memory
-       ((:op pred) gen ["?x" "?x"] "?z"))
-      => [[1 1] [2 4] [3 9] [4 16]])))
+     (f/to-memory
+      ((:op pred) gen ["?x" "?x"] "?z"))
+     => [[1 1] [2 4] [3 9] [4 16]])))
