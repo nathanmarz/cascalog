@@ -12,20 +12,20 @@ public class KryoService {
   static int GUESS_THREADS_PER_CORE = 4;
   static int MAX_CACHED_KRYO = GUESS_THREADS_PER_CORE * Runtime.getRuntime().availableProcessors();
 
-  static final Object _mutex =  new Object();
-  static KryoPool _kpool = null;
+  static final Object mutex =  new Object();
+  static KryoPool kpool = null;
 
   public static KryoPool defaultPool() {
-    synchronized(_mutex) {
-      if (_kpool == null) {
+    synchronized(mutex) {
+      if (kpool == null) {
         try {
           KryoInstantiator kryoInst = new ConfiguredInstantiator(new HadoopConfig(clojureConf()));
-          _kpool = KryoPool.withByteArrayOutputStream(MAX_CACHED_KRYO, kryoInst);
+          kpool = KryoPool.withByteArrayOutputStream(MAX_CACHED_KRYO, kryoInst);
         } catch (ConfigurationException cx) {
           throw new RuntimeException(cx);
         }
       }
-      return _kpool;
+      return kpool;
     }
   }
 
