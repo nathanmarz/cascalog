@@ -15,4 +15,7 @@ jdk:
   - openjdk6
 notifications:
   email:
-    - timbers@ualberta.ca
+    - nathanmarz@gmail.com
+    - sritchie09@gmail.com
+    - paul@quantisan.com
+    - soren@dopeness.org
