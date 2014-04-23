@@ -1030,16 +1030,3 @@
              [?b]
              (data ?a)
              (get-in ?a [:a :b] :> ?b))))
-
-(defn do-with-side-effects [array-list v]
-  (do (.add array-list v)) v)
-
-(deftest test-prune-operations
-  (let [data [[1 2][3 4]]
-        state (java.util.ArrayList.)
-        result (??<- [?minus]
-                     (data ?a ?b)
-                     (- ?b ?a :> ?minus)
-                     (do-with-side-effects ?a :> ?c))]
-    (is (= '([1] [1]) result))
-    (is (empty? state))))
