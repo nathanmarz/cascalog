@@ -642,6 +642,32 @@ This won't work in distributed mode because of the ->Record functions."
         (assoc :available-fields fields)
         (assoc :ground? (v/fully-ground? fields)))))
 
+(defn prune-operations
+  "Remove any operations whose output is not used; ie, output does not intersect with the set
+  of fields that is the query's out-fields, generators (joins), inputs of other operations,
+  and :sort option. Additionally, don't try to prune operations if a no input operator exists"
+  [fields grouped options]
+  (let [check-input-operations (concat (grouped Operation)
+                                       (grouped FilterOperation)
+                                       (grouped Aggregator))]
+  (if (some #(empty? (:input %)) check-input-operations)
+    (concat (grouped Operation)
+            (grouped FilterOperation))
+    (let [generators (concat (grouped Generator)
+                             (grouped GeneratorSet))
+          nessecary-fields (->> check-input-operations
+                                (mapcat :input)
+                                (concat fields)
+                                (concat (mapcat :fields generators))
+                                (concat (:sort options)))
+          pruned-operations (filter #(seq
+                                       (clojure.set/intersection
+                                            (set (:output %))
+                                            (set nessecary-fields)))
+                                    (grouped Operation))]
+      (concat pruned-operations
+              (grouped FilterOperation))))))
+
 (defn build-rule
   [{:keys [fields predicates options] :as input}]
   (let [[nodes expanded] (s/separate #(tail? (:op %)) predicates)
@@ -650,8 +676,7 @@ This won't work in distributed mode because of the ->Record functions."
                      (group-by type))
         generators (concat (grouped Generator)
                            (grouped GeneratorSet))
-        operations (concat (grouped Operation)
-                           (grouped FilterOperation))
+        operations (prune-operations fields grouped options)
         aggs       (grouped Aggregator)
         tails      (concat (initial-tails generators operations)
                            (map (fn [{:keys [op output]}]
