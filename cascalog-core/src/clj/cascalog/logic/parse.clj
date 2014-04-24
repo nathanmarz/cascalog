@@ -655,7 +655,7 @@ This won't work in distributed mode because of the ->Record functions."
             (grouped FilterOperation))
     (let [generators (concat (grouped Generator)
                              (grouped GeneratorSet))
-          nessecary-fields (->> check-input-operations
+          necessary-fields (->> check-input-operations
                                 (mapcat :input)
                                 (concat fields)
                                 (concat (mapcat :fields generators))
@@ -663,7 +663,7 @@ This won't work in distributed mode because of the ->Record functions."
           pruned-operations (filter #(seq
                                        (clojure.set/intersection
                                             (set (:output %))
-                                            (set nessecary-fields)))
+                                            (set necessary-fields)))
                                     (grouped Operation))]
       (concat pruned-operations
               (grouped FilterOperation))))))
