@@ -1,6 +1,10 @@
 (ns cascalog.logic.parse-test
   (:use midje.sweet
-        cascalog.logic.parse))
+        clojure.test
+        cascalog.logic.parse)
+  (:require [cascalog.logic.predicate :as p]
+            [cascalog.logic.options :as opts]
+            [cascalog.logic.ops :as c]))
 
 (fact
   "parse-variables expands selectors out into the proper unsugared
@@ -19,3 +23,73 @@
   "Only :< and :> are allowed as the default selector."
   (parse-variables ['?a '?b :> 4] :anything) => (throws AssertionError)
   )
+
+(defn predicate->operation [options predicate]
+  (->> predicate
+       p/normalize
+       first
+       (p/build-predicate options)))
+
+(defn mk-grouped-and-options [in-predicates]
+  (let [raw-predicates (mapcat p/normalize in-predicates)
+        [options predicates] (opts/extract-options raw-predicates)
+        expanded (mapcat expand-outvars predicates)]
+    {:grouped (->> expanded
+                   (map (partial p/build-predicate options))
+                   (group-by type)),
+    :options options}))
+
+(defn operation-equals? [op1 op2]
+  (and
+    (= (:name (meta (:op op1))) (:name (meta (:op op2))))
+    (= (:input op1) (:input op2))
+    (= (:output op1) (:output op2))))
+
+(defn contains-op? [op ops] (some #(operation-equals? op %) ops))
+
+(deftest test-prune-operations
+  "Prune-operations will judiciously remove unnecessary operations"
+  (let [gen-pred [[[1 2][3 4]] :> "?a" "?b"]
+        minus-pred [#'- "?b" "?a" :> "?minus"]
+        plus-pred [#'+ "?b" "?a" :> "?plus"]
+        count-pred [#'c/count "?count"]
+        sort-pred [:sort "?plus"]]
+
+    "Check that we filter out the plus-pred since it is not requested in out-fields"
+    (let [{:keys [grouped options]} (mk-grouped-and-options [gen-pred minus-pred plus-pred])
+          out-fields ["?minus"]
+          minus-op (predicate->operation options minus-pred)
+          pruned-operations (prune-operations out-fields grouped options)]
+      (is (= 1 (count pruned-operations)))
+      (is (contains-op? minus-op pruned-operations)))
+
+    "Check that we don't filter since a no-input predicate (count-pred) exists"
+    (let [{:keys [grouped options]} (mk-grouped-and-options [gen-pred minus-pred plus-pred count-pred])
+          out-fields ["?minus" "?count"]
+          minus-op (predicate->operation options minus-pred)
+          plus-op (predicate->operation options plus-pred)
+          pruned-operations (prune-operations out-fields grouped options)]
+      (is (= 3 (count pruned-operations)))
+      (is (contains-op? minus-op pruned-operations))
+      (is (contains-op? plus-op pruned-operations)))
+
+    "Check that we don't filter if we use predicate outfield in option :sort"
+    (let [{:keys [grouped options]} (mk-grouped-and-options [gen-pred minus-pred plus-pred sort-pred])
+          out-fields ["?minus"]
+          minus-op (predicate->operation options minus-pred)
+          plus-op (predicate->operation options plus-pred)
+          pruned-operations (prune-operations out-fields grouped options)]
+      (is (= 2 (count pruned-operations)))
+      (is (contains-op? minus-op pruned-operations))
+      (is (contains-op? plus-op pruned-operations)))
+
+    "Check that we don't filter if output is used in generators field (ie, a join)"
+    (let [join-gen-pred [[[3 "a"][7 "b"]] :> "?plus" "!!alpha"]
+          {:keys [grouped options]} (mk-grouped-and-options [gen-pred minus-pred plus-pred join-gen-pred])
+          out-fields ["?minus" "!!alpha"]
+          minus-op (predicate->operation options minus-pred)
+          plus-op (predicate->operation options plus-pred)
+          pruned-operations (prune-operations out-fields grouped options)]
+      (is (= 2 (count pruned-operations)))
+      (is (contains-op? minus-op pruned-operations))
+      (is (contains-op? plus-op pruned-operations)))))
