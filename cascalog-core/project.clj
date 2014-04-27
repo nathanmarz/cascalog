@@ -17,6 +17,7 @@
   :jar-exclusions [#"\.java$"]
   :repositories {"conjars" "http://conjars.org/repo/"}
   :exclusions [log4j/log4j org.slf4j/slf4j-log4j12]
+  :aot [cascalog.logic.def]
   :dependencies [[org.clojure/clojure "1.5.1"]
                  [org.clojure/tools.macro "0.1.2"]
                  [log4j "1.2.16"]
