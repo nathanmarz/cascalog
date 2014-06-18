@@ -114,3 +114,21 @@
           temp-tap
           (?<- temp-tap [?a ?b] (tuples ?a ?b))
           temp-tap => (produces [[1 2] [2 3]]))))))
+
+(deftest glob-test
+  (tabular
+   (fact "GlobHfs testing with various globs."
+     (let [glob-tap (hfs-tap (tap/text-line) "src" :source-pattern ?pattern)
+           child-taps (iterator-seq (.getChildTaps (tap-source glob-tap)))]
+       (map #(-> (.getPath %) (.getName)) child-taps)) => ?files)
+       ?pattern   ?files
+       "/*"        ["clj" "java"]
+       "/**"       ["clj" "java"]
+       "/*/"       ["clj" "java"]
+       "/../src/*" ["clj" "java"]
+       "*/*"       ["clj" "java"]
+       "/clj"      ["clj"]
+       "/*/*"      ["cascalog" "cascading" "cascalog" "jcascalog"]
+       "/."        ["src"]
+       "*"         ["src"]
+       "/"         ["src"]))
