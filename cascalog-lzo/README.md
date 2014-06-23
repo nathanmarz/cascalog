@@ -8,7 +8,7 @@ Based on the excellent work in Elephant-Bird:
 
 Add the following to `project.clj`:
 
-    [cascalog-lzo "1.10.1-SNAPSHOT"]
+    [cascalog/cascalog-lzo "1.10.1-SNAPSHOT"]
 
 Stay tuned for updates!
 
