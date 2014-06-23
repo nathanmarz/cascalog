@@ -55,7 +55,7 @@
         count-pred [#'c/count "?count"]
         sort-pred [:sort "?plus"]]
 
-    "Check that we filter out the plus-pred since it is not requested in out-fields"
+    "Check that we prune the plus-pred since it is not requested in out-fields"
     (let [{:keys [grouped options]} (mk-grouped-and-options [gen-pred minus-pred plus-pred])
           out-fields ["?minus"]
           minus-op (predicate->operation options minus-pred)
@@ -63,7 +63,7 @@
       (is (= 1 (count pruned-operations)))
       (is (contains-op? minus-op pruned-operations)))
 
-    "Check that we don't filter since a no-input predicate (count-pred) exists"
+    "Check that we don't prune since a no-input predicate (count-pred) exists"
     (let [{:keys [grouped options]} (mk-grouped-and-options [gen-pred minus-pred plus-pred count-pred])
           out-fields ["?minus" "?count"]
           minus-op (predicate->operation options minus-pred)
@@ -73,7 +73,7 @@
       (is (contains-op? minus-op pruned-operations))
       (is (contains-op? plus-op pruned-operations)))
 
-    "Check that we don't filter if we use predicate outfield in option :sort"
+    "Check that we don't prune if we use predicate outfield in option :sort"
     (let [{:keys [grouped options]} (mk-grouped-and-options [gen-pred minus-pred plus-pred sort-pred])
           out-fields ["?minus"]
           minus-op (predicate->operation options minus-pred)
@@ -83,7 +83,7 @@
       (is (contains-op? minus-op pruned-operations))
       (is (contains-op? plus-op pruned-operations)))
 
-    "Check that we don't filter if output is used in generators field (ie, a join)"
+    "Check that we don't prune if output is used in generators field (ie, a join)"
     (let [join-gen-pred [[[3 "a"][7 "b"]] :> "?plus" "!!alpha"]
           {:keys [grouped options]} (mk-grouped-and-options [gen-pred minus-pred plus-pred join-gen-pred])
           out-fields ["?minus" "!!alpha"]
