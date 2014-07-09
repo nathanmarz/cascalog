@@ -11,29 +11,23 @@
   (generator [p gen fields options]
     "Returns some source representation."))
 
-(defn- init-pipe-name [options]
-  (or (:name (:trap options))
-      (u/uuid))) 
-
-(defn- init-trap-map [options]
-  (if-let [trap (:trap options)]
-    {(:name trap) (types/to-sink (:tap trap))}
-    {}))
-
-(defrecord CascadingPlatform []
+(defrecord EmptyPlatform []
   IPlatform
-  (generator? [_ x]
-    (satisfies? types/IGenerator x))
+  (generator? [_ _] false)
 
-  (generator [_ gen fields options]
-    (-> (types/generator gen)
-        (update-in [:trap-map] #(merge % (init-trap-map options)))
-        (ops/rename-pipe (init-pipe-name options))
-        (ops/rename* fields)
-        ;; All generators if the fields aren't ungrounded discard null values
-        (ops/filter-nullable-vars fields))))
+  (generator [_ _ _ _] nil))
 
-(def ^:dynamic *context* (CascadingPlatform.))
+(def ^:dynamic *context* (EmptyPlatform.))
+
+;; Don't use this function, since it's limited in its scope.
+;; Instead you should use with-context
+(defn set-context! [c]
+  (alter-var-root #'*context* (constantly c)))
+
+(defmacro with-context
+  [context & body]
+  `(binding [*context* ~context]
+     ~@body))
 
 (defn gen? [g]
   (generator? *context* g))

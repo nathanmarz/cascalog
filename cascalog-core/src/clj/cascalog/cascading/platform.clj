@@ -12,6 +12,7 @@
             [cascalog.logic.fn :as serfn]
             [cascalog.logic.vars :as v]
             [cascalog.logic.parse :as parse]
+            [cascalog.logic.platform :refer (IPlatform)]
             [cascalog.cascading.types :refer (IGenerator generator)])
   (:import [cascading.pipe Each Every]
            [cascading.tuple Fields]
@@ -33,6 +34,28 @@
            [cascalog.logic.def ParallelAggregator ParallelBuffer Prepared]
            [cascalog.cascading.types ClojureFlow]
            [jcascalog Predicate]))
+
+(defn- init-pipe-name [options]
+  (or (:name (:trap options))
+      (u/uuid))) 
+
+(defn- init-trap-map [options]
+  (if-let [trap (:trap options)]
+    {(:name trap) (types/to-sink (:tap trap))}
+    {}))
+
+(defrecord CascadingPlatform []
+  IPlatform
+  (generator? [_ x]
+    (satisfies? types/IGenerator x))
+
+  (generator [_ gen fields options]
+    (-> (types/generator gen)
+        (update-in [:trap-map] #(merge % (init-trap-map options)))
+        (ops/rename-pipe (init-pipe-name options))
+        (ops/rename* fields)
+        ;; All generators if the fields aren't ungrounded discard null values
+        (ops/filter-nullable-vars fields))))
 
 (extend-protocol p/IRawPredicate
   Predicate

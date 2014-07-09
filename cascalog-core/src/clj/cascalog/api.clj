@@ -24,6 +24,7 @@
            [cascading.tap Tap]
            [cascalog.logic.parse TailStruct]
            [cascalog.cascading.tap CascalogTap]
+           [cascalog.cascading.platform CascadingPlatform]
            [jcascalog Subquery]))
 
 ;; Functions for creating taps and tap helpers
