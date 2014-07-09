@@ -1,8 +1,6 @@
 (ns cascalog.logic.platform
   "The execution platform class, plus a basic Cascading implementation."
-  (:require [jackknife.core :as u]
-            [cascalog.cascading.operations :as ops]
-            [cascalog.cascading.types :as types]))
+  (:require [jackknife.core :as u]))
 
 (defprotocol IPlatform
   (generator? [p x]
