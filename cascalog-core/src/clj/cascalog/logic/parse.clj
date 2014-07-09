@@ -394,6 +394,7 @@ This won't work in distributed mode because of the ->Record functions."
 ;; ## Join Field Detection
 
 (defn tail-fields-intersection [& tails]
+  "Returns the set of available fields from the tails that match."
   (->> tails
        (map (comp set :available-fields))
        (apply intersection)))
@@ -434,6 +435,8 @@ This won't work in distributed mode because of the ->Record functions."
 
    This is unoptimal. It's better to rewrite this as a search problem
    to find optimal joins."
+  ;; An example of the throw is:
+  ;; (let [n1 [[1]] n2 [[2]]] (parse/<- [?n] (n1 ?n) (n2 ?m)))  
   [tails]
   (or (not-empty (maximal-join tails))
       (u/throw-illegal "Unable to join predicates together")))
@@ -536,7 +539,12 @@ This won't work in distributed mode because of the ->Record functions."
   (if (= 1 (count tails))
     (add-ops-fixed-point (assoc (first tails) :ground? true))
     (let [tails (map add-ops-fixed-point tails)]
+      ;; if an operation can be applied to a tail (like a generator)
+      ;; add it.
+      ;; tails returns untouched if initially it was generators
       (recur (attempt-join tails options) options))))
+      ;; recursively attempt-joins on tails until there is only 1 tail
+      ;; struct left
 
 (defn initial-tails
   "Builds up a sequence of tail structs from the supplied generators
@@ -647,6 +655,20 @@ This won't work in distributed mode because of the ->Record functions."
   (let [[nodes expanded] (s/separate #(tail? (:op %)) predicates)
         grouped (->> expanded
                      (map (partial p/build-predicate options))
+                     ;; build-predicate is where generators and 
+                     ;; predicates are constructed.
+                     ;;
+                     ;; Predicates are Cascading agnostic; they
+                     ;; utilize the predicate record types.  They can
+                     ;; be: Operation, FilterOperation, Aggregator,
+                     ;; etc.
+                     ;; For example:
+                     ;;  (to-predicate = ["?n" 1] nil)
+                     ;;
+                     ;; Generators are Cascading specific and they use
+                     ;; the platform/*context* (CascadingPlatform)
+                     ;; For example:
+                     ;;    (pred/generator-node [[1][2]] nil ["?n"] options)
                      (group-by type))
         generators (concat (grouped Generator)
                            (grouped GeneratorSet))
@@ -659,7 +681,11 @@ This won't work in distributed mode because of the ->Record functions."
                                       (rename output)
                                       (assoc :operations operations)))
                                 nodes))
+        ;; intial-tails creates a TailStruct node, which contains
+        ;; nodes that are generators, operations, and tail nodes
         joined     (merge-tails tails options)
+        ;; merge-tails joints all the tails until everything is joined
+        ;; and there is 1 tail struct left; no zip structure used yet
         grouping-fields (filter
                          (set (:available-fields joined))
                          fields)
@@ -685,13 +711,29 @@ This won't work in distributed mode because of the ->Record functions."
 (defn build-query
   [output-fields raw-predicates]
   (let [[options predicates] (opts/extract-options raw-predicates)
+        ;; TODO: see how :sort is extracted here
         expanded (mapcat expand-outvars predicates)]
     (validate-predicates! expanded options)
     (p/RawSubquery. output-fields expanded options)))
+    ;; Builds a RawSubquery record which holds all predicates in a
+    ;; single data structure.
+    ;; 
+    ;; No joining logic has happend yet.
+    ;;
+    ;; The record looks like:
+    ;;     {:fields ["?n"], :predicates ({:op [[1] [2]], :input nil,
+    ;;     :output ["?n"]}), :options ... }
 
 (defn prepare-subquery [output-fields raw-predicates]
   (let [output-fields (v/sanitize output-fields)
         raw-predicates (mapcat p/normalize raw-predicates)]
+    ;; normalize figures out intput and output values for a predicate
+    ;; and builds a RawPredicate record
+    ;; RawPredicate objects are :op :input :output
+    ;; :op can be a generator or a function
+    ;; :input is nil if :op is a generator or a filter function
+    ;; test this function with a generator:
+    ;;   (let [nums [[1][2]]] (mapcat pred/normalize [[nums "?n"]]))
     {:output-fields output-fields
      :predicates raw-predicates}))
 
@@ -715,4 +757,6 @@ This won't work in distributed mode because of the ->Record functions."
   output variables."
   [outvars & predicates]
   `(v/with-logic-vars
+     ;; this set's up a let like to stringify vars:
+     ;; let [?n "?n"] 
      (parse-subquery ~outvars [~@(map vec predicates)])))

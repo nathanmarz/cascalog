@@ -173,6 +173,8 @@
   [op input output]
   (FilterOperation. op input))
 
+;; ::d/map expands to :cascalog.logic.def/map which is linked
+;; to mapop which is the macro assocaited with defmapfn
 (defmethod to-predicate ::d/map
   [op input output]
   (Operation. op input output))

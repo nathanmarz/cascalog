@@ -13,7 +13,7 @@
 
 (defn- init-pipe-name [options]
   (or (:name (:trap options))
-      (u/uuid)))
+      (u/uuid))) 
 
 (defn- init-trap-map [options]
   (if-let [trap (:trap options)]
@@ -30,6 +30,7 @@
         (update-in [:trap-map] #(merge % (init-trap-map options)))
         (ops/rename-pipe (init-pipe-name options))
         (ops/rename* fields)
+        ;; All generators if the fields aren't ungrounded discard null values
         (ops/filter-nullable-vars fields))))
 
 (def ^:dynamic *context* (CascadingPlatform.))
