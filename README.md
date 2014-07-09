@@ -40,12 +40,12 @@ General
 Leiningen 2.0
 
     :repositories {"conjars" "http://conjars.org/repo"}
-    :dependencies [cascalog/cascalog-core "2.1.0"]
+    :dependencies [cascalog/cascalog-core "2.1.1"]
     :profiles { :provided {:dependencies [[org.apache.hadoop/hadoop-core "1.2.1"]]}}
 
 Leiningen < 2.0
 
-    :dependencies [cascalog/cascalog-core "2.1.0"]
+    :dependencies [cascalog/cascalog-core "2.1.1"]
     :dev-dependencies [[org.apache.hadoop/hadoop-core "1.2.1"]]
 
 Note that Cascalog is compatible with Clojure 1.2.0, 1.2.1, 1.3.0, 1.4.0, and 1.5.1.
