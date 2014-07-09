@@ -3,8 +3,7 @@
   (:use cascalog.api
         [jackknife.def :only (defnk defalias)]
         [jackknife.seq :only (collectify)])
-  (:require [cascalog.cascading.operations :as operations]
-            [cascalog.logic.def :as d]
+  (:require [cascalog.logic.def :as d]
             [cascalog.logic.fn :as s]
             [cascalog.logic.ops-impl :as impl]
             [cascalog.logic.vars :as v])
@@ -270,9 +269,6 @@
         ((fixed-sample-agg n) :<< in-vars :>> out-vars))))
 
 ;; Common patterns
-
-;; TODO: Get this out into the proper Cascading package.
-(defalias lazy-generator operations/lazy-generator)
 
 (defnk first-n
   "Accepts a generator and a number `n` and returns a subquery that
