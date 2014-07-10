@@ -55,7 +55,10 @@
         (ops/rename-pipe (init-pipe-name options))
         (ops/rename* fields)
         ;; All generators if the fields aren't ungrounded discard null values
-        (ops/filter-nullable-vars fields))))
+        (ops/filter-nullable-vars fields)))
+
+  (pto-generator [_ x]
+    (to-generator x)))
 
 (extend-protocol p/IRawPredicate
   Predicate

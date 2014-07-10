@@ -16,18 +16,6 @@
 (defprotocol IRunner
   (to-generator [item]))
 
-;; TODO: This needs to move back into the logic DSL. We need a dynamic
-;; variable with the "runner", which will need to supply a
-;; "to-generator" method.
-
-(defn compile-query [query]
-  (zip/postwalk-edit
-   (zip/cascalog-zip query)
-   identity
-   (fn [x _] (to-generator x))
-   :encoder (fn [x]
-              (or (:identifier x) x))))
-
 ;; ## Platform Protocol
 
 (defprotocol IPlatform
@@ -35,14 +23,18 @@
     "Returns true if the supplied x is a generator, false
     otherwise.")
   (pgenerator [p gen fields options]
-    "Returns some source representation."))
+    "Returns some source representation.")
+
+  (pto-generator [p x]))
 
 ;; This is required so that the *context* var isn't nil
 (defrecord EmptyPlatform []
   IPlatform
   (pgenerator? [_ _] false)
 
-  (pgenerator [_ _ _ _] nil))
+  (pgenerator [_ _ _ _] nil)
+
+  (pto-generator [_ _] nil))
 
 (def ^:dynamic *context* (EmptyPlatform.))
 
@@ -58,6 +50,14 @@
 
 (defn gen? [g]
   (pgenerator? *context* g))
+
+(defn compile-query [query]
+  (zip/postwalk-edit
+   (zip/cascalog-zip query)
+   identity
+   (fn [x _] (pto-generator *context* x))
+   :encoder (fn [x]
+              (or (:identifier x) x))))
 
 (comment
   (require '[cascalog.cascading.flow :as f])
