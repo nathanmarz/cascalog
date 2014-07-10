@@ -34,7 +34,7 @@ To include Cascalog in your leiningen or cake project, add the following to your
 
 General
 
-    [cascalog/cascalog-core "2.1.0"] ;; under :dependencies
+    [cascalog/cascalog-core "2.1.1"] ;; under :dependencies
     [org.apache.hadoop/hadoop-core "1.2.1"] ;; under :dev-dependencies
 
 Leiningen 2.0
