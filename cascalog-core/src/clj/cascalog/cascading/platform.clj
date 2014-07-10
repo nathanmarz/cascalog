@@ -8,11 +8,12 @@
             [cascalog.logic.def :as d]
             [cascalog.logic.parse :as parse]
             [cascalog.logic.algebra :refer (sum)]
-            [cascalog.logic.zip :as zip]
             [cascalog.logic.fn :as serfn]
             [cascalog.logic.vars :as v]
             [cascalog.logic.parse :as parse]
-            [cascalog.logic.platform :refer (generator IGenerator IPlatform)])
+            [cascalog.logic.platform :refer
+             (compile-query generator IGenerator
+                            to-generator IRunner IPlatform)])
   (:import [cascading.pipe Each Every]
            [cascading.tuple Fields]
            [cascading.operation Function Filter]
@@ -221,9 +222,6 @@
        (filter (comp (complement nil?) second))
        (apply concat)))
 
-(defprotocol IRunner
-  (to-generator [item]))
-
 ;; TODO: Generator should just be a projection.
 ;; TODO: Add a validation here that checks if this thing is a
 ;; generator and sends a proper error message otherwise.
@@ -316,18 +314,6 @@
   TailStruct
   (to-generator [item]
     (:node item)))
-
-;; TODO: This needs to move back into the logic DSL. We need a dynamic
-;; variable with the "runner", which will need to supply a
-;; "to-generator" method.
-
-(defn compile-query [query]
-  (zip/postwalk-edit
-   (zip/cascalog-zip query)
-   identity
-   (fn [x _] (to-generator x))
-   :encoder (fn [x]
-              (or (:identifier x) x))))
 
 (extend-protocol IGenerator
   TailStruct

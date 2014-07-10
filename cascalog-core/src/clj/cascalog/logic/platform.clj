@@ -1,6 +1,7 @@
 (ns cascalog.logic.platform
   "The execution platform class."
-  (:require [jackknife.core :as u]))
+  (:require [jackknife.core :as u]
+            [cascalog.logic.zip :as zip]))
 
 ;; ## Generator Protocol
 
@@ -9,6 +10,23 @@
   generator. The idea is that a clojure flow can always be used
   directly as a generator."
   (generator [x]))
+
+;; ## Runner Protocol
+
+(defprotocol IRunner
+  (to-generator [item]))
+
+;; TODO: This needs to move back into the logic DSL. We need a dynamic
+;; variable with the "runner", which will need to supply a
+;; "to-generator" method.
+
+(defn compile-query [query]
+  (zip/postwalk-edit
+   (zip/cascalog-zip query)
+   identity
+   (fn [x _] (to-generator x))
+   :encoder (fn [x]
+              (or (:identifier x) x))))
 
 ;; ## Platform Protocol
 
