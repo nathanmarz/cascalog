@@ -2,18 +2,29 @@
   "The execution platform class."
   (:require [jackknife.core :as u]))
 
+;; ## Generator Protocol
+
+(defprotocol IGenerator
+  "Accepts some type and returns a ClojureFlow that can be used as a
+  generator. The idea is that a clojure flow can always be used
+  directly as a generator."
+  (generator [x]))
+
+;; ## Platform Protocol
+
 (defprotocol IPlatform
-  (generator? [p x]
+  (pgenerator? [p x]
     "Returns true if the supplied x is a generator, false
     otherwise.")
-  (generator [p gen fields options]
+  (pgenerator [p gen fields options]
     "Returns some source representation."))
 
+;; This is required so that the *context* var isn't nil
 (defrecord EmptyPlatform []
   IPlatform
-  (generator? [_ _] false)
+  (pgenerator? [_ _] false)
 
-  (generator [_ _ _ _] nil))
+  (pgenerator [_ _ _ _] nil))
 
 (def ^:dynamic *context* (EmptyPlatform.))
 
@@ -28,7 +39,7 @@
      ~@body))
 
 (defn gen? [g]
-  (generator? *context* g))
+  (pgenerator? *context* g))
 
 (comment
   (require '[cascalog.cascading.flow :as f])

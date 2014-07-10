@@ -134,7 +134,7 @@
 
 (def can-generate?
   (some-fn node?
-           (partial p/generator? p/*context*)
+           (partial p/pgenerator? p/*context*)
            #(instance? GeneratorSet %)))
 
 (defn generator-node
@@ -144,10 +144,10 @@
   {:pre [(empty? input)]}
   (if (instance? GeneratorSet gen)
     (let [{:keys [generator] :as op} gen]
-      (assert ((some-fn node? (partial p/generator? p/*context*)) generator)
+      (assert ((some-fn node? (partial p/pgenerator? p/*context*)) generator)
               (str "Only Nodes or Generators allowed: " generator))
       (assoc op :generator (generator-node generator input output options)))
-    (->Generator (p/generator p/*context* gen output options)
+    (->Generator (p/pgenerator p/*context* gen output options)
                  output)))
 
 ;; The following multimethod converts operations (in the first

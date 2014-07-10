@@ -12,8 +12,7 @@
             [cascalog.logic.fn :as serfn]
             [cascalog.logic.vars :as v]
             [cascalog.logic.parse :as parse]
-            [cascalog.logic.platform :refer (IPlatform)]
-            [cascalog.cascading.types :refer (IGenerator generator)])
+            [cascalog.logic.platform :refer (generator IGenerator IPlatform)])
   (:import [cascading.pipe Each Every]
            [cascading.tuple Fields]
            [cascading.operation Function Filter]
@@ -46,11 +45,11 @@
 
 (defrecord CascadingPlatform []
   IPlatform
-  (generator? [_ x]
-    (satisfies? types/IGenerator x))
+  (pgenerator? [_ x]
+    (satisfies? IGenerator x))
 
-  (generator [_ gen fields options]
-    (-> (types/generator gen)
+  (pgenerator [_ gen fields options]
+    (-> (generator gen)
         (update-in [:trap-map] #(merge % (init-trap-map options)))
         (ops/rename-pipe (init-pipe-name options))
         (ops/rename* fields)
@@ -231,7 +230,7 @@
 (extend-protocol IRunner
   Object
   (to-generator [x]
-    (types/generator x))
+    (generator x))
 
   cascalog.logic.predicate.Generator
   (to-generator [{:keys [gen]}] gen)
