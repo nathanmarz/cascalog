@@ -4,6 +4,7 @@
             [cascalog.logic.platform :refer (generator IGenerator)]
             [cascalog.cascading.tap :as tap])
   (:import [cascalog Util]
+           [cascalog.logic.platform ClojureFlow]
            [cascalog.cascading.tap CascalogTap]
            [cascading.pipe Pipe Merge]
            [cascading.tap Tap]
@@ -38,13 +39,6 @@
   (satisfies? IGenerator x))
 
 ;; Note that we need to use getIdentifier on the taps.
-
-;; source-map is a map of identifier to tap, or source. Pipe is the
-;; current pipe that the user needs to operate on.
-
-(defrecord ClojureFlow [source-map sink-map trap-map tails pipe name]
-  IGenerator
-  (generator [x] x))
 
 (extend-protocol IGenerator
   Subquery

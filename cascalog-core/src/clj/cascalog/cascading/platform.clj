@@ -32,7 +32,7 @@
            [cascalog.cascading.operations IAggregateBy IAggregator
             Inner Outer Existence]
            [cascalog.logic.def ParallelAggregator ParallelBuffer Prepared]
-           [cascalog.cascading.types ClojureFlow]
+           [cascalog.logic.platform ClojureFlow]
            [jcascalog Predicate]))
 
 (defn- init-pipe-name [options]

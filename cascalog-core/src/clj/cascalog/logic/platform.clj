@@ -11,6 +11,13 @@
   directly as a generator."
   (generator [x]))
 
+;; source-map is a map of identifier to tap, or source. Pipe is the
+;; current pipe that the user needs to operate on.
+
+(defrecord ClojureFlow [source-map sink-map trap-map tails pipe name]
+  IGenerator
+  (generator [x] x))
+
 ;; ## Runner Protocol
 
 (defprotocol IRunner
@@ -36,6 +43,21 @@
 
   (pto-generator [_ _] nil))
 
+
+(defrecord ClojurePlatform []
+  IPlatform
+  (pgenerator? [_ x]
+    (satisfies? IGenerator x))
+
+  (pgenerator [_ gen output options]
+    (let [id (u/uuid)]
+      (ClojureFlow. {id gen} nil nil nil nil nil)))
+
+  (pto-generator [_ _] nil)
+  
+  )
+
+
 (def ^:dynamic *context* (EmptyPlatform.))
 
 ;; Don't use this function, since it's limited in its scope.
@@ -51,6 +73,11 @@
 (defn gen? [g]
   (pgenerator? *context* g))
 
+;; Takes the TailStruct and turns it into a ClojureFlow.
+;; TailStruct is a with the last functions on the first level
+;; and the Generator (which is a ClojureFlow) on the inner-most level.
+;; As the Map is walked by the zip function, it removes the outer
+;; level and adds them onto the next level
 (defn compile-query [query]
   (zip/postwalk-edit
    (zip/cascalog-zip query)

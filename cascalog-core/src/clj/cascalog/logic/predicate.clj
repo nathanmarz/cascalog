@@ -147,6 +147,11 @@
       (assert ((some-fn node? (partial p/pgenerator? p/*context*)) generator)
               (str "Only Nodes or Generators allowed: " generator))
       (assoc op :generator (generator-node generator input output options)))
+    ;; uses IPlatform as dispatch helper to decide which generator
+    ;; logic it should use
+    ;; CascadingPlatform pgenerator generates a ClojureFlow
+    ;; ClojureFlow is very Cascading specific, but might also hold
+    ;; necessary values for future unwrapping
     (->Generator (p/pgenerator p/*context* gen output options)
                  output)))
 
