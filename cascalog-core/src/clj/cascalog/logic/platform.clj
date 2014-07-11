@@ -1,7 +1,6 @@
 (ns cascalog.logic.platform
   "The execution platform class."
-  (:require [jackknife.core :as u]
-            [cascalog.logic.zip :as zip]))
+  (:require [cascalog.logic.zip :as zip]))
 
 ;; ## Generator Protocol
 
@@ -42,21 +41,6 @@
   (pgenerator [_ _ _ _] nil)
 
   (pto-generator [_ _] nil))
-
-
-(defrecord ClojurePlatform []
-  IPlatform
-  (pgenerator? [_ x]
-    (satisfies? IGenerator x))
-
-  (pgenerator [_ gen output options]
-    (let [id (u/uuid)]
-      (ClojureFlow. {id gen} nil nil nil nil nil)))
-
-  (pto-generator [_ _] nil)
-  
-  )
-
 
 (def ^:dynamic *context* (EmptyPlatform.))
 
