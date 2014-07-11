@@ -10,15 +10,15 @@
   (let [age [["nathan" 25]]]
     (is (= ["?age"]
            (get-out-fields
-            (<- [?age] (age _ ?age)))))
+            (test<- [?age] (age _ ?age)))))
     (is (= ["!!age2" "!!age"]
-           (get-out-fields (<- [!!age2 !!age]
+           (get-out-fields (test<- [!!age2 !!age]
                                (age ?person !!age)
                                (age ?person !!age2)))))
     (is (= ["?person" "!a"]
-           (get-out-fields (<- [?person !a]
+           (get-out-fields (test<- [?person !a]
                                (age ?person !a)))))
-    (is (= ["!a" "!count"] (get-out-fields (<- [!a !count]
+    (is (= ["!a" "!count"] (get-out-fields (test<- [!a !count]
                                                (age _ !a)
                                                (c/count !count)))))))
 (deftest test-outfields-tap
@@ -33,7 +33,7 @@
   [(inc (reduce + (map first tuples)))])
 
 (defn op-to-pairs [sq op]
-  (<- [?c]
+  (test<- [?c]
       (sq ?a ?b)
       (op ?a ?b :> ?c)
       (:distinct false)))
@@ -70,7 +70,7 @@
 
 (deftest test-cascalog-tap-source
   (let [num [[1]]
-        gen (<- [?n]
+        gen (test<- [?n]
                 (num ?raw)
                 (inc ?raw :> ?n))
         tap1 (cascalog-tap num nil)]
@@ -89,7 +89,7 @@
            [?n]
            (num ?n))
 
-      (?<- (cascalog-tap nil (fn [sq] [sink2 (<- [?n2]
+      (?<- (cascalog-tap nil (fn [sq] [sink2 (test<- [?n2]
                                                 (sq ?n)
                                                 (inc ?n :> ?n2)
                                                 (:distinct false))]))
@@ -121,19 +121,19 @@
     (with-expected-sinks [sink1 [[1] [2]]
                           sink2 [[2] [3]]]
       (is (= "lalala"
-             (:name (compile-flow "lalala" (stdout) (<- [?n] (nums ?n))))))
+             (:name (compile-flow "lalala" (stdout) (test<- [?n] (nums ?n))))))
       (?<- "flow1" sink1
            [?n]
            (nums ?n)
            (:distinct false))
       (?- "flow2" sink2
-          (<- [?n2]
+          (test<- [?n2]
               (nums ?n)
               (inc ?n :> ?n2)
               (:distinct false)))
       (is (= '(([1] [2]))
              (??- "flow3"
-                  (<- [?n]
+                  (test<- [?n]
                       (nums ?n)
                       (:distinct false))))))))
 
@@ -155,14 +155,14 @@
                       (odd? ?num)
                       (:distinct false)))))
     (is (= (set [[1 2]])
-           (set (first (??- (<- [?a ?b]
+           (set (first (??- (test<- [?a ?b]
                                 (nums ?b :> true)
                                 (more-nums ?a ?b)))))))
-    (let [res (??- (<- [?val]
+    (let [res (??- (test<- [?val]
                        (nums ?num)
                        (inc ?num :> ?val)
                        (:distinct false))
-                   (<- [?res]
+                   (test<- [?res]
                        (people ?person)
                        (str ?person "a" :> ?res)
                        (:distinct false)))]
@@ -216,7 +216,7 @@
              (gender ?p "m" :> ?ismale)
              (= ?ismale ?isfollows))
 
-    (let [old (<- [?p ?a]
+    (let [old (test<- [?p ?a]
                   (age ?p ?a)
                   (> ?a 30))]
       (test?<- [["nathan"] ["bob"]]
