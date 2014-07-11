@@ -3,7 +3,7 @@
             [jackknife.core :as u]
             [cascalog.cascading.operations :as ops]
             [cascalog.cascading.util :as casc]
-            [cascalog.cascading.types :as types]
+            [cascalog.cascading.types :refer (to-sink IGenerator generator)]
             [cascalog.logic.predicate :as p]
             [cascalog.logic.def :as d]
             [cascalog.logic.parse :as parse]
@@ -11,9 +11,7 @@
             [cascalog.logic.fn :as serfn]
             [cascalog.logic.vars :as v]
             [cascalog.logic.parse :as parse]
-            [cascalog.logic.platform :refer
-             (compile-query generator IGenerator
-                            to-generator IRunner IPlatform)])
+            [cascalog.logic.platform :refer (compile-query  IPlatform)])
   (:import [cascading.pipe Each Every]
            [cascading.tuple Fields]
            [cascading.operation Function Filter]
@@ -41,24 +39,8 @@
 
 (defn- init-trap-map [options]
   (if-let [trap (:trap options)]
-    {(:name trap) (types/to-sink (:tap trap))}
+    {(:name trap) (to-sink (:tap trap))}
     {}))
-
-(defrecord CascadingPlatform []
-  IPlatform
-  (pgenerator? [_ x]
-    (satisfies? IGenerator x))
-
-  (pgenerator [_ gen fields options]
-    (-> (generator gen)
-        (update-in [:trap-map] #(merge % (init-trap-map options)))
-        (ops/rename-pipe (init-pipe-name options))
-        (ops/rename* fields)
-        ;; All generators if the fields aren't ungrounded discard null values
-        (ops/filter-nullable-vars fields)))
-
-  (pto-generator [_ x]
-    (to-generator x)))
 
 (extend-protocol p/IRawPredicate
   Predicate
@@ -228,6 +210,10 @@
 ;; TODO: Generator should just be a projection.
 ;; TODO: Add a validation here that checks if this thing is a
 ;; generator and sends a proper error message otherwise.
+
+(defprotocol IRunner
+  (to-generator [item]))
+
 (extend-protocol IRunner
   Object
   (to-generator [x]
@@ -325,7 +311,28 @@
 
   RawSubquery
   (generator [sq]
-    (generator (parse/build-rule sq))))
+    (generator (parse/build-rule sq)))
+
+  ClojureFlow
+  (generator [x] x))
+
+;; ## Platform Implementation
+
+(defrecord CascadingPlatform []
+  IPlatform
+  (pgenerator? [_ x]
+    (satisfies? IGenerator x))
+
+  (pgenerator [_ gen fields options]
+    (-> (generator gen)
+        (update-in [:trap-map] #(merge % (init-trap-map options)))
+        (ops/rename-pipe (init-pipe-name options))
+        (ops/rename* fields)
+        ;; All generators if the fields aren't ungrounded discard null values
+        (ops/filter-nullable-vars fields)))
+
+  (pto-generator [_ x]
+    (to-generator x)))
 
 (comment
   "MOVE these to tests."

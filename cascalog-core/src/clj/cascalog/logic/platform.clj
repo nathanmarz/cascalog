@@ -2,25 +2,10 @@
   "The execution platform class."
   (:require [cascalog.logic.zip :as zip]))
 
-;; ## Generator Protocol
-
-(defprotocol IGenerator
-  "Accepts some type and returns a ClojureFlow that can be used as a
-  generator. The idea is that a clojure flow can always be used
-  directly as a generator."
-  (generator [x]))
-
 ;; source-map is a map of identifier to tap, or source. Pipe is the
 ;; current pipe that the user needs to operate on.
 
-(defrecord ClojureFlow [source-map sink-map trap-map tails pipe name]
-  IGenerator
-  (generator [x] x))
-
-;; ## Runner Protocol
-
-(defprotocol IRunner
-  (to-generator [item]))
+(defrecord ClojureFlow [source-map sink-map trap-map tails pipe name])
 
 ;; ## Platform Protocol
 

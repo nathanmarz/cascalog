@@ -4,7 +4,7 @@
             [cascalog.logic.fn :as serfn]
             [cascalog.logic.vars :as v]
             [cascalog.logic.algebra :refer (sum)]
-            [cascalog.logic.platform :refer (generator)]
+            [cascalog.cascading.types :refer (generator)]
             [cascalog.cascading.util :as casc :refer (fields default-output)]
             [cascalog.cascading.tap :as tap]
             [cascalog.cascading.types :refer (to-sink)]

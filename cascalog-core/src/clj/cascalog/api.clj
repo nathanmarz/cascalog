@@ -14,7 +14,7 @@
             [cascalog.cascading.operations :as ops]
             [cascalog.cascading.tap :as tap]
             [cascalog.cascading.types :as types]
-            [cascalog.cascading.platform :as cplatform]
+            [cascalog.cascading.platform]
             [cascalog.cascading.io :as io]
             [cascalog.cascading.util :refer (generic-cascading-fields?)]
             [hadoop-util.core :as hadoop]
@@ -217,7 +217,7 @@
           (u/throw-illegal
            "Data structure is empty -- memory sources must contain tuples.")
           (let [names (or fields (v/gen-nullable-vars (num-out-fields g)))
-                gen (platform/generator g)]
+                gen (types/generator g)]
             (name-vars gen names)))
         :else (u/throw-illegal "Can't combine " g)))
 
@@ -228,7 +228,7 @@
   (let [g (to-tail g)
         names (get-out-fields g)
         gens (cons g (map #(to-tail % :fields names) gens))]
-    (platform/generator
+    (types/generator
      (algebra/sum gens))))
 
 (defn union
@@ -257,12 +257,12 @@
 
   Tap
   (select-fields [tap fields]
-    (-> (platform/generator tap)
+    (-> (types/generator tap)
         (ops/select* fields)))
 
   CascalogTap
   (select-fields [tap fields]
-    (-> (platform/generator tap)
+    (-> (types/generator tap)
         (ops/select* fields))))
 
 ;; ## Defining custom operations

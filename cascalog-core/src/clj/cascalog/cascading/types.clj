@@ -1,7 +1,6 @@
 (ns cascalog.cascading.types
   (:require [jackknife.core :as u]
             [cascalog.logic.algebra :refer (plus Semigroup)]
-            [cascalog.logic.platform :refer (generator IGenerator)]
             [cascalog.cascading.tap :as tap])
   (:import [cascalog Util]
            [cascalog.logic.platform ClojureFlow]
@@ -31,6 +30,14 @@
 
   Object
   (to-tuple [v] (to-tuple [v])))
+
+;; ## Generator Protocol
+
+(defprotocol IGenerator
+  "Accepts some type and returns a ClojureFlow that can be used as a
+  generator. The idea is that a clojure flow can always be used
+  directly as a generator."
+  (generator [x]))
 
 (defn generator?
   "Returns true if the supplied item can be used as a Cascalog

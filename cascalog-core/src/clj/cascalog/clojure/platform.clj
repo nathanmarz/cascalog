@@ -1,24 +1,12 @@
 (ns cascalog.clojure.platform
   (:require [cascalog.logic.predicate]
-            [cascalog.logic.platform :refer
-             (compile-query generator IGenerator to-generator IRunner IPlatform)]
+            [cascalog.logic.platform :refer (compile-query  IPlatform)]
             [cascalog.logic.parse :as parse]
             [jackknife.core :as u])
   (:import [cascalog.logic.platform ClojureFlow]
            [cascalog.logic.parse TailStruct Projection Application]
            [cascalog.logic.predicate Generator RawSubquery]))
 
-(defrecord ClojurePlatform []
-  IPlatform
-  (pgenerator? [_ x]
-    (satisfies? IGenerator x))
-
-  (pgenerator [_ gen output options]
-    (let [id (u/uuid)]
-      (ClojureFlow. {id gen} nil nil nil nil nil)))
-
-  (pto-generator [_ x]
-    (to-generator x)))
 
 ;; Generator
 (defn name-tuples
@@ -41,6 +29,9 @@
                )
            tuples)))		
 
+(defprotocol IRunner
+  (to-generator [item]))
+
 (extend-protocol IRunner
   Projection
   (to-generator [{:keys [source fields]}]
@@ -59,6 +50,9 @@
     (prn "i'm over her")
     (:node item)))
 
+(defprotocol IGenerator
+  (generator [x]))
+
 (extend-protocol IGenerator
   TailStruct
   (generator [sq]
@@ -66,5 +60,21 @@
 
   RawSubquery
   (generator [sq]
-    (generator (parse/build-rule sq))))
+    (generator (parse/build-rule sq)))
 
+  ClojureFlow
+  (generator [x] x))
+
+
+(defrecord ClojurePlatform []
+  IPlatform
+  (pgenerator? [_ x]
+    ;; TODO: expand this to handle vectors and other types
+    true)
+
+  (pgenerator [_ gen output options]
+    (let [id (u/uuid)]
+      (ClojureFlow. {id gen} nil nil nil nil nil)))
+
+  (pto-generator [_ x]
+    (to-generator x)))
