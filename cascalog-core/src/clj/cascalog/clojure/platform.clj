@@ -35,19 +35,16 @@
 (extend-protocol IRunner
   Projection
   (to-generator [{:keys [source fields]}]
-    (prn "in herer" source)
     (select-fields fields source))
 
   Generator
   (to-generator [{:keys [gen fields]}]
     (let [coll (first ( vals (:source-map gen)))
           res (name-tuples fields coll)]
-      (prn "in herrre" gen " and " fields)
       res))
 
   TailStruct
   (to-generator [item]
-    (prn "i'm over her")
     (:node item)))
 
 (defprotocol IGenerator
@@ -69,7 +66,7 @@
 (defrecord ClojurePlatform []
   IPlatform
   (generator? [_ x]
-    ;; TODO: expand this to handle vectors and other types
+    ;; TODO: expand this to handle other types (like cascading.platform's)
     true)
 
   (generator [_ gen output options]
