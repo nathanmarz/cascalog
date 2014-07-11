@@ -29,8 +29,6 @@
 
 (def ^:dynamic *context* (EmptyPlatform.))
 
-;; Don't use this function, since it's limited in its scope.
-;; Instead you should use with-context
 (defn set-context! [c]
   (alter-var-root #'*context* (constantly c)))
 
@@ -42,11 +40,6 @@
 (defn gen? [g]
   (generator? *context* g))
 
-;; Takes the TailStruct and turns it into a ClojureFlow.
-;; TailStruct is a with the last functions on the first level
-;; and the Generator (which is a ClojureFlow) on the inner-most level.
-;; As the Map is walked by the zip function, it removes the outer
-;; level and adds them onto the next level
 (defn compile-query [query]
   (zip/postwalk-edit
    (zip/cascalog-zip query)

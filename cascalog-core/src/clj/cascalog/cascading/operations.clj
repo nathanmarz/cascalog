@@ -4,10 +4,9 @@
             [cascalog.logic.fn :as serfn]
             [cascalog.logic.vars :as v]
             [cascalog.logic.algebra :refer (sum)]
-            [cascalog.cascading.types :refer (generator)]
             [cascalog.cascading.util :as casc :refer (fields default-output)]
             [cascalog.cascading.tap :as tap]
-            [cascalog.cascading.types :refer (to-sink)]
+            [cascalog.cascading.types :refer (generator to-sink)]
             [jackknife.core :refer (safe-assert throw-illegal uuid)]
             [jackknife.seq :as s :refer (unweave collectify)])
   (:import [cascading.tuple Fields]

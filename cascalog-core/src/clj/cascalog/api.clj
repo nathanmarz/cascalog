@@ -5,16 +5,16 @@
             [cascalog.logic.algebra :as algebra]
             [cascalog.logic.vars :as v]
             [cascalog.logic.predicate :as p]
-            [cascalog.logic.platform :as platform]
+            [cascalog.logic.platform :refer (compile-query)]
             [cascalog.logic.parse :as parse]
             [cascalog.logic.predmacro :as pm]
+            [cascalog.cascading.platform]
             [cascalog.cascading.tap :as tap]
             [cascalog.cascading.conf :as conf]
             [cascalog.cascading.flow :as flow]
             [cascalog.cascading.operations :as ops]
             [cascalog.cascading.tap :as tap]
             [cascalog.cascading.types :as types]
-            [cascalog.cascading.platform]
             [cascalog.cascading.io :as io]
             [cascalog.cascading.util :refer (generic-cascading-fields?)]
             [hadoop-util.core :as hadoop]
@@ -175,7 +175,7 @@
   for the query and will show up in the JobTracker UI."
   [& args]
   (let [[name args] (flow/parse-exec-args args)]
-    (apply flow/all-to-memory name (map platform/compile-query args))))
+    (apply flow/all-to-memory name (map compile-query args))))
 
 (defmacro ?<-
   "Helper that both defines and executes a query in a single call.

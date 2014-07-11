@@ -3,7 +3,7 @@
             [jackknife.core :as u]
             [cascalog.cascading.operations :as ops]
             [cascalog.cascading.util :as casc]
-            [cascalog.cascading.types :refer (to-sink IGenerator generator)]
+            [cascalog.cascading.types :as types]
             [cascalog.logic.predicate :as p]
             [cascalog.logic.def :as d]
             [cascalog.logic.parse :as parse]
@@ -11,7 +11,8 @@
             [cascalog.logic.fn :as serfn]
             [cascalog.logic.vars :as v]
             [cascalog.logic.parse :as parse]
-            [cascalog.logic.platform :refer (compile-query  IPlatform)])
+            [cascalog.cascading.types :refer (IGenerator generator)]           
+            [cascalog.logic.platform :refer (compile-query IPlatform)])
   (:import [cascading.pipe Each Every]
            [cascading.tuple Fields]
            [cascading.operation Function Filter]
@@ -32,15 +33,6 @@
            [cascalog.logic.def ParallelAggregator ParallelBuffer Prepared]
            [cascalog.logic.platform ClojureFlow]
            [jcascalog Predicate]))
-
-(defn- init-pipe-name [options]
-  (or (:name (:trap options))
-      (u/uuid))) 
-
-(defn- init-trap-map [options]
-  (if-let [trap (:trap options)]
-    {(:name trap) (to-sink (:tap trap))}
-    {}))
 
 (extend-protocol p/IRawPredicate
   Predicate
@@ -207,17 +199,17 @@
        (filter (comp (complement nil?) second))
        (apply concat)))
 
+(defprotocol IRunner
+  (to-generator [item]))
+
 ;; TODO: Generator should just be a projection.
 ;; TODO: Add a validation here that checks if this thing is a
 ;; generator and sends a proper error message otherwise.
 
-(defprotocol IRunner
-  (to-generator [item]))
-
 (extend-protocol IRunner
   Object
   (to-generator [x]
-    (generator x))
+    (types/generator x))
 
   cascalog.logic.predicate.Generator
   (to-generator [{:keys [gen]}] gen)
@@ -316,6 +308,15 @@
   ClojureFlow
   (generator [x] x))
 
+(defn- init-pipe-name [options]
+  (or (:name (:trap options))
+      (u/uuid))) 
+
+(defn- init-trap-map [options]
+  (if-let [trap (:trap options)]
+    {(:name trap) (types/to-sink (:tap trap))}
+    {}))
+
 ;; ## Platform Implementation
 
 (defrecord CascadingPlatform []
@@ -324,7 +325,7 @@
     (satisfies? IGenerator x))
 
   (generator [_ gen fields options]
-    (-> (generator gen)
+    (-> (types/generator gen)
         (update-in [:trap-map] #(merge % (init-trap-map options)))
         (ops/rename-pipe (init-pipe-name options))
         (ops/rename* fields)

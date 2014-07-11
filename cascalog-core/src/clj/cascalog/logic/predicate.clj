@@ -147,11 +147,6 @@
       (assert ((some-fn node? (partial p/generator? p/*context*)) generator)
               (str "Only Nodes or Generators allowed: " generator))
       (assoc op :generator (generator-node generator input output options)))
-    ;; uses IPlatform as dispatch helper to decide which generator
-    ;; logic it should use
-    ;; CascadingPlatform generator generates a ClojureFlow
-    ;; ClojureFlow is very Cascading specific, but might also hold
-    ;; necessary values for future unwrapping
     (->Generator (p/generator p/*context* gen output options)
                  output)))
 
@@ -178,8 +173,6 @@
   [op input output]
   (FilterOperation. op input))
 
-;; ::d/map expands to :cascalog.logic.def/map which is linked
-;; to mapop which is the macro assocaited with defmapfn
 (defmethod to-predicate ::d/map
   [op input output]
   (Operation. op input output))
