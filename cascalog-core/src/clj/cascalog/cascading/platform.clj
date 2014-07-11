@@ -320,10 +320,10 @@
 
 (defrecord CascadingPlatform []
   IPlatform
-  (pgenerator? [_ x]
+  (generator? [_ x]
     (satisfies? IGenerator x))
 
-  (pgenerator [_ gen fields options]
+  (generator [_ gen fields options]
     (-> (generator gen)
         (update-in [:trap-map] #(merge % (init-trap-map options)))
         (ops/rename-pipe (init-pipe-name options))
@@ -331,7 +331,7 @@
         ;; All generators if the fields aren't ungrounded discard null values
         (ops/filter-nullable-vars fields)))
 
-  (pto-generator [_ x]
+  (to-generator [_ x]
     (to-generator x)))
 
 (comment

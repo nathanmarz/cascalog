@@ -10,22 +10,22 @@
 ;; ## Platform Protocol
 
 (defprotocol IPlatform
-  (pgenerator? [p x]
+  (generator? [p x]
     "Returns true if the supplied x is a generator, false
     otherwise.")
-  (pgenerator [p gen fields options]
+  (generator [p gen fields options]
     "Returns some source representation.")
 
-  (pto-generator [p x]))
+  (to-generator [p x]))
 
 ;; This is required so that the *context* var isn't nil
 (defrecord EmptyPlatform []
   IPlatform
-  (pgenerator? [_ _] false)
+  (generator? [_ _] false)
 
-  (pgenerator [_ _ _ _] nil)
+  (generator [_ _ _ _] nil)
 
-  (pto-generator [_ _] nil))
+  (to-generator [_ _] nil))
 
 (def ^:dynamic *context* (EmptyPlatform.))
 
@@ -40,7 +40,7 @@
      ~@body))
 
 (defn gen? [g]
-  (pgenerator? *context* g))
+  (generator? *context* g))
 
 ;; Takes the TailStruct and turns it into a ClojureFlow.
 ;; TailStruct is a with the last functions on the first level
@@ -51,10 +51,11 @@
   (zip/postwalk-edit
    (zip/cascalog-zip query)
    identity
-   (fn [x _] (pto-generator *context* x))
+   (fn [x _] (to-generator *context* x))
    :encoder (fn [x]
               (or (:identifier x) x))))
 
+;; TODO: this is cascading specific and should be moved
 (comment
   (require '[cascalog.cascading.flow :as f])
   "TODO: Convert to test."

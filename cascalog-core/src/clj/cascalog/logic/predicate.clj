@@ -134,7 +134,7 @@
 
 (def can-generate?
   (some-fn node?
-           (partial p/pgenerator? p/*context*)
+           (partial p/generator? p/*context*)
            #(instance? GeneratorSet %)))
 
 (defn generator-node
@@ -144,15 +144,15 @@
   {:pre [(empty? input)]}
   (if (instance? GeneratorSet gen)
     (let [{:keys [generator] :as op} gen]
-      (assert ((some-fn node? (partial p/pgenerator? p/*context*)) generator)
+      (assert ((some-fn node? (partial p/generator? p/*context*)) generator)
               (str "Only Nodes or Generators allowed: " generator))
       (assoc op :generator (generator-node generator input output options)))
     ;; uses IPlatform as dispatch helper to decide which generator
     ;; logic it should use
-    ;; CascadingPlatform pgenerator generates a ClojureFlow
+    ;; CascadingPlatform generator generates a ClojureFlow
     ;; ClojureFlow is very Cascading specific, but might also hold
     ;; necessary values for future unwrapping
-    (->Generator (p/pgenerator p/*context* gen output options)
+    (->Generator (p/generator p/*context* gen output options)
                  output)))
 
 ;; The following multimethod converts operations (in the first

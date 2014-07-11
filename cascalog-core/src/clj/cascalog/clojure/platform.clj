@@ -68,13 +68,13 @@
 
 (defrecord ClojurePlatform []
   IPlatform
-  (pgenerator? [_ x]
+  (generator? [_ x]
     ;; TODO: expand this to handle vectors and other types
     true)
 
-  (pgenerator [_ gen output options]
+  (generator [_ gen output options]
     (let [id (u/uuid)]
       (ClojureFlow. {id gen} nil nil nil nil nil)))
 
-  (pto-generator [_ x]
+  (to-generator [_ x]
     (to-generator x)))
