@@ -443,6 +443,9 @@ This won't work in distributed mode because of the ->Record functions."
   [tails options]
   (let [max-join (select-join tails)
         [join-set remaining] (s/separate #(joinable? % max-join) tails)
+        ;; All join fields survive from normal generators; from
+        ;; generator-as-set generators, only the field we need to
+        ;; filter gets through.
         available-fields (distinct
                           (mapcat (fn [tail]
                                     (if-let [ef (existence-field tail)]

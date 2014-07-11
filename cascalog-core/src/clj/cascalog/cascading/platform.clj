@@ -11,7 +11,7 @@
             [cascalog.logic.fn :as serfn]
             [cascalog.logic.vars :as v]
             [cascalog.logic.parse :as parse]
-            [cascalog.cascading.types :refer (IGenerator generator)]           
+            [cascalog.cascading.types :refer (IGenerator generator)]
             [cascalog.logic.platform :refer (compile-query IPlatform)])
   (:import [cascading.pipe Each Every]
            [cascading.tuple Fields]
@@ -205,7 +205,6 @@
 ;; TODO: Generator should just be a projection.
 ;; TODO: Add a validation here that checks if this thing is a
 ;; generator and sends a proper error message otherwise.
-
 (extend-protocol IRunner
   Object
   (to-generator [x]
