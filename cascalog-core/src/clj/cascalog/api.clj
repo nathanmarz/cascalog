@@ -5,7 +5,7 @@
             [cascalog.logic.algebra :as algebra]
             [cascalog.logic.vars :as v]
             [cascalog.logic.predicate :as p]
-            [cascalog.logic.platform :refer (compile-query)]
+            [cascalog.logic.platform :refer (compile-query set-context!)]
             [cascalog.logic.parse :as parse]
             [cascalog.logic.predmacro :as pm]
             [cascalog.cascading.platform]
@@ -193,6 +193,9 @@
   "Like ??-, but for ?<-. Returns a seq of tuples."
   [& args]
   `(first (??- (<- ~@args))))
+
+(defn set-cascading-context! []
+  (set-context! (CascadingPlatform.)))
 
 (defalias predmacro* pm/predmacro*)
 (defalias predmacro pm/predmacro)

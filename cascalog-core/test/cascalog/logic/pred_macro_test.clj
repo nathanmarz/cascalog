@@ -5,6 +5,11 @@
         midje.sweet)
   (:require [cascalog.logic.ops :as c]))
 
+(use-fixtures :once
+  (fn  [f]
+    (set-cascading-context!)
+    (f)))
+
 (def mac2
   (<- [:< ?a]
       (* ?a ?a :> ?a)))

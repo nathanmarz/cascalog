@@ -9,6 +9,11 @@
            [cascalog.ops IdentityBuffer]
            [cascading.operation.text DateParser]))
 
+(use-fixtures :once
+  (fn  [f]
+    (set-cascading-context!)
+    (f)))
+
 (defmapfn mk-one
   "Returns 1 for any input."
   [& tuple] 1)
@@ -220,19 +225,19 @@
                   ["g" "ck" 30] ["j" "nz" 10]
                   ["j" "hk" 1] ["jj" "ee" nil]]
         follows [["n" "j"] ["j" "n"] ["j" "a"] ["n" "a"] ["g" "q"]]
-        many-follow      (test<- [?p]
+        many-follow      (<- [?p]
                              (follows ?p _)
                              (c/count ?c)
                              (> ?c 1))
-        active-follows   (test<- [?p ?p2]
+        active-follows   (<- [?p ?p2]
                              (many-follow ?p)
                              (many-follow ?p2)
                              (follows ?p ?p2))
-        unknown-interest (test<- [?p]
+        unknown-interest (<- [?p]
                              (age ?p ?a)
                              (interest ?p _ !i)
                              (nil? !i))
-        weird-follows    (test<- [?p ?p2]
+        weird-follows    (<- [?p ?p2]
                              (active-follows ?p ?p2)
                              (unknown-interest ?p2))]
     (test?- [["n" "j"] ["j" "n"]] active-follows
@@ -455,7 +460,7 @@
 
 (defn lala-appended [source]
   (let [outvars ["?a"]]
-    (test<- outvars
+    (<- outvars
         (source ?line)
         (str ?line "lalala" :>> outvars)
         (:distinct false))))
@@ -487,7 +492,7 @@
                ["b" 2]]
         right [["b"]]]
     (future-fact "Join negation"
-                 (test<- [?x ?y]
+                 (<- [?x ?y]
                      (left ?x ?y)
                      (right ?x :> false)) => (produces [["a" 1]]))))
 
@@ -659,9 +664,9 @@
                            [[2] [4] [6]]))
 
 (deftest test-query-union-combine
-  (run-union-combine-tests (test<- [?v] ([[1] [2] [3]] ?v))
-                           (test<- [?v] ([[3] [4] [5]] ?v))
-                           (test<- [?v] ([[2] [4] [6]] ?v))))
+  (run-union-combine-tests (<- [?v] ([[1] [2] [3]] ?v))
+                           (<- [?v] ([[3] [4] [5]] ?v))
+                           (<- [?v] ([[2] [4] [6]] ?v))))
 
 (deftest test-cascading-union-combine
   (let [v1 [[1] [2] [3]]
@@ -688,7 +693,7 @@
   (let [pairs [[1 2] [2 10]]
         double-second-sink (fn [sq]
                              [[[1 2 4] [2 10 20]]
-                              (test<- [?a ?b ?c]
+                              (<- [?a ?b ?c]
                                   (sq ?a ?b)
                                   (* 2 ?b :> ?c)
                                   (:distinct false)) ])]
@@ -730,7 +735,7 @@
     (future-fact
      "Constants should work in aggregator predicates. See
       https://github.com/nathanmarz/cascalog/issues/26"
-     (test<- [?a ?count]
+     (<- [?a ?count]
          (pairs ?a _)
          (c/sum 2 :> ?count)) => (produces [[1 4] [2 2]]))))
 
@@ -782,7 +787,7 @@
   (let [people [["bob"] ["sam"]]]
     (fact "A set can be used as a predicate op, provided it's bound
            to a var."
-          (test<- [?person]
+          (<- [?person]
               (people ?person)
               (bob-set ?person)) => (produces [["bob"]]))))
 
@@ -804,7 +809,7 @@
 ;; TODO: Fix select-fields... maybe project is busted.
 (deftest test-select-fields-query
   (let [wide [[1 2 3 4 5 6]]
-        sq (test<- [!f1 !f4 !f5 ?f6]
+        sq (<- [!f1 !f4 !f5 ?f6]
                (wide !f1 !f2 !f3 !f4 !f5 ?f6)
                (:distinct false))]
     (test?- [[1]]     (select-fields sq "!f1"))
@@ -906,7 +911,7 @@
         weight [["A" 191] ["B" 192]]]
     (with-expected-sink-sets [trap1 [[21]]
                               trap2 [["A" 20 191]] ]
-      (let [sq (test<- [?p ?a]
+      (let [sq (<- [?p ?a]
                    (age ?p ?a)
                    (odd-fail ?a)
                    (:trap trap1)
@@ -922,13 +927,13 @@
   (let [num [[1] [2]]]
     (is (thrown? Exception
                  (with-expected-sink-sets [trap1 [[]] ]
-                   (let [sq (test<- [?n] (num ?n) (odd-fail ?n))]
+                   (let [sq (<- [?n] (num ?n) (odd-fail ?n))]
                      (test?<- [[2]]
                               [?n]
                               (sq ?n)
                               (:trap trap1))))))
     (with-expected-sink-sets [trap1 [[1]]]
-      (let [sq (test<- [?n]
+      (let [sq (<- [?n]
                    (num ?n)
                    (odd-fail ?n)
                    (:trap trap1))]

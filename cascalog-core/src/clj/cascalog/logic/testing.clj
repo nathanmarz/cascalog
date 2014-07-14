@@ -4,11 +4,9 @@
             [jackknife.core :as u]
             [jackknife.seq :refer (unweave collectify multi-set)]
             [cascalog.cascading.tap :as tap]
-            [cascalog.cascading.io :as io]
-            [cascalog.logic.platform :as platform])
+            [cascalog.cascading.io :as io])
   (:import [java.io File]
-           [cascading.tuple Fields]
-           [cascalog.cascading.platform CascadingPlatform]))
+           [cascading.tuple Fields]))
 
 ;; ## Cascading Testing Functions
 ;;
@@ -66,19 +64,18 @@
     (io/with-log-level log-level
       (io/with-fs-tmp [_ sink-path]
         (with-job-conf {"io.sort.mb" 10}
-          (platform/with-context (CascadingPlatform.)
-            (let [bindings (mapcat (partial apply normalize-sink-connection)
-                                   (partition 2 bindings))
-                  [specs rules]  (unweave bindings)
-                  sinks          (map mk-test-sink specs
-                                      (u/unique-rooted-paths sink-path))
-                  _              (apply ?- (interleave sinks rules))
-                  out-tuples     (doall (map tap/get-sink-tuples sinks))]
-              [specs out-tuples])))))))
+          (let [bindings (mapcat (partial apply normalize-sink-connection)
+                                 (partition 2 bindings))
+                [specs rules]  (unweave bindings)
+                sinks          (map mk-test-sink specs
+                                    (u/unique-rooted-paths sink-path))
+                _              (apply ?- (interleave sinks rules))
+                out-tuples     (doall (map tap/get-sink-tuples sinks))]
+            [specs out-tuples]))))))
 
 (defn test?- [& bindings]
-    (let [[specs out-tuples] (apply process?- bindings)]
-      (is-specs= specs out-tuples)))
+  (let [[specs out-tuples] (apply process?- bindings)]
+    (is-specs= specs out-tuples)))
 
 (defn check-tap-spec [tap spec]
   (is-tuplesets= (tap/get-sink-tuples tap) spec))
@@ -106,17 +103,11 @@
 (defmacro with-expected-sink-sets [bindings & body]
   (with-expected-sinks-helper check-tap-spec-sets bindings body))
 
-(defmacro test<- [& body]
-  `(platform/with-context (CascadingPlatform.)
-     (<- ~@body)))
-
 (defmacro test?<- [& args]
   (let [[begin body] (if (keyword? (first args))
                        (split-at 2 args)
                        (split-at 1 args))]
-    `(platform/with-context (CascadingPlatform.)
-       (test?- ~@begin (<- ~@body)))))
+    `(test?- ~@begin (<- ~@body))))
 
 (defmacro thrown?<- [error & body]
-  `(platform/with-context (CascadingPlatform.)
-     (is (~'thrown? ~error (<- ~@body)))))
+  `(is (~'thrown? ~error (<- ~@body))))
