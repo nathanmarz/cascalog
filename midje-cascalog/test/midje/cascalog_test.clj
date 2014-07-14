@@ -9,6 +9,10 @@
 
 ;; ## Testing Battery
 
+(background
+ (before :contents
+         (set-cascading-context!)))
+
 (defn whoop [x] [[x]])
 (defn bang [x y] [[x y]])
 
