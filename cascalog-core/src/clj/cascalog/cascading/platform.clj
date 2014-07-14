@@ -11,8 +11,7 @@
             [cascalog.logic.fn :as serfn]
             [cascalog.logic.vars :as v]
             [cascalog.cascading.types :refer (IGenerator generator)]
-            [cascalog.logic.platform :refer (compile-query IPlatform)]
-            [cascalog.logic.platform :as platform])
+            [cascalog.logic.platform :refer (compile-query IPlatform)])
   (:import [cascading.pipe Each Every]
            [cascading.tuple Fields]
            [cascading.operation Function Filter]
@@ -333,9 +332,6 @@
 
   (to-generator [_ x]
     (to-generator x)))
-
-(defn set-context! []
-  (platform/set-context! (CascadingPlatform.)))
 
 (comment
   "MOVE these to tests."
