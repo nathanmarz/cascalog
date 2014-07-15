@@ -27,7 +27,7 @@
   "Creates a collection of vectors for the fields you have selected"
   [fields tuples]  
   (remove nil?
-          (map #(select-fields fields %)
+          (map #(vec (select-fields fields %))
                tuples)))
 
 (defprotocol IRunner
