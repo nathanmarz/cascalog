@@ -3,8 +3,7 @@
             [cascalog.logic.platform :refer (compile-query  IPlatform)]
             [cascalog.logic.parse :as parse]
             [jackknife.core :as u])
-  (:import [cascalog.cascading.types ClojureFlow]
-           [cascalog.logic.parse TailStruct Projection Application]
+  (:import [cascalog.logic.parse TailStruct Projection Application]
            [cascalog.logic.predicate Generator RawSubquery]))
 
 ;; Generator
@@ -37,10 +36,7 @@
     (select-fields fields source))
 
   Generator
-  (to-generator [{:keys [gen fields]}]
-    (let [coll (first ( vals (:source-map gen)))
-          res (name-tuples fields coll)]
-      res))
+  (to-generator [{:keys [gen]}] gen)
 
   TailStruct
   (to-generator [item]
@@ -56,11 +52,7 @@
 
   RawSubquery
   (generator [sq]
-    (generator (parse/build-rule sq)))
-
-  ClojureFlow
-  (generator [x] x))
-
+    (generator (parse/build-rule sq))))
 
 (defrecord ClojurePlatform []
   IPlatform
@@ -69,8 +61,7 @@
     true)
 
   (generator [_ gen output options]
-    (let [id (u/uuid)]
-      (ClojureFlow. {id gen} nil nil nil nil nil)))
+    (name-tuples output gen))
 
   (to-generator [_ x]
     (to-generator x)))
