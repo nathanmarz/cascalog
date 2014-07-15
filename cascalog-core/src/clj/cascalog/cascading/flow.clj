@@ -12,7 +12,7 @@
            [cascading.pipe Pipe Merge]
            [cascading.tap Tap]
            [cascading.flow FlowDef]
-           [cascalog.logic.platform ClojureFlow]
+           [cascalog.cascading.types ClojureFlow]
            [cascading.flow.hadoop HadoopFlow HadoopFlowConnector]))
 
 ;; ## Flow Building

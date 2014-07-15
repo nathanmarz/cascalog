@@ -2,11 +2,6 @@
   "The execution platform class."
   (:require [cascalog.logic.zip :as zip]))
 
-;; source-map is a map of identifier to tap, or source. Pipe is the
-;; current pipe that the user needs to operate on.
-
-(defrecord ClojureFlow [source-map sink-map trap-map tails pipe name])
-
 ;; ## Platform Protocol
 
 (defprotocol IPlatform

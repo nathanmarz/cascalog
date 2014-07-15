@@ -30,7 +30,7 @@
            [cascalog.cascading.operations IAggregateBy IAggregator
             Inner Outer Existence]
            [cascalog.logic.def ParallelAggregator ParallelBuffer Prepared]
-           [cascalog.logic.platform ClojureFlow]
+           [cascalog.cascading.types ClojureFlow]
            [jcascalog Predicate]))
 
 (extend-protocol p/IRawPredicate

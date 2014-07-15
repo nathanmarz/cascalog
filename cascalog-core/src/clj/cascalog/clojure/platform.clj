@@ -3,10 +3,9 @@
             [cascalog.logic.platform :refer (compile-query  IPlatform)]
             [cascalog.logic.parse :as parse]
             [jackknife.core :as u])
-  (:import [cascalog.logic.platform ClojureFlow]
+  (:import [cascalog.cascading.types ClojureFlow]
            [cascalog.logic.parse TailStruct Projection Application]
            [cascalog.logic.predicate Generator RawSubquery]))
-
 
 ;; Generator
 (defn name-tuples
