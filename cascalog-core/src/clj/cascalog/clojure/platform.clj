@@ -3,7 +3,8 @@
             [cascalog.logic.platform :refer (compile-query  IPlatform)]
             [cascalog.logic.parse :as parse]
             [jackknife.core :as u])
-  (:import [cascalog.logic.parse TailStruct Projection Application FilterApplication]
+  (:import [cascalog.logic.parse TailStruct Projection Application
+            FilterApplication Unique]
            [cascalog.logic.predicate Generator RawSubquery]))
 
 ;; Generator
@@ -66,6 +67,19 @@
       (clojure.core/filter
        #(apply op (select-fields-w-default input %))
        source)))
+
+  Unique
+  (to-generator [{:keys [source fields options]}]
+    (let [{:keys [sort reverse]} options
+          coll (map #(select-fields fields %) source)
+          distinct-coll (distinct coll)
+          tuples (to-tuples fields distinct-coll)]
+      (if sort
+        (let [sorted (sort-by #(vec (map % sort)) tuples)]
+          (if reverse
+            (clojure.core/reverse sorted)
+            sorted))
+        tuples)))
   
   ;; this type is standard and could be part of the base logic
   TailStruct
