@@ -48,7 +48,23 @@
                   l-tuples (second l-group)]
               (if-let [r-tuples (get r-grouped key)]
                 (for [x l-tuples y r-tuples] (merge x y)))))]
-    (flatten ;; the for returned a collection of values 
+    (flatten ;; the for returned a collection which we need to flatten
+     (remove nil? ;; nils are discarded
+             (map join-fn l-grouped)))))
+
+(defn left-join
+  [l-grouped r-grouped r-fields]
+  (letfn [(join-fn [l-group]
+            (let [key (first l-group)
+                  l-tuples (second l-group)
+                  r-empty-tuples [(zipmap r-fields (repeat nil))]
+                  r-tuples (get r-grouped key r-empty-tuples)]
+              (for [x l-tuples y r-tuples]
+                ;; merge is specifically ordered, because the left
+                ;; tuple takes precedence over the right one (which
+                ;; could be nil)
+                (merge y x))))]
+    (flatten ;; the for returned a collection which we need to flatten
      (remove nil? ;; nils are discarded
              (map join-fn l-grouped)))))
 
@@ -98,9 +114,19 @@
   (to-generator [{:keys [sources join-fields type-seq options]}]
     (let [l (first sources)
           r (second sources)
+          l-type (second (first type-seq))
+          r-type (second (second type-seq))
+          l-fields (first (first type-seq))
+          r-fields (first (second type-seq))
           l-grouped (group-by #(vec (map % join-fields)) l)
           r-grouped (group-by #(vec (map % join-fields)) r)]
-      (inner-join l-grouped r-grouped)))
+      (cond
+       (and (= :inner l-type) (= :inner r-type))
+       (inner-join l-grouped r-grouped)
+       (and (= :inner l-type) (= :outer r-type))
+       (left-join l-grouped r-grouped r-fields)
+       (and (= :outer l-type) (= :inner r-type))
+       (left-join r-grouped l-grouped l-type))))
   
   ;; this type is standard and could be part of the base logic
   TailStruct
