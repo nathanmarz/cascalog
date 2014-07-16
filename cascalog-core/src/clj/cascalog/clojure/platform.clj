@@ -3,7 +3,7 @@
             [cascalog.logic.platform :refer (compile-query  IPlatform)]
             [cascalog.logic.parse :as parse]
             [jackknife.core :as u])
-  (:import [cascalog.logic.parse TailStruct Projection Application]
+  (:import [cascalog.logic.parse TailStruct Projection Application FilterApplication]
            [cascalog.logic.predicate Generator RawSubquery]))
 
 ;; Generator
@@ -17,10 +17,18 @@
   (map #(to-tuple names %) coll-of-seqs))
 
 (defn select-fields
-  "Creates a list of the values of the tuples you want.
-   For examples: (select-fields [:b :a] {:a 1 :b 2 :c 3}) => (2 1)"
+  "Creates a list of the values of the tuples you want and if the field isn't
+   found it's nil.
+   For examples: (select-fields [:b :a :d] {:a 1 :b 2 :c 3}) => (2 1 nil)"
   [fields tuple]
   (map #(tuple %) fields))
+
+(defn select-fields-w-default
+  "Just like select-fields but if a value isn't found, its value is
+   the name of the field.
+   For examples: (select-fields [:b :a 100] {:a 1 :b 2 :c 3}) => (2 1 100)"
+  [fields tuple]
+  (map #(get tuple % %) fields))
 
 ;; Projection
 (defn extract-fields
@@ -35,7 +43,8 @@
 
 ;; Extend these types to allow for different types of querying: joins,
 ;; filters, aggregation, etc.  You need to extend all the types that
-;; implement defnode in logic.parse, otherwise you won't implement the full query capabilities
+;; implement defnode in logic.parse, otherwise you won't implement the
+;; full query capailities
 (extend-protocol IRunner
   Projection
   (to-generator [{:keys [source fields]}]
@@ -49,6 +58,13 @@
     (let [{:keys [op input output]} operation]
       (map
        #(to-tuple output (list (apply op (select-fields input %))))
+       source)))
+
+  FilterApplication
+  (to-generator [{:keys [source filter]}]
+    (let [{:keys [op input]} filter]
+      (clojure.core/filter
+       #(apply op (select-fields-w-default input %))
        source)))
   
   ;; this type is standard and could be part of the base logic
