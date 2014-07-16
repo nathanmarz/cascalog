@@ -4,7 +4,7 @@
             [cascalog.logic.parse :as parse]
             [jackknife.core :as u])
   (:import [cascalog.logic.parse TailStruct Projection Application
-            FilterApplication Unique]
+            FilterApplication Unique Join]
            [cascalog.logic.predicate Generator RawSubquery]))
 
 ;; Generator
@@ -38,6 +38,19 @@
   (remove nil?
           (map #(vec (select-fields fields %))
                tuples)))
+
+(defn inner-join
+  "Inner joins two maps that both have been grouped by the same function.
+   This is an inner join, so nils are discarded."
+  [l-grouped r-grouped]
+  (letfn [(join-fn [l-group]
+            (let [key (first l-group)
+                  l-tuples (second l-group)]
+              (if-let [r-tuples (get r-grouped key)]
+                (for [x l-tuples y r-tuples] (merge x y)))))]
+    (flatten ;; the for returned a collection of values 
+     (remove nil? ;; nils are discarded
+             (map join-fn l-grouped)))))
 
 (defprotocol IRunner
   (to-generator [item]))
@@ -80,6 +93,14 @@
             (clojure.core/reverse sorted)
             sorted))
         tuples)))
+
+  Join
+  (to-generator [{:keys [sources join-fields type-seq options]}]
+    (let [l (first sources)
+          r (second sources)
+          l-grouped (group-by #(vec (map % join-fields)) l)
+          r-grouped (group-by #(vec (map % join-fields)) r)]
+      (inner-join l-grouped r-grouped)))
   
   ;; this type is standard and could be part of the base logic
   TailStruct
