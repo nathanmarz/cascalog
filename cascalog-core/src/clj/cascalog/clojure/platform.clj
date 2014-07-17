@@ -20,6 +20,15 @@
   [names coll-of-seqs]
   (map #(to-tuple names %) coll-of-seqs))
 
+(defn to-tuples-filter-nullable
+  "turns [\"n\"] and [[1] [2]] into [{\"n\" 1} {\"n\" 2}]"
+  [names coll-of-seqs]
+  (remove nil? (map
+                (fn [s]
+                  (if (not-any? nil? s)
+                    (to-tuple names s)))
+                coll-of-seqs)))
+
 (defn select-fields
   "Creates a list of the values of the tuples you want and if the field isn't
    found it's nil.
@@ -259,7 +268,7 @@
     (satisfies? IGenerator x))
 
   (generator [_ gen output options]
-    (to-tuples output (generator gen)))
+    (to-tuples-filter-nullable output (generator gen)))
 
   (to-generator [_ x]
     (to-generator x)))
