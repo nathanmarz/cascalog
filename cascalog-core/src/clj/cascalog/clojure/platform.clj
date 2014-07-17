@@ -68,6 +68,30 @@
      (remove nil? ;; nils are discarded
              (map join-fn l-grouped)))))
 
+(defn left-excluding-join
+  "A left join that only returns values where the right side is nil"
+  [l-grouped r-grouped r-fields]
+  (letfn [(join-fn [l-group]
+            (let [key (first l-group)
+                  l-tuples (second l-group)
+                  r-empty-tuples [(zipmap r-fields (repeat nil))]]
+              (if (not (find r-grouped key))
+                (for [x l-tuples y r-empty-tuples]
+                  ;; merge is specifically ordered, because the left
+                  ;; tuple takes precedence over the right one (which
+                  ;; could be nil)
+                  (merge y x)))))]
+    (flatten ;; the for returned a collection which we need to flatten
+     (remove nil? ;; nils are discarded
+             (map join-fn l-grouped)))))
+
+(defn outer-join
+  [l-grouped r-grouped l-fields r-fields]
+  (let [inner (inner-join l-grouped r-grouped)
+        left (left-excluding-join l-grouped r-grouped r-fields)
+        right (left-excluding-join r-grouped l-grouped l-fields)]
+    (concat inner left right)))
+
 (defprotocol IRunner
   (to-generator [item]))
 
@@ -126,7 +150,8 @@
        (and (= :inner l-type) (= :outer r-type))
        (left-join l-grouped r-grouped r-fields)
        (and (= :outer l-type) (= :inner r-type))
-       (left-join r-grouped l-grouped l-type))))
+       (left-join r-grouped l-grouped l-type)
+       :else (outer-join l-grouped r-grouped l-fields r-fields))))
   
   ;; this type is standard and could be part of the base logic
   TailStruct
