@@ -141,11 +141,11 @@
 (extend-protocol IRunner
   Projection
   (to-generator [{:keys [source fields]}]
-    ;; TODO: select the fields desired from the list (since there will
-    ;; be too many, and remove nils, but don't convert from tuples
-    ;;    (remove nil? (extract-values fields source))
-    source
-    )
+    ;; TODO: this is a hacky way of filtering the tuple to just the
+    ;; fields we want
+    (->> (extract-values fields source)
+         (remove nil?)
+         (to-tuples fields)))
 
   Generator
   (to-generator [{:keys [gen]}] gen)
@@ -154,7 +154,10 @@
   (to-generator [{:keys [source operation]}]
     (let [{:keys [op input output]} operation]
       (map
-       #(to-tuple output (list (apply op (select-fields input %))))
+       (fn [tuple]
+         (let [v (s/collectify (apply op (select-fields input tuple)))
+               new-tuple (to-tuple output v)]
+              (merge tuple new-tuple)))
        source)))
 
   FilterApplication
@@ -219,8 +222,10 @@
        grouped)))
   
   TailStruct
-  (to-generator [item]
-    (:node item)))
+  (to-generator [{:keys [node available-fields]}]
+    ;; TODO: if we want the fields on the structure, we don't need to
+    ;; extract the values
+    (extract-values available-fields node)))
 
 (defprotocol IGenerator
   (generator [x]))
