@@ -2,9 +2,10 @@
   (:require [cascalog.logic.predicate]
             [cascalog.logic.platform :refer (compile-query  IPlatform)]
             [cascalog.logic.parse :as parse]
-            [jackknife.core :as u])
+            [jackknife.core :as u]
+            [jackknife.seq :as s])
   (:import [cascalog.logic.parse TailStruct Projection Application
-            FilterApplication Unique Join]
+            FilterApplication Unique Join Grouping]
            [cascalog.logic.predicate Generator RawSubquery]))
 
 ;; Generator
@@ -34,10 +35,8 @@
 ;; Projection
 (defn extract-fields
   "Creates a collection of vectors for the fields you have selected"
-  [fields tuples]  
-  (remove nil?
-          (map #(vec (select-fields fields %))
-               tuples)))
+  [fields tuples]
+  (map #(vec (select-fields fields %))  tuples))
 
 (defn inner-join
   "Inner joins two maps that both have been grouped by the same function.
@@ -105,6 +104,10 @@
    [(left-join r-grouped l-grouped l-type) :outer]
    :else [(outer-join l-grouped r-grouped l-fields r-fields) :outer]))
 
+(defn smallest-arity [fun]
+  "Returns the smallest number of arguments the function takes"
+  (->> fun meta :arglists first count))
+
 (defprotocol IRunner
   (to-generator [item]))
 
@@ -115,7 +118,7 @@
 (extend-protocol IRunner
   Projection
   (to-generator [{:keys [source fields]}]
-    (extract-fields fields source))
+    (remove nil? (extract-fields fields source)))
 
   Generator
   (to-generator [{:keys [gen]}] gen)
@@ -175,8 +178,26 @@
            (cons j-source rest-sources)
            loop-join-fields
            (cons [j-fields j-type] rest-type-seqs))))))
+
+  Grouping
+  (to-generator [{:keys [source aggregators grouping-fields options]}]
+    (let [{:keys [op input output]} (first aggregators)
+          {:keys [init-var combine-var present-var
+                  num-intermediate-vars-fn buffer-var]} op
+                  tuples (to-tuples input source)]
+      (let [grouped (group-by #(vec (map % grouping-fields)) tuples)]
+        (map
+         (fn [[grouping-vals tups]]
+           (let [coll  (extract-fields input tups)
+                 m-coll (map
+                         #(apply init-var
+                                 (take (smallest-arity init-var) %))
+                         coll)
+                 r (reduce combine-var m-coll)]
+             (merge (zipmap grouping-fields grouping-vals)
+                    (zipmap output (s/collectify r)))))
+         grouped))))
   
-  ;; this type is standard and could be part of the base logic
   TailStruct
   (to-generator [item]
     (:node item)))
