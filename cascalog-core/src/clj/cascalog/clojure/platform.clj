@@ -4,7 +4,7 @@
             [cascalog.logic.parse :as parse]
             [jackknife.core :as u]
             [jackknife.seq :as s]
-            [cascalog.logic.def])
+            [cascalog.logic.def :as d])
   (:import [cascalog.logic.parse TailStruct Projection Application
             FilterApplication Unique Join Grouping]
            [cascalog.logic.predicate Generator RawSubquery]
@@ -35,8 +35,9 @@
   (map #(get tuple % %) fields))
 
 ;; Projection
-(defn extract-fields
-  "Creates a collection of vectors for the fields you have selected"
+(defn extract-values
+  "Creates a collection of vectors for the values of the fields
+   you have selected"
   [fields tuples]
   (map #(vec (select-fields fields %))  tuples))
 
@@ -110,6 +111,26 @@
   "Returns the smallest number of arguments the function takes"
   (->> fun meta :arglists first count))
 
+(defmulti agg-clojure
+  (fn [coll op]
+    (type op)))
+
+(defmethod agg-clojure ::d/buffer
+  [coll op]
+  (op coll))
+
+(defmethod agg-clojure ::d/aggregate
+  [coll op]
+  (op (reduce (fn [s v] (op s (first v))) (op) coll)))
+
+(defmethod agg-clojure ParallelAggregator
+  [coll {:keys [init-var combine-var]}]
+  (let [mapped-coll (map
+                  #(apply init-var
+                          (take (smallest-arity init-var) %))
+                  coll)]
+    (reduce combine-var mapped-coll)))
+
 (defprotocol IRunner
   (to-generator [item]))
 
@@ -122,7 +143,7 @@
   (to-generator [{:keys [source fields]}]
     ;; TODO: select the fields desired from the list (since there will
     ;; be too many, and remove nils, but don't convert from tuples
-    ;;    (remove nil? (extract-fields fields source))
+    ;;    (remove nil? (extract-values fields source))
     source
     )
 
@@ -188,28 +209,14 @@
   Grouping
   (to-generator [{:keys [source aggregators grouping-fields options]}]
     (let [{:keys [op input output]} (first aggregators)
-          {:keys [init-var combine-var present-var
-                  num-intermediate-vars-fn buffer-var]} op]
-      (let [grouped (group-by #(vec (map % grouping-fields)) source)]
-        (if (not (instance? ParallelAggregator op))
-          (map
-           (fn [[grouping-vals tuples]]
-             (let [coll (extract-fields input tuples)
-                   r (op coll)]
-               (merge (zipmap grouping-fields grouping-vals)
-                      (zipmap output (s/collectify r)))))
-           grouped)
-          (map
-           (fn [[grouping-vals tuples]]
-             (let [coll  (extract-fields input tuples)
-                   m-coll (map
-                           #(apply init-var
-                                   (take (smallest-arity init-var) %))
-                           coll)
-                   r (reduce combine-var m-coll)]
-               (merge (zipmap grouping-fields grouping-vals)
-                      (zipmap output (s/collectify r)))))
-           grouped)))))
+          grouped (group-by #(vec (map % grouping-fields)) source)]
+      (map
+       (fn [[grouping-vals tuples]]
+         (let [coll (extract-values input tuples)
+               r (agg-clojure coll op)]
+           (merge (zipmap grouping-fields grouping-vals)
+                  (zipmap output (s/collectify r)))))
+       grouped)))
   
   TailStruct
   (to-generator [item]
