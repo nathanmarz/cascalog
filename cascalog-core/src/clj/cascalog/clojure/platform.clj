@@ -3,10 +3,12 @@
             [cascalog.logic.platform :refer (compile-query  IPlatform)]
             [cascalog.logic.parse :as parse]
             [jackknife.core :as u]
-            [jackknife.seq :as s])
+            [jackknife.seq :as s]
+            [cascalog.logic.def])
   (:import [cascalog.logic.parse TailStruct Projection Application
             FilterApplication Unique Join Grouping]
-           [cascalog.logic.predicate Generator RawSubquery]))
+           [cascalog.logic.predicate Generator RawSubquery]
+           [cascalog.logic.def ParallelAggregator]))
 
 ;; Generator
 (defn to-tuple
@@ -118,7 +120,11 @@
 (extend-protocol IRunner
   Projection
   (to-generator [{:keys [source fields]}]
-    (remove nil? (extract-fields fields source)))
+    ;; TODO: select the fields desired from the list (since there will
+    ;; be too many, and remove nils, but don't convert from tuples
+    ;;    (remove nil? (extract-fields fields source))
+    source
+    )
 
   Generator
   (to-generator [{:keys [gen]}] gen)
@@ -183,20 +189,27 @@
   (to-generator [{:keys [source aggregators grouping-fields options]}]
     (let [{:keys [op input output]} (first aggregators)
           {:keys [init-var combine-var present-var
-                  num-intermediate-vars-fn buffer-var]} op
-                  tuples (to-tuples input source)]
-      (let [grouped (group-by #(vec (map % grouping-fields)) tuples)]
-        (map
-         (fn [[grouping-vals tups]]
-           (let [coll  (extract-fields input tups)
-                 m-coll (map
-                         #(apply init-var
-                                 (take (smallest-arity init-var) %))
-                         coll)
-                 r (reduce combine-var m-coll)]
-             (merge (zipmap grouping-fields grouping-vals)
-                    (zipmap output (s/collectify r)))))
-         grouped))))
+                  num-intermediate-vars-fn buffer-var]} op]
+      (let [grouped (group-by #(vec (map % grouping-fields)) source)]
+        (if (not (instance? ParallelAggregator op))
+          (map
+           (fn [[grouping-vals tuples]]
+             (let [coll (extract-fields input tuples)
+                   r (op coll)]
+               (merge (zipmap grouping-fields grouping-vals)
+                      (zipmap output (s/collectify r)))))
+           grouped)
+          (map
+           (fn [[grouping-vals tuples]]
+             (let [coll  (extract-fields input tuples)
+                   m-coll (map
+                           #(apply init-var
+                                   (take (smallest-arity init-var) %))
+                           coll)
+                   r (reduce combine-var m-coll)]
+               (merge (zipmap grouping-fields grouping-vals)
+                      (zipmap output (s/collectify r)))))
+           grouped)))))
   
   TailStruct
   (to-generator [item]
