@@ -92,6 +92,19 @@
         right (left-excluding-join r-grouped l-grouped l-fields)]
     (concat inner left right)))
 
+(defn join
+  "Dispatches to all the different join types and returns a vector
+   with the collection of joined tuples and the type of join"
+  [l-grouped r-grouped l-type r-type l-fields r-fields]
+  (cond
+   (and (= :inner l-type) (= :inner r-type))
+   [(inner-join l-grouped r-grouped) :inner]
+   (and (= :inner l-type) (= :outer r-type))
+   [(left-join l-grouped r-grouped r-fields) :outer]
+   (and (= :outer l-type) (= :inner r-type))
+   [(left-join r-grouped l-grouped l-type) :outer]
+   :else [(outer-join l-grouped r-grouped l-fields r-fields) :outer]))
+
 (defprotocol IRunner
   (to-generator [item]))
 
@@ -136,22 +149,32 @@
 
   Join
   (to-generator [{:keys [sources join-fields type-seq options]}]
-    (let [l (first sources)
-          r (second sources)
-          l-type (second (first type-seq))
-          r-type (second (second type-seq))
-          l-fields (first (first type-seq))
-          r-fields (first (second type-seq))
-          l-grouped (group-by #(vec (map % join-fields)) l)
-          r-grouped (group-by #(vec (map % join-fields)) r)]
-      (cond
-       (and (= :inner l-type) (= :inner r-type))
-       (inner-join l-grouped r-grouped)
-       (and (= :inner l-type) (= :outer r-type))
-       (left-join l-grouped r-grouped r-fields)
-       (and (= :outer l-type) (= :inner r-type))
-       (left-join r-grouped l-grouped l-type)
-       :else (outer-join l-grouped r-grouped l-fields r-fields))))
+    (loop [loop-sources sources
+           loop-join-fields join-fields
+           loop-type-seq type-seq]
+      (let [
+            ;; extract the vars we want
+            [l-source r-source & rest-sources] loop-sources
+            [l-type-seq r-type-seq & rest-type-seqs] loop-type-seq
+            [l-fields l-type] l-type-seq
+            [r-fields r-type] r-type-seq
+
+            ;; setup the data for joining
+            l-grouped (group-by #(vec (map % join-fields)) l-source)
+            r-grouped (group-by #(vec (map % join-fields)) r-source)
+
+            ;; join the data and setup the vars for the next loop
+            j-fields (distinct (concat l-fields r-fields))
+            [j-source j-type] (join l-grouped r-grouped
+                                    l-type r-type
+                                    l-fields r-fields)]
+        ;; only recur if there are more sources to join
+        (if (empty? rest-sources)
+          j-source
+          (recur
+           (cons j-source rest-sources)
+           loop-join-fields
+           (cons [j-fields j-type] rest-type-seqs))))))
   
   ;; this type is standard and could be part of the base logic
   TailStruct
