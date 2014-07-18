@@ -6,7 +6,7 @@
             [jackknife.seq :as s]
             [cascalog.logic.def :as d])
   (:import [cascalog.logic.parse TailStruct Projection Application
-            FilterApplication Unique Join Grouping]
+            FilterApplication Unique Join Grouping Rename]
            [cascalog.logic.predicate Generator RawSubquery]
            [cascalog.logic.def ParallelAggregator]))
 
@@ -167,6 +167,17 @@
 
   Generator
   (to-generator [{:keys [gen]}] gen)
+
+  Rename
+  (to-generator [{:keys [source fields]}]
+    (map
+     (fn [tuple]
+       ;; TODO: extracting the vals from a map and assuming they have
+       ;; a specific order is dangerous since the order could be
+       ;; different than the expected tuple order
+       (let [vals (map (fn [[k v]] v) tuple)]
+         (zipmap fields vals)))
+     source))
 
   Application
   (to-generator [{:keys [source operation]}]
