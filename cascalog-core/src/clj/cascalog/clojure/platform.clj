@@ -120,6 +120,15 @@
   "Returns the smallest number of arguments the function takes"
   (->> fun meta :arglists first count))
 
+(defn tuple-sort
+  [tuples sort-fields reverse?]
+  (if sort-fields
+    (let [sorted (sort-by #(vec (map % sort-fields)) tuples)]
+      (if reverse?
+        (reverse sorted)
+        sorted))
+    tuples))
+
 (defmulti agg-clojure
   (fn [coll op]
     (type op)))
@@ -164,7 +173,7 @@
     (let [{:keys [op input output]} operation]
       (map
        (fn [tuple]
-         (let [v (s/collectify (apply op (select-fields input tuple)))
+         (let [v (s/collectify (apply op (select-fields-w-default input tuple)))
                new-tuple (to-tuple output v)]
               (merge tuple new-tuple)))
        source)))
@@ -182,13 +191,8 @@
           coll (map #(select-fields fields %) source)
           distinct-coll (distinct coll)
           tuples (to-tuples fields distinct-coll)]
-      (if sort
-        (let [sorted (sort-by #(vec (map % sort)) tuples)]
-          (if reverse
-            (clojure.core/reverse sorted)
-            sorted))
-        tuples)))
-
+      (tuple-sort tuples sort reverse)))
+  
   Join
   (to-generator [{:keys [sources join-fields type-seq options]}]
     (loop [loop-sources sources
@@ -221,10 +225,12 @@
   Grouping
   (to-generator [{:keys [source aggregators grouping-fields options]}]
     (let [{:keys [op input output]} (first aggregators)
+          {:keys [sort reverse]} options
           grouped (group-by #(vec (map % grouping-fields)) source)]
       (map
        (fn [[grouping-vals tuples]]
-         (let [coll (extract-values input tuples)
+         (let [sorted-tuples (tuple-sort tuples sort reverse)
+               coll (extract-values input sorted-tuples)
                r (agg-clojure coll op)]
            (merge (zipmap grouping-fields grouping-vals)
                   (zipmap output (s/collectify r)))))
