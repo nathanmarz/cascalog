@@ -137,6 +137,13 @@
   [coll op]
   (op coll))
 
+(defmethod agg-clojure ::d/bufferiter
+  [coll op]
+  ;; coll is a lazy-seq but the operatation expects an iterator
+  ;; so we need to convert it to one
+  (op (.iterator coll))
+  )
+
 (defmethod agg-clojure ::d/aggregate
   [coll op]
   (op (reduce (fn [s v] (op s (first v))) (op) coll)))
