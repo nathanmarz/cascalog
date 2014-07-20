@@ -5,10 +5,10 @@
             [cascalog.logic.algebra :as algebra]
             [cascalog.logic.vars :as v]
             [cascalog.logic.predicate :as p]
-            [cascalog.logic.platform :as platform]
+            [cascalog.logic.platform :refer (compile-query set-context!)]
             [cascalog.logic.parse :as parse]
             [cascalog.logic.predmacro :as pm]
-            [cascalog.cascading.platform :refer (compile-query)]
+            [cascalog.cascading.platform]
             [cascalog.cascading.tap :as tap]
             [cascalog.cascading.conf :as conf]
             [cascalog.cascading.flow :as flow]
@@ -24,6 +24,7 @@
            [cascading.tap Tap]
            [cascalog.logic.parse TailStruct]
            [cascalog.cascading.tap CascalogTap]
+           [cascalog.cascading.platform CascadingPlatform]
            [jcascalog Subquery]))
 
 ;; Functions for creating taps and tap helpers
@@ -192,6 +193,9 @@
   "Like ??-, but for ?<-. Returns a seq of tuples."
   [& args]
   `(first (??- (<- ~@args))))
+
+(defn set-cascading-context! []
+  (set-context! (CascadingPlatform.)))
 
 (defalias predmacro* pm/predmacro*)
 (defalias predmacro pm/predmacro)

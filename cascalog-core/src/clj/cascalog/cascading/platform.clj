@@ -8,11 +8,10 @@
             [cascalog.logic.def :as d]
             [cascalog.logic.parse :as parse]
             [cascalog.logic.algebra :refer (sum)]
-            [cascalog.logic.zip :as zip]
             [cascalog.logic.fn :as serfn]
             [cascalog.logic.vars :as v]
-            [cascalog.logic.parse :as parse]
-            [cascalog.cascading.types :refer (IGenerator generator)])
+            [cascalog.cascading.types :refer (IGenerator generator)]
+            [cascalog.logic.platform :refer (compile-query IPlatform)])
   (:import [cascading.pipe Each Every]
            [cascading.tuple Fields]
            [cascading.operation Function Filter]
@@ -295,18 +294,6 @@
   (to-generator [item]
     (:node item)))
 
-;; TODO: This needs to move back into the logic DSL. We need a dynamic
-;; variable with the "runner", which will need to supply a
-;; "to-generator" method.
-
-(defn compile-query [query]
-  (zip/postwalk-edit
-   (zip/cascalog-zip query)
-   identity
-   (fn [x _] (to-generator x))
-   :encoder (fn [x]
-              (or (:identifier x) x))))
-
 (extend-protocol IGenerator
   TailStruct
   (generator [sq]
@@ -314,7 +301,37 @@
 
   RawSubquery
   (generator [sq]
-    (generator (parse/build-rule sq))))
+    (generator (parse/build-rule sq)))
+
+  ClojureFlow
+  (generator [x] x))
+
+(defn- init-pipe-name [options]
+  (or (:name (:trap options))
+      (u/uuid))) 
+
+(defn- init-trap-map [options]
+  (if-let [trap (:trap options)]
+    {(:name trap) (types/to-sink (:tap trap))}
+    {}))
+
+;; ## Platform Implementation
+
+(defrecord CascadingPlatform []
+  IPlatform
+  (generator? [_ x]
+    (satisfies? IGenerator x))
+
+  (generator [_ gen fields options]
+    (-> (types/generator gen)
+        (update-in [:trap-map] #(merge % (init-trap-map options)))
+        (ops/rename-pipe (init-pipe-name options))
+        (ops/rename* fields)
+        ;; All generators if the fields aren't ungrounded discard null values
+        (ops/filter-nullable-vars fields)))
+
+  (to-generator [_ x]
+    (to-generator x)))
 
 (comment
   "MOVE these to tests."

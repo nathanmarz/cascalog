@@ -132,10 +132,10 @@
 
 (defrecord Aggregator [op input output])
 
-(def can-generate?
-  (some-fn node?
-           (partial p/generator? p/*context*)
-           #(instance? GeneratorSet %)))
+(defn can-generate? [op]
+  (or (node? op)
+      (p/generator? p/*context* op)
+      (instance? GeneratorSet op)))
 
 (defn generator-node
   "Converts the supplied generator into the proper type of node."

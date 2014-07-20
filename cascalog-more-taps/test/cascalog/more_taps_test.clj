@@ -6,6 +6,10 @@
             [hadoop-util.core :as hadoop])
   (:import [org.apache.hadoop.io BytesWritable]))
 
+(background
+ (before :contents
+         (set-cascading-context!)))
+
 (deftest delimited-roundtrip-test
   (fact
     (io/with-fs-tmp [_ tmp]

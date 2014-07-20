@@ -3,6 +3,10 @@
         clojure.test
         [midje sweet cascalog]))
 
+(background
+ (before :contents
+         (set-cascading-context!)))
+
 (defmapop ident [x] x)
 
 (defmapop ident-doc

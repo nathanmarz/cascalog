@@ -11,6 +11,10 @@
            [cascading.tap Tap]
            [cascading.tap.hadoop Hfs Lfs GlobHfs TemplateTap]))
 
+(background
+ (before :contents
+         (set-cascading-context!)))
+
 (defn tap-source [tap]
   (if (map? tap)
     (recur (:source tap))

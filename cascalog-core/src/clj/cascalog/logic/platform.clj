@@ -1,42 +1,49 @@
 (ns cascalog.logic.platform
-  "The execution platform class, plus a basic Cascading implementation."
-  (:require [jackknife.core :as u]
-            [cascalog.cascading.operations :as ops]
-            [cascalog.cascading.types :as types]))
+  "The execution platform class."
+  (:require [cascalog.logic.zip :as zip]))
+
+;; ## Platform Protocol
 
 (defprotocol IPlatform
   (generator? [p x]
     "Returns true if the supplied x is a generator, false
     otherwise.")
   (generator [p gen fields options]
-    "Returns some source representation."))
+    "Returns some source representation.")
 
-(defn- init-pipe-name [options]
-  (or (:name (:trap options))
-      (u/uuid)))
+  (to-generator [p x]))
 
-(defn- init-trap-map [options]
-  (if-let [trap (:trap options)]
-    {(:name trap) (types/to-sink (:tap trap))}
-    {}))
-
-(defrecord CascadingPlatform []
+;; This is required so that the *context* var isn't nil
+(defrecord EmptyPlatform []
   IPlatform
-  (generator? [_ x]
-    (satisfies? types/IGenerator x))
+  (generator? [_ _] false)
 
-  (generator [_ gen fields options]
-    (-> (types/generator gen)
-        (update-in [:trap-map] #(merge % (init-trap-map options)))
-        (ops/rename-pipe (init-pipe-name options))
-        (ops/rename* fields)
-        (ops/filter-nullable-vars fields))))
+  (generator [_ _ _ _] nil)
 
-(def ^:dynamic *context* (CascadingPlatform.))
+  (to-generator [_ _] nil))
+
+(def ^:dynamic *context* (EmptyPlatform.))
+
+(defn set-context! [c]
+  (alter-var-root #'*context* (constantly c)))
+
+(defmacro with-context
+  [context & body]
+  `(binding [*context* ~context]
+     ~@body))
 
 (defn gen? [g]
   (generator? *context* g))
 
+(defn compile-query [query]
+  (zip/postwalk-edit
+   (zip/cascalog-zip query)
+   identity
+   (fn [x _] (to-generator *context* x))
+   :encoder (fn [x]
+              (or (:identifier x) x))))
+
+;; TODO: this is cascading specific and should be moved
 (comment
   (require '[cascalog.cascading.flow :as f])
   "TODO: Convert to test."
