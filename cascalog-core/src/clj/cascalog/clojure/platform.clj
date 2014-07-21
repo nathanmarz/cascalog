@@ -242,16 +242,19 @@
 
   Grouping
   (to-generator [{:keys [source aggregators grouping-fields options]}]
-    (let [{:keys [op input output]} (first aggregators)
-          {:keys [sort reverse]} options
+    (let [{:keys [sort reverse]} options
           grouped (group-by #(vec (map % grouping-fields)) source)]
       (map
        (fn [[grouping-vals tuples]]
          (let [sorted-tuples (tuple-sort tuples sort reverse)
-               coll (extract-values input sorted-tuples)
-               r (agg-clojure coll op)]
-           (merge (zipmap grouping-fields grouping-vals)
-                  (zipmap output (s/collectify r)))))
+               agg-tuples (map
+                           (fn [{:keys [op input output]}]
+                             (let [coll (extract-values input sorted-tuples)
+                                   r (agg-clojure coll op)]
+                               (zipmap output (s/collectify r))))
+                           aggregators)
+               single-agg-tuple (apply merge agg-tuples)]
+           (merge (zipmap grouping-fields grouping-vals) single-agg-tuple)))
        grouped)))
   
   TailStruct
