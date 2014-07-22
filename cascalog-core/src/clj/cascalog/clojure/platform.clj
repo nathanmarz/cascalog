@@ -70,7 +70,7 @@
   (letfn [(join-fn [l-group]
             (let [key (first l-group)
                   l-tuples (second l-group)
-                  r-empty-tuples [(zipmap r-fields (repeat nil))]
+                  r-empty-tuples [(to-tuple r-fields (repeat (count r-fields) nil))]
                   r-tuples (get r-grouped key r-empty-tuples)]
               (for [x l-tuples y r-tuples]
                 ;; merge is specifically ordered, because the left
@@ -87,7 +87,7 @@
   (letfn [(join-fn [l-group]
             (let [key (first l-group)
                   l-tuples (second l-group)
-                  r-empty-tuples [(zipmap r-fields (repeat nil))]]
+                  r-empty-tuples [(to-tuple r-fields (repeat (count r-fields) nil))]]
               (if (not (find r-grouped key))
                 (for [x l-tuples y r-empty-tuples]
                   ;; merge is specifically ordered, because the left
@@ -214,7 +214,7 @@
        ;; a specific order is dangerous since the order could be
        ;; different than the expected tuple order
        (let [vals (map (fn [[k v]] v) tuple)]
-         (zipmap fields vals)))
+         (to-tuple fields vals)))
      source))
 
   Application
@@ -278,7 +278,7 @@
                              (let [coll (extract-values input sorted-tuples)
                                    r (s/collectify (agg-clojure coll op))
                                    r-seq (if (sequential? (first r)) r [r])]
-                               (map #(zipmap output %) r-seq)))
+                               (map #(to-tuple output %) r-seq)))
                            aggregators)
                merged-tuples (loop [[s1 s2 & s-rest] agg-tuples]
                                (if (or (empty? s1) (empty? s2))
@@ -287,7 +287,7 @@
                                    (if (empty? s-rest)
                                      s-merge
                                      (recur (cons s-merge s-rest))))))]
-           (map #(merge (zipmap grouping-fields grouping-vals) %) merged-tuples)))
+           (map #(merge (to-tuple grouping-fields grouping-vals) %) merged-tuples)))
        grouped)))
   
   TailStruct
