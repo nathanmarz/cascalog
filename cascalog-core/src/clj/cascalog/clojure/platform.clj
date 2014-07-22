@@ -160,8 +160,9 @@
   (let [init-coll (mapcat #(init-var %) coll )
         combined-coll (combine-var nil init-coll)
         reduced-coll (present-var (first combined-coll))
-        tuples (map #(apply concat %) reduced-coll)]
-    tuples))
+        tuples (map #(apply concat %) reduced-coll)
+        buffered-tuples (buffer-var tuples)]
+    buffered-tuples))
 
 (defprotocol IRunner
   (to-generator [item]))
