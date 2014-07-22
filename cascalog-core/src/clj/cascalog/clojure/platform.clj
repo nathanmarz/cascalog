@@ -8,7 +8,7 @@
   (:import [cascalog.logic.parse TailStruct Projection Application
             FilterApplication Unique Join Grouping Rename]
            [cascalog.logic.predicate Generator RawSubquery]
-           [cascalog.logic.def ParallelAggregator]))
+           [cascalog.logic.def ParallelAggregator ParallelBuffer]))
 
 ;; Generator
 (defn to-tuple
@@ -141,8 +141,7 @@
   [coll op]
   ;; coll is a lazy-seq but the operatation expects an iterator
   ;; so we need to convert it to one
-  (op (.iterator coll))
-  )
+  (op (.iterator coll)))
 
 (defmethod agg-clojure ::d/aggregate
   [coll op]
@@ -155,6 +154,14 @@
                           (take (smallest-arity init-var) %))
                   coll)]
     (reduce combine-var mapped-coll)))
+
+(defmethod agg-clojure ParallelBuffer
+  [coll {:keys [init-var combine-var present-var buffer-var]}]
+  (let [init-coll (mapcat #(init-var %) coll )
+        combined-coll (combine-var nil init-coll)
+        reduced-coll (present-var (first combined-coll))
+        tuples (map #(apply concat %) reduced-coll)]
+    tuples))
 
 (defprotocol IRunner
   (to-generator [item]))
@@ -244,17 +251,24 @@
   (to-generator [{:keys [source aggregators grouping-fields options]}]
     (let [{:keys [sort reverse]} options
           grouped (group-by #(vec (map % grouping-fields)) source)]
-      (map
+      (mapcat
        (fn [[grouping-vals tuples]]
          (let [sorted-tuples (tuple-sort tuples sort reverse)
                agg-tuples (map
                            (fn [{:keys [op input output]}]
                              (let [coll (extract-values input sorted-tuples)
-                                   r (agg-clojure coll op)]
-                               (zipmap output (s/collectify r))))
+                                   r (s/collectify (agg-clojure coll op))
+                                   r-seq (if (sequential? (first r)) r [r])]
+                               (map #(zipmap output %) r-seq)))
                            aggregators)
-               single-agg-tuple (apply merge agg-tuples)]
-           (merge (zipmap grouping-fields grouping-vals) single-agg-tuple)))
+               merged-tuples (loop [[s1 s2 & s-rest] agg-tuples]
+                               (if (or (empty? s1) (empty? s2))
+                                 (concat s1 s2)
+                                 (let [s-merge (for [x s1 y s2] (merge x y))]
+                                   (if (empty? s-rest)
+                                     s-merge
+                                     (recur (cons s-merge s-rest))))))]
+           (map #(merge (zipmap grouping-fields grouping-vals) %) merged-tuples)))
        grouped)))
   
   TailStruct
