@@ -129,6 +129,27 @@
         sorted))
     tuples))
 
+(defmulti op-clojure
+  (fn [coll op input output]
+    (type op)))
+
+(defmethod op-clojure ::d/map
+  [coll op input output]
+  (map
+   (fn [tuple]
+     (let [v (s/collectify (apply op (select-fields-w-default input tuple)))
+           new-tuple (to-tuple output v)]
+       (merge tuple new-tuple)))
+   coll))
+
+(defmethod op-clojure ::d/mapcat
+  [coll op input output]
+  (mapcat
+   (fn [tuple]
+     (let [v (apply op (select-fields-w-default input tuple))
+           new-tuples (map #(to-tuple output (s/collectify %)) v)]))
+   coll))
+
 (defmulti agg-clojure
   (fn [coll op]
     (type op)))
@@ -197,12 +218,7 @@
   Application
   (to-generator [{:keys [source operation]}]
     (let [{:keys [op input output]} operation]
-      (map
-       (fn [tuple]
-         (let [v (s/collectify (apply op (select-fields-w-default input tuple)))
-               new-tuple (to-tuple output v)]
-              (merge tuple new-tuple)))
-       source)))
+      (op-clojure source op input output)))
 
   FilterApplication
   (to-generator [{:keys [source filter]}]
