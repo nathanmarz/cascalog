@@ -8,12 +8,14 @@
   (:import [cascalog.logic.parse TailStruct Projection Application
             FilterApplication Unique Join Grouping Rename]
            [cascalog.logic.predicate Generator RawSubquery]
-           [cascalog.logic.def ParallelAggregator]))
+           [cascalog.logic.def ParallelAggregator ParallelBuffer]))
 
 ;; Generator
 (defn to-tuple
   [names v]
-  (zipmap names v))
+  (if (= (count names) (count v))
+    (zipmap names v)
+    (u/throw-illegal "Output variables arity and function output arity do not match")))
 
 (defn to-tuples
   "turns [\"n\"] and [[1] [2]] into [{\"n\" 1} {\"n\" 2}]"
@@ -68,7 +70,7 @@
   (letfn [(join-fn [l-group]
             (let [key (first l-group)
                   l-tuples (second l-group)
-                  r-empty-tuples [(zipmap r-fields (repeat nil))]
+                  r-empty-tuples [(to-tuple r-fields (repeat (count r-fields) nil))]
                   r-tuples (get r-grouped key r-empty-tuples)]
               (for [x l-tuples y r-tuples]
                 ;; merge is specifically ordered, because the left
@@ -85,7 +87,7 @@
   (letfn [(join-fn [l-group]
             (let [key (first l-group)
                   l-tuples (second l-group)
-                  r-empty-tuples [(zipmap r-fields (repeat nil))]]
+                  r-empty-tuples [(to-tuple r-fields (repeat (count r-fields) nil))]]
               (if (not (find r-grouped key))
                 (for [x l-tuples y r-empty-tuples]
                   ;; merge is specifically ordered, because the left
@@ -129,6 +131,27 @@
         sorted))
     tuples))
 
+(defmulti op-clojure
+  (fn [coll op input output]
+    (type op)))
+
+(defmethod op-clojure ::d/map
+  [coll op input output]
+  (map
+   (fn [tuple]
+     (let [v (s/collectify (apply op (select-fields-w-default input tuple)))
+           new-tuple (to-tuple output v)]
+       (merge tuple new-tuple)))
+   coll))
+
+(defmethod op-clojure ::d/mapcat
+  [coll op input output]
+  (mapcat
+   (fn [tuple]
+     (let [v (apply op (select-fields-w-default input tuple))
+           new-tuples (map #(to-tuple output (s/collectify %)) v)]))
+   coll))
+
 (defmulti agg-clojure
   (fn [coll op]
     (type op)))
@@ -141,8 +164,7 @@
   [coll op]
   ;; coll is a lazy-seq but the operatation expects an iterator
   ;; so we need to convert it to one
-  (op (.iterator coll))
-  )
+  (op (.iterator coll)))
 
 (defmethod agg-clojure ::d/aggregate
   [coll op]
@@ -155,6 +177,15 @@
                           (take (smallest-arity init-var) %))
                   coll)]
     (reduce combine-var mapped-coll)))
+
+(defmethod agg-clojure ParallelBuffer
+  [coll {:keys [init-var combine-var present-var buffer-var]}]
+  (let [init-coll (mapcat #(init-var %) coll )
+        combined-coll (combine-var nil init-coll)
+        reduced-coll (present-var (first combined-coll))
+        tuples (map #(apply concat %) reduced-coll)
+        buffered-tuples (buffer-var tuples)]
+    buffered-tuples))
 
 (defprotocol IRunner
   (to-generator [item]))
@@ -183,18 +214,13 @@
        ;; a specific order is dangerous since the order could be
        ;; different than the expected tuple order
        (let [vals (map (fn [[k v]] v) tuple)]
-         (zipmap fields vals)))
+         (to-tuple fields vals)))
      source))
 
   Application
   (to-generator [{:keys [source operation]}]
     (let [{:keys [op input output]} operation]
-      (map
-       (fn [tuple]
-         (let [v (s/collectify (apply op (select-fields-w-default input tuple)))
-               new-tuple (to-tuple output v)]
-              (merge tuple new-tuple)))
-       source)))
+      (op-clojure source op input output)))
 
   FilterApplication
   (to-generator [{:keys [source filter]}]
@@ -242,16 +268,26 @@
 
   Grouping
   (to-generator [{:keys [source aggregators grouping-fields options]}]
-    (let [{:keys [op input output]} (first aggregators)
-          {:keys [sort reverse]} options
+    (let [{:keys [sort reverse]} options
           grouped (group-by #(vec (map % grouping-fields)) source)]
-      (map
+      (mapcat
        (fn [[grouping-vals tuples]]
          (let [sorted-tuples (tuple-sort tuples sort reverse)
-               coll (extract-values input sorted-tuples)
-               r (agg-clojure coll op)]
-           (merge (zipmap grouping-fields grouping-vals)
-                  (zipmap output (s/collectify r)))))
+               agg-tuples (map
+                           (fn [{:keys [op input output]}]
+                             (let [coll (extract-values input sorted-tuples)
+                                   r (s/collectify (agg-clojure coll op))
+                                   r-seq (if (sequential? (first r)) r [r])]
+                               (map #(to-tuple output %) r-seq)))
+                           aggregators)
+               merged-tuples (loop [[s1 s2 & s-rest] agg-tuples]
+                               (if (or (empty? s1) (empty? s2))
+                                 (concat s1 s2)
+                                 (let [s-merge (for [x s1 y s2] (merge x y))]
+                                   (if (empty? s-rest)
+                                     s-merge
+                                     (recur (cons s-merge s-rest))))))]
+           (map #(merge (to-tuple grouping-fields grouping-vals) %) merged-tuples)))
        grouped)))
   
   TailStruct
