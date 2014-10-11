@@ -113,6 +113,9 @@
   (<- [:>] (identity 1 :> _)))
 
 (defalias compile-flow flow/compile-flow)
+(defalias compile-hadoop flow/compile-hadoop)
+(defalias jcompile-flow flow/jcompile-flow)
+(defalias jflow-def flow/jflow-def)
 
 (defn explain
   "Explains a query (by outputting a DOT file).
