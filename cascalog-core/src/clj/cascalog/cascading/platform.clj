@@ -168,12 +168,13 @@
 
 (defmethod agg-cascading ParallelAgg
   [op input output]
-  (ops/parallel-agg (serfn/fn [l r]
-                      (-> op
-                          (.combine (s/collectify l)
-                                    (s/collectify r))))
+  (ops/parallel-agg (serfn/fn [& x]
+                      (let [[l r] (split-at (/ (count x) 2) x)]
+                       (-> op
+                           (.combine (s/collectify l)
+                                     (s/collectify r)))))
                     input output
-                    :init-var (serfn/fn [x]
+                    :init-var (serfn/fn [& x]
                                 (.init op (s/collectify x)))))
 
 (defmethod agg-cascading CascalogBuffer
