@@ -108,7 +108,7 @@
 
 ;; being a good citizen in the cascading ecosystem and set the
 ;; framework property
-(System/setProperty AppProps/APP_FRAMEWORKS
+(AppProps/addApplicationFramework nil
                     (str "cascalog:" (get-version "cascalog/cascalog-core")))
 
 (defmacro with-job-conf
