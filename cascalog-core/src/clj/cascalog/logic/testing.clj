@@ -4,9 +4,11 @@
             [jackknife.core :as u]
             [jackknife.seq :refer (unweave collectify multi-set)]
             [cascalog.cascading.tap :as tap]
-            [cascalog.cascading.io :as io])
+            [cascalog.cascading.io :as io]
+            [cascalog.logic.platform :as platform])
   (:import [java.io File]
-           [cascading.tuple Fields]))
+           [cascading.tuple Fields]
+           [cascalog.cascading.platform CascadingPlatform]))
 
 ;; ## Cascading Testing Functions
 ;;
@@ -73,9 +75,18 @@
                 out-tuples     (doall (map tap/get-sink-tuples sinks))]
             [specs out-tuples]))))))
 
-(defn test?- [& bindings]
+(defn test-cascading?- [& bindings]
   (let [[specs out-tuples] (apply process?- bindings)]
     (is-specs= specs out-tuples)))
+
+(defn test-clojure?- [spec-orig & bindings]
+  (let [out-tuples (apply platform/compile-query bindings)]
+    (is-specs= spec-orig out-tuples)))
+
+(defn test?- [& bindings]
+  (if (= CascadingPlatform (type platform/*context*))
+    (apply test-cascading?- bindings)
+    (apply test-clojure?- bindings)))
 
 (defn check-tap-spec [tap spec]
   (is-tuplesets= (tap/get-sink-tuples tap) spec))
