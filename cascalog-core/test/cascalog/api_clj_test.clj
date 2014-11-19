@@ -67,7 +67,6 @@
              (stats ?p _ _ nil)
              (:distinct false))))
 
-;; this order is different than api_test
 (deftest test-multi-join
   (let [age [["n" 24] ["a" 15] ["j" 24]
              ["d" 24] ["b" 15]
@@ -76,8 +75,8 @@
                  ["j" "n" 10] ["j" "d" nil]
                  ["d" "q" nil] ["b" "a" nil]
                  ["j" "a" 1] ["a" "z" 1]]]
-    (test?<- [["j" "n"] ["j" "d"]
-              ["b" "a"] ["n" "j"] ["d" "q"]]
+    (test?<- [["n" "j"] ["j" "n"]
+              ["j" "d"] ["d" "q"] ["b" "a"]]
              [?p ?p2]
              (age ?p ?a)
              (age ?p2 ?a)
@@ -273,12 +272,11 @@
 (defmapcatfn outer-join-tester3 [obj]
   (if obj [1] [1 1]))
 
-;; order is different than api_test
 (deftest test-outer-join-basic
   (let [person [["a"] ["b"] ["c"] ["d"]]
         follows [["a" "b"] ["c" "e"] ["c" "d"]]]
-    (test?<- [["a" "b"] ["b" nil]
-              ["c" "e"] ["c" "d"] ["d" nil]]
+    (test?<- [["a" "b"] ["c" "e"] ["c" "d"]
+              ["b" nil] ["d" nil]]
              [?p !!p2]
              (person ?p)
              (follows ?p !!p2))
@@ -307,7 +305,6 @@
              (existence2str !!p2 :> ?s)
              (:distinct true))))
 
-;; order is different than api_test
 (deftest test-outer-join-complex
   (let [age [["a" 20] ["b" 30]
              ["c" 27] ["d" 40]]
@@ -315,8 +312,8 @@
         rec2 [["a" 20 6] ["c" 27 25]
               ["c" 1 11] ["f" 30 1]
               ["b" 100 16]]]
-    (test?<- [["a" 20 1 2 6] ["b" 30 30 16 nil]
-              ["c" 27 nil nil 25] ["d" 40 nil nil nil]]
+    (test?<- [["a" 20 1 2 6] ["c" 27 nil nil 25] 
+              ["d" 40 nil nil nil] ["b" 30 30 16 nil]]
              [?p ?a !!f1 !!f2 !!f3]
              (age ?p ?a)
              (rec1 ?p !!f1 !!f2)
@@ -449,12 +446,11 @@
 
 (defbufferfn nothing-buf [tuples] tuples)
 
-;; order is different than api_test
 (deftest test-outer-join-anon
   (let [person  [["a"] ["b"] ["c"]]
         follows [["a" "b" 1] ["c" "e" 2] ["c" "d" 3]]]
-    (test?<- [["a" "b"] ["b" nil]
-              ["c" "e"] ["c" "d"]]
+    (test?<- [["a" "b"] ["c" "e"]
+              ["c" "d"] ["b" nil]]
              [?p !!p2]
              (person ?p)
              (follows ?p !!p2 _))))

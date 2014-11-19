@@ -127,7 +127,7 @@
    (and (= :inner l-type) (= :outer r-type))
    [(left-join l-grouped r-grouped r-fields) :outer]
    (and (= :outer l-type) (= :inner r-type))
-   [(left-join r-grouped l-grouped l-type) :outer]
+   [(left-join r-grouped l-grouped l-fields) :outer]
    :else [(outer-join l-grouped r-grouped l-fields r-fields) :outer]))
 
 (defn smallest-arity [fun]
