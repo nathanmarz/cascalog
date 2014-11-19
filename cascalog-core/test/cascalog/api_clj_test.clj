@@ -443,7 +443,15 @@
 
 (defbufferfn nothing-buf [tuples] tuples)
 
-;; test-outer-join-anon
+;; order is different than api_test
+(deftest test-outer-join-anon
+  (let [person  [["a"] ["b"] ["c"]]
+        follows [["a" "b" 1] ["c" "e" 2] ["c" "d" 3]]]
+    (test?<- [["a" "b"] ["b" nil]
+              ["c" "e"] ["c" "d"]]
+             [?p !!p2]
+             (person ?p)
+             (follows ?p !!p2 _))))
 
 (deftest test-negate-join
   (let [left  [["a" 1]
@@ -469,7 +477,21 @@
 (defn inc-tuple [& tuple]
   (map inc tuple))
 
-;; test-pos-out-selectors
+(deftest test-pos-out-selectors
+  (let [wide [["a" 1 nil 2 3] ["b" 1 "c" 5 1] ["a" 5 "q" 3 2]]]
+    (test?<- [[3 nil] [1 "c"] [2 "q"]]
+             [?l !m]
+             (wide :#> 5 {4 ?l 2 !m})
+             (:distinct false))
+
+    (test?<- [[4] [2] [3]]
+             [?n3]
+             (wide _ ?n1 _ _ ?n2)
+             (inc-tuple ?n1 ?n2 :#> 2 {1 ?n3}))
+
+    (test?<- [["b"]]
+             [?a]
+             (wide :#> 5 {0 ?a 1 ?b 4 ?b}))))
 
 (deftest test-avg
   (let [num1 [[1] [2] [3] [4] [10]]
