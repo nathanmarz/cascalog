@@ -256,3 +256,48 @@
     "Can't use empty taps inside of a union or combine."
     (is (thrown? IllegalArgumentException (union e1)))
     (is (thrown? IllegalArgumentException (combine e1)))))
+
+(deftest test-sample-count
+  "sample should return a number of samples equal to the specified
+     sample size param"
+  (let [numbers [[1] [2] [3] [4] [5] [6] [7] [8] [9] [10]]
+        sampling-query (c/fixed-sample numbers 5)]
+    (test?<- [[5]]
+             [?count]
+             (sampling-query ?s)
+             (c/count ?count))))
+
+(deftest test-sample-contents
+  (let [numbers [[1 2] [3 4] [5 6] [7 8] [9 10]]
+        sampling-query (c/fixed-sample numbers 5)]
+    (fact "sample should contain some of the inputs"
+          sampling-query => (produces-some [[1 2] [3 4] [5 6]]))))
+
+(deftest select-fields-supports-cascalogtap
+  (let [data (memory-source-tap ["f1" "f2" "f3" "f4"]
+                                [[1 2 3 4] [11 12 13 14] [21 22 23 24]])
+        cascalog-tap (cascalog-tap data nil)]
+    (test?<- [[4 2] [14 12] [24 22]]
+             [?a ?b]
+             ((select-fields cascalog-tap ["f4" "f2"]) ?a ?b))))
+
+(defn mk-agg-test-tuples []
+  (-> (take 10 (iterate (fn [[a b]] [(inc a) b]) [0 1]))
+      (vec)
+      (conj [0 4])))
+
+(defn mk-agg-test-results []
+  (-> (take 9 (iterate (fn [[a b c]]
+                         [(inc a) b c])
+                       [1 1 1]))
+      (vec)
+      (conj [0 5 2])))
+
+(deftest test-complex-agg-more-than-spill-threshold
+  (let [num (mk-agg-test-tuples)]
+    (test?<- (mk-agg-test-results)
+             [?n ?s ?c]
+             (num ?n ?v)
+             (:spill-threshold 3)
+             (c/sum ?v :> ?s)
+             (c/count ?c))))

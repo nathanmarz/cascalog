@@ -161,7 +161,8 @@
   (mapcat
    (fn [tuple]
      (let [v (apply op (select-fields-w-default input tuple))
-           new-tuples (map #(to-tuple output (s/collectify %)) v)]))
+           new-tuples (map #(to-tuple output (s/collectify %)) v)]
+       (map #(merge tuple %) new-tuples)))
    coll))
 
 (defmulti agg-clojure

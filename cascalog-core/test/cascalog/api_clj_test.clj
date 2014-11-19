@@ -191,22 +191,30 @@
              (c/sum ?n :> ?s)
              (evens-vs-odds ?n :> ?e))))
 
-(defn mk-agg-test-tuples []
-  (-> (take 10 (iterate (fn [[a b]] [(inc a) b]) [0 1]))
-      (vec)
-      (conj [0 4])))
-
-(defn mk-agg-test-results []
-  (-> (take 9 (iterate (fn [[a b c]]
-                         [(inc a) b c])
-                       [1 1 1]))
-      (vec)
-      (conj [0 5 2])))
-
-;; test-complex-agg-more-than-spill
-;; spill I believe is a cascading piece
-
-;; test-multi-rule test?- trouble
+(deftest test-multi-rule
+  (let [age [["n" 24] ["c" 40] ["j" 23] ["g" 50]]
+        interest [["n" "bb" nil] ["n" "fb" 20]
+                  ["g" "ck" 30] ["j" "nz" 10]
+                  ["j" "hk" 1] ["jj" "ee" nil]]
+        follows [["n" "j"] ["j" "n"] ["j" "a"] ["n" "a"] ["g" "q"]]
+        many-follow      (<- [?p]
+                             (follows ?p _)
+                             (c/count ?c)
+                             (> ?c 1))
+        active-follows   (<- [?p ?p2]
+                             (many-follow ?p)
+                             (many-follow ?p2)
+                             (follows ?p ?p2))
+        unknown-interest (<- [?p]
+                             (age ?p ?a)
+                             (interest ?p _ !i)
+                             (nil? !i))
+        weird-follows    (<- [?p ?p2]
+                             (active-follows ?p ?p2)
+                             (unknown-interest ?p2))]
+    (test?- [["n" "j"] ["j" "n"]] active-follows
+            [["j" "n"]]           weird-follows
+            [["n"]]               unknown-interest)))
 
 (deftest test-filter-same-field
   (let [nums [[1 1] [0 0] [1 2] [3 7] [8 64] [7 1] [2 4] [6 6]]]
@@ -563,20 +571,6 @@
              (vals ?a ?b ?c)
              (multipagg ?a ?b ?c :> ?d ?e)
              (slow-count ?c :> ?count))))
-
-(defn run-union-combine-tests
-  "Runs a series of tests on the union and combine operations. v1,
-  v2 and v3 must produce
-
-    [[1] [2] [3]]
-    [[3] [4] [5]]
-    [[2] [4] [6]]"
-  [v1 v2 v3]
-  (test?- [[1] [2] [3] [4] [5]]                 (union v1 v2)
-          [[1] [2] [3] [4] [5] [6]]             (union v1 v2 v3)
-          [[3] [4] [5]]                         (union v2)
-          [[1] [2] [3] [2] [4] [6]]             (combine v1 v3)
-          [[1] [2] [3] [3] [4] [5] [2] [4] [6]] (combine v1 v2 v3)))
 
 (deftest test-keyword-args
   (test?<- [[":onetwo"]]
