@@ -560,6 +560,20 @@
 ;; Q: if I am, how to I handle a 4 arg fn?  Do I use a macro to turn
 ;;  it into a 2 arg one?
 
+(deftest test-multi-parallel-agg
+  (let [vals [[1 2 3] [4 5 6] [7 8 9]]]
+    (test?<- [[12 935 3]]
+             [?d ?e ?count]
+             (vals ?a ?b ?c)
+             (multipagg ?a ?b ?c :> ?d ?e)
+             (c/count ?count))
+
+    (test?<- [[12 935 3]]
+             [?d ?e ?count]
+             (vals ?a ?b ?c)
+             (multipagg ?a ?b ?c :> ?d ?e)
+             (slow-count ?c :> ?count))))
+
 (defn run-union-combine-tests
   "Runs a series of tests on the union and combine operations. v1,
   v2 and v3 must produce

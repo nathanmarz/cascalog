@@ -191,12 +191,22 @@
   (op (reduce (fn [s v] (op s (first v))) (op) coll)))
 
 (defmethod agg-clojure ParallelAggregator
-  [coll {:keys [init-var combine-var]}]
-  (let [mapped-coll (map
-                  #(apply init-var
-                          (take (smallest-arity init-var) %))
-                  coll)]
-    (reduce combine-var mapped-coll)))
+  [coll op]
+  (let [{:keys [combine-var init-var present-var]} op
+        mapped-coll (map
+                     #(->> %
+                           (take (smallest-arity init-var))
+                           (apply init-var))
+                     coll)
+        reduced-coll (reduce
+                      (fn [state s]
+                        (->> s
+                             (s/collectify)
+                             (apply conj (s/collectify state))
+                             (apply combine-var)))
+                      (first mapped-coll)
+                      (rest mapped-coll))]
+    reduced-coll))
 
 (defmethod agg-clojure ParallelBuffer
   [coll {:keys [init-var combine-var present-var buffer-var]}]
