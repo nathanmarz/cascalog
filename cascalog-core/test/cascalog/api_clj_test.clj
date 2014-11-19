@@ -550,16 +550,6 @@
   ([context val] (inc context))
   ([context] [context]))
 
-;; test-multi-parallel-agg
-;;  actual: clojure.lang.ArityException: Wrong number of args (2)
-;;  passed to: api-clj-test/multipagg-combiner
-;; The problem happens because agg-clojure for ParallelAggragator
-;; uses the combine-var as the function for reduce, but reduce only
-;;  allows for 2 arguments.
-;; Q: am I not supposed to use reduce for this function?
-;; Q: if I am, how to I handle a 4 arg fn?  Do I use a macro to turn
-;;  it into a 2 arg one?
-
 (deftest test-multi-parallel-agg
   (let [vals [[1 2 3] [4 5 6] [7 8 9]]]
     (test?<- [[12 935 3]]
@@ -587,16 +577,6 @@
           [[3] [4] [5]]                         (union v2)
           [[1] [2] [3] [2] [4] [6]]             (combine v1 v3)
           [[1] [2] [3] [3] [4] [5] [2] [4] [6]] (combine v1 v2 v3)))
-
-;; test-vector-union-combine
-;; api/union uses ops/union*
-;; TODO: make union platform independent
-
-;; test-query-union-combine
-;; same as test-vector-union issue but instead of api/union it uses api/combine
-
-;; test-cascading-union-combine
-;; Same as previous two tests
 
 (deftest test-keyword-args
   (test?<- [[":onetwo"]]
@@ -799,13 +779,6 @@
              (pair ?l ?n)
              (:sort ?n)
              ((c/limit 2) ?n :> ?n2))))
-
-;; test-sample-count
-;;  java.lang.ClassCastException: nul
-;; it uess cascalog.ops.Rand which is a cascading operation
-
-;; test-sample-contents
-;; same problem as test-sample-count
 
 (deftest vector-args-should-work
   (let [data [[{:a {:b 2}}]]]

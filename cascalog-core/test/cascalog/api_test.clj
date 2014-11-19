@@ -510,21 +510,7 @@
 (defn inc-tuple [& tuple]
   (map inc tuple))
 
-(deftest test-pos-out-selectors
-  (let [wide [["a" 1 nil 2 3] ["b" 1 "c" 5 1] ["a" 5 "q" 3 2]]]
-    (test?<- [[3 nil] [1 "c"] [2 "q"]]
-             [?l !m]
-             (wide :#> 5 {4 ?l 2 !m})
-             (:distinct false))
 
-    (test?<- [[4] [2] [3]]
-             [?n3]
-             (wide _ ?n1 _ _ ?n2)
-             (inc-tuple ?n1 ?n2 :#> 2 {1 ?n3}))
-
-    (test?<- [["b"]]
-             [?a]
-             (wide :#> 5 {0 ?a 1 ?b 4 ?b}))))
 
 
 (deftest test-avg
@@ -606,42 +592,6 @@
              (vals ?key ?val)
              ((CountAgg.) ?count)
              ((SumAgg.) ?val :> ?sum))))
-
-"TODO: These need union and combine to do proper renames."
-(defn run-union-combine-tests
-  "Runs a series of tests on the union and combine operations. v1,
-  v2 and v3 must produce
-
-    [[1] [2] [3]]
-    [[3] [4] [5]]
-    [[2] [4] [6]]"
-  [v1 v2 v3]
-  (test?- [[1] [2] [3] [4] [5]]                 (union v1 v2)
-          [[1] [2] [3] [4] [5] [6]]             (union v1 v2 v3)
-          [[3] [4] [5]]                         (union v2)
-          [[1] [2] [3] [2] [4] [6]]             (combine v1 v3)
-          [[1] [2] [3] [3] [4] [5] [2] [4] [6]] (combine v1 v2 v3)))
-
-(deftest test-vector-union-combine
-  (run-union-combine-tests [[1] [2] [3]]
-                           [[3] [4] [5]]
-                           [[2] [4] [6]]))
-
-(deftest test-query-union-combine
-  (run-union-combine-tests (<- [?v] ([[1] [2] [3]] ?v))
-                           (<- [?v] ([[3] [4] [5]] ?v))
-                           (<- [?v] ([[2] [4] [6]] ?v))))
-
-(deftest test-cascading-union-combine
-  (let [v1 [[1] [2] [3]]
-        v2 [[3] [4] [5]]
-        v3 [[2] [4] [6]]
-        e1 []]
-    (run-union-combine-tests v1 v2 v3)
-
-    "Can't use empty taps inside of a union or combine."
-    (is (thrown? IllegalArgumentException (union e1)))
-    (is (thrown? IllegalArgumentException (combine e1)))))
 
 (deftest test-keyword-args
   (test?<- [[":onetwo"]]
@@ -844,30 +794,6 @@
              (pair ?l ?n)
              (:sort ?n)
              ((c/limit 2) ?n :> ?n2))))
-
-(deftest test-sample-count
-  "sample should return a number of samples equal to the specified
-     sample size param"
-  (let [numbers [[1] [2] [3] [4] [5] [6] [7] [8] [9] [10]]
-        sampling-query (c/fixed-sample numbers 5)]
-    (test?<- [[5]]
-             [?count]
-             (sampling-query ?s)
-             (c/count ?count))))
-
-(deftest test-sample-contents
-  (let [numbers [[1 2] [3 4] [5 6] [7 8] [9 10]]
-        sampling-query (c/fixed-sample numbers 5)]
-    (fact "sample should contain some of the inputs"
-          sampling-query => (produces-some [[1 2] [3 4] [5 6]]))))
-
-(deftest select-fields-supports-cascalogtap
-  (let [data (memory-source-tap ["f1" "f2" "f3" "f4"]
-                                [[1 2 3 4] [11 12 13 14] [21 22 23 24]])
-        cascalog-tap (cascalog-tap data nil)]
-    (test?<- [[4 2] [14 12] [24 22]]
-             [?a ?b]
-             ((select-fields cascalog-tap ["f4" "f2"]) ?a ?b))))
 
 (deftest vector-args-should-work
   (let [data [[{:a {:b 2}}]]]

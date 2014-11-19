@@ -220,3 +220,39 @@
                  (weight ?p ?w)
                  (odd-fail ?w ?p ?a)
                  (:trap trap2))))))
+
+"TODO: These need union and combine to do proper renames."
+(defn run-union-combine-tests
+  "Runs a series of tests on the union and combine operations. v1,
+  v2 and v3 must produce
+
+    [[1] [2] [3]]
+    [[3] [4] [5]]
+    [[2] [4] [6]]"
+  [v1 v2 v3]
+  (test?- [[1] [2] [3] [4] [5]]                 (union v1 v2)
+          [[1] [2] [3] [4] [5] [6]]             (union v1 v2 v3)
+          [[3] [4] [5]]                         (union v2)
+          [[1] [2] [3] [2] [4] [6]]             (combine v1 v3)
+          [[1] [2] [3] [3] [4] [5] [2] [4] [6]] (combine v1 v2 v3)))
+
+(deftest test-vector-union-combine
+  (run-union-combine-tests [[1] [2] [3]]
+                           [[3] [4] [5]]
+                           [[2] [4] [6]]))
+
+(deftest test-query-union-combine
+  (run-union-combine-tests (<- [?v] ([[1] [2] [3]] ?v))
+                           (<- [?v] ([[3] [4] [5]] ?v))
+                           (<- [?v] ([[2] [4] [6]] ?v))))
+
+(deftest test-cascading-union-combine
+  (let [v1 [[1] [2] [3]]
+        v2 [[3] [4] [5]]
+        v3 [[2] [4] [6]]
+        e1 []]
+    (run-union-combine-tests v1 v2 v3)
+
+    "Can't use empty taps inside of a union or combine."
+    (is (thrown? IllegalArgumentException (union e1)))
+    (is (thrown? IllegalArgumentException (combine e1)))))
