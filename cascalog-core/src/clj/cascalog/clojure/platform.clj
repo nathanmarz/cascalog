@@ -4,7 +4,8 @@
             [cascalog.logic.parse :as parse]
             [jackknife.core :as u]
             [jackknife.seq :as s]
-            [cascalog.logic.def :as d])
+            [cascalog.logic.def :as d]
+            [cascalog.logic.vars :as v])
   (:import [cascalog.logic.parse TailStruct Projection Application
             FilterApplication Unique Join Grouping Rename]
            [cascalog.logic.predicate Generator RawSubquery]
@@ -22,14 +23,25 @@
   [names coll-of-seqs]
   (map #(to-tuple names %) coll-of-seqs))
 
+(defn valid-tuple?
+  "Verifies that non-nullable vars aren't null."
+  [tuple]
+  (not-any?
+   (fn [[k v]]
+     (and (v/non-nullable-var? k)
+          (nil? v)))
+   tuple))
+
 (defn to-tuples-filter-nullable
   "turns [\"n\"] and [[1] [2]] into [{\"n\" 1} {\"n\" 2}]"
   [names coll-of-seqs]
-  (remove nil? (map
-                (fn [s]
-                  (if (not-any? nil? s)
-                    (to-tuple names s)))
-                coll-of-seqs)))
+  (->> coll-of-seqs
+       (map
+        (fn [s]
+          (let [tuple (to-tuple names s)]
+            (if (valid-tuple? tuple)
+              tuple))))
+       (remove nil?)))
 
 (defn select-fields
   "Creates a list of the values of the tuples you want and if the field isn't
