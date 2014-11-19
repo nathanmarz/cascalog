@@ -121,15 +121,13 @@
 (defmapcatfn split [^String words]
   (seq (.split words "\\s+")))
 
-;; this test used to use :info (but my test?<- isn't smart enough to
-;; handle that field yet
 (deftest test-countall
   (let [sentence [["hello this is a"]
                   ["say hello hello to the man"]
                   ["this is the cool beans man"]]]
-    (test?<- [["hello" 3] ["this" 2] ["is" 2]
-                    ["a" 1] ["say" 1] ["to" 1] ["the" 2]
-                    ["man" 2] ["cool" 1] ["beans" 1]]
+    (test?<- :info [["hello" 3] ["this" 2] ["is" 2]
+              ["a" 1] ["say" 1] ["to" 1] ["the" 2]
+              ["man" 2] ["cool" 1] ["beans" 1]]
              [?w ?c]
              (sentence ?s)
              (split ?s :> ?w)

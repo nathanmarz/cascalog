@@ -197,27 +197,6 @@
              (c/sum ?n :> ?s)
              (evens-vs-odds ?n :> ?e))))
 
-(defn mk-agg-test-tuples []
-  (-> (take 10 (iterate (fn [[a b]] [(inc a) b]) [0 1]))
-      (vec)
-      (conj [0 4])))
-
-(defn mk-agg-test-results []
-  (-> (take 9 (iterate (fn [[a b c]]
-                         [(inc a) b c])
-                       [1 1 1]))
-      (vec)
-      (conj [0 5 2])))
-
-(deftest test-complex-agg-more-than-spill-threshold
-  (let [num (mk-agg-test-tuples)]
-    (test?<- (mk-agg-test-results)
-             [?n ?s ?c]
-             (num ?n ?v)
-             (:spill-threshold 3)
-             (c/sum ?v :> ?s)
-             (c/count ?c))))
-
 (deftest test-multi-rule
   (let [age [["n" 24] ["c" 40] ["j" 23] ["g" 50]]
         interest [["n" "bb" nil] ["n" "fb" 20]
