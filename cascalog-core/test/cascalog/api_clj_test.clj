@@ -576,7 +576,6 @@
            [?a]
            ([["face" :cake]] ?a :cake)))
 
-
 (deftest test-complex-constraints
   (let [pairs [[1 2] [2 4] [3 3]]
         double-times (mapfn [x y] [(* 2 x) y])]

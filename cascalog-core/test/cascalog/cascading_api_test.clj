@@ -7,15 +7,14 @@
             [cascalog.cascading.io :as io]
             [cascalog.logic.def :as d])
   (:import [cascading.tuple Fields]
-           [cascalog.test KeepEven OneBuffer]
+           [cascalog.test KeepEven OneBuffer CountAgg SumAgg]
            [cascalog.ops IdentityBuffer]
            [cascading.operation.text DateParser]))
 
 ;; Set the context to Cascading
-(use-fixtures :once
-              (fn  [f]
-                (set-cascading-context!)
-                (f)))
+(background
+ (before :contents
+         (set-cascading-context!)))
 
 (deftest test-flow-name
   (let [nums [[1] [2]]]
@@ -301,3 +300,26 @@
              (:spill-threshold 3)
              (c/sum ?v :> ?s)
              (c/count ?c))))
+
+(deftest test-java-aggregator
+  (let [vals [["a" 1] ["a" 2] ["b" 3] ["c" 8] ["c" 13] ["b" 1] ["d" 5] ["c" 8]]]
+    (test?<- [["a" 2] ["b" 2] ["c" 3] ["d" 1]]
+             [?f1 ?o]
+             (vals ?f1 _)
+             ((CountAgg.) :> ?o))
+
+    (test?<- [["a" 3 2] ["b" 4 2] ["c" 29 3] ["d" 5 1]]
+             [?key ?sum ?count]
+             (vals ?key ?val)
+             ((CountAgg.) ?count)
+             ((SumAgg.) ?val :> ?sum))))
+
+(deftest test-function-sink
+  (let [pairs [[1 2] [2 10]]
+        double-second-sink (fn [sq]
+                             [[[1 2 4] [2 10 20]]
+                              (<- [?a ?b ?c]
+                                  (sq ?a ?b)
+                                  (* 2 ?b :> ?c)
+                                  (:distinct false)) ])]
+    (test?- double-second-sink pairs)))

@@ -4,13 +4,13 @@
         cascalog.logic.testing
         cascalog.api)
   (:require [cascalog.logic.ops :as c]
-            [cascalog.logic.def :as d])
-  (:import [cascalog.test CountAgg SumAgg]
-           [cascalog.ops IdentityBuffer]))
+            [cascalog.logic.def :as d]))
 
 (use-fixtures :once
-  (fn  [f]
+  (fn [f]
     (set-cascading-context!)
+    (f)
+    (set-clojure-context!)
     (f)))
 
 (defmapfn mk-one
@@ -559,19 +559,6 @@
              (multipagg ?a ?b ?c :> ?d ?e)
              (slow-count ?c :> ?count))))
 
-(deftest test-java-aggregator
-  (let [vals [["a" 1] ["a" 2] ["b" 3] ["c" 8] ["c" 13] ["b" 1] ["d" 5] ["c" 8]]]
-    (test?<- [["a" 2] ["b" 2] ["c" 3] ["d" 1]]
-             [?f1 ?o]
-             (vals ?f1 _)
-             ((CountAgg.) :> ?o))
-
-    (test?<- [["a" 3 2] ["b" 4 2] ["c" 29 3] ["d" 5 1]]
-             [?key ?sum ?count]
-             (vals ?key ?val)
-             ((CountAgg.) ?count)
-             ((SumAgg.) ?val :> ?sum))))
-
 (deftest test-keyword-args
   (test?<- [[":onetwo"]]
            [?b]
@@ -581,16 +568,6 @@
   (test?<- [["face"]]
            [?a]
            ([["face" :cake]] ?a :cake)))
-
-(deftest test-function-sink
-  (let [pairs [[1 2] [2 10]]
-        double-second-sink (fn [sq]
-                             [[[1 2 4] [2 10 20]]
-                              (<- [?a ?b ?c]
-                                  (sq ?a ?b)
-                                  (* 2 ?b :> ?c)
-                                  (:distinct false)) ])]
-    (test?- double-second-sink pairs)))
 
 (deftest test-complex-constraints
   (let [pairs [[1 2] [2 4] [3 3]]
