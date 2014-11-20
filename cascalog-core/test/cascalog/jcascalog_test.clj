@@ -7,6 +7,11 @@
             PredicateMacro Subquery Api$FirstNArgs]
            [jcascalog.op Avg Count Div Limit Sum Plus Multiply Equals]))
 
+(use-fixtures :once
+  (fn [f]
+    (set-cascading-context!)
+    (f)))
+
 (deftest test-vanilla
   (let [value [["a" 1] ["a" 2] ["b" 10]
                ["c" 3] ["b" 2] ["a" 6]]]
