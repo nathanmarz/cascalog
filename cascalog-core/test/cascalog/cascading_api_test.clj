@@ -12,9 +12,10 @@
            [cascading.operation.text DateParser]))
 
 ;; Set the context to Cascading
-(background
- (before :contents
-         (set-cascading-context!)))
+(use-fixtures :once
+  (fn [f]
+    (set-cascading-context!)
+    (f)))
 
 (deftest test-flow-name
   (let [nums [[1] [2]]]
