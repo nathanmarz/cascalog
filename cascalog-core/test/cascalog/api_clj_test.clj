@@ -834,11 +834,3 @@
              (nums ?a)
              (src ?a ?b))))
 
-(deftest test-first-n
-  (let [sq (name-vars [[1 1] [1 3] [1 2] [2 1] [3 4]]
-                      ["?a" "?b"])]
-    (test?- [[1 1] [1 2]]
-            (c/first-n sq 2 :sort ["?a" "?b"]))
-    (test?- [[3 4] [2 1]]
-            (c/first-n sq 2 :sort "?a" :reverse true))
-    (is (= 2 (count (first (??- (c/first-n sq 2))))))))
