@@ -26,6 +26,8 @@
     (is (= ["!a" "!count"] (get-out-fields (<- [!a !count]
                                                (age _ !a)
                                                (c/count !count)))))))
+
+;; cascading specific
 (deftest test-outfields-tap
   (is (thrown? AssertionError
                (get-out-fields (memory-source-tap Fields/ALL []))))
@@ -91,6 +93,7 @@
              (nums ?a)
              (src ?a ?b))))
 
+;; cascading specific atm
 (deftest test-memory-returns
   (let [nums [[1] [2] [3]]
         more-nums [[1 2] [4 5]]
@@ -117,6 +120,7 @@
       (is (= (set [["alicea"] ["boba"]])
              (set (second res)))))))
 
+;; to test later
 (deftest test-negation
   (let [age [["nathan" 25] ["nathan" 24]
              ["alice" 23] ["george" 31]]
@@ -183,6 +187,7 @@
 ;; TODO: test within massive joins (more than one join field, after
 ;; other joins complete, etc.)
 
+;; currently fails
 (deftest test-negation-operations
   (let [nums [[1] [2] [3] [4]]
         pairs [[3 4] [4 5]]]
@@ -192,6 +197,7 @@
              (pairs ?n ?n2 :> false)
              (odd? ?n2))))
 
+;; currently passes but uses cascading
 (deftest test-first-n
   (let [sq (name-vars [[1 1] [1 3] [1 2] [2 1] [3 4]]
                       ["?a" "?b"])]

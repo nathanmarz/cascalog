@@ -4,10 +4,7 @@
         cascalog.logic.testing
         cascalog.api)
   (:require [cascalog.logic.ops :as c]
-            [cascalog.logic.def :as d])
-  (:import [cascalog.test KeepEven OneBuffer CountAgg SumAgg]
-           [cascalog.ops IdentityBuffer]
-           [cascading.operation.text DateParser]))
+            [cascalog.logic.def :as d]))
 
 (use-fixtures :once
   (fn  [f]
@@ -764,4 +761,84 @@
              (data ?a)
              (get-in ?a [:a :b] :> ?b))))
 
+(deftest test-outfields-query
+  (let [age [["nathan" 25]]]
+    (is (= ["?age"]
+           (get-out-fields
+            (<- [?age] (age _ ?age)))))
+    (is (= ["!!age2" "!!age"]
+           (get-out-fields (<- [!!age2 !!age]
+                               (age ?person !!age)
+                               (age ?person !!age2)))))
+    (is (= ["?person" "!a"]
+           (get-out-fields (<- [?person !a]
+                               (age ?person !a)))))
+    (is (= ["!a" "!count"] (get-out-fields (<- [!a !count]
+                                               (age _ !a)
+                                               (c/count !count)))))))
 
+
+(defbufferfn sum+1 [tuples]
+  [(inc (reduce + (map first tuples)))])
+
+(defn op-to-pairs [sq op]
+  (<- [?c]
+      (sq ?a ?b)
+      (op ?a ?b :> ?c)
+      (:distinct false)))
+
+
+(deftest test-higher-order
+  (let [nums [[1 1] [2 2] [1 3]]]
+    (test?<- [[2] [4] [4]]
+             [?sum]
+             (nums ?a ?b)
+             (#'+ ?a ?b :> ?sum)
+             (:distinct false))
+    (test?- [[0] [0] [-2]] (op-to-pairs nums -)
+            [[5]]          (op-to-pairs nums sum+1))))
+
+(deftest test-construct
+  (let [age [["alice" 25] ["bob" 30]]
+        gender [["alice" "f"]
+                ["charlie" "m"]]]
+    (test?- [["alice" 26 "f"]
+             ["bob" 31 nil]]
+            (apply construct
+                   ["?p" "?a2" "!!g"]
+                   [(-> [[age "?p" "?a"] [#'inc "?a" :> "?a2"]]
+                        (conj [gender "?p" "!!g"]))]))))
+
+(deftest test-fail-to-construct
+  (let [foos [["alice"] ["bob"]]]
+    (is (thrown-with-msg? RuntimeException #"Missing.*?bar"
+                          (test?- []
+                                  (apply construct
+                                         ["?foo" "?bar"]
+                                         [(-> [[foos "?foo"]])]))))))
+
+(deftest test-symmetric-ops
+  (let [nums [[1 2 3] [10 20 30] [100 200 300]]]
+    (test?<- [[111 222 333 1 2 3 100 200 300]]
+             [?s1 ?s2 ?s3 ?min1 ?min2 ?min3 ?max1 ?max2 ?max3]
+             (nums ?a ?b ?c)
+             (c/sum ?a ?b ?c :> ?s1 ?s2 ?s3)
+             (c/min ?a ?b ?c :> ?min1 ?min2 ?min3)
+             (c/max ?a ?b ?c :> ?max1 ?max2 ?max3))))
+
+(deftest test-data-structure
+  (let [src  [[1 5] [5 6] [8 2]]
+        nums [[1] [2]]]
+    (test?<- [[1 5]]
+             [?a ?b]
+             (nums ?a)
+             (src ?a ?b))))
+
+(deftest test-first-n
+  (let [sq (name-vars [[1 1] [1 3] [1 2] [2 1] [3 4]]
+                      ["?a" "?b"])]
+    (test?- [[1 1] [1 2]]
+            (c/first-n sq 2 :sort ["?a" "?b"]))
+    (test?- [[3 4] [2 1]]
+            (c/first-n sq 2 :sort "?a" :reverse true))
+    (is (= 2 (count (first (??- (c/first-n sq 2))))))))
