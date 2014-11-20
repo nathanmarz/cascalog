@@ -711,17 +711,12 @@
              (:sort ?n)
              ((c/limit 2) ?n :> ?n2))
 
-    ;; this test fails
-    ;; sort is done before the parallelbuffer is used, but then it
-    ;; does a sort on just ?n and not ?l and ?n which removed the sort
-    ;; by ?l and ?n
-    (comment 
-      (test?<- [[1 1] [2 2] [3 3]
-                [4 4] [1 5]]
-               [?n2 ?r]
-               (pair ?l ?n)
-               (:sort ?l ?n)
-               ((c/limit-rank 5) ?n :> ?n2 ?r)))
+    (test?<- [[1 1] [2 2] [3 3]
+              [4 4] [1 5]]
+             [?n2 ?r]
+             (pair ?l ?n)
+             (:sort ?l ?n)
+             ((c/limit-rank 5) ?n :> ?n2 ?r))
 
     (test?<- [["c" 0] ["b" 7]]
              [?l2 ?n2]
@@ -742,19 +737,14 @@
              (:sort ?n)
              ((c/limit-rank 3) ?n :> ?n2 ?r))
 
-    ;; this test fails but it's just an ordering issue: originally the
-    ;; results were [[6][7]] but I've changed them to what it is now
-    ;; I actually think this is the proper result
-    (test?<- [[7] [6]]
+    (test?<- [[6] [7]]
              [?n2]
              (pair _ ?n)
              (:sort ?n)
              (:reverse true)
              ((c/limit 2) ?n :> ?n2))
 
-    ;; same things as the test above this
-    ;; [[6 2][7 1]]
-    (test?<- [[7 1] [6 2]]
+    (test?<- [[6 2] [7 1]]
              [?n2 ?r]
              (pair _ ?n)
              (:sort ?n)

@@ -211,12 +211,7 @@
 
 (defmethod agg-clojure ParallelBuffer
   [coll {:keys [init-var combine-var present-var buffer-var]}]
-  (let [init-coll (mapcat #(init-var %) coll )
-        combined-coll (combine-var nil init-coll)
-        reduced-coll (present-var (first combined-coll))
-        tuples (map #(apply concat %) reduced-coll)
-        buffered-tuples (buffer-var tuples)]
-    buffered-tuples))
+  (buffer-var coll))
 
 (defprotocol IRunner
   (to-generator [item]))
