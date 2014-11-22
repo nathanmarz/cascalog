@@ -357,4 +357,10 @@
     (to-tuples-filter-nullable output (generator gen)))
 
   (to-generator [_ x]
-    (to-generator x)))
+    (to-generator x))
+
+  (run! [_ compiled-queries]
+    compiled-queries)
+
+  (run-memory! [_ _ compiled-queries]
+    compiled-queries))

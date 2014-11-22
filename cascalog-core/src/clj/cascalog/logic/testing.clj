@@ -84,7 +84,7 @@
                    (rest bindings)
                    bindings)
         [specs rules]  (unweave bindings)
-        out-tuples     (map platform/compile-query rules)]
+        out-tuples     (apply ??- rules)]
     [specs out-tuples]))
 
 (defn test?- [& bindings]

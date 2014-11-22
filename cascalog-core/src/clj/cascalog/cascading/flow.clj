@@ -7,7 +7,8 @@
             [cascalog.cascading.tap :as tap]
             [cascalog.cascading.io :as io]
             [cascalog.cascading.operations :as ops]
-            [cascalog.logic.algebra :refer (sum)])
+            [cascalog.logic.algebra :refer (sum)]
+            [cascalog.logic.parse :refer (parse-exec-args)])
   (:import [cascalog Util]
            [cascading.pipe Pipe Merge]
            [cascading.tap Tap]
@@ -65,14 +66,6 @@
   ClojureFlow
   (run! [flow]
     (run! (flow-def flow))))
-
-(defn parse-exec-args
-  "Accept a sequence of (maybe) string and other items and returns a
-  vector of [theString or \"\", [other items]]."
-  [[f & rest :as args]]
-  (if (string? f)
-    [f rest]
-    ["" args]))
 
 (defn compile-flow
   "Attaches output taps to some number of subqueries and creates a

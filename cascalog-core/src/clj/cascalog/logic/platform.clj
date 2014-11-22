@@ -11,7 +11,11 @@
   (generator [p gen fields options]
     "Returns some source representation.")
 
-  (to-generator [p x]))
+  (to-generator [p x])
+
+  (run! [p compiled-queries])
+
+  (run-memory! [p name compiled-queries]))
 
 ;; This is required so that the *context* var isn't nil
 (defrecord EmptyPlatform []
@@ -20,7 +24,11 @@
 
   (generator [_ _ _ _] nil)
 
-  (to-generator [_ _] nil))
+  (to-generator [_ _] nil)
+
+  (run! [_ _ ] nil)
+
+  (run-memory! [_ _ _] nil))
 
 (def ^:dynamic *context* (EmptyPlatform.))
 
@@ -42,6 +50,12 @@
    (fn [x _] (to-generator *context* x))
    :encoder (fn [x]
               (or (:identifier x) x))))
+
+(defn run-query! [compiled-queries]
+  (run! *context* compiled-queries))
+
+(defn run-query-memory! [name compiled-queries]
+  (run-memory! *context* name compiled-queries))
 
 ;; TODO: this is cascading specific and should be moved
 (comment

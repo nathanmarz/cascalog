@@ -5,7 +5,8 @@
             [cascalog.logic.algebra :as algebra]
             [cascalog.logic.vars :as v]
             [cascalog.logic.predicate :as p]
-            [cascalog.logic.platform :refer (compile-query set-context!)]
+            [cascalog.logic.platform :refer
+             (run-query! run-query-memory! compile-query set-context!)]
             [cascalog.logic.parse :as parse]
             [cascalog.logic.predmacro :as pm]
             [cascalog.cascading.platform]
@@ -162,10 +163,10 @@
    If the first argument is a string, that will be used as the name
   for the query and will show up in the JobTracker UI."
   [& bindings]
-  (let [[name bindings] (flow/parse-exec-args bindings)
+  (let [[name bindings] (parse/parse-exec-args bindings)
         bindings (mapcat (partial apply normalize-sink-connection)
                          (partition 2 bindings))]
-    (flow/run! (apply compile-flow name bindings))))
+    (run-query! (apply compile-flow name bindings))))
 
 (defn ??-
   "Executes one or more queries and returns a seq of seqs of tuples
@@ -176,8 +177,8 @@
   If the first argument is a string, that will be used as the name
   for the query and will show up in the JobTracker UI."
   [& args]
-  (let [[name args] (flow/parse-exec-args args)]
-    (apply flow/all-to-memory name (map compile-query args))))
+  (let [[name args] (parse/parse-exec-args args)]
+    (run-query-memory! name (map compile-query args))))
 
 (defmacro ?<-
   "Helper that both defines and executes a query in a single call.
@@ -188,7 +189,7 @@
   [& args]
   ;; This is the best we can do... if want non-static name should just
   ;; use ?-
-  (let [[name [output & body]] (flow/parse-exec-args args)]
+  (let [[name [output & body]] (parse/parse-exec-args args)]
     `(?- ~name ~output (<- ~@body))))
 
 (defmacro ??<-

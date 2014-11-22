@@ -4,6 +4,7 @@
             [cascalog.cascading.operations :as ops]
             [cascalog.cascading.util :as casc]
             [cascalog.cascading.types :as types]
+            [cascalog.cascading.flow :as flow]
             [cascalog.logic.predicate :as p]
             [cascalog.logic.def :as d]
             [cascalog.logic.parse :as parse]
@@ -331,7 +332,13 @@
         (ops/filter-nullable-vars fields)))
 
   (to-generator [_ x]
-    (to-generator x)))
+    (to-generator x))
+
+  (run! [_ compiled-queries]
+    (flow/run! compiled-queries))
+
+  (run-memory! [_ name compiled-queries]
+    (apply flow/all-to-memory name compiled-queries)))
 
 (comment
   "MOVE these to tests."

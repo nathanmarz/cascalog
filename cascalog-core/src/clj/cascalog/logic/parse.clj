@@ -716,3 +716,11 @@ This won't work in distributed mode because of the ->Record functions."
   [outvars & predicates]
   `(v/with-logic-vars
      (parse-subquery ~outvars [~@(map vec predicates)])))
+
+(defn parse-exec-args
+  "Accept a sequence of (maybe) string and other items and returns a
+  vector of [theString or \"\", [other items]]."
+  [[f & rest :as args]]
+  (if (string? f)
+    [f rest]
+    ["" args]))
