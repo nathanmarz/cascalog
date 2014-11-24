@@ -147,7 +147,7 @@
       (assert ((some-fn node? (partial p/generator? p/*context*)) generator)
               (str "Only Nodes or Generators allowed: " generator))
       (assoc op :generator (generator-node generator input output options)))
-    (->Generator (p/generator p/*context* gen output options)
+    (->Generator (p/generator-platform p/*context* gen output options)
                  output)))
 
 ;; The following multimethod converts operations (in the first

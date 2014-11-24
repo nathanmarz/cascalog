@@ -4,9 +4,9 @@
             [cascalog.logic.fn :as serfn]
             [cascalog.logic.vars :as v]
             [cascalog.logic.algebra :refer (sum)]
+            [cascalog.logic.platform :refer (generator to-sink)]
             [cascalog.cascading.util :as casc :refer (fields default-output)]
             [cascalog.cascading.tap :as tap]
-            [cascalog.cascading.types :refer (generator to-sink)]
             [jackknife.core :refer (safe-assert throw-illegal uuid)]
             [jackknife.seq :as s :refer (unweave collectify)])
   (:import [cascading.tuple Fields]
@@ -543,7 +543,7 @@
   [pairs declared-group-vars op out-fields]
   (safe-assert (seq declared-group-vars)
                "Cannot do global grouping with multigroup")
-  (let [flows (map (comp generator first) pairs)
+  (let [flows (map (comp (partial generator) first) pairs)
         out-vars (map second pairs)
         group-vars (apply set/intersection (map set out-vars))
         num-vars (reduce + (map count out-vars))]

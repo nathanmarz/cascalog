@@ -11,8 +11,9 @@
             [cascalog.logic.algebra :refer (sum)]
             [cascalog.logic.fn :as serfn]
             [cascalog.logic.vars :as v]
-            [cascalog.cascading.types :refer (IGenerator generator)]
-            [cascalog.logic.platform :refer (compile-query IPlatform)])
+            [cascalog.logic.platform :refer
+             (compile-query IPlatform IGenerator generator
+                            to-sink IRunner to-generator)])
   (:import [cascading.pipe Each Every]
            [cascading.tuple Fields]
            [cascading.operation Function Filter]
@@ -199,16 +200,13 @@
        (filter (comp (complement nil?) second))
        (apply concat)))
 
-(defprotocol IRunner
-  (to-generator [item]))
-
 ;; TODO: Generator should just be a projection.
 ;; TODO: Add a validation here that checks if this thing is a
 ;; generator and sends a proper error message otherwise.
 (extend-protocol IRunner
   Object
   (to-generator [x]
-    (types/generator x))
+    (generator x))
 
   cascalog.logic.predicate.Generator
   (to-generator [{:keys [gen]}] gen)
@@ -313,7 +311,7 @@
 
 (defn- init-trap-map [options]
   (if-let [trap (:trap options)]
-    {(:name trap) (types/to-sink (:tap trap))}
+    {(:name trap) (to-sink (:tap trap))}
     {}))
 
 ;; ## Platform Implementation
@@ -323,15 +321,15 @@
   (generator? [_ x]
     (satisfies? IGenerator x))
 
-  (generator [_ gen fields options]
-    (-> (types/generator gen)
+  (generator-platform [_ gen fields options]
+    (-> (generator gen)
         (update-in [:trap-map] #(merge % (init-trap-map options)))
         (ops/rename-pipe (init-pipe-name options))
         (ops/rename* fields)
         ;; All generators if the fields aren't ungrounded discard null values
         (ops/filter-nullable-vars fields)))
 
-  (to-generator [_ x]
+  (to-generator-platform [_ x]
     (to-generator x))
 
   (run! [_ name bindings]

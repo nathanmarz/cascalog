@@ -8,7 +8,7 @@
   (:require [cascalog.cascading.io :as io]
             [cascalog.logic.fn :as serfn]
             [cascalog.cascading.io :as io]
-            [cascalog.cascading.types :refer (generator)]
+            [cascalog.logic.platform :refer (generator)]
             [cascalog.logic.algebra :as algebra]))
 
 (defn produces

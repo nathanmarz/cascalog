@@ -5,11 +5,9 @@
             [cascalog.logic.algebra :as algebra]
             [cascalog.logic.vars :as v]
             [cascalog.logic.predicate :as p]
-            [cascalog.logic.platform :refer
-             (run-query! run-query-memory! compile-query set-context!)]
+            [cascalog.logic.platform :as platform]
             [cascalog.logic.parse :as parse]
             [cascalog.logic.predmacro :as pm]
-            [cascalog.cascading.platform]
             [cascalog.cascading.tap :as tap]
             [cascalog.cascading.conf :as conf]
             [cascalog.cascading.flow :as flow]
@@ -18,6 +16,7 @@
             [cascalog.cascading.types :as types]
             [cascalog.cascading.io :as io]
             [cascalog.cascading.util :refer (generic-cascading-fields?)]
+            [cascalog.cascading.platform]
             [cascalog.clojure.platform]
             [hadoop-util.core :as hadoop]
             [jackknife.core :as u]
@@ -166,7 +165,7 @@
   (let [[name bindings] (parse/parse-exec-args bindings)
         bindings (mapcat (partial apply normalize-sink-connection)
                          (partition 2 bindings))]
-    (run-query! name bindings)))
+    (platform/run-query! name bindings)))
 
 (defn ??-
   "Executes one or more queries and returns a seq of seqs of tuples
@@ -178,7 +177,7 @@
   for the query and will show up in the JobTracker UI."
   [& args]
   (let [[name args] (parse/parse-exec-args args)]
-    (run-query-memory! name (map compile-query args))))
+    (platform/run-query-memory! name (map platform/compile-query args))))
 
 (defmacro ?<-
   "Helper that both defines and executes a query in a single call.
@@ -198,10 +197,10 @@
   `(first (??- (<- ~@args))))
 
 (defn set-cascading-context! []
-  (set-context! (CascadingPlatform.)))
+  (platform/set-context! (CascadingPlatform.)))
 
 (defn set-clojure-context! []
-  (set-context! (ClojurePlatform.)))
+  (platform/set-context! (ClojurePlatform.)))
 
 ;; by default set the Cascading Context
 (set-cascading-context!)
@@ -229,7 +228,7 @@
           (u/throw-illegal
            "Data structure is empty -- memory sources must contain tuples.")
           (let [names (or fields (v/gen-nullable-vars (num-out-fields g)))
-                gen (types/generator g)]
+                gen (platform/generator g)]
             (name-vars gen names)))
         :else (u/throw-illegal "Can't combine " g)))
 
@@ -240,7 +239,7 @@
   (let [g (to-tail g)
         names (get-out-fields g)
         gens (cons g (map #(to-tail % :fields names) gens))]
-    (types/generator
+    (platform/generator
      (algebra/sum gens))))
 
 (defn union
@@ -269,12 +268,12 @@
 
   Tap
   (select-fields [tap fields]
-    (-> (types/generator tap)
+    (-> (platform/generator tap)
         (ops/select* fields)))
 
   CascalogTap
   (select-fields [tap fields]
-    (-> (types/generator tap)
+    (-> (platform/generator tap)
         (ops/select* fields))))
 
 ;; ## Defining custom operations

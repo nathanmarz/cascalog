@@ -4,14 +4,25 @@
 
 ;; ## Platform Protocol
 
+(defprotocol IGenerator
+  (generator [x]))
+
+(defprotocol IRunner
+  (to-generator [item]))
+
+(defprotocol ISink
+  (to-sink [this]
+    "Returns a Cascading tap into which Cascalog can sink the supplied
+    data."))
+
 (defprotocol IPlatform
   (generator? [p x]
     "Returns true if the supplied x is a generator, false
     otherwise.")
-  (generator [p gen fields options]
+  (generator-platform [p gen fields options]
     "Returns some source representation.")
 
-  (to-generator [p x])
+  (to-generator-platform [p x])
 
   (run! [p name bindings])
 
@@ -22,9 +33,9 @@
   IPlatform
   (generator? [_ _] false)
 
-  (generator [_ _ _ _] nil)
+  (generator-platform [_ _ _ _] nil)
 
-  (to-generator [_ _] nil)
+  (to-generator-platform [_ _] nil)
 
   (run! [_ _ _] nil)
 
@@ -47,7 +58,7 @@
   (zip/postwalk-edit
    (zip/cascalog-zip query)
    identity
-   (fn [x _] (to-generator *context* x))
+   (fn [x _] (to-generator-platform *context* x))
    :encoder (fn [x]
               (or (:identifier x) x))))
 

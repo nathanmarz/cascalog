@@ -389,10 +389,10 @@
   (generator? [_ x]
     (satisfies? IGenerator x))
 
-  (generator [_ gen output options]
+  (generator-platform [_ gen output options]
     (to-tuples-filter-nullable output (generator gen)))
 
-  (to-generator [_ x]
+  (to-generator-platform [_ x]
     (to-generator x))
 
   (run! [_ _ bindings]

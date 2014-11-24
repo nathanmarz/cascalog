@@ -1,6 +1,7 @@
 (ns cascalog.cascading.types
   (:require [jackknife.core :as u]
             [cascalog.logic.algebra :refer (plus Semigroup)]
+            [cascalog.logic.platform :refer (IGenerator generator ISink to-sink)]
             [cascalog.cascading.tap :as tap])
   (:import [cascalog Util]
            [cascalog.cascading.tap CascalogTap]
@@ -31,12 +32,6 @@
   (to-tuple [v] (to-tuple [v])))
 
 ;; ## Generator Protocol
-
-(defprotocol IGenerator
-  "Accepts some type and returns a ClojureFlow that can be used as a
-  generator. The idea is that a clojure flow can always be used
-  directly as a generator."
-  (generator [x]))
 
 (defn generator?
   "Returns true if the supplied item can be used as a Cascalog
@@ -75,13 +70,6 @@
   (generator [tap]
     (let [id (u/uuid)]
       (ClojureFlow. {id tap} nil nil nil (Pipe. id) nil))))
-
-;; ## Sink Typeclasses
-
-(defprotocol ISink
-  (to-sink [this]
-    "Returns a Cascading tap into which Cascalog can sink the supplied
-    data."))
 
 ;; => Tap, Tap => T
 
