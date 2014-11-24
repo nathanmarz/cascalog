@@ -203,6 +203,9 @@
 (defn set-clojure-context! []
   (set-context! (ClojurePlatform.)))
 
+;; by default set the Cascading Context
+(set-cascading-context!)
+
 (defalias predmacro* pm/predmacro*)
 (defalias predmacro pm/predmacro)
 

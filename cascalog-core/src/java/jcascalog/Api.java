@@ -55,6 +55,14 @@ public class Api {
     execute(null, taps, gens);
   }
 
+  public static void setCascadingContext() {
+      getApiFn("set-cascading-context!").invoke();
+  }
+
+  public static void setClojureContext() {
+      getApiFn("set-clojure-context!").invoke();
+  }
+
   public static Object union(Object... gens) {
     return union(Util.toList(gens));
   }
