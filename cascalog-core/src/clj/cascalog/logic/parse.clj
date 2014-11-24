@@ -140,7 +140,7 @@
 (defn validate-predicates! [preds opts]
   (let [grouped (group-by (fn [x]
                             (condp #(%1 %2) (:op x)
-                              platform/gen? :gens
+                              platform/generator? :gens
                               d/bufferop? :buffers
                               d/aggregateop? :aggs
                               :ops))

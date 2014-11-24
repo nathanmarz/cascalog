@@ -318,7 +318,7 @@
 
 (defrecord CascadingPlatform []
   IPlatform
-  (generator? [_ x]
+  (generator-platform? [_ x]
     (satisfies? IGenerator x))
 
   (generator-platform [_ gen fields options]

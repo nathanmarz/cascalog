@@ -31,14 +31,6 @@
   Object
   (to-tuple [v] (to-tuple [v])))
 
-;; ## Generator Protocol
-
-(defn generator?
-  "Returns true if the supplied item can be used as a Cascalog
-  generator, false otherwise."
-  [x]
-  (satisfies? IGenerator x))
-
 ;; Note that we need to use getIdentifier on the taps.
 
 ;; source-map is a map of identifier to tap, or source. Pipe is the

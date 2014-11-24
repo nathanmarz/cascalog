@@ -134,7 +134,7 @@
 
 (defn can-generate? [op]
   (or (node? op)
-      (p/generator? p/*context* op)
+      (p/generator-platform? p/*context* op)
       (instance? GeneratorSet op)))
 
 (defn generator-node
@@ -144,7 +144,7 @@
   {:pre [(empty? input)]}
   (if (instance? GeneratorSet gen)
     (let [{:keys [generator] :as op} gen]
-      (assert ((some-fn node? (partial p/generator? p/*context*)) generator)
+      (assert ((some-fn node? (partial p/generator-platform? p/*context*)) generator)
               (str "Only Nodes or Generators allowed: " generator))
       (assoc op :generator (generator-node generator input output options)))
     (->Generator (p/generator-platform p/*context* gen output options)
@@ -219,7 +219,7 @@
   "Accepts an option map and a raw predicate and returns a node in the
   Cascalog graph."
   [options {:keys [op input output] :as pred}]
-  (cond (or (p/gen? op)
+  (cond (or (p/generator? op)
             (instance? GeneratorSet op))
         (generator-node op input output options)
 

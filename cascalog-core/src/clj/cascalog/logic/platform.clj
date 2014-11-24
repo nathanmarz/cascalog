@@ -16,9 +16,10 @@
     data."))
 
 (defprotocol IPlatform
-  (generator? [p x]
+  (generator-platform? [p x]
     "Returns true if the supplied x is a generator, false
     otherwise.")
+  
   (generator-platform [p gen fields options]
     "Returns some source representation.")
 
@@ -31,7 +32,7 @@
 ;; This is required so that the *context* var isn't nil
 (defrecord EmptyPlatform []
   IPlatform
-  (generator? [_ _] false)
+  (generator-platform? [_ _] false)
 
   (generator-platform [_ _ _ _] nil)
 
@@ -51,8 +52,8 @@
   `(binding [*context* ~context]
      ~@body))
 
-(defn gen? [g]
-  (generator? *context* g))
+(defn generator? [g]
+  (generator-platform? *context* g))
 
 (defn compile-query [query]
   (zip/postwalk-edit

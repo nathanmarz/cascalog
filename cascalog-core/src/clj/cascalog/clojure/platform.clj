@@ -386,7 +386,7 @@
 
 (defrecord ClojurePlatform []
   IPlatform
-  (generator? [_ x]
+  (generator-platform? [_ x]
     (satisfies? IGenerator x))
 
   (generator-platform [_ gen output options]
