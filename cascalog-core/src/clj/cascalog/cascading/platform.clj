@@ -61,6 +61,14 @@
   [op input output]
   (Aggregator. op input output))
 
+(defmethod p/to-predicate CascalogFunction
+  [op input output]
+  (Operation. op input output))
+
+(defmethod p/to-predicate CascalogAggregator
+  [op input output]
+  (Aggregator. op input output))
+
 ;; ## Query Execution
 ;;
 ;; TODO: Add a dynamic variable that holds an execution context. The

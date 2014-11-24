@@ -8,8 +8,7 @@
   (:import [clojure.lang IFn]
            [cascalog.logic.def ParallelAggregator
             ParallelBuffer Prepared]
-           [jcascalog Subquery ClojureOp]
-           [cascalog CascalogFunction CascalogBuffer CascalogAggregator ParallelAgg]))
+           [jcascalog Subquery ClojureOp]))
 
 (defprotocol IOperation
   (to-operation [_]
@@ -181,10 +180,6 @@
   [op input output]
   (Operation. op input output))
 
-(defmethod to-predicate CascalogFunction
-  [op input output]
-  (Operation. op input output))
-
 ;; ## Aggregators
 
 (defmethod to-predicate ::d/buffer
@@ -208,10 +203,6 @@
   (Aggregator. op input output))
 
 (defmethod to-predicate ParallelBuffer
-  [op input output]
-  (Aggregator. op input output))
-
-(defmethod to-predicate CascalogAggregator
   [op input output]
   (Aggregator. op input output))
 
