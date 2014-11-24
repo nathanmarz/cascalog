@@ -334,8 +334,8 @@
   (to-generator [_ x]
     (to-generator x))
 
-  (run! [_ compiled-queries]
-    (flow/run! compiled-queries))
+  (run! [_ name bindings]
+    (flow/run! (apply flow/compile-flow name bindings)))
 
   (run-memory! [_ name compiled-queries]
     (apply flow/all-to-memory name compiled-queries)))

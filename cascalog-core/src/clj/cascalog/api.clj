@@ -166,7 +166,7 @@
   (let [[name bindings] (parse/parse-exec-args bindings)
         bindings (mapcat (partial apply normalize-sink-connection)
                          (partition 2 bindings))]
-    (run-query! (apply compile-flow name bindings))))
+    (run-query! name bindings)))
 
 (defn ??-
   "Executes one or more queries and returns a seq of seqs of tuples

@@ -13,7 +13,7 @@
 
   (to-generator [p x])
 
-  (run! [p compiled-queries])
+  (run! [p name bindings])
 
   (run-memory! [p name compiled-queries]))
 
@@ -26,7 +26,7 @@
 
   (to-generator [_ _] nil)
 
-  (run! [_ _ ] nil)
+  (run! [_ _ _] nil)
 
   (run-memory! [_ _ _] nil))
 
@@ -51,8 +51,8 @@
    :encoder (fn [x]
               (or (:identifier x) x))))
 
-(defn run-query! [compiled-queries]
-  (run! *context* compiled-queries))
+(defn run-query! [name bindings]
+  (run! *context* name bindings))
 
 (defn run-query-memory! [name compiled-queries]
   (run-memory! *context* name compiled-queries))

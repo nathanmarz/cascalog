@@ -9,7 +9,8 @@
   (:import [cascalog.logic.parse TailStruct Projection Application
             FilterApplication Unique Join Grouping Rename]
            [cascalog.logic.predicate Generator RawSubquery]
-           [cascalog.logic.def ParallelAggregator ParallelBuffer]))
+           [cascalog.logic.def ParallelAggregator ParallelBuffer]
+           [jcascalog Subquery]))
 
 ;; Generator
 (defn to-tuple
@@ -216,11 +217,22 @@
 (defprotocol IRunner
   (to-generator [item]))
 
+(defprotocol IGenerator
+  (generator [x]))
+
+(defprotocol ISink
+  (to-sink [sink results]))
+
 ;; Extend these types to allow for different types of querying: joins,
 ;; filters, aggregation, etc.  You need to extend all the types that
 ;; implement defnode in logic.parse, otherwise you won't implement the
 ;; full query capailities
 (extend-protocol IRunner
+
+  Subquery
+  (to-generator [sq]
+    (generator (.getCompiledSubquery sq)))
+  
   Projection
   (to-generator [{:keys [source fields]}]
     ;; TODO: this is a hacky way of filtering the tuple to just the
@@ -322,9 +334,6 @@
     ;; extract the values
     (extract-values available-fields node)))
 
-(defprotocol IGenerator
-  (generator [x]))
-
 (extend-protocol IGenerator
   
   ;; A bunch of generators that finally return  a seq
@@ -348,6 +357,33 @@
   (generator [sq]
     (generator (parse/build-rule sq))))
 
+
+(defrecord StdOutSink [])
+
+(defn system-println [s]
+  (.println (System/out) s))
+
+(extend-protocol ISink
+
+  StdOutSink
+  (to-sink [_ results]
+    (system-println "")
+    (system-println "")
+    (system-println "RESULTS")
+    (system-println "-----------------------")
+    (doseq [result results]
+      (system-println result))
+    (system-println "-----------------------"))
+  
+  clojure.lang.Atom
+  (to-sink [sink results]
+    (reset! sink results))
+
+  clojure.lang.Ref
+  (to-sink [sink results]
+    (dosync
+     (ref-set sink results))))
+
 (defrecord ClojurePlatform []
   IPlatform
   (generator? [_ x]
@@ -359,8 +395,11 @@
   (to-generator [_ x]
     (to-generator x))
 
-  (run! [_ compiled-queries]
-    compiled-queries)
+  (run! [_ _ bindings]
+    (map
+     (fn [[sink query]]
+       (to-sink sink (compile-query query)))
+     (partition 2 bindings)))
 
   (run-memory! [_ _ compiled-queries]
     compiled-queries))
