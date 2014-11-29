@@ -1,7 +1,7 @@
 (ns cascalog.cascading.types
   (:require [jackknife.core :as u]
             [cascalog.logic.algebra :refer (plus Semigroup)]
-            [cascalog.logic.platform :refer (generator ISink to-sink)]
+            [cascalog.logic.platform :refer (generator)]
             [cascalog.cascading.tap :as tap])
   (:import [cascalog Util]
            [cascalog.cascading.tap CascalogTap]
@@ -37,6 +37,13 @@
 ;; current pipe that the user needs to operate on.
 
 (defrecord ClojureFlow [source-map sink-map trap-map tails pipe name])
+
+;; ## Sink Typeclasses
+
+(defprotocol ISink
+  (to-sink [this]
+    "Returns a Cascading tap into which Cascalog can sink the supplied
+    data."))
 
 ;; => Tap, Tap => T
 

@@ -13,7 +13,6 @@
            [cascalog.logic.def ParallelAggregator ParallelBuffer]
            [jcascalog Subquery]))
 
-;; Generator
 (defn to-tuple
   [names v]
   (if (= (count names) (count v))
@@ -215,9 +214,6 @@
   [coll {:keys [init-var combine-var present-var buffer-var]}]
   (buffer-var coll))
 
-(defprotocol ISink2
-  (to-sink [sink results]))
-
 (defrecord ClojurePlatform []
   IPlatform
   (generator-platform? [_ x]
@@ -226,11 +222,8 @@
   (generator-platform [_ gen output options]
     (to-tuples-filter-nullable output (generator gen)))
 
-  (run! [_ _ bindings]
-    (map
-     (fn [[sink query]]
-       (to-sink sink (compile-query query)))
-     (partition 2 bindings)))
+  (run! [p _ _]
+    (u/throw-illegal (str p " doesn't have an implementation for run!")))
 
   (run-to-memory! [_ _ queries]
     (map compile-query queries)))
@@ -361,29 +354,3 @@
   ;; TODO: if we want the fields on the structure, we don't need to
   ;; extract the values
   (extract-values available-fields node))
-
-(defrecord StdOutSink [])
-
-(defn system-println [s]
-  (.println (System/out) s))
-
-(extend-protocol ISink2
-
-  StdOutSink
-  (to-sink [_ results]
-    (system-println "")
-    (system-println "")
-    (system-println "RESULTS")
-    (system-println "-----------------------")
-    (doseq [result results]
-      (system-println result))
-    (system-println "-----------------------"))
-  
-  clojure.lang.Atom
-  (to-sink [sink results]
-    (reset! sink results))
-
-  clojure.lang.Ref
-  (to-sink [sink results]
-    (dosync
-     (ref-set sink results))))

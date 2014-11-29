@@ -1,14 +1,9 @@
 (ns cascalog.logic.platform
   "The execution platform class."
-  (:require [cascalog.logic.zip :as zip]))
+  (:require [cascalog.logic.zip :as zip]
+            [jackknife.core :as u]))
 
 ;; ## Platform Protocol
-
-(defprotocol ISink
-  (to-sink [this]
-    "Returns a Cascading tap into which Cascalog can sink the supplied
-    data."))
-
 (defprotocol IPlatform
   (generator-platform? [p x]
     "Returns true if the supplied x is a generator, false
@@ -24,13 +19,17 @@
 ;; This is required so that the *context* var isn't nil
 (defrecord EmptyPlatform []
   IPlatform
-  (generator-platform? [_ _] false)
+  (generator-platform? [p _]
+    (u/throw-illegal (str p " isn't a valid platform.")))
 
-  (generator-platform [_ _ _ _] nil)
+  (generator-platform [p _ _ _]
+    (u/throw-illegal (str p " isn't a valid platform.")))
 
-  (run! [_ _ _] nil)
+  (run! [p _ _]
+    (u/throw-illegal (str p " isn't a valid platform.")))
 
-  (run-to-memory! [_ _ _] nil))
+  (run-to-memory! [p _ _]
+    (u/throw-illegal (str p " isn't a valid platform."))))
 
 (def ^:dynamic *context* (EmptyPlatform.))
 
@@ -41,10 +40,6 @@
   [context & body]
   `(binding [*context* ~context]
      ~@body))
-
-(comment
-  (defn generator? [g]
-    (generator-platform? *context* g)))
 
 (defn gen-dispatch
   [gen]

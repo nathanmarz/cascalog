@@ -12,8 +12,7 @@
             [cascalog.logic.fn :as serfn]
             [cascalog.logic.vars :as v]
             [cascalog.logic.platform :refer
-             (compile-query IPlatform generator? generator
-                            to-sink to-generator)])
+             (compile-query IPlatform generator? generator to-generator)])
   (:import [cascading.pipe Each Every Pipe]
            [cascading.tuple Fields Tuple]
            [cascading.operation Function Filter]
@@ -221,7 +220,7 @@
 
 (defn- init-trap-map [options]
   (if-let [trap (:trap options)]
-    {(:name trap) (to-sink (:tap trap))}
+    {(:name trap) (types/to-sink (:tap trap))}
     {}))
 
 (defn normalize-sink-connection [sink subquery]
