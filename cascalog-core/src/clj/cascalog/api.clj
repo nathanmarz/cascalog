@@ -146,12 +146,6 @@
            (parse/prepare-subquery ~outvars [~@(map vec predicates)])]
        (print (parse/build-query outvars# predicates#)))))
 
-(defn normalize-sink-connection [sink subquery]
-  (cond (fn? sink) (sink subquery)
-        (instance? CascalogTap sink)
-        (normalize-sink-connection (:sink sink) subquery)
-        :else [sink subquery]))
-
 (defn ?-
   "Executes 1 or more queries and emits the results of each query to
   the associated tap.
@@ -162,10 +156,8 @@
    If the first argument is a string, that will be used as the name
   for the query and will show up in the JobTracker UI."
   [& bindings]
-  (let [[name bindings] (parse/parse-exec-args bindings)
-        bindings (mapcat (partial apply normalize-sink-connection)
-                         (partition 2 bindings))]
-    (platform/run-query! name bindings)))
+  (let [[name bindings] (parse/parse-exec-args bindings)]
+    (platform/run! platform/*context* name bindings)))
 
 (defn ??-
   "Executes one or more queries and returns a seq of seqs of tuples
@@ -177,7 +169,7 @@
   for the query and will show up in the JobTracker UI."
   [& args]
   (let [[name args] (parse/parse-exec-args args)]
-    (platform/run-query-memory! name (map platform/compile-query args))))
+    (platform/run-to-memory! platform/*context* name args)))
 
 (defmacro ?<-
   "Helper that both defines and executes a query in a single call.

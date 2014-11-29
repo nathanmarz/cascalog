@@ -232,8 +232,8 @@
        (to-sink sink (compile-query query)))
      (partition 2 bindings)))
 
-  (run-memory! [_ _ compiled-queries]
-    compiled-queries))
+  (run-to-memory! [_ _ queries]
+    (map compile-query queries)))
 
 (defmethod generator [ClojurePlatform clojure.lang.IPersistentVector]
   [v]

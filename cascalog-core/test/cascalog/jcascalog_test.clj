@@ -1,7 +1,8 @@
 (ns cascalog.jcascalog-test
   (:use clojure.test
         cascalog.api
-        cascalog.logic.testing)
+        cascalog.logic.testing
+        cascalog.cascading.testing)
   (:import [cascalog.test MultiplyAgg RangeOp DoubleOp]
            [jcascalog Api Option Predicate PredicateMacroTemplate
             PredicateMacro Subquery Api$FirstNArgs]

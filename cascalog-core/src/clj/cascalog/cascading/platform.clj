@@ -224,6 +224,12 @@
     {(:name trap) (to-sink (:tap trap))}
     {}))
 
+(defn normalize-sink-connection [sink subquery]
+  (cond (fn? sink) (sink subquery)
+        (instance? CascalogTap sink)
+        (normalize-sink-connection (:sink sink) subquery)
+        :else [sink subquery]))
+
 ;; ## Platform Implementation
 (defrecord CascadingPlatform []
   IPlatform
@@ -239,10 +245,12 @@
         (ops/filter-nullable-vars fields)))
 
   (run! [_ name bindings]
-    (flow/run! (apply flow/compile-flow name bindings)))
+    (let [bindings (mapcat (partial apply normalize-sink-connection)
+                           (partition 2 bindings))]
+      (flow/run! (apply flow/compile-flow name bindings))))
 
-  (run-memory! [_ name compiled-queries]
-    (apply flow/all-to-memory name compiled-queries)))
+  (run-to-memory! [_ name queries]
+    (apply flow/all-to-memory name (map compile-query queries))))
 
 (defmethod generator [CascadingPlatform Subquery]
   [sq]

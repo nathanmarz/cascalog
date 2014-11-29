@@ -2,6 +2,8 @@
   (:use clojure.test
         [midje sweet cascalog]
         cascalog.logic.testing
+        cascalog.cascading.testing
+        cascalog.clojure.testing
         cascalog.api)
   (:require [cascalog.logic.ops :as c]
             [cascalog.logic.def :as d]))

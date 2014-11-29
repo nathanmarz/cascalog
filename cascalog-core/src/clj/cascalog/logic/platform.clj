@@ -4,14 +4,6 @@
 
 ;; ## Platform Protocol
 
-(comment
-  (defprotocol IGenerator
-    (generator [x])))
-
-(comment
-  (defprotocol IRunner
-    (to-generator [item])))
-
 (defprotocol ISink
   (to-sink [this]
     "Returns a Cascading tap into which Cascalog can sink the supplied
@@ -24,10 +16,10 @@
   
   (generator-platform [p gen fields options]
     "Returns some source representation.")
-
+  
   (run! [p name bindings])
 
-  (run-memory! [p name compiled-queries]))
+  (run-to-memory! [p name compiled-queries]))
 
 ;; This is required so that the *context* var isn't nil
 (defrecord EmptyPlatform []
@@ -38,7 +30,7 @@
 
   (run! [_ _ _] nil)
 
-  (run-memory! [_ _ _] nil))
+  (run-to-memory! [_ _ _] nil))
 
 (def ^:dynamic *context* (EmptyPlatform.))
 
@@ -78,12 +70,6 @@
    (fn [x _] (to-generator x))
    :encoder (fn [x]
               (or (:identifier x) x))))
-
-(defn run-query! [name bindings]
-  (run! *context* name bindings))
-
-(defn run-query-memory! [name compiled-queries]
-  (run-memory! *context* name compiled-queries))
 
 ;; TODO: this is cascading specific and should be moved
 (comment
