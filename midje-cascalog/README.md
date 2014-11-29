@@ -6,10 +6,10 @@ Midje-Cascalog is a thin layer over [midje](https://github.com/marick/Midje) tha
 
 ## Usage Instructions
 
-To use midje-cascalog in your own project, add the following two entries to `:dev-dependencies` inside  of your `project.cj` file:
+To use midje-cascalog in your own project, add the following two entries to `:dev-dependencies` inside  of your `project.clj` file:
 
     [lein-midje "3.0.1"]
-    [cascalog/midje-cascalog "1.10.1"]
+    [cascalog/midje-cascalog "2.1.1"]
 
 Midje-Cascalog supports Clojure 1.3+ and Cascalog 1.8+. Add `(:use [midje sweet cascalog])` to your testing namespace to get started.
 
