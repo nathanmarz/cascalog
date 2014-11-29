@@ -4,7 +4,7 @@
         [midje sweet cascalog]))
 
 (background
- (before :contents
+ (before :facts
          (set-cascading-context!)))
 
 (defmapop ident [x] x)

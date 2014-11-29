@@ -7,7 +7,7 @@
            [cascading.flow.planner PlannerException]))
 
 (background
- (before :contents
+ (before :facts
          (set-cascading-context!)))
 
 (def comma
