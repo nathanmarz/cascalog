@@ -1,6 +1,7 @@
 (ns cascalog.clojure.platform
   (:require [cascalog.logic.predicate]
-            [cascalog.logic.platform :refer (compile-query  IPlatform)]
+            [cascalog.logic.platform :refer
+             (compile-query  IPlatform generator? generator to-generator)]
             [cascalog.logic.parse :as parse]
             [jackknife.core :as u]
             [jackknife.seq :as s]
@@ -214,156 +215,159 @@
   [coll {:keys [init-var combine-var present-var buffer-var]}]
   (buffer-var coll))
 
-(defprotocol IRunner
-  (to-generator [item]))
-
-(defprotocol IGenerator
-  (generator [x]))
-
-(defprotocol ISink
+(defprotocol ISink2
   (to-sink [sink results]))
 
-;; Extend these types to allow for different types of querying: joins,
-;; filters, aggregation, etc.  You need to extend all the types that
-;; implement defnode in logic.parse, otherwise you won't implement the
-;; full query capailities
-(extend-protocol IRunner
+(defrecord ClojurePlatform []
+  IPlatform
+  (generator-platform? [_ x]
+    (generator? x))
 
-  Subquery
-  (to-generator [sq]
-    (generator (.getCompiledSubquery sq)))
-  
-  Projection
-  (to-generator [{:keys [source fields]}]
-    ;; TODO: this is a hacky way of filtering the tuple to just the
-    ;; fields we want
-    (->> (extract-values fields source)
-         (remove nil?)
-         (to-tuples fields)))
+  (generator-platform [_ gen output options]
+    (to-tuples-filter-nullable output (generator gen)))
 
-  Generator
-  (to-generator [{:keys [gen]}] gen)
-
-  Rename
-  (to-generator [{:keys [source fields]}]
+  (run! [_ _ bindings]
     (map
-     (fn [tuple]
-       ;; TODO: extracting the vals from a map and assuming they have
-       ;; a specific order is dangerous since the order could be
-       ;; different than the expected tuple order
-       (let [vals (map (fn [[k v]] v) tuple)]
-         (to-tuple fields vals)))
-     source))
+     (fn [[sink query]]
+       (to-sink sink (compile-query query)))
+     (partition 2 bindings)))
 
-  Application
-  (to-generator [{:keys [source operation]}]
-    (let [{:keys [op input output]} operation]
-      (op-clojure source op input output)))
+  (run-memory! [_ _ compiled-queries]
+    compiled-queries))
 
-  FilterApplication
-  (to-generator [{:keys [source filter]}]
-    (let [{:keys [op input]} filter]
-      (clojure.core/filter
-       #(apply op (select-fields-w-default input %))
-       source)))
+(defmethod generator [ClojurePlatform clojure.lang.IPersistentVector]
+  [v]
+  (generator (or (seq v) ())))
 
-  Unique
-  (to-generator [{:keys [source fields options]}]
-    (let [{:keys [sort reverse]} options
-          coll (map #(select-fields fields %) source)
-          distinct-coll (distinct coll)
-          tuples (to-tuples fields distinct-coll)]
-      (tuple-sort tuples sort reverse)))
-  
-  Join
-  (to-generator [{:keys [sources join-fields type-seq options]}]
-    (loop [loop-sources sources
-           loop-join-fields join-fields
-           loop-type-seq type-seq]
-      (let [
-            ;; extract the vars we want
-            [l-source r-source & rest-sources] loop-sources
-            [l-type-seq r-type-seq & rest-type-seqs] loop-type-seq
-            [l-fields l-type] l-type-seq
-            [r-fields r-type] r-type-seq
+(defmethod generator [ClojurePlatform clojure.lang.ISeq]
+  [v] v) 
 
-            ;; setup the data for joining
-            l-grouped (group-by #(vec (map % join-fields)) l-source)
-            r-grouped (group-by #(vec (map % join-fields)) r-source)
+(defmethod generator [ClojurePlatform java.util.ArrayList]
+  [coll]
+  (generator (into [] coll)))
 
-            ;; join the data and setup the vars for the next loop
-            j-fields (distinct (concat l-fields r-fields))
-            [j-source j-type] (join l-grouped r-grouped
-                                    l-type r-type
-                                    l-fields r-fields)]
-        ;; only recur if there are more sources to join
-        (if (empty? rest-sources)
-          j-source
-          (recur
-           (cons j-source rest-sources)
-           loop-join-fields
-           (cons [j-fields j-type] rest-type-seqs))))))
+;; These generators act differently than the ones above
+(defmethod generator [ClojurePlatform TailStruct]
+  [sq]
+  (compile-query sq))
 
-  Grouping
-  (to-generator [{:keys [source aggregators grouping-fields options]}]
-    (let [{:keys [sort reverse]} options
-          grouped (group-by #(vec (map % grouping-fields)) source)]
-      (mapcat
-       (fn [[grouping-vals tuples]]
-         (let [sorted-tuples (tuple-sort tuples sort reverse)
-               agg-tuples (map
-                           (fn [{:keys [op input output]}]
-                             (let [coll (extract-values input sorted-tuples)
-                                   r (s/collectify (agg-clojure coll op))
-                                   r-seq (if (sequential? (first r)) r [r])]
-                               (map #(to-tuple output %) r-seq)))
-                           aggregators)
-               merged-tuples (loop [[s1 s2 & s-rest] agg-tuples]
-                               (if (or (empty? s1) (empty? s2))
-                                 (concat s1 s2)
-                                 (let [s-merge (for [x s1 y s2] (merge x y))]
-                                   (if (empty? s-rest)
-                                     s-merge
-                                     (recur (cons s-merge s-rest))))))]
-           (map #(merge (to-tuple grouping-fields grouping-vals) %) merged-tuples)))
-       grouped)))
-  
-  TailStruct
-  (to-generator [{:keys [node available-fields]}]
-    ;; TODO: if we want the fields on the structure, we don't need to
-    ;; extract the values
-    (extract-values available-fields node)))
+(defmethod generator [ClojurePlatform RawSubquery]
+  [sq]
+  (generator (parse/build-rule sq)))
 
-(extend-protocol IGenerator
-  
-  ;; A bunch of generators that finally return  a seq
-  clojure.lang.IPersistentVector
-  (generator [v]
-    (generator (or (seq v) ())))
-  
-  clojure.lang.ISeq
-  (generator [v] v)
+(defmethod to-generator [ClojurePlatform Subquery]
+  [sq]
+  (generator (.getCompiledSubquery sq)))
 
-  java.util.ArrayList
-  (generator [coll]
-    (generator (into [] coll)))
 
-  ;; These generators act differently than the ones above
-  TailStruct
-  (generator [sq]
-    (compile-query sq))
+(defmethod to-generator [ClojurePlatform Projection]
+  [{:keys [source fields]}]
+  ;; TODO: this is a hacky way of filtering the tuple to just the
+  ;; fields we want
+  (->> (extract-values fields source)
+       (remove nil?)
+       (to-tuples fields)))
 
-  RawSubquery
-  (generator [sq]
-    (generator (parse/build-rule sq))))
+(defmethod to-generator [ClojurePlatform Generator]
+  [{:keys [gen]}] gen)
 
+(defmethod to-generator [ClojurePlatform Rename]
+  [{:keys [source fields]}]
+  (map
+   (fn [tuple]
+     ;; TODO: extracting the vals from a map and assuming they have
+     ;; a specific order is dangerous since the order could be
+     ;; different than the expected tuple order
+     (let [vals (map (fn [[k v]] v) tuple)]
+       (to-tuple fields vals)))
+   source))
+
+(defmethod to-generator [ClojurePlatform Application]
+  [{:keys [source operation]}]
+  (let [{:keys [op input output]} operation]
+    (op-clojure source op input output)))
+
+(defmethod to-generator [ClojurePlatform FilterApplication]
+  [{:keys [source filter]}]
+  (let [{:keys [op input]} filter]
+    (clojure.core/filter
+     #(apply op (select-fields-w-default input %))
+     source)))
+
+(defmethod to-generator [ClojurePlatform Unique]
+  [{:keys [source fields options]}]
+  (let [{:keys [sort reverse]} options
+        coll (map #(select-fields fields %) source)
+        distinct-coll (distinct coll)
+        tuples (to-tuples fields distinct-coll)]
+    (tuple-sort tuples sort reverse)))
+
+(defmethod to-generator [ClojurePlatform Join]
+  [{:keys [sources join-fields type-seq options]}]
+  (loop [loop-sources sources
+         loop-join-fields join-fields
+         loop-type-seq type-seq]
+    (let [
+          ;; extract the vars we want
+          [l-source r-source & rest-sources] loop-sources
+          [l-type-seq r-type-seq & rest-type-seqs] loop-type-seq
+          [l-fields l-type] l-type-seq
+          [r-fields r-type] r-type-seq
+
+          ;; setup the data for joining
+          l-grouped (group-by #(vec (map % join-fields)) l-source)
+          r-grouped (group-by #(vec (map % join-fields)) r-source)
+
+          ;; join the data and setup the vars for the next loop
+          j-fields (distinct (concat l-fields r-fields))
+          [j-source j-type] (join l-grouped r-grouped
+                                  l-type r-type
+                                  l-fields r-fields)]
+      ;; only recur if there are more sources to join
+      (if (empty? rest-sources)
+        j-source
+        (recur
+         (cons j-source rest-sources)
+         loop-join-fields
+         (cons [j-fields j-type] rest-type-seqs))))))
+
+
+(defmethod to-generator [ClojurePlatform Grouping]
+  [{:keys [source aggregators grouping-fields options]}]
+  (let [{:keys [sort reverse]} options
+        grouped (group-by #(vec (map % grouping-fields)) source)]
+    (mapcat
+     (fn [[grouping-vals tuples]]
+       (let [sorted-tuples (tuple-sort tuples sort reverse)
+             agg-tuples (map
+                         (fn [{:keys [op input output]}]
+                           (let [coll (extract-values input sorted-tuples)
+                                 r (s/collectify (agg-clojure coll op))
+                                 r-seq (if (sequential? (first r)) r [r])]
+                             (map #(to-tuple output %) r-seq)))
+                         aggregators)
+             merged-tuples (loop [[s1 s2 & s-rest] agg-tuples]
+                             (if (or (empty? s1) (empty? s2))
+                               (concat s1 s2)
+                               (let [s-merge (for [x s1 y s2] (merge x y))]
+                                 (if (empty? s-rest)
+                                   s-merge
+                                   (recur (cons s-merge s-rest))))))]
+         (map #(merge (to-tuple grouping-fields grouping-vals) %) merged-tuples)))
+     grouped)))
+
+(defmethod to-generator [ClojurePlatform TailStruct]
+  [{:keys [node available-fields]}]
+  ;; TODO: if we want the fields on the structure, we don't need to
+  ;; extract the values
+  (extract-values available-fields node))
 
 (defrecord StdOutSink [])
 
 (defn system-println [s]
   (.println (System/out) s))
 
-(extend-protocol ISink
+(extend-protocol ISink2
 
   StdOutSink
   (to-sink [_ results]
@@ -383,23 +387,3 @@
   (to-sink [sink results]
     (dosync
      (ref-set sink results))))
-
-(defrecord ClojurePlatform []
-  IPlatform
-  (generator-platform? [_ x]
-    (satisfies? IGenerator x))
-
-  (generator-platform [_ gen output options]
-    (to-tuples-filter-nullable output (generator gen)))
-
-  (to-generator-platform [_ x]
-    (to-generator x))
-
-  (run! [_ _ bindings]
-    (map
-     (fn [[sink query]]
-       (to-sink sink (compile-query query)))
-     (partition 2 bindings)))
-
-  (run-memory! [_ _ compiled-queries]
-    compiled-queries))

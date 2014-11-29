@@ -12,10 +12,10 @@
             [cascalog.logic.fn :as serfn]
             [cascalog.logic.vars :as v]
             [cascalog.logic.platform :refer
-             (compile-query IPlatform IGenerator generator
-                            to-sink IRunner to-generator)])
-  (:import [cascading.pipe Each Every]
-           [cascading.tuple Fields]
+             (compile-query IPlatform generator? generator
+                            to-sink to-generator)])
+  (:import [cascading.pipe Each Every Pipe]
+           [cascading.tuple Fields Tuple]
            [cascading.operation Function Filter]
            [cascalog.aggregator CombinerSpec ClojureMonoidAggregator
             ClojureParallelAggregator]
@@ -33,7 +33,10 @@
             Inner Outer Existence]
            [cascalog.logic.def ParallelAggregator ParallelBuffer Prepared]
            [cascalog.cascading.types ClojureFlow]
-           [jcascalog Predicate]))
+           [com.twitter.maple.tap MemorySourceTap]
+           [cascading.tap Tap]
+           [cascalog.cascading.tap CascalogTap]
+           [jcascalog Predicate Subquery]))
 
 (extend-protocol p/IRawPredicate
   Predicate
@@ -211,107 +214,6 @@
 ;; TODO: Generator should just be a projection.
 ;; TODO: Add a validation here that checks if this thing is a
 ;; generator and sends a proper error message otherwise.
-(extend-protocol IRunner
-  Object
-  (to-generator [x]
-    (generator x))
-
-  cascalog.logic.predicate.Generator
-  (to-generator [{:keys [gen]}] gen)
-
-  Application
-  (to-generator [{:keys [source operation]}]
-    (let [{:keys [op input output]} operation]
-      (op-cascading op source input output)))
-
-  FilterApplication
-  (to-generator [{:keys [source filter]}]
-    (let [{:keys [op input]} filter]
-      (filter-cascading op source input)))
-
-  ExistenceNode
-  (to-generator [{:keys [source]}] source)
-
-  Join
-  (to-generator [{:keys [sources join-fields type-seq options]}]
-    (-> (ops/cascalog-join (map (fn [source [available type]]
-                                  (condp = type
-                                    :inner (ops/Inner. source available)
-                                    :outer (ops/Outer. source available)
-                                    (ops/Existence. source available type)))
-                                sources type-seq)
-                           join-fields
-                           (opt-seq options))
-        (ops/rename-pipe (.getName (:pipe (first sources))))))
-
-  Grouping
-  (to-generator [{:keys [source aggregators grouping-fields options]}]
-    (if-let [bufs (not-empty
-                   (filter #(instance? ParallelBuffer (:op %)) aggregators))]
-      (do (assert (= (count aggregators) 1)
-                  "Only one buffer allowed per subquery.")
-          (let [{:keys [op input output]} (first bufs)
-                {:keys [init-var combine-var present-var
-                        num-intermediate-vars-fn buffer-var]} op
-                temps (v/gen-nullable-vars
-                       (num-intermediate-vars-fn input output))
-                spec (-> (CombinerSpec. combine-var)
-                         (.setPrepareFn init-var)
-                         (.setPresentFn present-var))
-                source (-> source
-                           (ops/add-op #(Each. % Fields/ALL
-                                               (ClojureBufferCombiner.
-                                                (casc/fields grouping-fields)
-                                                (casc/fields (:sort options))
-                                                (casc/fields input)
-                                                (casc/fields temps)
-                                                spec))))]
-            (apply ops/group-by*
-                   source
-                   grouping-fields
-                   [(ops/buffer buffer-var temps output)]
-                   (opt-seq options))))
-      (let [aggs (map (fn [{:keys [op input output]}]
-                        (agg-cascading op input output))
-                      aggregators)]
-        (apply ops/group-by*
-               source grouping-fields aggs (opt-seq options)))))
-
-  Unique
-  (to-generator [{:keys [source fields options]}]
-    (apply ops/unique source fields (opt-seq options)))
-
-  Merge
-  (to-generator [{:keys [sources]}]
-    (sum sources))
-
-  Projection
-  (to-generator [{:keys [source fields]}]
-    (-> source
-        (ops/select* fields)
-        (ops/filter-nullable-vars fields)))
-
-  Rename
-  (to-generator [{:keys [source fields]}]
-    (-> source
-        (ops/rename* fields)
-        (ops/filter-nullable-vars fields)))
-
-  TailStruct
-  (to-generator [item]
-    (:node item)))
-
-(extend-protocol IGenerator
-  TailStruct
-  (generator [sq]
-    (compile-query sq))
-
-  RawSubquery
-  (generator [sq]
-    (generator (parse/build-rule sq)))
-
-  ClojureFlow
-  (generator [x] x))
 
 (defn- init-pipe-name [options]
   (or (:name (:trap options))
@@ -323,11 +225,10 @@
     {}))
 
 ;; ## Platform Implementation
-
 (defrecord CascadingPlatform []
   IPlatform
   (generator-platform? [_ x]
-    (satisfies? IGenerator x))
+    (generator? x))
 
   (generator-platform [_ gen fields options]
     (-> (generator gen)
@@ -337,14 +238,137 @@
         ;; All generators if the fields aren't ungrounded discard null values
         (ops/filter-nullable-vars fields)))
 
-  (to-generator-platform [_ x]
-    (to-generator x))
-
   (run! [_ name bindings]
     (flow/run! (apply flow/compile-flow name bindings)))
 
   (run-memory! [_ name compiled-queries]
     (apply flow/all-to-memory name compiled-queries)))
+
+(defmethod generator [CascadingPlatform Subquery]
+  [sq]
+  (generator (.getCompiledSubquery sq)))
+
+(defmethod generator [CascadingPlatform CascalogTap]
+  [tap]
+  (generator (:source tap)))
+
+(defmethod generator [CascadingPlatform clojure.lang.IPersistentVector]
+  [v]
+  (generator (or (seq v) ())))
+
+(defmethod generator [CascadingPlatform clojure.lang.ISeq]
+  [v]
+  (generator
+   (MemorySourceTap. (map types/to-tuple v) Fields/ALL)))
+
+(defmethod generator [CascadingPlatform java.util.ArrayList]
+  [coll]
+  (generator (into [] coll)))
+
+(defmethod generator [CascadingPlatform Tap]
+  [tap]
+  (let [id (u/uuid)]
+    (ClojureFlow. {id tap} nil nil nil (Pipe. id) nil)))
+
+(defmethod generator [CascadingPlatform TailStruct]
+  [sq]
+  (compile-query sq))
+
+(defmethod generator [CascadingPlatform RawSubquery]
+  [sq]
+  (generator (parse/build-rule sq)))
+
+(defmethod generator [CascadingPlatform ClojureFlow]
+  [x] x)
+
+(defmethod to-generator [CascadingPlatform Object]
+  [x]
+  (generator x))
+
+(defmethod to-generator [CascadingPlatform cascalog.logic.predicate.Generator]
+  [{:keys [gen]}] gen)
+
+(defmethod to-generator [CascadingPlatform Application]
+  [{:keys [source operation]}]
+  (let [{:keys [op input output]} operation]
+    (op-cascading op source input output)))
+
+(defmethod to-generator [CascadingPlatform FilterApplication]
+  [{:keys [source filter]}]
+  (let [{:keys [op input]} filter]
+    (filter-cascading op source input)))
+
+(defmethod to-generator [CascadingPlatform ExistenceNode]
+  [{:keys [source]}] source)
+
+(defmethod to-generator [CascadingPlatform Join]
+  [{:keys [sources join-fields type-seq options]}]
+  (-> (ops/cascalog-join (map (fn [source [available type]]
+                                (condp = type
+                                  :inner (ops/Inner. source available)
+                                  :outer (ops/Outer. source available)
+                                  (ops/Existence. source available type)))
+                              sources type-seq)
+                         join-fields
+                         (opt-seq options))
+                  (ops/rename-pipe (.getName (:pipe (first sources))))))
+
+(defmethod to-generator [CascadingPlatform Grouping]
+  [{:keys [source aggregators grouping-fields options]}]
+  (if-let [bufs (not-empty
+                 (filter #(instance? ParallelBuffer (:op %)) aggregators))]
+    (do (assert (= (count aggregators) 1)
+                "Only one buffer allowed per subquery.")
+        (let [{:keys [op input output]} (first bufs)
+              {:keys [init-var combine-var present-var
+                      num-intermediate-vars-fn buffer-var]} op
+                      temps (v/gen-nullable-vars
+                             (num-intermediate-vars-fn input output))
+                      spec (-> (CombinerSpec. combine-var)
+                               (.setPrepareFn init-var)
+                               (.setPresentFn present-var))
+                      source (-> source
+                                 (ops/add-op #(Each. % Fields/ALL
+                                                     (ClojureBufferCombiner.
+                                                      (casc/fields grouping-fields)
+                                                      (casc/fields (:sort options))
+                                                      (casc/fields input)
+                                                      (casc/fields temps)
+                                                      spec))))]
+          (apply ops/group-by*
+                 source
+                 grouping-fields
+                 [(ops/buffer buffer-var temps output)]
+                 (opt-seq options))))
+    (let [aggs (map (fn [{:keys [op input output]}]
+                      (agg-cascading op input output))
+                    aggregators)]
+      (apply ops/group-by*
+             source grouping-fields aggs (opt-seq options)))))
+
+(defmethod to-generator [CascadingPlatform Unique]
+  [{:keys [source fields options]}]
+  (apply ops/unique source fields (opt-seq options)))
+
+(defmethod to-generator [CascadingPlatform Merge]
+  [{:keys [sources]}]
+  (sum sources))
+
+(defmethod to-generator [CascadingPlatform Projection]
+  [{:keys [source fields]}]
+  (-> source
+      (ops/select* fields)
+      (ops/filter-nullable-vars fields)))
+
+(defmethod to-generator [CascadingPlatform Rename]
+  [{:keys [source fields]}]
+  (-> source
+      (ops/rename* fields)
+      (ops/filter-nullable-vars fields)))
+
+(defmethod to-generator [CascadingPlatform TailStruct]
+  [item]
+  (:node item))
 
 (comment
   "MOVE these to tests."

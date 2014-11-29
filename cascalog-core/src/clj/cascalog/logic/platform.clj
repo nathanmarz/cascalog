@@ -4,11 +4,13 @@
 
 ;; ## Platform Protocol
 
-(defprotocol IGenerator
-  (generator [x]))
+(comment
+  (defprotocol IGenerator
+    (generator [x])))
 
-(defprotocol IRunner
-  (to-generator [item]))
+(comment
+  (defprotocol IRunner
+    (to-generator [item])))
 
 (defprotocol ISink
   (to-sink [this]
@@ -23,8 +25,6 @@
   (generator-platform [p gen fields options]
     "Returns some source representation.")
 
-  (to-generator-platform [p x])
-
   (run! [p name bindings])
 
   (run-memory! [p name compiled-queries]))
@@ -35,8 +35,6 @@
   (generator-platform? [_ _] false)
 
   (generator-platform [_ _ _ _] nil)
-
-  (to-generator-platform [_ _] nil)
 
   (run! [_ _ _] nil)
 
@@ -52,14 +50,32 @@
   `(binding [*context* ~context]
      ~@body))
 
-(defn generator? [g]
-  (generator-platform? *context* g))
+(comment
+  (defn generator? [g]
+    (generator-platform? *context* g)))
+
+(defn gen-dispatch
+  [gen]
+  [(type *context*) (type gen)])
+
+(defmulti generator gen-dispatch)
+
+(defmulti to-generator
+  (fn [item]
+    [(type *context*) (type item)]))
+
+(defn generator?
+  "Evaluates whether there is a method to dispatch to for the
+  for the multimethod."
+  [g]
+  (not (nil?
+        (.getMethod generator (gen-dispatch g)))))
 
 (defn compile-query [query]
   (zip/postwalk-edit
    (zip/cascalog-zip query)
    identity
-   (fn [x _] (to-generator-platform *context* x))
+   (fn [x _] (to-generator x))
    :encoder (fn [x]
               (or (:identifier x) x))))
 

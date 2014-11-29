@@ -1,7 +1,7 @@
 (ns cascalog.cascading.types
   (:require [jackknife.core :as u]
             [cascalog.logic.algebra :refer (plus Semigroup)]
-            [cascalog.logic.platform :refer (IGenerator generator ISink to-sink)]
+            [cascalog.logic.platform :refer (generator ISink to-sink)]
             [cascalog.cascading.tap :as tap])
   (:import [cascalog Util]
            [cascalog.cascading.tap CascalogTap]
@@ -37,31 +37,6 @@
 ;; current pipe that the user needs to operate on.
 
 (defrecord ClojureFlow [source-map sink-map trap-map tails pipe name])
-
-(extend-protocol IGenerator
-  Subquery
-  (generator [sq]
-    (generator (.getCompiledSubquery sq)))
-
-  CascalogTap
-  (generator [tap] (generator (:source tap)))
-
-  clojure.lang.IPersistentVector
-  (generator [v] (generator (or (seq v) ())))
-
-  clojure.lang.ISeq
-  (generator [v]
-    (generator
-     (MemorySourceTap. (map to-tuple v) Fields/ALL)))
-
-  java.util.ArrayList
-  (generator [coll]
-    (generator (into [] coll)))
-
-  Tap
-  (generator [tap]
-    (let [id (u/uuid)]
-      (ClojureFlow. {id tap} nil nil nil (Pipe. id) nil))))
 
 ;; => Tap, Tap => T
 
