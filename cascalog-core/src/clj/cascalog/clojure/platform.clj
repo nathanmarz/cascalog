@@ -252,7 +252,6 @@
   [sq]
   (generator (.getCompiledSubquery sq)))
 
-
 (defmethod to-generator [ClojurePlatform Projection]
   [{:keys [source fields]}]
   ;; TODO: this is a hacky way of filtering the tuple to just the
