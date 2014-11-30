@@ -7,8 +7,8 @@
   (:import [org.apache.hadoop.io BytesWritable]))
 
 (background
- (before :contents
-         (set-cascading-context!)))
+ (before :facts
+         (set-cascading-platform!)))
 
 (deftest delimited-roundtrip-test
   (fact
