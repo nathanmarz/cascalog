@@ -9,7 +9,7 @@
 
 (use-fixtures :once
   (fn  [f]
-    (set-clojure-context!)
+    (set-clojure-platform!)
     (f)))
 
 (defmapfn mk-one

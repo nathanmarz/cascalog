@@ -12,10 +12,9 @@
            [cascalog.ops IdentityBuffer]
            [cascading.operation.text DateParser]))
 
-;; Set the context to Cascading
 (use-fixtures :once
   (fn [f]
-    (set-cascading-context!)
+    (set-cascading-platform!)
     (f)))
 
 (deftest test-flow-name

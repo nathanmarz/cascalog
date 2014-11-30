@@ -1,7 +1,7 @@
 (ns cascalog.clojure.platform
   (:require [cascalog.logic.predicate]
             [cascalog.logic.platform :refer
-             (compile-query  IPlatform generator? generator to-generator)]
+             (compile-query  IPlatform platform-generator? generator to-generator)]
             [cascalog.logic.parse :as parse]
             [jackknife.core :as u]
             [jackknife.seq :as s]
@@ -216,10 +216,10 @@
 
 (defrecord ClojurePlatform []
   IPlatform
-  (generator-platform? [_ x]
-    (generator? x))
+  (generator? [_ x]
+    (platform-generator? x))
 
-  (generator-platform [_ gen output options]
+  (generator-builder [_ gen output options]
     (to-tuples-filter-nullable output (generator gen)))
 
   (run! [p _ _]

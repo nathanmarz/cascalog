@@ -10,9 +10,9 @@
 
 (use-fixtures :once
   (fn [f]
-    (Api/setCascadingContext)
+    (Api/setCascadingPlatform)
     (f)
-    (Api/setClojureContext)
+    (Api/setClojurePlatform)
     (f)))
 
 (deftest test-vanilla

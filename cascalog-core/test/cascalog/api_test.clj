@@ -10,9 +10,9 @@
 
 (use-fixtures :once
   (fn [f]
-    (set-cascading-context!)
+    (set-cascading-platform!)
     (f)
-    (set-clojure-context!)
+    (set-clojure-platform!)
     (f)))
 
 (defmapfn mk-one

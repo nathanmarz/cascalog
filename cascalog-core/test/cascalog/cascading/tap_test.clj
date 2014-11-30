@@ -14,7 +14,7 @@
 
 (background
  (before :facts
-         (set-cascading-context!)))
+         (set-cascading-platform!)))
 
 (defn tap-source [tap]
   (if (map? tap)

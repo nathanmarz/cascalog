@@ -12,7 +12,7 @@
             [cascalog.logic.fn :as serfn]
             [cascalog.logic.vars :as v]
             [cascalog.logic.platform :refer
-             (compile-query IPlatform generator? generator to-generator)])
+             (compile-query IPlatform platform-generator? generator to-generator)])
   (:import [cascading.pipe Each Every Pipe]
            [cascading.tuple Fields Tuple]
            [cascading.operation Function Filter]
@@ -230,12 +230,13 @@
         :else [sink subquery]))
 
 ;; ## Platform Implementation
+
 (defrecord CascadingPlatform []
   IPlatform
-  (generator-platform? [_ x]
-    (generator? x))
+  (generator? [_ x]
+    (platform-generator? x))
 
-  (generator-platform [_ gen fields options]
+  (generator-builder [_ gen fields options]
     (-> (generator gen)
         (update-in [:trap-map] #(merge % (init-trap-map options)))
         (ops/rename-pipe (init-pipe-name options))

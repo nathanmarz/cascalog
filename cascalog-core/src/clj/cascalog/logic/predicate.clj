@@ -133,7 +133,7 @@
 
 (defn can-generate? [op]
   (or (node? op)
-      (p/generator-platform? p/*context* op)
+      (p/generator? p/*platform* op)
       (instance? GeneratorSet op)))
 
 (defn generator-node
@@ -143,10 +143,10 @@
   {:pre [(empty? input)]}
   (if (instance? GeneratorSet gen)
     (let [{:keys [generator] :as op} gen]
-      (assert ((some-fn node? (partial p/generator-platform? p/*context*)) generator)
+      (assert ((some-fn node? (partial p/generator? p/*platform*)) generator)
               (str "Only Nodes or Generators allowed: " generator))
       (assoc op :generator (generator-node generator input output options)))
-    (->Generator (p/generator-platform p/*context* gen output options)
+    (->Generator (p/generator-builder p/*platform* gen output options)
                  output)))
 
 ;; The following multimethod converts operations (in the first
@@ -210,7 +210,7 @@
   "Accepts an option map and a raw predicate and returns a node in the
   Cascalog graph."
   [options {:keys [op input output] :as pred}]
-  (cond (or (p/generator? op)
+  (cond (or (p/generator? p/*platform* op)
             (instance? GeneratorSet op))
         (generator-node op input output options)
 

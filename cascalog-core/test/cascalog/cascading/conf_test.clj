@@ -2,13 +2,13 @@
   (:use midje.sweet
         cascalog.cascading.conf)
   (:require [clojure.string :as s]
-            [cascalog.api :refer (??<- set-cascading-context!)])
+            [cascalog.api :refer (??<- set-cascading-platform!)])
   (:import [cascalog.hadoop DefaultComparator]
            [cascading.flow.planner PlannerException]))
 
 (background
  (before :facts
-         (set-cascading-context!)))
+         (set-cascading-platform!)))
 
 (def comma
   (partial s/join ","))

@@ -157,7 +157,7 @@
   for the query and will show up in the JobTracker UI."
   [& bindings]
   (let [[name bindings] (parse/parse-exec-args bindings)]
-    (platform/run! platform/*context* name bindings)))
+    (platform/run! platform/*platform* name bindings)))
 
 (defn ??-
   "Executes one or more queries and returns a seq of seqs of tuples
@@ -169,7 +169,7 @@
   for the query and will show up in the JobTracker UI."
   [& args]
   (let [[name args] (parse/parse-exec-args args)]
-    (platform/run-to-memory! platform/*context* name args)))
+    (platform/run-to-memory! platform/*platform* name args)))
 
 (defmacro ?<-
   "Helper that both defines and executes a query in a single call.
@@ -188,14 +188,14 @@
   [& args]
   `(first (??- (<- ~@args))))
 
-(defn set-cascading-context! []
-  (platform/set-context! (CascadingPlatform.)))
+(defn set-cascading-platform! []
+  (platform/set-platform! (CascadingPlatform.)))
 
-(defn set-clojure-context! []
-  (platform/set-context! (ClojurePlatform.)))
+(defn set-clojure-platform! []
+  (platform/set-platform! (ClojurePlatform.)))
 
-;; by default set the Cascading Context
-(set-cascading-context!)
+;; by default set the CascadingPlatform
+(set-cascading-platform!)
 
 (defalias predmacro* pm/predmacro*)
 (defalias predmacro pm/predmacro)
@@ -215,7 +215,7 @@
 
 (defn to-tail [g & {:keys [fields]}]
   (cond (parse/tail? g) g
-        (platform/generator? g)
+        (platform/generator? platform/*platform* g)
         (if (and (coll? g) (empty? g))
           (u/throw-illegal
            "Data structure is empty -- memory sources must contain tuples.")

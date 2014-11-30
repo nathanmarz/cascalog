@@ -9,7 +9,7 @@
 
 (use-fixtures :once
   (fn  [f]
-    (set-cascading-context!)
+    (set-cascading-platform!)
     (f)))
 
 (deftest test-outfields-query

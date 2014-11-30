@@ -5,7 +5,7 @@
 
 (background
  (before :facts
-         (set-cascading-context!)))
+         (set-cascading-platform!)))
 
 (defmapop ident [x] x)
 

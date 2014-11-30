@@ -25,7 +25,7 @@
     "Used in testing, returns the result from processing the bindings"))
 
 (defn test?- [& bindings]
-  (let [[specs out-tuples] (process?- platform/*context* bindings)]
+  (let [[specs out-tuples] (process?- platform/*platform* bindings)]
       (is-specs= specs out-tuples)))
 
 (defmacro test?<- [& args]

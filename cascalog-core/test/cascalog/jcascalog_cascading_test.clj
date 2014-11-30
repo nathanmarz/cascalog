@@ -9,7 +9,7 @@
 
 (use-fixtures :once
   (fn [f]
-    (Api/setCascadingContext)
+    (Api/setCascadingPlatform)
     (f)))
 
 (deftest test-vanilla

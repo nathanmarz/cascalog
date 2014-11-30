@@ -10,11 +10,11 @@
             [cascalog.cascading.io :as io]
             [cascalog.logic.platform :refer (generator)]
             [cascalog.logic.algebra :as algebra]
-            [cascalog.api :refer (set-cascading-context!)]))
+            [cascalog.api :refer (set-cascading-platform!)]))
 
 (background
  (before :facts
-         (set-cascading-context!)))
+         (set-cascading-platform!)))
 
 (defn produces
   ([gen] (produces gen :fatal))

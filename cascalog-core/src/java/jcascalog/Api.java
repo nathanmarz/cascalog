@@ -55,12 +55,12 @@ public class Api {
     execute(null, taps, gens);
   }
 
-  public static void setCascadingContext() {
-      getApiFn("set-cascading-context!").invoke();
+  public static void setCascadingPlatform() {
+      getApiFn("set-cascading-platform!").invoke();
   }
 
-  public static void setClojureContext() {
-      getApiFn("set-clojure-context!").invoke();
+  public static void setClojurePlatform() {
+      getApiFn("set-clojure-platform!").invoke();
   }
 
   public static Object union(Object... gens) {

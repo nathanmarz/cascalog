@@ -7,7 +7,7 @@
 
 (use-fixtures :once
   (fn  [f]
-    (set-cascading-context!)
+    (set-cascading-platform!)
     (f)))
 
 (def mac2
