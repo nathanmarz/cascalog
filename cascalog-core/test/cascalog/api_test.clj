@@ -3,7 +3,7 @@
         [midje sweet cascalog]
         cascalog.logic.testing
         cascalog.cascading.testing
-        cascalog.clojure.testing
+        cascalog.in-memory.testing
         cascalog.api)
   (:require [cascalog.logic.ops :as c]
             [cascalog.logic.def :as d]))
@@ -12,7 +12,7 @@
   (fn [f]
     (set-cascading-platform!)
     (f)
-    (set-clojure-platform!)
+    (set-in-memory-platform!)
     (f)))
 
 (defmapfn mk-one

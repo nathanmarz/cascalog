@@ -1,7 +1,7 @@
-(ns cascalog.clojure.platform
+(ns cascalog.in-memory.platform
   (:require [cascalog.logic.predicate]
             [cascalog.logic.platform :refer
-             (compile-query  IPlatform platform-generator? generator to-generator)]
+             (compile-query IPlatform platform-generator? generator to-generator)]
             [cascalog.logic.parse :as parse]
             [jackknife.core :as u]
             [jackknife.seq :as s]
@@ -214,7 +214,7 @@
   [coll {:keys [init-var combine-var present-var buffer-var]}]
   (buffer-var coll))
 
-(defrecord ClojurePlatform []
+(defrecord InMemoryPlatform []
   IPlatform
   (generator? [_ x]
     (platform-generator? x))
@@ -228,31 +228,31 @@
   (run-to-memory! [_ _ queries]
     (map compile-query queries)))
 
-(defmethod generator [ClojurePlatform clojure.lang.IPersistentVector]
+(defmethod generator [InMemoryPlatform clojure.lang.IPersistentVector]
   [v]
   (generator (or (seq v) ())))
 
-(defmethod generator [ClojurePlatform clojure.lang.ISeq]
+(defmethod generator [InMemoryPlatform clojure.lang.ISeq]
   [v] v) 
 
-(defmethod generator [ClojurePlatform java.util.ArrayList]
+(defmethod generator [InMemoryPlatform java.util.ArrayList]
   [coll]
   (generator (into [] coll)))
 
 ;; These generators act differently than the ones above
-(defmethod generator [ClojurePlatform TailStruct]
+(defmethod generator [InMemoryPlatform TailStruct]
   [sq]
   (compile-query sq))
 
-(defmethod generator [ClojurePlatform RawSubquery]
+(defmethod generator [InMemoryPlatform RawSubquery]
   [sq]
   (generator (parse/build-rule sq)))
 
-(defmethod to-generator [ClojurePlatform Subquery]
+(defmethod to-generator [InMemoryPlatform Subquery]
   [sq]
   (generator (.getCompiledSubquery sq)))
 
-(defmethod to-generator [ClojurePlatform Projection]
+(defmethod to-generator [InMemoryPlatform Projection]
   [{:keys [source fields]}]
   ;; TODO: this is a hacky way of filtering the tuple to just the
   ;; fields we want
@@ -260,10 +260,10 @@
        (remove nil?)
        (to-tuples fields)))
 
-(defmethod to-generator [ClojurePlatform Generator]
+(defmethod to-generator [InMemoryPlatform Generator]
   [{:keys [gen]}] gen)
 
-(defmethod to-generator [ClojurePlatform Rename]
+(defmethod to-generator [InMemoryPlatform Rename]
   [{:keys [source fields]}]
   (map
    (fn [tuple]
@@ -274,19 +274,19 @@
        (to-tuple fields vals)))
    source))
 
-(defmethod to-generator [ClojurePlatform Application]
+(defmethod to-generator [InMemoryPlatform Application]
   [{:keys [source operation]}]
   (let [{:keys [op input output]} operation]
     (op-clojure source op input output)))
 
-(defmethod to-generator [ClojurePlatform FilterApplication]
+(defmethod to-generator [InMemoryPlatform FilterApplication]
   [{:keys [source filter]}]
   (let [{:keys [op input]} filter]
     (clojure.core/filter
      #(apply op (select-fields-w-default input %))
      source)))
 
-(defmethod to-generator [ClojurePlatform Unique]
+(defmethod to-generator [InMemoryPlatform Unique]
   [{:keys [source fields options]}]
   (let [{:keys [sort reverse]} options
         coll (map #(select-fields fields %) source)
@@ -294,7 +294,7 @@
         tuples (to-tuples fields distinct-coll)]
     (tuple-sort tuples sort reverse)))
 
-(defmethod to-generator [ClojurePlatform Join]
+(defmethod to-generator [InMemoryPlatform Join]
   [{:keys [sources join-fields type-seq options]}]
   (loop [loop-sources sources
          loop-join-fields join-fields
@@ -324,7 +324,7 @@
          (cons [j-fields j-type] rest-type-seqs))))))
 
 
-(defmethod to-generator [ClojurePlatform Grouping]
+(defmethod to-generator [InMemoryPlatform Grouping]
   [{:keys [source aggregators grouping-fields options]}]
   (let [{:keys [sort reverse]} options
         grouped (group-by #(vec (map % grouping-fields)) source)]
@@ -348,7 +348,7 @@
          (map #(merge (to-tuple grouping-fields grouping-vals) %) merged-tuples)))
      grouped)))
 
-(defmethod to-generator [ClojurePlatform TailStruct]
+(defmethod to-generator [InMemoryPlatform TailStruct]
   [{:keys [node available-fields]}]
   ;; TODO: if we want the fields on the structure, we don't need to
   ;; extract the values
