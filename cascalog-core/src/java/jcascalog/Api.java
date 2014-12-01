@@ -59,8 +59,8 @@ public class Api {
       getApiFn("set-cascading-platform!").invoke();
   }
 
-  public static void setClojurePlatform() {
-      getApiFn("set-clojure-platform!").invoke();
+  public static void setInMemoryPlatform() {
+      getApiFn("set-in-memory-platform!").invoke();
   }
 
   public static Object union(Object... gens) {

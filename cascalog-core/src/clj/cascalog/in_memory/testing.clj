@@ -1,11 +1,11 @@
-(ns cascalog.clojure.testing
+(ns cascalog.in-memory.testing
   (:require [cascalog.api :refer :all]
             [cascalog.logic.testing :refer (ITestable process?-)]
             [jackknife.seq :refer (unweave)])
-  (:import [cascalog.clojure.platform ClojurePlatform]))
+  (:import [cascalog.in_memory.platform InMemoryPlatform]))
 
 (extend-protocol ITestable
-  ClojurePlatform
+  InMemoryPlatform
   (process?- [_ [ll :as bindings]]
     (let [bindings (if (keyword? ll)
                      (rest bindings)

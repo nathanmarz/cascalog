@@ -17,7 +17,7 @@
             [cascalog.cascading.io :as io]
             [cascalog.cascading.util :refer (generic-cascading-fields?)]
             [cascalog.cascading.platform]
-            [cascalog.clojure.platform]
+            [cascalog.in-memory.platform]
             [hadoop-util.core :as hadoop]
             [jackknife.core :as u]
             [jackknife.def :as jd :refer (defalias)])
@@ -26,7 +26,7 @@
            [cascalog.logic.parse TailStruct]
            [cascalog.cascading.tap CascalogTap]
            [cascalog.cascading.platform CascadingPlatform]
-           [cascalog.clojure.platform ClojurePlatform]
+           [cascalog.in_memory.platform InMemoryPlatform]
            [jcascalog Subquery]))
 
 ;; Functions for creating taps and tap helpers
@@ -191,10 +191,10 @@
 (defn set-cascading-platform! []
   (platform/set-platform! (CascadingPlatform.)))
 
-(defn set-clojure-platform! []
-  (platform/set-platform! (ClojurePlatform.)))
+(defn set-in-memory-platform! []
+  (platform/set-platform! (InMemoryPlatform.)))
 
-;; by default set the CascadingPlatform
+;; default to the CascadingPlatform
 (set-cascading-platform!)
 
 (defalias predmacro* pm/predmacro*)

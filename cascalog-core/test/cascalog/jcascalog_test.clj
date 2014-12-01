@@ -3,7 +3,7 @@
         cascalog.api
         cascalog.logic.testing
         cascalog.cascading.testing
-        cascalog.clojure.testing)
+        cascalog.in-memory.testing)
   (:import [jcascalog Api Option Predicate PredicateMacroTemplate
             PredicateMacro Subquery Api$FirstNArgs]
            [jcascalog.op Avg Count Div Limit Sum Plus Multiply Equals]))
@@ -12,7 +12,7 @@
   (fn [f]
     (Api/setCascadingPlatform)
     (f)
-    (Api/setClojurePlatform)
+    (Api/setInMemoryPlatform)
     (f)))
 
 (deftest test-vanilla
