@@ -12,8 +12,7 @@
             FilterApplication Unique Join Grouping Rename]
            [cascalog.logic.predicate Generator RawSubquery]
            [cascalog.logic.def ParallelAggregator ParallelBuffer]
-           [jcascalog Subquery]
-           [clojure.lang IFn IPersistentMap ITransientMap IPersistentCollection]))
+           [jcascalog Subquery]))
 
 (defn to-tuple
   [names v]
@@ -264,17 +263,15 @@
        (to-tuples fields)))
 
 (defmethod to-generator [InMemoryPlatform Generator]
-  [{:keys [gen]}]
-  gen)
+  [{:keys [gen]}] gen)
 
 (defmethod to-generator [InMemoryPlatform Rename]
   [{:keys [source fields] :as a}]
-  (let [results  (map
-                  (fn [tuple]
-                    (let [vals (map (fn [[k v]] v) tuple)]
-                      (to-tuple fields vals)))
-                  source)]
-    results))
+  (map
+   (fn [tuple]
+     (let [vals (map (fn [[k v]] v) tuple)]
+       (to-tuple fields vals)))
+   source))
 
 (defmethod to-generator [InMemoryPlatform Application]
   [{:keys [source operation]}]
