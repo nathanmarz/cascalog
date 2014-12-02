@@ -13,32 +13,7 @@
            [cascalog.logic.predicate Generator RawSubquery]
            [cascalog.logic.def ParallelAggregator ParallelBuffer]
            [jcascalog Subquery]
-           [java.util LinkedHashMap Map$Entry]
            [clojure.lang IFn IPersistentMap ITransientMap IPersistentCollection]))
-
-
-(defn linked-map []
-  (proxy [LinkedHashMap IFn ITransientMap IPersistentCollection] []
-    (invoke
-      ([key] (get this key))
-      ([key not-found] (get this key not-found)))
-    (valAt
-      ([key] (.valAt this key nil))
-      ([key not-found] (if-let [v (.get this key)]
-                         v
-                         not-found)))
-    (cons [obj]
-      (condp instance? obj
-        Map$Entry (.put this (.getKey obj) (.getValue obj))
-        (reduce (fn [m e]
-                  (.put m (.getKey e) (.getValue e)))
-                this
-              obj)))
-    (conj [e]
-        (let [[k v] e]
-          (.put this k v)))
-    (seq []
-      (keep identity (.entrySet this)))))
 
 (defn to-tuple
   [names v]
@@ -50,13 +25,11 @@
 (defn to-tuples
   "turns [\"n\"] and [[1] [2]] into [{\"n\" 1} {\"n\" 2}]"
   [names coll-of-seqs]
-  ;;(prn "to-tuples")
   (map #(to-tuple names %) coll-of-seqs))
 
 (defn valid-tuple?
   "Verifies that non-nullable vars aren't null."
   [tuple]
-  ;;(prn "vali-tuple?")
   (not-any?
    (fn [[k v]]
      (and (v/non-nullable-var? k)
@@ -272,7 +245,6 @@
 ;; These generators act differently than the ones above
 (defmethod generator [InMemoryPlatform TailStruct]
   [sq]
-  ;;(prn "sq is " sq)
   (compile-query sq))
 
 (defmethod generator [InMemoryPlatform RawSubquery]
@@ -285,7 +257,6 @@
 
 (defmethod to-generator [InMemoryPlatform Projection]
   [{:keys [source fields]}]
-  ;;(prn "to-generator projection " source fields)
   ;; TODO: this is a hacky way of filtering the tuple to just the
   ;; fields we want
   (->> (extract-values fields source)
@@ -294,23 +265,15 @@
 
 (defmethod to-generator [InMemoryPlatform Generator]
   [{:keys [gen]}]
-;;  (prn "to-generator " gen)
   gen)
 
 (defmethod to-generator [InMemoryPlatform Rename]
   [{:keys [source fields] :as a}]
-;;  (prn "to-generator rename all is " a)
-;;  (prn "to-generator rename " source fields)
   (let [results  (map
                   (fn [tuple]
-                    ;;(prn "tuple is " tuple " and fileds are " fields)
-                    ;; TODO: extracting the vals from a map and assuming they have
-                    ;; a specific order is dangerous since the order could be
-                    ;; different than the expected tuple order
                     (let [vals (map (fn [[k v]] v) tuple)]
                       (to-tuple fields vals)))
                   source)]
-;;    (prn "results are " results)
     results))
 
 (defmethod to-generator [InMemoryPlatform Application]
@@ -388,7 +351,6 @@
 
 (defmethod to-generator [InMemoryPlatform TailStruct]
   [{:keys [node available-fields]}]
-;;  (prn "to-generator Tailstruct " node available-fields)
   ;; TODO: if we want the fields on the structure, we don't need to
   ;; extract the values
   (extract-values available-fields node))
