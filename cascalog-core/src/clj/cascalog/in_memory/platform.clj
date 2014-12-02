@@ -6,7 +6,8 @@
             [jackknife.core :as u]
             [jackknife.seq :as s]
             [cascalog.logic.def :as d]
-            [cascalog.logic.vars :as v])
+            [cascalog.logic.vars :as v]
+            [flatland.ordered.map :as o])
   (:import [cascalog.logic.parse TailStruct Projection Application
             FilterApplication Unique Join Grouping Rename]
            [cascalog.logic.predicate Generator RawSubquery]
@@ -16,7 +17,8 @@
 (defn to-tuple
   [names v]
   (if (= (count names) (count v))
-    (zipmap names v)
+    (let [kv-pairs (map (fn [v1 v2] [v1 v2]) names v)]
+      (into (o/ordered-map) kv-pairs))
     (u/throw-illegal "Output variables arity and function output arity do not match")))
 
 (defn to-tuples
@@ -267,9 +269,6 @@
   [{:keys [source fields]}]
   (map
    (fn [tuple]
-     ;; TODO: extracting the vals from a map and assuming they have
-     ;; a specific order is dangerous since the order could be
-     ;; different than the expected tuple order
      (let [vals (map (fn [[k v]] v) tuple)]
        (to-tuple fields vals)))
    source))
@@ -322,7 +321,6 @@
          (cons j-source rest-sources)
          loop-join-fields
          (cons [j-fields j-type] rest-type-seqs))))))
-
 
 (defmethod to-generator [InMemoryPlatform Grouping]
   [{:keys [source aggregators grouping-fields options]}]
