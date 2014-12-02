@@ -6,27 +6,57 @@
             [jackknife.core :as u]
             [jackknife.seq :as s]
             [cascalog.logic.def :as d]
-            [cascalog.logic.vars :as v])
+            [cascalog.logic.vars :as v]
+            [flatland.ordered.map :as o])
   (:import [cascalog.logic.parse TailStruct Projection Application
             FilterApplication Unique Join Grouping Rename]
            [cascalog.logic.predicate Generator RawSubquery]
            [cascalog.logic.def ParallelAggregator ParallelBuffer]
-           [jcascalog Subquery]))
+           [jcascalog Subquery]
+           [java.util LinkedHashMap Map$Entry]
+           [clojure.lang IFn IPersistentMap ITransientMap IPersistentCollection]))
+
+
+(defn linked-map []
+  (proxy [LinkedHashMap IFn ITransientMap IPersistentCollection] []
+    (invoke
+      ([key] (get this key))
+      ([key not-found] (get this key not-found)))
+    (valAt
+      ([key] (.valAt this key nil))
+      ([key not-found] (if-let [v (.get this key)]
+                         v
+                         not-found)))
+    (cons [obj]
+      (condp instance? obj
+        Map$Entry (.put this (.getKey obj) (.getValue obj))
+        (reduce (fn [m e]
+                  (.put m (.getKey e) (.getValue e)))
+                this
+              obj)))
+    (conj [e]
+        (let [[k v] e]
+          (.put this k v)))
+    (seq []
+      (keep identity (.entrySet this)))))
 
 (defn to-tuple
   [names v]
   (if (= (count names) (count v))
-    (zipmap names v)
+    (let [kv-pairs (map (fn [v1 v2] [v1 v2]) names v)]
+      (into (o/ordered-map) kv-pairs))
     (u/throw-illegal "Output variables arity and function output arity do not match")))
 
 (defn to-tuples
   "turns [\"n\"] and [[1] [2]] into [{\"n\" 1} {\"n\" 2}]"
   [names coll-of-seqs]
+  ;;(prn "to-tuples")
   (map #(to-tuple names %) coll-of-seqs))
 
 (defn valid-tuple?
   "Verifies that non-nullable vars aren't null."
   [tuple]
+  ;;(prn "vali-tuple?")
   (not-any?
    (fn [[k v]]
      (and (v/non-nullable-var? k)
@@ -242,6 +272,7 @@
 ;; These generators act differently than the ones above
 (defmethod generator [InMemoryPlatform TailStruct]
   [sq]
+  ;;(prn "sq is " sq)
   (compile-query sq))
 
 (defmethod generator [InMemoryPlatform RawSubquery]
@@ -254,6 +285,7 @@
 
 (defmethod to-generator [InMemoryPlatform Projection]
   [{:keys [source fields]}]
+  ;;(prn "to-generator projection " source fields)
   ;; TODO: this is a hacky way of filtering the tuple to just the
   ;; fields we want
   (->> (extract-values fields source)
@@ -261,18 +293,25 @@
        (to-tuples fields)))
 
 (defmethod to-generator [InMemoryPlatform Generator]
-  [{:keys [gen]}] gen)
+  [{:keys [gen]}]
+;;  (prn "to-generator " gen)
+  gen)
 
 (defmethod to-generator [InMemoryPlatform Rename]
-  [{:keys [source fields]}]
-  (map
-   (fn [tuple]
-     ;; TODO: extracting the vals from a map and assuming they have
-     ;; a specific order is dangerous since the order could be
-     ;; different than the expected tuple order
-     (let [vals (map (fn [[k v]] v) tuple)]
-       (to-tuple fields vals)))
-   source))
+  [{:keys [source fields] :as a}]
+;;  (prn "to-generator rename all is " a)
+;;  (prn "to-generator rename " source fields)
+  (let [results  (map
+                  (fn [tuple]
+                    ;;(prn "tuple is " tuple " and fileds are " fields)
+                    ;; TODO: extracting the vals from a map and assuming they have
+                    ;; a specific order is dangerous since the order could be
+                    ;; different than the expected tuple order
+                    (let [vals (map (fn [[k v]] v) tuple)]
+                      (to-tuple fields vals)))
+                  source)]
+;;    (prn "results are " results)
+    results))
 
 (defmethod to-generator [InMemoryPlatform Application]
   [{:keys [source operation]}]
@@ -323,7 +362,6 @@
          loop-join-fields
          (cons [j-fields j-type] rest-type-seqs))))))
 
-
 (defmethod to-generator [InMemoryPlatform Grouping]
   [{:keys [source aggregators grouping-fields options]}]
   (let [{:keys [sort reverse]} options
@@ -350,6 +388,7 @@
 
 (defmethod to-generator [InMemoryPlatform TailStruct]
   [{:keys [node available-fields]}]
+;;  (prn "to-generator Tailstruct " node available-fields)
   ;; TODO: if we want the fields on the structure, we don't need to
   ;; extract the values
   (extract-values available-fields node))

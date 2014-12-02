@@ -759,3 +759,11 @@
              [?b]
              (data ?a)
              (get-in ?a [:a :b] :> ?b))))
+
+(deftest test-reorder-generator-vars
+  (let [nums [["a" 1]]
+        kv (<- [?l ?n]
+               (nums ?l ?n))]
+    (test?<- [1]
+             [?n]
+             (kv ?l ?n))))
