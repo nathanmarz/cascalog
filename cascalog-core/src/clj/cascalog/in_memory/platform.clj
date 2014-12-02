@@ -266,7 +266,7 @@
   [{:keys [gen]}] gen)
 
 (defmethod to-generator [InMemoryPlatform Rename]
-  [{:keys [source fields] :as a}]
+  [{:keys [source fields]}]
   (map
    (fn [tuple]
      (let [vals (map (fn [[k v]] v) tuple)]
