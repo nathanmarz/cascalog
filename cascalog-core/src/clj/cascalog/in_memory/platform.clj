@@ -48,14 +48,7 @@
 
 (defn select-fields
   "Creates a list of the values of the tuples you want and if the field isn't
-   found it's nil.
-   For examples: (select-fields [:b :a :d] {:a 1 :b 2 :c 3}) => (2 1 nil)"
-  [fields tuple]
-  (map #(tuple %) fields))
-
-(defn select-fields-w-default
-  "Just like select-fields but if a value isn't found, its value is
-   the name of the field.
+   found, its value is the name of the field.
    For examples: (select-fields [:b :a 100] {:a 1 :b 2 :c 3}) => (2 1 100)"
   [fields tuple]
   (map #(get tuple % %) fields))
@@ -155,7 +148,7 @@
   [coll op input output]
   (map
    (fn [tuple]
-     (let [v (s/collectify (apply op (select-fields-w-default input tuple)))
+     (let [v (s/collectify (apply op (select-fields input tuple)))
            new-tuple (to-tuple output v)]
        (merge tuple new-tuple)))
    coll))
@@ -164,7 +157,7 @@
   [coll op input output]
   (mapcat
    (fn [tuple]
-     (let [v (apply op (select-fields-w-default input tuple))
+     (let [v (apply op (select-fields input tuple))
            new-tuples (map #(to-tuple output (s/collectify %)) v)]
        (map #(merge tuple %) new-tuples)))
    coll))
@@ -283,7 +276,7 @@
   [{f :filter source :source}]
   (let [{:keys [op input]} f]
     (filter
-     #(apply op (select-fields-w-default input %))
+     #(apply op (select-fields input %))
      source)))
 
 (defmethod to-generator [InMemoryPlatform Unique]
