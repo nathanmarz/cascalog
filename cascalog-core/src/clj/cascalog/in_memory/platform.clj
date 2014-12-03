@@ -60,7 +60,6 @@
   [fields tuple]
   (map #(get tuple % %) fields))
 
-;; Projection
 (defn extract-values
   "Creates a collection of vectors for the values of the fields
    you have selected"
@@ -71,14 +70,16 @@
   "Inner joins two maps that both have been grouped by the same function.
    This is an inner join, so nils are discarded."
   [l-grouped r-grouped]
-  (letfn [(join-fn [l-group]
-            (let [key (first l-group)
-                  l-tuples (second l-group)]
-              (if-let [r-tuples (get r-grouped key)]
-                (for [x l-tuples y r-tuples] (merge x y)))))]
-    (flatten ;; the for returned a collection which we need to flatten
-     (remove nil? ;; nils are discarded
-             (map join-fn l-grouped)))))
+  (->> l-grouped
+      (map
+       (fn [l-group]
+         (let [[k l-tuples] l-group]
+           (if-let [r-tuples (get r-grouped k)]
+             (for [x l-tuples
+                   y r-tuples]
+               (merge x y))))))
+      (remove nil?)
+      flatten))
 
 (defn left-join
   [l-grouped r-grouped r-fields]
@@ -279,9 +280,9 @@
     (op-clojure source op input output)))
 
 (defmethod to-generator [InMemoryPlatform FilterApplication]
-  [{:keys [source filter]}]
-  (let [{:keys [op input]} filter]
-    (clojure.core/filter
+  [{f :filter source :source}]
+  (let [{:keys [op input]} f]
+    (filter
      #(apply op (select-fields-w-default input %))
      source)))
 
