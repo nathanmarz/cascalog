@@ -44,14 +44,9 @@
   [coll]
   (generator (into [] coll)))
 
-;; These generators act differently than the ones above
 (defmethod generator [InMemoryPlatform TailStruct]
   [sq]
   (compile-query sq))
-
-(defmethod generator [InMemoryPlatform RawSubquery]
-  [sq]
-  (generator (parse/build-rule sq)))
 
 ;; To Generators
 
