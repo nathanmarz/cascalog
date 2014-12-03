@@ -46,6 +46,10 @@
               tuple))))
        (remove nil?)))
 
+(defn empty-tuple
+  [fields]
+  (to-tuple fields (repeat (count fields) nil)))
+
 (defn select-fields
   "Creates a list of the values of the tuples you want and if the field isn't
    found, its value is the name of the field.
@@ -68,46 +72,46 @@
        (fn [l-group]
          (let [[k l-tuples] l-group]
            (if-let [r-tuples (get r-grouped k)]
-             (for [x l-tuples
-                   y r-tuples]
+             (for [x l-tuples y r-tuples]
                (merge x y))))))
       (remove nil?)
       flatten))
 
 (defn left-join
+  "Joins two maps (a left and a right) that have been grouped by
+   the same function. Keeps only values found on the left and
+   returns nil for values not found on the right."
   [l-grouped r-grouped r-fields]
-  (letfn [(join-fn [l-group]
-            (let [key (first l-group)
-                  l-tuples (second l-group)
-                  r-empty-tuples [(to-tuple r-fields (repeat (count r-fields) nil))]
-                  r-tuples (get r-grouped key r-empty-tuples)]
-              (for [x l-tuples y r-tuples]
+  (->> l-grouped
+       (map
+        (fn [l-group]
+          (let [[k l-tuples] l-group
+                r-empty-tuples [(empty-tuple r-fields)]
+                r-tuples (get r-grouped k r-empty-tuples)]
+            (for [x l-tuples y r-tuples]
                 ;; merge is specifically ordered, because the left
                 ;; tuple takes precedence over the right one (which
                 ;; could be nil)
-                (merge y x))))]
-    (flatten ;; the for returned a collection which we need to flatten
-     (remove nil? ;; nils are discarded
-             (map join-fn l-grouped)))))
+                (merge y x)))))
+       (remove nil?)
+       flatten))
 
 (defn left-excluding-join
   "A left join that only returns values where the right side is nil"
   [l-grouped r-grouped r-fields]
-  (letfn [(join-fn [l-group]
-            (let [key (first l-group)
-                  l-tuples (second l-group)
-                  r-empty-tuples [(to-tuple r-fields (repeat (count r-fields) nil))]]
-              (if (not (find r-grouped key))
-                (for [x l-tuples y r-empty-tuples]
-                  ;; merge is specifically ordered, because the left
-                  ;; tuple takes precedence over the right one (which
-                  ;; could be nil)
-                  (merge y x)))))]
-    (flatten ;; the for returned a collection which we need to flatten
-     (remove nil? ;; nils are discarded
-             (map join-fn l-grouped)))))
+  (->> l-grouped
+       (map
+        (fn [l-group]
+          (let [[k l-tuples] l-group
+                r-empty-tuple (empty-tuple r-fields)]
+            (if (not (find r-grouped k))
+              (map #(merge r-empty-tuple %) l-tuples)))))
+       (remove nil?)
+       flatten))
 
 (defn outer-join
+  "A join that contains all of the values between the two maps,
+  but none duplicated"
   [l-grouped r-grouped l-fields r-fields]
   (let [inner (inner-join l-grouped r-grouped)
         left (left-excluding-join l-grouped r-grouped r-fields)
