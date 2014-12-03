@@ -14,6 +14,8 @@
            [cascalog.logic.def ParallelAggregator ParallelBuffer]
            [jcascalog Subquery]))
 
+;; Tuple
+
 (defn to-tuple
   [names v]
   (if (= (count names) (count v))
@@ -62,6 +64,41 @@
    you have selected"
   [fields tuples]
   (map #(vec (select-fields fields %))  tuples))
+
+(defn tuple-sort
+  [tuples sort-fields reverse?]
+  (if sort-fields
+    (let [sorted (sort-by #(vec (map % sort-fields)) tuples)]
+      (if reverse?
+        (reverse sorted)
+        sorted))
+    tuples))
+
+;; Platform
+
+(defrecord InMemoryPlatform []
+  IPlatform
+  (generator? [_ x]
+    (platform-generator? x))
+
+  (generator-builder [_ gen output options]
+    (to-tuples-filter-nullable output (generator gen)))
+
+  (run! [p _ _]
+    (u/throw-illegal (str p " doesn't have an implementation for run!")))
+
+  (run-to-memory! [_ _ queries]
+    (map compile-query queries)))
+
+;; To-Generator Helpers
+
+;; Misc Helpers
+
+(defn smallest-arity [fun]
+  "Returns the smallest number of arguments the function takes"
+  (->> fun meta :arglists first count))
+
+;; Join
 
 (defn inner-join
   "Inner joins two maps that both have been grouped by the same function.
@@ -131,18 +168,7 @@
    [(left-join r-grouped l-grouped l-fields) :outer]
    :else [(outer-join l-grouped r-grouped l-fields r-fields) :outer]))
 
-(defn smallest-arity [fun]
-  "Returns the smallest number of arguments the function takes"
-  (->> fun meta :arglists first count))
-
-(defn tuple-sort
-  [tuples sort-fields reverse?]
-  (if sort-fields
-    (let [sorted (sort-by #(vec (map % sort-fields)) tuples)]
-      (if reverse?
-        (reverse sorted)
-        sorted))
-    tuples))
+;; Application
 
 (defmulti op-clojure
   (fn [coll op input output]
@@ -165,6 +191,8 @@
            new-tuples (map #(to-tuple output (s/collectify %)) v)]
        (map #(merge tuple %) new-tuples)))
    coll))
+
+;; Grouping
 
 (defmulti agg-clojure
   (fn [coll op]
@@ -214,19 +242,7 @@
   [coll {:keys [init-var combine-var present-var buffer-var]}]
   (buffer-var coll))
 
-(defrecord InMemoryPlatform []
-  IPlatform
-  (generator? [_ x]
-    (platform-generator? x))
-
-  (generator-builder [_ gen output options]
-    (to-tuples-filter-nullable output (generator gen)))
-
-  (run! [p _ _]
-    (u/throw-illegal (str p " doesn't have an implementation for run!")))
-
-  (run-to-memory! [_ _ queries]
-    (map compile-query queries)))
+;; Generators
 
 (defmethod generator [InMemoryPlatform clojure.lang.IPersistentVector]
   [v]
@@ -247,6 +263,8 @@
 (defmethod generator [InMemoryPlatform RawSubquery]
   [sq]
   (generator (parse/build-rule sq)))
+
+;; To Generators
 
 (defmethod to-generator [InMemoryPlatform Subquery]
   [sq]
