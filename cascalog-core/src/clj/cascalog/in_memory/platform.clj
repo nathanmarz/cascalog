@@ -3,7 +3,7 @@
             [cascalog.logic.platform :refer
              (compile-query IPlatform platform-generator? generator to-generator)]
             [cascalog.logic.parse :as parse]
-            [cascalog.in-memory.join :refer :all]
+            [cascalog.in-memory.join :refer (join)]
             [cascalog.in-memory.tuple :refer :all]
             [cascalog.in-memory.util :refer (smallest-arity)]
             [cascalog.logic.def :as d]
@@ -61,10 +61,8 @@
 
 (defmethod to-generator [InMemoryPlatform Projection]
   [{:keys [source fields]}]
-  ;; TODO: this is a hacky way of filtering the tuple to just the
-  ;; fields we want
-  (->> (extract-values fields source)
-       (remove nil?)
+  (->> source
+       (extract-values fields)
        (to-tuples fields)))
 
 (defmethod to-generator [InMemoryPlatform Generator]
