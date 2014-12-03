@@ -72,3 +72,8 @@
         (if (empty? s-rest)
           s-merge
           (recur (cons s-merge s-rest)))))))
+
+(defn project-tuples [tuples fields]
+  (->> tuples
+       (extract-values fields)
+       (to-tuples fields)))

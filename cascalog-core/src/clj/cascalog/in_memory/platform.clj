@@ -29,7 +29,11 @@
     (u/throw-illegal (str p " doesn't have an implementation for run!")))
 
   (run-to-memory! [_ _ queries]
-    (map compile-query queries)))
+    (map
+     (fn [query]
+       (let [tuples (compile-query query)]
+         (map vals tuples)))
+     queries)))
 
 ;; Generators
 
@@ -56,9 +60,7 @@
 
 (defmethod to-generator [InMemoryPlatform Projection]
   [{:keys [source fields]}]
-  (->> source
-       (extract-values fields)
-       (to-tuples fields)))
+  (project-tuples source fields))
 
 (defmethod to-generator [InMemoryPlatform Generator]
   [{:keys [gen]}] gen)
@@ -152,9 +154,7 @@
 
 (defmethod to-generator [InMemoryPlatform TailStruct]
   [{:keys [node available-fields]}]
-  ;; TODO: if we want the fields on the structure, we don't need to
-  ;; extract the values
-  (extract-values available-fields node))
+  (project-tuples node available-fields))
 
 ;; Application Helpers
 
