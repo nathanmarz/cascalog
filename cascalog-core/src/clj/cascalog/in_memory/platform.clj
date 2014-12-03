@@ -133,29 +133,27 @@
   (fn [coll op]
     (type op)))
 
+(defn aggregate-tuples [aggregators sorted-tuples]
+  (map
+   (fn [{:keys [op input output]}]
+     (let [coll (extract-values input sorted-tuples)
+           r (s/collectify (agg-clojure coll op))
+           r-seq (if (sequential? (first r)) r [r])]
+       (map #(to-tuple output %) r-seq)))
+   aggregators))
+
 (defmethod to-generator [InMemoryPlatform Grouping]
   [{:keys [source aggregators grouping-fields options]}]
-  (let [{:keys [sort reverse]} options
-        grouped (group-by #(vec (map % grouping-fields)) source)]
-    (mapcat
-     (fn [[grouping-vals tuples]]
-       (let [sorted-tuples (tuple-sort tuples sort reverse)
-             agg-tuples (map
-                         (fn [{:keys [op input output]}]
-                           (let [coll (extract-values input sorted-tuples)
-                                 r (s/collectify (agg-clojure coll op))
-                                 r-seq (if (sequential? (first r)) r [r])]
-                             (map #(to-tuple output %) r-seq)))
-                         aggregators)
-             merged-tuples (loop [[s1 s2 & s-rest] agg-tuples]
-                             (if (or (empty? s1) (empty? s2))
-                               (concat s1 s2)
-                               (let [s-merge (for [x s1 y s2] (merge x y))]
-                                 (if (empty? s-rest)
-                                   s-merge
-                                   (recur (cons s-merge s-rest))))))]
-         (map #(merge (to-tuple grouping-fields grouping-vals) %) merged-tuples)))
-     grouped)))
+  (let [{:keys [sort reverse]} options]
+    (->> source
+         (group-by #(vec (map % grouping-fields)))
+         (mapcat
+          (fn [[grouping-vals tuples]]
+            (let [original-tuple (to-tuple grouping-fields grouping-vals)]
+              (->> (tuple-sort tuples sort reverse)
+                   (aggregate-tuples aggregators)
+                   (cross-join-tuples)
+                   (map #(merge original-tuple %)))))))))
 
 (defmethod to-generator [InMemoryPlatform TailStruct]
   [{:keys [node available-fields]}]

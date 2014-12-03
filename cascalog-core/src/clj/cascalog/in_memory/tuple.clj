@@ -60,3 +60,15 @@
         (reverse sorted)
         sorted))
     tuples))
+
+(defn cross-join-tuples
+  "Input a collection of a collection of tuples like [[{:b 2}] [{:a 1} {:a 3}]
+   And you'll get a result like: [{:a 1 :b 2} {:a 3 :b 2}]"
+  [coll-of-tuples]
+  (loop [[s1 s2 & s-rest] coll-of-tuples]
+    (if (or (empty? s1) (empty? s2))
+      (concat s1 s2)
+      (let [s-merge (for [x s1 y s2] (merge x y))]
+        (if (empty? s-rest)
+          s-merge
+          (recur (cons s-merge s-rest)))))))
