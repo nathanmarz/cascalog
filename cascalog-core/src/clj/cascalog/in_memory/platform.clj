@@ -155,6 +155,9 @@
 
 (defmethod to-generator [InMemoryPlatform TailStruct]
   [{:keys [node available-fields]}]
+  ;; This is the last to-gerenator, so the tuples and their
+  ;; field list are returned to enable the caller to
+  ;; turn the tuples into a seq of just values.
   [(project-tuples node available-fields) available-fields])
 
 ;; Application Helpers
