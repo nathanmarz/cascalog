@@ -66,13 +66,8 @@
   [{:keys [gen]}] gen)
 
 (defmethod to-generator [InMemoryPlatform Rename]
-  [{:keys [source available-fields fields]}]
-  (map
-   (fn [tuple]
-     (->> tuple
-          (select-fields available-fields)
-          (to-tuple fields)))
-   source))
+  [{:keys [source input output]}]
+  (project-tuples source input output))
 
 (defmulti op-clojure
   (fn [coll op input output]

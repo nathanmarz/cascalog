@@ -213,7 +213,7 @@
   (make-node [node children]
              (assoc node :source (first children))))
 
-(p/defnode Rename [source fields available-fields]
+(p/defnode Rename [source input output]
   zip/TreeNode
   (branch? [_] true)
   (children [_] [source])
@@ -638,7 +638,7 @@ This won't work in distributed mode because of the ->Record functions."
                     fields
                     available))
     (-> tail
-        (chain #(->Rename % fields available))
+        (chain #(->Rename % available fields))
         (assoc :available-fields fields)
         (assoc :ground? (v/fully-ground? fields)))))
 
