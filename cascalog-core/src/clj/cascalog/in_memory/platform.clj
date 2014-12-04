@@ -5,7 +5,7 @@
             [cascalog.logic.parse :as parse]
             [cascalog.in-memory.join :refer (join)]
             [cascalog.in-memory.tuple :refer :all]
-            [cascalog.in-memory.util :refer (smallest-arity)]
+            [cascalog.in-memory.util :refer (smallest-arity system-println)]
             [cascalog.logic.def :as d]
             [jackknife.core :as u]
             [jackknife.seq :as s])
@@ -14,6 +14,9 @@
            [cascalog.logic.predicate Generator RawSubquery]
            [cascalog.logic.def ParallelAggregator ParallelBuffer]
            [jcascalog Subquery]))
+
+(defprotocol ISink
+  (to-sink [sink tuples fields]))
 
 ;; Platform
 
@@ -25,8 +28,11 @@
   (generator-builder [_ gen output options]
     (to-tuples-filter-nullable output (generator gen)))
 
-  (run! [p _ _]
-    (u/throw-illegal (str p " doesn't have an implementation for run!")))
+  (run! [p _ bindings]
+    (map (fn [[sink query]]
+           (let [[tuples available-fields] (compile-query query)]
+             (to-sink sink tuples available-fields)))
+         (partition 2 bindings)))
 
   (run-to-memory! [_ _ queries]
     (map
@@ -34,6 +40,25 @@
        (let [[tuples available-fields] (compile-query query)]
          (extract-values available-fields tuples)))
      queries)))
+
+;; Sinks
+
+(defrecord StdOutSink [])
+
+(extend-protocol ISink
+  clojure.lang.Atom
+  (to-sink [a tuples fields]
+    (reset! a tuples))
+
+  StdOutSink
+  (to-sink [_ tuples fields]
+    (system-println "")
+    (system-println "")
+    (system-println "RESULTS")
+    (system-println "-----------------------")
+    (doseq [t tuples]
+      (apply system-println (select-fields fields t)))
+    (system-println "-----------------------")))
 
 ;; Generators
 
