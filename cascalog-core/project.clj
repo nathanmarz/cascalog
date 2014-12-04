@@ -28,8 +28,7 @@
                  [com.twitter/carbonite "1.4.0"]
                  [com.twitter/maple "0.2.2"]
                  [jackknife "0.1.7"]
-                 [hadoop-util "0.3.0"]
-                 [org.flatland/ordered "1.5.2"]]
+                 [hadoop-util "0.3.0"]]
   :profiles {:1.3 {:dependencies [[org.clojure/clojure "1.3.0"]]}
              :1.4 {:dependencies [[org.clojure/clojure "1.4.0"]]}
              :1.5 {:dependencies [[org.clojure/clojure "1.5.1"]]}

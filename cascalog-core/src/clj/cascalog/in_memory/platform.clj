@@ -31,8 +31,8 @@
   (run-to-memory! [_ _ queries]
     (map
      (fn [query]
-       (let [tuples (compile-query query)]
-         (map vals tuples)))
+       (let [[tuples available-fields] (compile-query query)]
+         (map #(select-fields available-fields %) tuples)))
      queries)))
 
 ;; Generators
@@ -66,11 +66,12 @@
   [{:keys [gen]}] gen)
 
 (defmethod to-generator [InMemoryPlatform Rename]
-  [{:keys [source fields]}]
+  [{:keys [source available-fields fields]}]
   (map
    (fn [tuple]
-     (let [vals (map (fn [[k v]] v) tuple)]
-       (to-tuple fields vals)))
+     (->> tuple
+          (select-fields available-fields)
+          (to-tuple fields)))
    source))
 
 (defmulti op-clojure
@@ -154,7 +155,7 @@
 
 (defmethod to-generator [InMemoryPlatform TailStruct]
   [{:keys [node available-fields]}]
-  (project-tuples node available-fields))
+  [(project-tuples node available-fields) available-fields])
 
 ;; Application Helpers
 

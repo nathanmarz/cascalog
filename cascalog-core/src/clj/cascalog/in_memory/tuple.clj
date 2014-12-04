@@ -1,13 +1,11 @@
 (ns cascalog.in-memory.tuple
   (:require [cascalog.logic.vars :as v]
-            [flatland.ordered.map :as o]
             [jackknife.core :as u]))
 
 (defn to-tuple
   [names v]
   (if (= (count names) (count v))
-    (let [kv-pairs (map (fn [v1 v2] [v1 v2]) names v)]
-      (into (o/ordered-map) kv-pairs))
+    (zipmap names v)
     (u/throw-illegal "Output variables arity and function output arity do not match")))
 
 (defn to-tuples
