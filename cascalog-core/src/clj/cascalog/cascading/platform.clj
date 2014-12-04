@@ -371,7 +371,7 @@
 (defmethod to-generator [CascadingPlatform Rename]
   [{:keys [source input output]}]
   (-> source
-      (ops/rename* output)
+      (ops/rename* input output)
       (ops/filter-nullable-vars output)))
 
 (defmethod to-generator [CascadingPlatform TailStruct]

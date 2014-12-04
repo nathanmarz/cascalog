@@ -115,8 +115,6 @@
   ([flow percent seed]
      (add-op flow #(Each. % (Sample. percent seed)))))
 
-;; TODO: rename* should accept a map of old fieldname -> new
-;; fieldname.
 (defn rename*
   "rename old-fields to new-fields."
   ([flow new-fields]
