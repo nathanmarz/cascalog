@@ -32,7 +32,7 @@
     (map
      (fn [query]
        (let [[tuples available-fields] (compile-query query)]
-         (map #(select-fields available-fields %) tuples)))
+         (extract-values available-fields tuples)))
      queries)))
 
 ;; Generators
