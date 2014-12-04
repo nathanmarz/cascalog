@@ -369,10 +369,10 @@
       (ops/filter-nullable-vars fields)))
 
 (defmethod to-generator [CascadingPlatform Rename]
-  [{:keys [source fields]}]
+  [{:keys [source input output]}]
   (-> source
-      (ops/rename* fields)
-      (ops/filter-nullable-vars fields)))
+      (ops/rename* input output)
+      (ops/filter-nullable-vars output)))
 
 (defmethod to-generator [CascadingPlatform TailStruct]
   [item]

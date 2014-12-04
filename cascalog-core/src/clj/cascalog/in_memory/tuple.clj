@@ -1,13 +1,11 @@
 (ns cascalog.in-memory.tuple
   (:require [cascalog.logic.vars :as v]
-            [flatland.ordered.map :as o]
             [jackknife.core :as u]))
 
 (defn to-tuple
   [names v]
   (if (= (count names) (count v))
-    (let [kv-pairs (map (fn [v1 v2] [v1 v2]) names v)]
-      (into (o/ordered-map) kv-pairs))
+    (zipmap names v)
     (u/throw-illegal "Output variables arity and function output arity do not match")))
 
 (defn to-tuples
@@ -50,7 +48,7 @@
   "Creates a collection of vectors for the values of the fields
    you have selected"
   [fields tuples]
-  (map #(vec (select-fields fields %))  tuples))
+  (map #(select-fields fields %) tuples))
 
 (defn tuple-sort
   [tuples sort-fields reverse?]
@@ -73,7 +71,11 @@
           s-merge
           (recur (cons s-merge s-rest)))))))
 
-(defn project-tuples [tuples fields]
-  (->> tuples
-       (extract-values fields)
-       (to-tuples fields)))
+(defn project-tuples
+  ([tuples fields] (project-tuples tuples fields fields))
+  ([tuples input-fields output-fields]
+     (map
+      #(->> %
+            (select-fields input-fields)
+            (to-tuple output-fields))
+      tuples)))

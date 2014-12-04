@@ -31,8 +31,8 @@
   (run-to-memory! [_ _ queries]
     (map
      (fn [query]
-       (let [tuples (compile-query query)]
-         (map vals tuples)))
+       (let [[tuples available-fields] (compile-query query)]
+         (extract-values available-fields tuples)))
      queries)))
 
 ;; Generators
@@ -66,12 +66,8 @@
   [{:keys [gen]}] gen)
 
 (defmethod to-generator [InMemoryPlatform Rename]
-  [{:keys [source fields]}]
-  (map
-   (fn [tuple]
-     (let [vals (map (fn [[k v]] v) tuple)]
-       (to-tuple fields vals)))
-   source))
+  [{:keys [source input output]}]
+  (project-tuples source input output))
 
 (defmulti op-clojure
   (fn [coll op input output]
@@ -154,7 +150,10 @@
 
 (defmethod to-generator [InMemoryPlatform TailStruct]
   [{:keys [node available-fields]}]
-  (project-tuples node available-fields))
+  ;; This is the last to-gerenator, so the tuples and their
+  ;; field list are returned to enable the caller to
+  ;; turn the tuples into a seq of just values.
+  [(project-tuples node available-fields) available-fields])
 
 ;; Application Helpers
 
