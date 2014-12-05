@@ -5,14 +5,13 @@
             [cascalog.cascading.util :as casc]
             [cascalog.cascading.types :as types]
             [cascalog.cascading.flow :as flow]
-            [cascalog.logic.predicate :as p]
+            [cascalog.logic.predicate :as pred]
             [cascalog.logic.def :as d]
             [cascalog.logic.parse :as parse]
             [cascalog.logic.algebra :refer (sum)]
             [cascalog.logic.fn :as serfn]
             [cascalog.logic.vars :as v]
-            [cascalog.logic.platform :refer
-             (compile-query IPlatform platform-generator? generator to-generator)])
+            [cascalog.logic.platform :as p])
   (:import [cascading.pipe Each Every Pipe]
            [cascading.tuple Fields Tuple]
            [cascading.operation Function Filter]
@@ -37,37 +36,37 @@
            [cascalog.cascading.tap CascalogTap]
            [jcascalog Predicate Subquery]))
 
-(extend-protocol p/IRawPredicate
+(extend-protocol pred/IRawPredicate
   Predicate
   (normalize [p]
-    (p/normalize (into [] (.toRawCascalogPredicate p)))))
+    (pred/normalize (into [] (.toRawCascalogPredicate p)))))
 
 ;; ## Allowed Predicates
 
-(defmethod p/to-predicate Filter
+(defmethod pred/to-predicate Filter
   [op input output]
   (u/safe-assert (#{0 1} (count output)) "Must emit 0 or 1 fields from filter")
   (if (empty? output)
     (FilterOperation. op input)
     (Operation. op input output)))
 
-(defmethod p/to-predicate Function
+(defmethod pred/to-predicate Function
   [op input output]
   (Operation. op input output))
 
-(defmethod p/to-predicate ParallelAgg
+(defmethod pred/to-predicate ParallelAgg
   [op input output]
   (Aggregator. op input output))
 
-(defmethod p/to-predicate CascalogBuffer
+(defmethod pred/to-predicate CascalogBuffer
   [op input output]
   (Aggregator. op input output))
 
-(defmethod p/to-predicate CascalogFunction
+(defmethod pred/to-predicate CascalogFunction
   [op input output]
   (Operation. op input output))
 
-(defmethod p/to-predicate CascalogAggregator
+(defmethod pred/to-predicate CascalogAggregator
   [op input output]
   (Aggregator. op input output))
 
@@ -100,7 +99,7 @@
 (defmacro filter-assem [argv & more]
   `(filter-assem* (ops/assembly ~argv ~@more)))
 
-(extend-protocol p/ICouldFilter
+(extend-protocol pred/ICouldFilter
   cascading.operation.Filter
   (filter? [_] true))
 
@@ -232,12 +231,12 @@
 ;; ## Platform Implementation
 
 (defrecord CascadingPlatform []
-  IPlatform
+  p/IPlatform
   (generator? [_ x]
-    (platform-generator? x))
+    (p/platform-generator? x))
 
   (generator-builder [_ gen fields options]
-    (-> (generator gen)
+    (-> (p/generator gen)
         (update-in [:trap-map] #(merge % (init-trap-map options)))
         (ops/rename-pipe (init-pipe-name options))
         (ops/rename* fields)
@@ -250,66 +249,66 @@
       (flow/run! (apply flow/compile-flow name bindings))))
 
   (run-to-memory! [_ name queries]
-    (apply flow/all-to-memory name (map compile-query queries))))
+    (apply flow/all-to-memory name (map p/compile-query queries))))
 
-(defmethod generator [CascadingPlatform Subquery]
+(defmethod p/generator [CascadingPlatform Subquery]
   [sq]
-  (generator (.getCompiledSubquery sq)))
+  (p/generator (.getCompiledSubquery sq)))
 
-(defmethod generator [CascadingPlatform CascalogTap]
+(defmethod p/generator [CascadingPlatform CascalogTap]
   [tap]
-  (generator (:source tap)))
+  (p/generator (:source tap)))
 
-(defmethod generator [CascadingPlatform clojure.lang.IPersistentVector]
+(defmethod p/generator [CascadingPlatform clojure.lang.IPersistentVector]
   [v]
-  (generator (or (seq v) ())))
+  (p/generator (or (seq v) ())))
 
-(defmethod generator [CascadingPlatform clojure.lang.ISeq]
+(defmethod p/generator [CascadingPlatform clojure.lang.ISeq]
   [v]
-  (generator
+  (p/generator
    (MemorySourceTap. (map types/to-tuple v) Fields/ALL)))
 
-(defmethod generator [CascadingPlatform java.util.ArrayList]
+(defmethod p/generator [CascadingPlatform java.util.ArrayList]
   [coll]
-  (generator (into [] coll)))
+  (p/generator (into [] coll)))
 
-(defmethod generator [CascadingPlatform Tap]
+(defmethod p/generator [CascadingPlatform Tap]
   [tap]
   (let [id (u/uuid)]
     (ClojureFlow. {id tap} nil nil nil (Pipe. id) nil)))
 
-(defmethod generator [CascadingPlatform TailStruct]
+(defmethod p/generator [CascadingPlatform TailStruct]
   [sq]
-  (compile-query sq))
+  (p/compile-query sq))
 
-(defmethod generator [CascadingPlatform RawSubquery]
+(defmethod p/generator [CascadingPlatform RawSubquery]
   [sq]
-  (generator (parse/build-rule sq)))
+  (p/generator (parse/build-rule sq)))
 
-(defmethod generator [CascadingPlatform ClojureFlow]
+(defmethod p/generator [CascadingPlatform ClojureFlow]
   [x] x)
 
-(defmethod to-generator [CascadingPlatform Object]
+(defmethod p/to-generator [CascadingPlatform Object]
   [x]
-  (generator x))
+  (p/generator x))
 
-(defmethod to-generator [CascadingPlatform cascalog.logic.predicate.Generator]
+(defmethod p/to-generator [CascadingPlatform cascalog.logic.predicate.Generator]
   [{:keys [gen]}] gen)
 
-(defmethod to-generator [CascadingPlatform Application]
+(defmethod p/to-generator [CascadingPlatform Application]
   [{:keys [source operation]}]
   (let [{:keys [op input output]} operation]
     (op-cascading op source input output)))
 
-(defmethod to-generator [CascadingPlatform FilterApplication]
+(defmethod p/to-generator [CascadingPlatform FilterApplication]
   [{:keys [source filter]}]
   (let [{:keys [op input]} filter]
     (filter-cascading op source input)))
 
-(defmethod to-generator [CascadingPlatform ExistenceNode]
+(defmethod p/to-generator [CascadingPlatform ExistenceNode]
   [{:keys [source]}] source)
 
-(defmethod to-generator [CascadingPlatform Join]
+(defmethod p/to-generator [CascadingPlatform Join]
   [{:keys [sources join-fields type-seq options]}]
   (-> (ops/cascalog-join (map (fn [source [available type]]
                                 (condp = type
@@ -321,7 +320,7 @@
                          (opt-seq options))
                   (ops/rename-pipe (.getName (:pipe (first sources))))))
 
-(defmethod to-generator [CascadingPlatform Grouping]
+(defmethod p/to-generator [CascadingPlatform Grouping]
   [{:keys [source aggregators grouping-fields options]}]
   (if-let [bufs (not-empty
                  (filter #(instance? ParallelBuffer (:op %)) aggregators))]
@@ -354,27 +353,27 @@
       (apply ops/group-by*
              source grouping-fields aggs (opt-seq options)))))
 
-(defmethod to-generator [CascadingPlatform Unique]
+(defmethod p/to-generator [CascadingPlatform Unique]
   [{:keys [source fields options]}]
   (apply ops/unique source fields (opt-seq options)))
 
-(defmethod to-generator [CascadingPlatform Merge]
+(defmethod p/to-generator [CascadingPlatform Merge]
   [{:keys [sources]}]
   (sum sources))
 
-(defmethod to-generator [CascadingPlatform Projection]
+(defmethod p/to-generator [CascadingPlatform Projection]
   [{:keys [source fields]}]
   (-> source
       (ops/select* fields)
       (ops/filter-nullable-vars fields)))
 
-(defmethod to-generator [CascadingPlatform Rename]
+(defmethod p/to-generator [CascadingPlatform Rename]
   [{:keys [source input output]}]
   (-> source
       (ops/rename* input output)
       (ops/filter-nullable-vars output)))
 
-(defmethod to-generator [CascadingPlatform TailStruct]
+(defmethod p/to-generator [CascadingPlatform TailStruct]
   [item]
   (:node item))
 
