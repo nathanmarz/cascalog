@@ -407,14 +407,6 @@
 (defn hof-arithmetic [a b]
   (mapfn [n] (+ b (* a n))))
 
-(defn sum-plus [a]
-  (d/bufferop
-   (d/prepfn
-    [_ _]
-    (let [x (* 3 a)]
-      {:operate (fn [tuples]
-                  [(apply + x (map first tuples))])}))))
-
 (deftest test-hof-ops
   (let [integer [[1] [2] [6]]]
     (test?<- [[4] [5] [9]]
@@ -430,12 +422,7 @@
     (test?<- [[3] [5] [13]]
              [?n]
              (integer ?v)
-             ((hof-arithmetic 2 1) ?v :> ?n))
-
-    (test?<- [[72]]
-             [?n]
-             (integer ?v)
-             ((sum-plus 21) ?v :> ?n))))
+             ((hof-arithmetic 2 1) ?v :> ?n))))
 
 
 (defn lala-appended [source]

@@ -179,15 +179,7 @@
 
 (defmethod agg-clojure ::d/buffer
   [coll op]
-  (if (d/prepared? op)
-    (let [
-          ;; Allows Cascading to pass in a
-          ;; FlowProcess and an OperationCall,
-          ;; but we'll just use nils
-          fun (op nil nil)
-          operation (:operate fun)]
-      (operation coll))
-    (op coll)))
+  (op coll))
 
 (defmethod agg-clojure ::d/bufferiter
   [coll op]
