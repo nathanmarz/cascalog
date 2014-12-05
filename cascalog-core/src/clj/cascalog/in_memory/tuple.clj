@@ -1,4 +1,5 @@
 (ns cascalog.in-memory.tuple
+  (:refer-clojure :exclude [sort])
   (:require [cascalog.logic.vars :as v]
             [jackknife.core :as u]))
 
@@ -13,7 +14,7 @@
   [names coll-of-seqs]
   (map #(to-tuple names %) coll-of-seqs))
 
-(defn valid-tuple?
+(defn valid?
   "Verifies that non-nullable vars aren't null."
   [tuple]
   (not-any?
@@ -23,43 +24,44 @@
    tuple))
 
 (defn to-tuples-filter-nullable
-  "turns [\"n\"] and [[1] [2]] into [{\"n\" 1} {\"n\" 2}]"
+  "Turns [\"n\"] and [[1] [2]] into [{\"n\" 1} {\"n\" 2}]"
   [names coll-of-seqs]
   (->> coll-of-seqs
        (map
         (fn [s]
           (let [tuple (to-tuple names s)]
-            (if (valid-tuple? tuple)
+            (if (valid? tuple)
               tuple))))
        (remove nil?)))
 
 (defn empty-tuple
+  "Creates a tuple with a nil value for all of the fields"
   [fields]
   (to-tuple fields (repeat (count fields) nil)))
 
-(defn select-fields
+(defn select-values
   "Creates a list of the values of the tuples you want and if the field isn't
    found, its value is the name of the field.
-   For examples: (select-fields [:b :a 100] {:a 1 :b 2 :c 3}) => (2 1 100)"
+   For examples: (select-values [:b :a 100] {:a 1 :b 2 :c 3}) => (2 1 100)"
   [fields tuple]
   (map #(get tuple % %) fields))
 
-(defn extract-values
+(defn map-select-values
   "Creates a collection of vectors for the values of the fields
    you have selected"
   [fields tuples]
-  (map #(select-fields fields %) tuples))
+  (map #(select-values fields %) tuples))
 
-(defn tuple-sort
+(defn sort
   [tuples sort-fields reverse?]
   (if sort-fields
-    (let [sorted (sort-by #(vec (map % sort-fields)) tuples)]
+    (let [sorted (sort-by #(vec (select-values sort-fields %)) tuples)]
       (if reverse?
         (reverse sorted)
         sorted))
     tuples))
 
-(defn cross-join-tuples
+(defn cross-join
   "Input a collection of a collection of tuples like [[{:b 2}] [{:a 1} {:a 3}]
    And you'll get a result like: [{:a 1 :b 2} {:a 3 :b 2}]"
   [coll-of-tuples]
@@ -71,11 +73,11 @@
           s-merge
           (recur (cons s-merge s-rest)))))))
 
-(defn project-tuples
-  ([tuples fields] (project-tuples tuples fields fields))
+(defn project
+  ([tuples fields] (project tuples fields fields))
   ([tuples input-fields output-fields]
      (map
       #(->> %
-            (select-fields input-fields)
+            (select-values input-fields)
             (to-tuple output-fields))
       tuples)))
