@@ -1,7 +1,6 @@
 (ns cascalog.in-memory.platform
   (:require [cascalog.logic.predicate]
-            [cascalog.logic.platform :refer
-             (compile-query IPlatform platform-generator? generator to-generator)]
+            [cascalog.logic.platform :as p]
             [cascalog.logic.parse :as parse]
             [cascalog.in-memory.join :refer (join)]
             [cascalog.in-memory.tuple :refer :all]
@@ -18,12 +17,12 @@
 ;; Platform
 
 (defrecord InMemoryPlatform []
-  IPlatform
+  p/IPlatform
   (generator? [_ x]
-    (platform-generator? x))
+    (p/platform-generator? x))
 
   (generator-builder [_ gen output options]
-    (to-tuples-filter-nullable output (generator gen)))
+    (to-tuples-filter-nullable output (p/generator gen)))
 
   (run! [p _ _]
     (u/throw-illegal (str p " doesn't have an implementation for run!")))
@@ -31,41 +30,41 @@
   (run-to-memory! [_ _ queries]
     (map
      (fn [query]
-       (let [[tuples available-fields] (compile-query query)]
+       (let [[tuples available-fields] (p/compile-query query)]
          (extract-values available-fields tuples)))
      queries)))
 
 ;; Generators
 
-(defmethod generator [InMemoryPlatform clojure.lang.IPersistentVector]
+(defmethod p/generator [InMemoryPlatform clojure.lang.IPersistentVector]
   [v]
-  (generator (or (seq v) ())))
+  (p/generator (or (seq v) ())))
 
-(defmethod generator [InMemoryPlatform clojure.lang.ISeq]
+(defmethod p/generator [InMemoryPlatform clojure.lang.ISeq]
   [v] v) 
 
-(defmethod generator [InMemoryPlatform java.util.ArrayList]
+(defmethod p/generator [InMemoryPlatform java.util.ArrayList]
   [coll]
-  (generator (into [] coll)))
+  (p/generator (into [] coll)))
 
-(defmethod generator [InMemoryPlatform TailStruct]
+(defmethod p/generator [InMemoryPlatform TailStruct]
   [sq]
-  (compile-query sq))
+  (p/compile-query sq))
 
 ;; To Generators
 
-(defmethod to-generator [InMemoryPlatform Subquery]
+(defmethod p/to-generator [InMemoryPlatform Subquery]
   [sq]
-  (generator (.getCompiledSubquery sq)))
+  (p/generator (.getCompiledSubquery sq)))
 
-(defmethod to-generator [InMemoryPlatform Projection]
+(defmethod p/to-generator [InMemoryPlatform Projection]
   [{:keys [source fields]}]
   (project-tuples source fields))
 
-(defmethod to-generator [InMemoryPlatform Generator]
+(defmethod p/to-generator [InMemoryPlatform Generator]
   [{:keys [gen]}] gen)
 
-(defmethod to-generator [InMemoryPlatform Rename]
+(defmethod p/to-generator [InMemoryPlatform Rename]
   [{:keys [source input output]}]
   (project-tuples source input output))
 
@@ -73,19 +72,19 @@
   (fn [coll op input output]
     (type op)))
 
-(defmethod to-generator [InMemoryPlatform Application]
+(defmethod p/to-generator [InMemoryPlatform Application]
   [{:keys [source operation]}]
   (let [{:keys [op input output]} operation]
     (op-clojure source op input output)))
 
-(defmethod to-generator [InMemoryPlatform FilterApplication]
+(defmethod p/to-generator [InMemoryPlatform FilterApplication]
   [{f :filter source :source}]
   (let [{:keys [op input]} f]
     (filter
      #(apply op (select-fields input %))
      source)))
 
-(defmethod to-generator [InMemoryPlatform Unique]
+(defmethod p/to-generator [InMemoryPlatform Unique]
   [{:keys [source fields options]}]
   (let [{:keys [sort reverse]} options
         coll (map #(select-fields fields %) source)
@@ -93,7 +92,7 @@
         tuples (to-tuples fields distinct-coll)]
     (tuple-sort tuples sort reverse)))
 
-(defmethod to-generator [InMemoryPlatform Join]
+(defmethod p/to-generator [InMemoryPlatform Join]
   [{:keys [sources join-fields type-seq options]}]
   (loop [loop-sources sources
          loop-join-fields join-fields
@@ -135,7 +134,7 @@
        (map #(to-tuple output %) r-seq)))
    aggregators))
 
-(defmethod to-generator [InMemoryPlatform Grouping]
+(defmethod p/to-generator [InMemoryPlatform Grouping]
   [{:keys [source aggregators grouping-fields options]}]
   (let [{:keys [sort reverse]} options]
     (->> source
@@ -148,7 +147,7 @@
                    (cross-join-tuples)
                    (map #(merge original-tuple %)))))))))
 
-(defmethod to-generator [InMemoryPlatform TailStruct]
+(defmethod p/to-generator [InMemoryPlatform TailStruct]
   [{:keys [node available-fields]}]
   ;; This is the last to-gerenator, so the tuples and their
   ;; field list are returned to enable the caller to
