@@ -14,7 +14,7 @@
            [cascalog.logic.def ParallelAggregator ParallelBuffer]
            [jcascalog Subquery]))
 
-;; Platform
+;; ## Platform
 
 (defrecord InMemoryPlatform []
   p/IPlatform
@@ -34,7 +34,7 @@
          (extract-values available-fields tuples)))
      queries)))
 
-;; Generators
+;; ## Generators
 
 (defmethod p/generator [InMemoryPlatform clojure.lang.IPersistentVector]
   [v]
@@ -51,7 +51,7 @@
   [sq]
   (p/compile-query sq))
 
-;; To Generators
+;; ## To Generators
 
 (defmethod p/to-generator [InMemoryPlatform Subquery]
   [sq]
@@ -154,7 +154,7 @@
   ;; turn the tuples into a seq of just values.
   [(project-tuples node available-fields) available-fields])
 
-;; Application Helpers
+;; ## Application Helpers
 
 (defmethod op-clojure ::d/map
   [coll op input output]
@@ -174,7 +174,7 @@
        (map #(merge tuple %) new-tuples)))
    coll))
 
-;; Grouping Helpers
+;; ## Grouping Helpers
 
 (defmethod agg-clojure ::d/buffer
   [coll op]
