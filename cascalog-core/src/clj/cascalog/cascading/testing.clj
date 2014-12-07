@@ -1,12 +1,12 @@
 (ns cascalog.cascading.testing
   (:require [clojure.test :refer :all]
             [cascalog.api :refer :all]
-            [cascalog.logic.testing :refer :all]
+            [cascalog.logic.testing :as t]
             [cascalog.cascading.io :as io]
             [cascalog.cascading.tap :as tap]
             [cascalog.cascading.platform :refer (normalize-sink-connection)]
             [jackknife.core :as u]
-            [jackknife.seq :refer (unweave collectify multi-set)])
+            [jackknife.seq :refer (unweave multi-set)])
   (:import [cascalog.cascading.platform CascadingPlatform]
            [java.io File]
            [cascading.tuple Fields]))
@@ -38,7 +38,7 @@
                                            (u/uuid)))])))]
     [tmpfiles (vec tmpforms)]))
 
-(extend-protocol ITestable
+(extend-protocol t/ITestable
   CascadingPlatform
   (process?- [_ bindings]
     (let [[ll :as bindings] bindings
@@ -58,11 +58,11 @@
                 [specs out-tuples])))))))
 
 (defn check-tap-spec [tap spec]
-  (is-tuplesets= (tap/get-sink-tuples tap) spec))
+  (t/is-tuplesets= (tap/get-sink-tuples tap) spec))
 
 (defn check-tap-spec-sets [tap spec]
-  (is (= (multi-set (map set (doublify (tap/get-sink-tuples tap))))
-         (multi-set (map set (doublify spec))))))
+  (is (= (multi-set (map set (t/doublify (tap/get-sink-tuples tap))))
+         (multi-set (map set (t/doublify spec))))))
 
 (defn with-expected-sinks-helper [checker bindings body]
   (let [[names specs] (map vec (unweave bindings))
