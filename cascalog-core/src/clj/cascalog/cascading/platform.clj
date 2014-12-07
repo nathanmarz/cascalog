@@ -251,6 +251,8 @@
   (run-to-memory! [_ name queries]
     (apply flow/all-to-memory name (map p/compile-query queries))))
 
+;; ## Generators
+
 (defmethod p/generator [CascadingPlatform Subquery]
   [sq]
   (p/generator (.getCompiledSubquery sq)))
@@ -287,6 +289,8 @@
 
 (defmethod p/generator [CascadingPlatform ClojureFlow]
   [x] x)
+
+;; ## To Generators
 
 (defmethod p/to-generator [CascadingPlatform Object]
   [x]
