@@ -120,3 +120,71 @@
     (test?- [[3 4] [2 1]]
             (c/first-n sq 2 :sort "?a" :reverse true))
     (is (= 2 (count (first (??- (c/first-n sq 2))))))))
+
+(deftest test-negation
+  (let [age [["nathan" 25] ["nathan" 24]
+             ["alice" 23] ["george" 31]]
+        gender [["nathan" "m"] ["emily" "f"]
+                ["george" "m"] ["bob" "m"]]
+        follows [["nathan" "bob"] ["nathan" "alice"]
+                 ["alice" "nathan"] ["alice" "jim"]
+                 ["bob" "nathan"]]]
+    (test?<- [["george"]]
+             [?p]
+             (age ?p _)
+             (follows ?p _ :> false))
+
+    ;; trouble with this one
+    (test?<- [["nathan"] ["nathan"]
+              ["alice"]]
+             [?p]
+             (age ?p _)
+             (follows ?p _ :> true))
+
+    (test?<- [["alice"]]
+             [?p]
+             (age ?p _)
+             (follows ?p "nathan" :> true))
+
+    (test?<- [["nathan"] ["nathan"]
+              ["george"]]
+             [?p]
+             (age ?p _)
+             (follows ?p "nathan" :> false))
+
+    ;; trouble with this one
+    (test?<- [["nathan" true true] ["nathan" true true]
+              ["alice" true false] ["george" false true]]
+             [?p ?isfollows ?ismale]
+             (age ?p _)
+             (follows ?p _ :> ?isfollows)
+             (gender ?p "m" :> ?ismale))
+
+    ;; trouble with this one
+    (test?<- [["nathan" true true]
+              ["nathan" true true]]
+             [?p ?isfollows ?ismale]
+             (age ?p _)
+             (follows ?p _ :> ?isfollows)
+             (gender ?p "m" :> ?ismale)
+             (= ?ismale ?isfollows))
+
+    (let [old (<- [?p ?a]
+                  (age ?p ?a)
+                  (> ?a 30))]
+
+      
+      (test?<- [["nathan"] ["bob"]]
+               [?p]
+               (gender ?p "m")
+               (old ?p _ :> false)))
+
+    (test?<- [[24] [31]]
+             [?n]
+             (age _ ?n)
+             ([[25] [23]] ?n :> false))
+
+    (test?<- [["alice"]]
+             [?p]
+             (age ?p _)
+             ((c/negate gender) ?p _))))

@@ -9,7 +9,7 @@
             [jackknife.core :as u]
             [jackknife.seq :as s])
   (:import [cascalog.logic.parse TailStruct Projection Application
-            FilterApplication Unique Join Grouping Rename]
+            FilterApplication Unique Join Grouping Rename ExistenceNode]
            [cascalog.logic.predicate Generator RawSubquery]
            [cascalog.logic.def ParallelAggregator ParallelBuffer]
            [jcascalog Subquery]))
@@ -22,6 +22,7 @@
     (p/platform-generator? x))
 
   (generator-builder [_ gen output options]
+    (prn "gen is " gen " and ouput " output)
     (t/to-tuples-filter-nullable output (p/generator gen)))
 
   (run! [p _ _]
@@ -49,7 +50,8 @@
 
 (defmethod p/generator [InMemoryPlatform TailStruct]
   [sq]
-  (p/compile-query sq))
+  (let [[tuples available-fields] (p/compile-query sq)]
+    (t/map-select-values available-fields tuples)))
 
 ;; ## To Generators
 
@@ -83,6 +85,11 @@
     (filter
      #(apply op (t/select-values input %))
      source)))
+
+(defmethod p/to-generator [InMemoryPlatform ExistenceNode]
+  [{:keys [source] :as a}]
+  (prn "to-generator ExistenceNode " a)
+  source)
 
 (defmethod p/to-generator [InMemoryPlatform Unique]
   [{:keys [source fields options]}]

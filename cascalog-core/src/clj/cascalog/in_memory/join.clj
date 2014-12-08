@@ -1,5 +1,5 @@
 (ns cascalog.in-memory.join
-  (:require [cascalog.in-memory.tuple :refer (empty-tuple)]))
+  (:require [cascalog.in-memory.tuple :refer (to-tuple empty-tuple)]))
 
 (defn inner-join
   "Inner joins two maps that both have been grouped by the same function.
@@ -34,6 +34,28 @@
        (remove nil?)
        flatten))
 
+(defn left-existence-join
+  "Similar to a left-join except it includes an additional argument,
+  existence-field, that captures the boolean about whether a join was
+  found or not.  True if a left value was found.  False if not."  
+  [l-grouped r-grouped r-fields existence-field]
+  (->> l-grouped
+       (map
+        (fn [l-group]
+          (let [[k l-tuples] l-group
+                r-empty-tuples [(empty-tuple r-fields)]
+                r-tuples (get r-grouped k r-empty-tuples)
+                existence-tuple (if (contains? r-grouped k)
+                                  (to-tuple [existence-field] [true])
+                                  (to-tuple [existence-field] [false]))]
+            (for [x l-tuples y r-tuples]
+                ;; merge is specifically ordered, because the left
+                ;; tuple takes precedence over the right one (which
+                ;; could be nil)
+                (merge existence-tuple y x)))))
+       (remove nil?)
+       flatten))
+
 (defn left-excluding-join
   "A left join that only returns values where the right side is nil"
   [l-grouped r-grouped r-fields]
@@ -65,6 +87,8 @@
    [(inner-join l-grouped r-grouped) :inner]
    (and (= :inner l-type) (= :outer r-type))
    [(left-join l-grouped r-grouped r-fields) :outer]
+   (= :inner l-type)
+   [(left-existence-join l-grouped r-grouped r-fields r-type) :outer]
    (and (= :outer l-type) (= :inner r-type))
    [(left-join r-grouped l-grouped l-fields) :outer]
    :else [(outer-join l-grouped r-grouped l-fields r-fields) :outer]))
