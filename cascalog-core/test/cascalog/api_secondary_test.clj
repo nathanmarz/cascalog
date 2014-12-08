@@ -112,18 +112,6 @@
       (is (= (set [["alicea"] ["boba"]])
              (set (second res)))))))
 
-;; TODO: test within massive joins (more than one join field, after
-;; other joins complete, etc.)
-
-(deftest test-first-n
-  (let [sq (name-vars [[1 1] [1 3] [1 2] [2 1] [3 4]]
-                      ["?a" "?b"])]
-    (test?- [[1 1] [1 2]]
-            (c/first-n sq 2 :sort ["?a" "?b"]))
-    (test?- [[3 4] [2 1]]
-            (c/first-n sq 2 :sort "?a" :reverse true))
-    (is (= 2 (count (first (??- (c/first-n sq 2))))))))
-
 (deftest test-negation
   (let [age [["nathan" 25] ["nathan" 24]
              ["alice" 23] ["george" 31]]
@@ -137,7 +125,6 @@
              (age ?p _)
              (follows ?p _ :> false))
 
-    ;; trouble with this one
     (test?<- [["nathan"] ["nathan"]
               ["alice"]]
              [?p]
@@ -155,7 +142,6 @@
              (age ?p _)
              (follows ?p "nathan" :> false))
 
-    ;; trouble with this one
     (test?<- [["nathan" true true] ["nathan" true true]
               ["alice" true false] ["george" false true]]
              [?p ?isfollows ?ismale]
@@ -163,7 +149,6 @@
              (follows ?p _ :> ?isfollows)
              (gender ?p "m" :> ?ismale))
 
-    ;; trouble with this one
     (test?<- [["nathan" true true]
               ["nathan" true true]]
              [?p ?isfollows ?ismale]
@@ -192,6 +177,9 @@
              (age ?p _)
              ((c/negate gender) ?p _))))
 
+;; TODO: test within massive joins (more than one join field, after
+;; other joins complete, etc.)
+
 (deftest test-negation-operations
   (let [nums [[1] [2] [3] [4]]
         pairs [[3 4] [4 5]]]
@@ -200,3 +188,12 @@
              (nums ?n)
              (pairs ?n ?n2 :> false)
              (odd? ?n2))))
+
+(deftest test-first-n
+  (let [sq (name-vars [[1 1] [1 3] [1 2] [2 1] [3 4]]
+                      ["?a" "?b"])]
+    (test?- [[1 1] [1 2]]
+            (c/first-n sq 2 :sort ["?a" "?b"]))
+    (test?- [[3 4] [2 1]]
+            (c/first-n sq 2 :sort "?a" :reverse true))
+    (is (= 2 (count (first (??- (c/first-n sq 2))))))))
