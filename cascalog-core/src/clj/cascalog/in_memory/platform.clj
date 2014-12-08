@@ -10,7 +10,7 @@
             [jackknife.seq :as s])
   (:import [cascalog.logic.parse TailStruct Projection Application
             FilterApplication Unique Join Grouping Rename ExistenceNode]
-           [cascalog.logic.predicate Generator RawSubquery]
+           [cascalog.logic.predicate Generator]
            [cascalog.logic.def ParallelAggregator ParallelBuffer]
            [jcascalog Subquery]))
 
@@ -56,7 +56,7 @@
 
 (defmethod p/to-generator [InMemoryPlatform Subquery]
   [sq]
-  (p/generator (.getCompiledSubquery sq)))
+  (p/compile-query (.getCompiledSubquery sq)))
 
 (defmethod p/to-generator [InMemoryPlatform Projection]
   [{:keys [source fields]}]
