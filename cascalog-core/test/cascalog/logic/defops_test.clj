@@ -3,9 +3,12 @@
         clojure.test
         [midje sweet cascalog]))
 
-(background
- (before :facts
-         (set-cascading-platform!)))
+(use-fixtures :once
+  (fn [f]
+    (set-cascading-platform!)
+    (f)
+    (set-in-memory-platform!)
+    (f)))
 
 (defmapop ident [x] x)
 
