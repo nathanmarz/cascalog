@@ -16,7 +16,6 @@
             [cascalog.cascading.tap :as tap]
             [cascalog.cascading.types :as types]
             [cascalog.cascading.io :as io]
-            [cascalog.cascading.util :refer (generic-cascading-fields?)]
             [cascalog.cascading.platform]
             [cascalog.in-memory.platform]
             [hadoop-util.core :as hadoop]
@@ -48,36 +47,7 @@
 
 (defalias get-out-fields parse/get-out-fields)
 
-(defprotocol INumOutFields
-  (num-out-fields [_]))
-
-;; TODO: num-out-fields should try and pluck from Tap if it doesn't
-;; define output fields, rather than just throwing immediately.
-
-(extend-protocol INumOutFields
-  Subquery
-  (num-out-fields [sq]
-    (count (seq (.getOutputFields sq))))
-
-  CascalogTap
-  (num-out-fields [tap]
-    (num-out-fields (:source tap)))
-
-  clojure.lang.ISeq
-  (num-out-fields [x]
-    (count (collectify (first x))))
-
-  clojure.lang.IPersistentVector
-  (num-out-fields [x]
-    (count (collectify (peek x))))
-
-  Tap
-  (num-out-fields [x]
-    (count (get-out-fields x)))
-
-  TailStruct
-  (num-out-fields [x]
-    (count (:available-fields x))))
+(defalias num-out-fields parse/num-out-fields)
 
 ;; ## Knobs for Hadoop
 

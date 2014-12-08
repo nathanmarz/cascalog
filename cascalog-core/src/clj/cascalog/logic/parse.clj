@@ -738,3 +738,23 @@ This won't work in distributed mode because of the ->Record functions."
   Subquery
   (get-out-fields [sq]
     (get-out-fields (.getCompiledSubquery sq))))
+
+(defprotocol INumOutFields
+  (num-out-fields [_]))
+
+(extend-protocol INumOutFields
+  Subquery
+  (num-out-fields [sq]
+    (count (seq (.getOutputFields sq))))
+
+  clojure.lang.ISeq
+  (num-out-fields [x]
+    (count (s/collectify (first x))))
+
+  clojure.lang.IPersistentVector
+  (num-out-fields [x]
+    (count (s/collectify (peek x))))
+
+  TailStruct
+  (num-out-fields [x]
+    (count (:available-fields x))))

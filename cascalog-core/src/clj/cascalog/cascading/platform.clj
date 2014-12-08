@@ -358,6 +358,19 @@
   (get-out-fields [tap]
     (parse/get-out-fields (:source tap))))
 
+;; TODO: num-out-fields should try and pluck from Tap if it doesn't
+;; define output fields, rather than just throwing immediately.
+
+(extend-protocol parse/INumOutFields
+
+  CascalogTap
+  (num-out-fields [tap]
+    (parse/num-out-fields (:source tap)))
+
+  Tap
+  (num-out-fields [x]
+    (count (parse/get-out-fields x))))
+
 (comment
   "MOVE these to tests."
   (require '[cascalog.logic.parse :refer (<-)]
