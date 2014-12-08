@@ -1,44 +1,43 @@
 (ns cascalog.in-memory.platform
   (:require [cascalog.logic.predicate]
-            [cascalog.logic.platform :refer
-             (compile-query IPlatform platform-generator? generator to-generator)]
+            [cascalog.logic.platform :as p]
             [cascalog.logic.parse :as parse]
             [cascalog.in-memory.join :refer (join)]
-            [cascalog.in-memory.tuple :refer :all]
             [cascalog.in-memory.util :refer (smallest-arity system-println)]
+            [cascalog.in-memory.tuple :as t]
             [cascalog.logic.def :as d]
             [jackknife.core :as u]
             [jackknife.seq :as s])
   (:import [cascalog.logic.parse TailStruct Projection Application
-            FilterApplication Unique Join Grouping Rename]
-           [cascalog.logic.predicate Generator RawSubquery]
+            FilterApplication Unique Join Grouping Rename ExistenceNode]
+           [cascalog.logic.predicate Generator]
            [cascalog.logic.def ParallelAggregator ParallelBuffer]
            [jcascalog Subquery]))
 
 (defprotocol ISink
   (to-sink [sink tuples fields]))
 
-;; Platform
+;; ## Platform
 
 (defrecord InMemoryPlatform []
-  IPlatform
+  p/IPlatform
   (generator? [_ x]
-    (platform-generator? x))
+    (p/platform-generator? x))
 
   (generator-builder [_ gen output options]
-    (to-tuples-filter-nullable output (generator gen)))
+    (t/to-tuples-filter-nullable output (p/generator gen)))
 
   (run! [p _ bindings]
     (map (fn [[sink query]]
-           (let [[tuples available-fields] (compile-query query)]
+           (let [[tuples available-fields] (p/compile-query query)]
              (to-sink sink tuples available-fields)))
          (partition 2 bindings)))
 
   (run-to-memory! [_ _ queries]
     (map
      (fn [query]
-       (let [[tuples available-fields] (compile-query query)]
-         (extract-values available-fields tuples)))
+       (let [[tuples available-fields] (p/compile-query query)]
+         (t/map-select-values available-fields tuples)))
      queries)))
 
 ;; Sinks
@@ -57,68 +56,73 @@
     (system-println "RESULTS")
     (system-println "-----------------------")
     (doseq [t tuples]
-      (apply system-println (select-fields fields t)))
+      (apply system-println (t/select-values fields t)))
     (system-println "-----------------------")))
 
-;; Generators
+;; ## Generators
 
-(defmethod generator [InMemoryPlatform clojure.lang.IPersistentVector]
+(defmethod p/generator [InMemoryPlatform clojure.lang.IPersistentVector]
   [v]
-  (generator (or (seq v) ())))
+  (p/generator (or (seq v) ())))
 
-(defmethod generator [InMemoryPlatform clojure.lang.ISeq]
+(defmethod p/generator [InMemoryPlatform clojure.lang.ISeq]
   [v] v) 
 
-(defmethod generator [InMemoryPlatform java.util.ArrayList]
+(defmethod p/generator [InMemoryPlatform java.util.ArrayList]
   [coll]
-  (generator (into [] coll)))
+  (p/generator (into [] coll)))
 
-(defmethod generator [InMemoryPlatform TailStruct]
+(defmethod p/generator [InMemoryPlatform TailStruct]
   [sq]
-  (compile-query sq))
+  (let [[tuples available-fields] (p/compile-query sq)]
+    (t/map-select-values available-fields tuples)))
 
-;; To Generators
+;; ## To Generators
 
-(defmethod to-generator [InMemoryPlatform Subquery]
+(defmethod p/to-generator [InMemoryPlatform Subquery]
   [sq]
-  (generator (.getCompiledSubquery sq)))
+  (p/compile-query (.getCompiledSubquery sq)))
 
-(defmethod to-generator [InMemoryPlatform Projection]
+(defmethod p/to-generator [InMemoryPlatform Projection]
   [{:keys [source fields]}]
-  (project-tuples source fields))
+  (t/project source fields))
 
-(defmethod to-generator [InMemoryPlatform Generator]
+(defmethod p/to-generator [InMemoryPlatform Generator]
   [{:keys [gen]}] gen)
 
-(defmethod to-generator [InMemoryPlatform Rename]
+(defmethod p/to-generator [InMemoryPlatform Rename]
   [{:keys [source input output]}]
-  (project-tuples source input output))
+  (t/project source input output))
 
 (defmulti op-clojure
   (fn [coll op input output]
     (type op)))
 
-(defmethod to-generator [InMemoryPlatform Application]
+(defmethod p/to-generator [InMemoryPlatform Application]
   [{:keys [source operation]}]
   (let [{:keys [op input output]} operation]
     (op-clojure source op input output)))
 
-(defmethod to-generator [InMemoryPlatform FilterApplication]
+(defmethod p/to-generator [InMemoryPlatform FilterApplication]
   [{f :filter source :source}]
   (let [{:keys [op input]} f]
     (filter
-     #(apply op (select-fields input %))
+     #(apply op (t/select-values input %))
      source)))
 
-(defmethod to-generator [InMemoryPlatform Unique]
+(defmethod p/to-generator [InMemoryPlatform ExistenceNode]
+  [{:keys [source] :as a}]
+  source)
+
+(defmethod p/to-generator [InMemoryPlatform Unique]
   [{:keys [source fields options]}]
   (let [{:keys [sort reverse]} options
-        coll (map #(select-fields fields %) source)
+        coll (map #(t/select-values fields %) source)
         distinct-coll (distinct coll)
-        tuples (to-tuples fields distinct-coll)]
-    (tuple-sort tuples sort reverse)))
+        tuples (t/to-tuples fields distinct-coll)]
+    (t/sort tuples sort reverse)))
 
-(defmethod to-generator [InMemoryPlatform Join]
+(defmethod p/to-generator [InMemoryPlatform Join]
   [{:keys [sources join-fields type-seq options]}]
   (loop [loop-sources sources
          loop-join-fields join-fields
@@ -154,40 +158,40 @@
 (defn aggregate-tuples [aggregators sorted-tuples]
   (map
    (fn [{:keys [op input output]}]
-     (let [coll (extract-values input sorted-tuples)
+     (let [coll (t/map-select-values input sorted-tuples)
            r (s/collectify (agg-clojure coll op))
            r-seq (if (sequential? (first r)) r [r])]
-       (map #(to-tuple output %) r-seq)))
+       (map #(t/to-tuple output %) r-seq)))
    aggregators))
 
-(defmethod to-generator [InMemoryPlatform Grouping]
+(defmethod p/to-generator [InMemoryPlatform Grouping]
   [{:keys [source aggregators grouping-fields options]}]
   (let [{:keys [sort reverse]} options]
     (->> source
          (group-by #(vec (map % grouping-fields)))
          (mapcat
           (fn [[grouping-vals tuples]]
-            (let [original-tuple (to-tuple grouping-fields grouping-vals)]
-              (->> (tuple-sort tuples sort reverse)
+            (let [original-tuple (t/to-tuple grouping-fields grouping-vals)]
+              (->> (t/sort tuples sort reverse)
                    (aggregate-tuples aggregators)
-                   (cross-join-tuples)
+                   (t/cross-join)
                    (map #(merge original-tuple %)))))))))
 
-(defmethod to-generator [InMemoryPlatform TailStruct]
+(defmethod p/to-generator [InMemoryPlatform TailStruct]
   [{:keys [node available-fields]}]
   ;; This is the last to-gerenator, so the tuples and their
   ;; field list are returned to enable the caller to
   ;; turn the tuples into a seq of just values.
-  [(project-tuples node available-fields) available-fields])
+  [(t/project node available-fields) available-fields])
 
-;; Application Helpers
+;; ## Application Helpers
 
 (defmethod op-clojure ::d/map
   [coll op input output]
   (map
    (fn [tuple]
-     (let [v (s/collectify (apply op (select-fields input tuple)))
-           new-tuple (to-tuple output v)]
+     (let [v (s/collectify (apply op (t/select-values input tuple)))
+           new-tuple (t/to-tuple output v)]
        (merge tuple new-tuple)))
    coll))
 
@@ -195,24 +199,16 @@
   [coll op input output]
   (mapcat
    (fn [tuple]
-     (let [v (apply op (select-fields input tuple))
-           new-tuples (map #(to-tuple output (s/collectify %)) v)]
+     (let [v (apply op (t/select-values input tuple))
+           new-tuples (map #(t/to-tuple output (s/collectify %)) v)]
        (map #(merge tuple %) new-tuples)))
    coll))
 
-;; Grouping Helpers
+;; ## Grouping Helpers
 
 (defmethod agg-clojure ::d/buffer
   [coll op]
-  (if (d/prepared? op)
-    (let [
-          ;; Allows Cascading to pass in a
-          ;; FlowProcess and an OperationCall,
-          ;; but we'll just use nils
-          fun (op nil nil)
-          operation (:operate fun)]
-      (operation coll))
-    (op coll)))
+  (op coll))
 
 (defmethod agg-clojure ::d/bufferiter
   [coll op]

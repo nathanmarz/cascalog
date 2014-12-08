@@ -1,6 +1,6 @@
 (ns cascalog.in-memory.testing
   (:require [cascalog.api :refer :all]
-            [cascalog.logic.testing :refer (ITestable process?-)]
+            [cascalog.logic.testing :refer (ITestable)]
             [jackknife.seq :refer (unweave)])
   (:import [cascalog.in_memory.platform InMemoryPlatform]))
 

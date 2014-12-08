@@ -6,7 +6,9 @@
         cascalog.api)
   (:require [cascalog.logic.ops :as c]
             [cascalog.cascading.io :as io]
-            [cascalog.logic.def :as d])
+            [cascalog.logic.def :as d]
+            [cascalog.cascading.def :as cd]
+            )
   (:import [cascading.tuple Fields]
            [cascalog.test KeepEven OneBuffer CountAgg SumAgg]
            [cascalog.ops IdentityBuffer]
@@ -324,3 +326,26 @@
                                   (* 2 ?b :> ?c)
                                   (:distinct false)) ])]
     (test?- double-second-sink pairs)))
+
+(defn sum-plus [a]
+  (d/bufferop
+   (cd/prepfn
+    [_ _]
+    (let [x (* 3 a)]
+      {:operate (fn [tuples]
+                  [(apply + x (map first tuples))])}))))
+
+(deftest test-hof-ops
+  (let [integer [[1] [2] [6]]]
+    (test?<- [[72]]
+             [?n]
+             (integer ?v)
+             ((sum-plus 21) ?v :> ?n))))
+
+(deftest test-outfields-tap
+  (is (thrown? AssertionError
+               (get-out-fields (memory-source-tap Fields/ALL []))))
+  (is (= ["!age"]
+         (get-out-fields (memory-source-tap ["!age"] []))))
+  (is (= ["?age" "field2"]
+         (get-out-fields (memory-source-tap ["?age" "field2"] [])))))

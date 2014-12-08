@@ -8,6 +8,7 @@
             [cascalog.logic.platform :as platform]
             [cascalog.logic.parse :as parse]
             [cascalog.logic.predmacro :as pm]
+            [cascalog.cascading.def :as cd]
             [cascalog.cascading.tap :as tap]
             [cascalog.cascading.conf :as conf]
             [cascalog.cascading.flow :as flow]
@@ -270,8 +271,8 @@
 
 ;; ## Defining custom operations
 
-(defalias prepfn d/prepfn)
-(defalias defprepfn d/defprepfn)
+(defalias prepfn cd/prepfn)
+(defalias defprepfn cd/defprepfn)
 
 ;; These functions allow you to lift a vanilla function up into
 ;; Cascalog. For example, (mapcatop vector) is identical to
