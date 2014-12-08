@@ -16,7 +16,6 @@
             [cascalog.cascading.tap :as tap]
             [cascalog.cascading.types :as types]
             [cascalog.cascading.io :as io]
-            [cascalog.cascading.util :refer (generic-cascading-fields?)]
             [cascalog.cascading.platform]
             [cascalog.in-memory.platform]
             [hadoop-util.core :as hadoop]
@@ -46,61 +45,9 @@
 
 ;; ## Query introspection
 
-(defprotocol IOutputFields
-  (get-out-fields [_] "Get the fields of a generator."))
+(defalias get-out-fields parse/get-out-fields)
 
-(extend-protocol IOutputFields
-  Tap
-  (get-out-fields [tap]
-    (let [cfields (.getSourceFields tap)]
-      (u/safe-assert
-       (not (generic-cascading-fields? cfields))
-       (str "Cannot get specific out-fields from tap. Tap source fields: "
-            cfields))
-      (vec (seq cfields))))
-
-  TailStruct
-  (get-out-fields [tail]
-    (:available-fields tail))
-
-  Subquery
-  (get-out-fields [sq]
-    (get-out-fields (.getCompiledSubquery sq)))
-
-  CascalogTap
-  (get-out-fields [tap]
-    (get-out-fields (:source tap))))
-
-(defprotocol INumOutFields
-  (num-out-fields [_]))
-
-;; TODO: num-out-fields should try and pluck from Tap if it doesn't
-;; define output fields, rather than just throwing immediately.
-
-(extend-protocol INumOutFields
-  Subquery
-  (num-out-fields [sq]
-    (count (seq (.getOutputFields sq))))
-
-  CascalogTap
-  (num-out-fields [tap]
-    (num-out-fields (:source tap)))
-
-  clojure.lang.ISeq
-  (num-out-fields [x]
-    (count (collectify (first x))))
-
-  clojure.lang.IPersistentVector
-  (num-out-fields [x]
-    (count (collectify (peek x))))
-
-  Tap
-  (num-out-fields [x]
-    (count (get-out-fields x)))
-
-  TailStruct
-  (num-out-fields [x]
-    (count (:available-fields x))))
+(defalias num-out-fields parse/num-out-fields)
 
 ;; ## Knobs for Hadoop
 
@@ -241,33 +188,7 @@
   [& gens]
   (ops/unique (apply combine gens)))
 
-(defprotocol ISelectFields
-  (select-fields [gen fields]
-    "Select fields of a named generator.
-
-  Example:
-  (<- [?a ?b ?sum]
-      (+ ?a ?b :> ?sum)
-      ((select-fields generator [\"?a\" \"?b\"]) ?a ?b))"))
-
-(extend-protocol ISelectFields
-  TailStruct
-  (select-fields [sq fields]
-    (parse/project sq fields))
-
-  Subquery
-  (select-fields [sq fields]
-    (select-fields (.getCompiledSubquery sq) fields))
-
-  Tap
-  (select-fields [tap fields]
-    (-> (platform/generator tap)
-        (ops/select* fields)))
-
-  CascalogTap
-  (select-fields [tap fields]
-    (-> (platform/generator tap)
-        (ops/select* fields))))
+(defalias select-fields parse/select-fields)
 
 ;; ## Defining custom operations
 

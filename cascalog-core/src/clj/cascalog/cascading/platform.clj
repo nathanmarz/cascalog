@@ -342,6 +342,47 @@
   (run-to-memory! [_ name queries]
     (apply flow/all-to-memory name (map p/compile-query queries))))
 
+;; ## Output Fields
+
+(extend-protocol parse/IOutputFields
+  Tap
+  (get-out-fields [tap]
+    (let [cfields (.getSourceFields tap)]
+      (u/safe-assert
+       (not (casc/generic-cascading-fields? cfields))
+       (str "Cannot get specific out-fields from tap. Tap source fields: "
+            cfields))
+      (vec (seq cfields))))
+
+  CascalogTap
+  (get-out-fields [tap]
+    (parse/get-out-fields (:source tap))))
+
+;; TODO: num-out-fields should try and pluck from Tap if it doesn't
+;; define output fields, rather than just throwing immediately.
+
+(extend-protocol parse/INumOutFields
+
+  CascalogTap
+  (num-out-fields [tap]
+    (parse/num-out-fields (:source tap)))
+
+  Tap
+  (num-out-fields [x]
+    (count (parse/get-out-fields x))))
+
+(extend-protocol parse/ISelectFields
+
+  Tap
+  (select-fields [tap fields]
+    (-> (p/generator tap)
+        (ops/select* fields)))
+
+  CascalogTap
+  (select-fields [tap fields]
+    (-> (p/generator tap)
+        (ops/select* fields))))
+
 (comment
   "MOVE these to tests."
   (require '[cascalog.logic.parse :refer (<-)]

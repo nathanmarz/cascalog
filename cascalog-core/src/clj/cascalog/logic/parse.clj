@@ -14,7 +14,8 @@
   (:import [cascalog.logic.predicate
             Operation FilterOperation Aggregator Generator
             GeneratorSet RawPredicate RawSubquery]
-           [clojure.lang IPersistentVector]))
+           [clojure.lang IPersistentVector]
+           [jcascalog Subquery]))
 
 ;; ## Variable Parsing
 
@@ -724,3 +725,54 @@ This won't work in distributed mode because of the ->Record functions."
   (if (string? f)
     [f rest]
     ["" args]))
+
+(defprotocol IOutputFields
+  (get-out-fields [_] "Get the fields of a generator."))
+
+(extend-protocol IOutputFields
+
+  TailStruct
+  (get-out-fields [tail]
+    (:available-fields tail))
+
+  Subquery
+  (get-out-fields [sq]
+    (get-out-fields (.getCompiledSubquery sq))))
+
+(defprotocol INumOutFields
+  (num-out-fields [_]))
+
+(extend-protocol INumOutFields
+  Subquery
+  (num-out-fields [sq]
+    (count (seq (.getOutputFields sq))))
+
+  clojure.lang.ISeq
+  (num-out-fields [x]
+    (count (s/collectify (first x))))
+
+  clojure.lang.IPersistentVector
+  (num-out-fields [x]
+    (count (s/collectify (peek x))))
+
+  TailStruct
+  (num-out-fields [x]
+    (count (:available-fields x))))
+
+(defprotocol ISelectFields
+  (select-fields [gen fields]
+    "Select fields of a named generator.
+
+  Example:
+  (<- [?a ?b ?sum]
+      (+ ?a ?b :> ?sum)
+      ((select-fields generator [\"?a\" \"?b\"]) ?a ?b))"))
+
+(extend-protocol ISelectFields
+  TailStruct
+  (select-fields [sq fields]
+    (project sq fields))
+
+  Subquery
+  (select-fields [sq fields]
+    (select-fields (.getCompiledSubquery sq) fields)))
