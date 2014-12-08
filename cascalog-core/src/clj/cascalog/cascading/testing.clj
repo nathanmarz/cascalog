@@ -7,7 +7,7 @@
             [cascalog.cascading.platform :refer (normalize-sink-connection)]
             [jackknife.core :as u]
             [jackknife.seq :refer (unweave multi-set)])
-  (:import [cascalog.cascading.platform CascadingPlatform]
+  (:import [cascalog.cascading.types CascadingPlatform]
            [java.io File]
            [cascading.tuple Fields]))
 
