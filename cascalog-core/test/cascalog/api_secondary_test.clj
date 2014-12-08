@@ -160,8 +160,6 @@
     (let [old (<- [?p ?a]
                   (age ?p ?a)
                   (> ?a 30))]
-
-      
       (test?<- [["nathan"] ["bob"]]
                [?p]
                (gender ?p "m")
