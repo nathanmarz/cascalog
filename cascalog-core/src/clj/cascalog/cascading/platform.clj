@@ -30,7 +30,7 @@
            [cascalog.cascading.operations IAggregateBy IAggregator
             Inner Outer Existence]
            [cascalog.logic.def ParallelAggregator ParallelBuffer Prepared]
-           [cascalog.cascading.types ClojureFlow]
+           [cascalog.cascading.types CascadingPlatform ClojureFlow]
            [com.twitter.maple.tap MemorySourceTap]
            [cascading.tap Tap]
            [cascalog.cascading.tap CascalogTap]
@@ -213,83 +213,6 @@
 ;; TODO: Add a validation here that checks if this thing is a
 ;; generator and sends a proper error message otherwise.
 
-(defn- init-pipe-name [options]
-  (or (:name (:trap options))
-      (u/uuid))) 
-
-(defn- init-trap-map [options]
-  (if-let [trap (:trap options)]
-    {(:name trap) (types/to-sink (:tap trap))}
-    {}))
-
-(defn normalize-sink-connection [sink subquery]
-  (cond (fn? sink) (sink subquery)
-        (instance? CascalogTap sink)
-        (normalize-sink-connection (:sink sink) subquery)
-        :else [sink subquery]))
-
-;; ## Platform Implementation
-
-(defrecord CascadingPlatform []
-  p/IPlatform
-  (generator? [_ x]
-    (p/platform-generator? x))
-
-  (generator-builder [_ gen fields options]
-    (-> (p/generator gen)
-        (update-in [:trap-map] #(merge % (init-trap-map options)))
-        (ops/rename-pipe (init-pipe-name options))
-        (ops/rename* fields)
-        ;; All generators if the fields aren't ungrounded discard null values
-        (ops/filter-nullable-vars fields)))
-
-  (run! [_ name bindings]
-    (let [bindings (mapcat (partial apply normalize-sink-connection)
-                           (partition 2 bindings))]
-      (flow/run! (apply flow/compile-flow name bindings))))
-
-  (run-to-memory! [_ name queries]
-    (apply flow/all-to-memory name (map p/compile-query queries))))
-
-;; ## Generators
-
-(defmethod p/generator [CascadingPlatform Subquery]
-  [sq]
-  (p/generator (.getCompiledSubquery sq)))
-
-(defmethod p/generator [CascadingPlatform CascalogTap]
-  [tap]
-  (p/generator (:source tap)))
-
-(defmethod p/generator [CascadingPlatform clojure.lang.IPersistentVector]
-  [v]
-  (p/generator (or (seq v) ())))
-
-(defmethod p/generator [CascadingPlatform clojure.lang.ISeq]
-  [v]
-  (p/generator
-   (MemorySourceTap. (map types/to-tuple v) Fields/ALL)))
-
-(defmethod p/generator [CascadingPlatform java.util.ArrayList]
-  [coll]
-  (p/generator (into [] coll)))
-
-(defmethod p/generator [CascadingPlatform Tap]
-  [tap]
-  (let [id (u/uuid)]
-    (ClojureFlow. {id tap} nil nil nil (Pipe. id) nil)))
-
-(defmethod p/generator [CascadingPlatform TailStruct]
-  [sq]
-  (p/compile-query sq))
-
-(defmethod p/generator [CascadingPlatform RawSubquery]
-  [sq]
-  (p/generator (parse/build-rule sq)))
-
-(defmethod p/generator [CascadingPlatform ClojureFlow]
-  [x] x)
-
 ;; ## To Generators
 
 (defmethod p/to-generator [CascadingPlatform Object]
@@ -380,6 +303,44 @@
 (defmethod p/to-generator [CascadingPlatform TailStruct]
   [item]
   (:node item))
+
+;; ## Platform Implementation
+
+(defn- init-pipe-name [options]
+  (or (:name (:trap options))
+      (u/uuid))) 
+
+(defn- init-trap-map [options]
+  (if-let [trap (:trap options)]
+    {(:name trap) (types/to-sink (:tap trap))}
+    {}))
+
+(defn normalize-sink-connection [sink subquery]
+  (cond (fn? sink) (sink subquery)
+        (instance? CascalogTap sink)
+        (normalize-sink-connection (:sink sink) subquery)
+        :else [sink subquery]))
+
+(extend-protocol p/IPlatform
+  CascadingPlatform
+  (generator? [_ x]
+    (p/platform-generator? x))
+
+  (generator-builder [_ gen fields options]
+    (-> (p/generator gen)
+        (update-in [:trap-map] #(merge % (init-trap-map options)))
+        (ops/rename-pipe (init-pipe-name options))
+        (ops/rename* fields)
+        ;; All generators if the fields aren't ungrounded discard null values
+        (ops/filter-nullable-vars fields)))
+
+  (run! [_ name bindings]
+    (let [bindings (mapcat (partial apply normalize-sink-connection)
+                           (partition 2 bindings))]
+      (flow/run! (apply flow/compile-flow name bindings))))
+
+  (run-to-memory! [_ name queries]
+    (apply flow/all-to-memory name (map p/compile-query queries))))
 
 (comment
   "MOVE these to tests."

@@ -26,7 +26,7 @@
            [cascading.tap Tap]
            [cascalog.logic.parse TailStruct]
            [cascalog.cascading.tap CascalogTap]
-           [cascalog.cascading.platform CascadingPlatform]
+           [cascalog.cascading.types CascadingPlatform]
            [cascalog.in_memory.platform InMemoryPlatform]
            [jcascalog Subquery]))
 

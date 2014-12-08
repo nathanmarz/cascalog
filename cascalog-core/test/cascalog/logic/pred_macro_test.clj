@@ -1,6 +1,8 @@
 (ns cascalog.logic.pred-macro-test
   (:use clojure.test
         cascalog.logic.testing
+        cascalog.cascading.testing
+        cascalog.in-memory.testing
         cascalog.api
         midje.sweet)
   (:require [cascalog.logic.ops :as c]))
@@ -8,6 +10,8 @@
 (use-fixtures :once
   (fn  [f]
     (set-cascading-platform!)
+    (f)
+    (set-in-memory-platform!)
     (f)))
 
 (def mac2
