@@ -14,7 +14,8 @@
   (:import [cascalog.logic.predicate
             Operation FilterOperation Aggregator Generator
             GeneratorSet RawPredicate RawSubquery]
-           [clojure.lang IPersistentVector]))
+           [clojure.lang IPersistentVector]
+           [jcascalog Subquery]))
 
 ;; ## Variable Parsing
 
@@ -724,3 +725,16 @@ This won't work in distributed mode because of the ->Record functions."
   (if (string? f)
     [f rest]
     ["" args]))
+
+(defprotocol IOutputFields
+  (get-out-fields [_] "Get the fields of a generator."))
+
+(extend-protocol IOutputFields
+
+  TailStruct
+  (get-out-fields [tail]
+    (:available-fields tail))
+
+  Subquery
+  (get-out-fields [sq]
+    (get-out-fields (.getCompiledSubquery sq))))

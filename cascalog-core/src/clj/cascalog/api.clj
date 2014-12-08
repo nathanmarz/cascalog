@@ -46,30 +46,7 @@
 
 ;; ## Query introspection
 
-(defprotocol IOutputFields
-  (get-out-fields [_] "Get the fields of a generator."))
-
-(extend-protocol IOutputFields
-  Tap
-  (get-out-fields [tap]
-    (let [cfields (.getSourceFields tap)]
-      (u/safe-assert
-       (not (generic-cascading-fields? cfields))
-       (str "Cannot get specific out-fields from tap. Tap source fields: "
-            cfields))
-      (vec (seq cfields))))
-
-  TailStruct
-  (get-out-fields [tail]
-    (:available-fields tail))
-
-  Subquery
-  (get-out-fields [sq]
-    (get-out-fields (.getCompiledSubquery sq)))
-
-  CascalogTap
-  (get-out-fields [tap]
-    (get-out-fields (:source tap))))
+(defalias get-out-fields parse/get-out-fields)
 
 (defprotocol INumOutFields
   (num-out-fields [_]))
