@@ -17,6 +17,9 @@
 (defprotocol ISink
   (to-sink [sink tuples fields]))
 
+(defn get-out-fields [tail]
+  (:available-fields tail))
+
 ;; ## Platform
 
 (defrecord InMemoryPlatform []
@@ -29,14 +32,16 @@
 
   (run! [p _ bindings]
     (map (fn [[sink query]]
-           (let [[tuples available-fields] (p/compile-query query)]
+           (let [available-fields (get-out-fields query)
+                 tuples (p/compile-query query)]
              (to-sink sink tuples available-fields)))
          (partition 2 bindings)))
 
   (run-to-memory! [_ _ queries]
     (map
      (fn [query]
-       (let [[tuples available-fields] (p/compile-query query)]
+       (let [available-fields (get-out-fields query)
+             tuples (p/compile-query query)]
          (t/map-select-values available-fields tuples)))
      queries)))
 
@@ -74,7 +79,8 @@
 
 (defmethod p/generator [InMemoryPlatform TailStruct]
   [sq]
-  (let [[tuples available-fields] (p/compile-query sq)]
+  (let [available-fields (get-out-fields sq)
+        tuples (p/compile-query sq)]
     (t/map-select-values available-fields tuples)))
 
 ;; ## To Generators
@@ -179,10 +185,7 @@
 
 (defmethod p/to-generator [InMemoryPlatform TailStruct]
   [{:keys [node available-fields]}]
-  ;; This is the last to-gerenator, so the tuples and their
-  ;; field list are returned to enable the caller to
-  ;; turn the tuples into a seq of just values.
-  [(t/project node available-fields) available-fields])
+  (t/project node available-fields))
 
 ;; ## Application Helpers
 
