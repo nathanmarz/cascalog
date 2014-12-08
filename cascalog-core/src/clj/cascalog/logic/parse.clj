@@ -758,3 +758,21 @@ This won't work in distributed mode because of the ->Record functions."
   TailStruct
   (num-out-fields [x]
     (count (:available-fields x))))
+
+(defprotocol ISelectFields
+  (select-fields [gen fields]
+    "Select fields of a named generator.
+
+  Example:
+  (<- [?a ?b ?sum]
+      (+ ?a ?b :> ?sum)
+      ((select-fields generator [\"?a\" \"?b\"]) ?a ?b))"))
+
+(extend-protocol ISelectFields
+  TailStruct
+  (select-fields [sq fields]
+    (project sq fields))
+
+  Subquery
+  (select-fields [sq fields]
+    (select-fields (.getCompiledSubquery sq) fields)))

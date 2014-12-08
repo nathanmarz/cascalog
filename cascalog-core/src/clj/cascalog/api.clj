@@ -188,33 +188,7 @@
   [& gens]
   (ops/unique (apply combine gens)))
 
-(defprotocol ISelectFields
-  (select-fields [gen fields]
-    "Select fields of a named generator.
-
-  Example:
-  (<- [?a ?b ?sum]
-      (+ ?a ?b :> ?sum)
-      ((select-fields generator [\"?a\" \"?b\"]) ?a ?b))"))
-
-(extend-protocol ISelectFields
-  TailStruct
-  (select-fields [sq fields]
-    (parse/project sq fields))
-
-  Subquery
-  (select-fields [sq fields]
-    (select-fields (.getCompiledSubquery sq) fields))
-
-  Tap
-  (select-fields [tap fields]
-    (-> (platform/generator tap)
-        (ops/select* fields)))
-
-  CascalogTap
-  (select-fields [tap fields]
-    (-> (platform/generator tap)
-        (ops/select* fields))))
+(defalias select-fields parse/select-fields)
 
 ;; ## Defining custom operations
 

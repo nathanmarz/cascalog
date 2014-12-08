@@ -371,6 +371,18 @@
   (num-out-fields [x]
     (count (parse/get-out-fields x))))
 
+(extend-protocol parse/ISelectFields
+
+  Tap
+  (select-fields [tap fields]
+    (-> (p/generator tap)
+        (ops/select* fields)))
+
+  CascalogTap
+  (select-fields [tap fields]
+    (-> (p/generator tap)
+        (ops/select* fields))))
+
 (comment
   "MOVE these to tests."
   (require '[cascalog.logic.parse :refer (<-)]
