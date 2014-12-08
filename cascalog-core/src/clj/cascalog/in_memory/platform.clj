@@ -22,7 +22,6 @@
     (p/platform-generator? x))
 
   (generator-builder [_ gen output options]
-    (prn "gen is " gen " and ouput " output)
     (t/to-tuples-filter-nullable output (p/generator gen)))
 
   (run! [p _ _]
@@ -88,7 +87,6 @@
 
 (defmethod p/to-generator [InMemoryPlatform ExistenceNode]
   [{:keys [source] :as a}]
-  (prn "to-generator ExistenceNode " a)
   source)
 
 (defmethod p/to-generator [InMemoryPlatform Unique]

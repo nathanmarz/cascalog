@@ -26,7 +26,6 @@
 (defn to-tuples-filter-nullable
   "Turns [\"n\"] and [[1] [2]] into [{\"n\" 1} {\"n\" 2}]"
   [names coll-of-seqs]
-  (prn "to-tuples-filter " names " and " coll-of-seqs)
   (->> coll-of-seqs
        (map
         (fn [s]

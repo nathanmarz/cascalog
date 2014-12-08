@@ -2,13 +2,16 @@
     (:use clojure.test
           cascalog.api
           cascalog.logic.testing
+          cascalog.cascading.testing
           cascalog.in-memory.testing)
     (:import [cascading.tuple Fields])
     (:require [cascalog.logic.ops :as c]
               [cascalog.cascading.io :as io]))
 
 (use-fixtures :once
-  (fn  [f]
+  (fn [f]
+    (set-cascading-platform!)
+    (f)
     (set-in-memory-platform!)
     (f)))
 
@@ -188,3 +191,12 @@
              [?p]
              (age ?p _)
              ((c/negate gender) ?p _))))
+
+(deftest test-negation-operations
+  (let [nums [[1] [2] [3] [4]]
+        pairs [[3 4] [4 5]]]
+    (test?<- [[1] [2] [3]]
+             [?n]
+             (nums ?n)
+             (pairs ?n ?n2 :> false)
+             (odd? ?n2))))

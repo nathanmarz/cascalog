@@ -44,15 +44,15 @@
         (fn [l-group]
           (let [[k l-tuples] l-group
                 r-empty-tuples [(empty-tuple r-fields)]
-                r-tuples (get r-grouped k r-empty-tuples)
+                r-tuple (first (get r-grouped k r-empty-tuples))
                 existence-tuple (if (contains? r-grouped k)
                                   (to-tuple [existence-field] [true])
                                   (to-tuple [existence-field] [false]))]
-            (for [x l-tuples y r-tuples]
+            (for [x l-tuples]
                 ;; merge is specifically ordered, because the left
                 ;; tuple takes precedence over the right one (which
                 ;; could be nil)
-                (merge existence-tuple y x)))))
+                (merge existence-tuple r-tuple x)))))
        (remove nil?)
        flatten))
 
@@ -91,4 +91,7 @@
    [(left-existence-join l-grouped r-grouped r-fields r-type) :outer]
    (and (= :outer l-type) (= :inner r-type))
    [(left-join r-grouped l-grouped l-fields) :outer]
-   :else [(outer-join l-grouped r-grouped l-fields r-fields) :outer]))
+   (and (= :outer l-type) (= :outer r-type))
+   [(outer-join l-grouped r-grouped l-fields r-fields) :outer]
+   :else
+   [(left-existence-join l-grouped r-grouped r-fields r-type) :outer]))
