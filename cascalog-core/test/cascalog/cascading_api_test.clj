@@ -341,3 +341,11 @@
              [?n]
              (integer ?v)
              ((sum-plus 21) ?v :> ?n))))
+
+(deftest test-outfields-tap
+  (is (thrown? AssertionError
+               (get-out-fields (memory-source-tap Fields/ALL []))))
+  (is (= ["!age"]
+         (get-out-fields (memory-source-tap ["!age"] []))))
+  (is (= ["?age" "field2"]
+         (get-out-fields (memory-source-tap ["?age" "field2"] [])))))
