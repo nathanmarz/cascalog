@@ -542,7 +542,7 @@
   [pairs declared-group-vars op out-fields]
   (safe-assert (seq declared-group-vars)
                "Cannot do global grouping with multigroup")
-  (let [flows (map (comp (partial generator) first) pairs)
+  (let [flows (map (comp generator first) pairs)
         out-vars (map second pairs)
         group-vars (apply set/intersection (map set out-vars))
         num-vars (reduce + (map count out-vars))]
