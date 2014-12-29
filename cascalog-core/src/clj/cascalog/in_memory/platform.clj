@@ -28,11 +28,13 @@
     (t/to-tuples-filter-nullable output (p/generator gen)))
 
   (run! [p _ bindings]
-    (map (fn [[sink query]]
-           (let [available-fields (parse/get-out-fields query)
-                 tuples (p/compile-query query)]
-             (to-sink sink tuples available-fields)))
-         (partition 2 bindings)))
+    (doall
+     (map (fn [[sink query]]
+            (let [available-fields (parse/get-out-fields query)
+                  tuples (p/compile-query query)]
+              (to-sink sink tuples available-fields)))
+          (partition 2 bindings)))
+    nil)
 
   (run-to-memory! [_ _ queries]
     (map
@@ -51,6 +53,10 @@
   (to-sink [a tuples fields]
     (reset! a tuples))
 
+  clojure.lang.IFn
+  (to-sink [f tuples fields]
+    (f tuples fields))
+  
   StdOutSink
   (to-sink [_ tuples fields]
     (system-println "")

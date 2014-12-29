@@ -15,7 +15,7 @@
           out-tuples (map
                         #(let [results (atom [])
                                fields (get-out-fields %)]
-                           (doall (?- results %))
+                           (?- results %)
                            (map-select-values fields @results))
                         rules)]
       [specs out-tuples])))
