@@ -4,7 +4,12 @@
             [jackknife.seq :refer (collectify multi-set)]
             [cascalog.logic.platform :as platform]))
 
-(defn doublify [tuples]
+(defn doublify
+  "Takes a sequence of tuples and converts all numbers to doubles.
+   For example:
+    (doublify [[1 :a] [2 :b]])
+    ;; [[1.0 :a] [2.0 :b]]"
+  [tuples]
   (vec (for [t tuples]
          (into [] (map (fn [v] (if (number? v) (double v) v))
                        (collectify t))))))
