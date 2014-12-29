@@ -1,4 +1,11 @@
 (ns cascalog.in-memory.platform
+  "The In-Memory platform enables Cascalog to query data without the
+   need for Hadoop.  Instead, the data is manipulated entirely in-memory
+   using just Clojure.
+
+   First, Cascalog converts the generators into tuples (which are just a
+   sequence of maps).  Cascalog then maps, filters, and aggregates
+   the tuples.  Finally, it uses sinks to output the resulting tuples."
   (:require [cascalog.logic.predicate]
             [cascalog.logic.platform :as p]
             [cascalog.logic.parse :as parse]
@@ -161,6 +168,8 @@
          (cons [j-fields j-type] rest-type-seqs))))))
 
 (defmulti agg-clojure
+  "Allow various types of aggregate operations for the collection.
+   Cascalog aggregate types are defined in cascalog.logic.def."
   (fn [coll op]
     (type op)))
 

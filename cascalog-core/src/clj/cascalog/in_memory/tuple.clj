@@ -1,4 +1,8 @@
 (ns cascalog.in-memory.tuple
+  "Tuples encapsulate the data that Cascalog queries.  An individual
+   tuple contains a field name and a value.  It is represented as a map.
+   So tuples are just a sequence of maps, and an example is:
+   [{'?num' 1} {'?num' 2}]."
   (:refer-clojure :exclude [sort])
   (:require [cascalog.logic.vars :as v]
             [jackknife.core :as u]))
