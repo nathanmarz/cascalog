@@ -1,5 +1,10 @@
 package jcascalog;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+
 import cascading.flow.Flow;
 import cascading.flow.FlowDef;
 import cascalog.Util;
@@ -8,10 +13,28 @@ import clojure.lang.IFn;
 import clojure.lang.IteratorSeq;
 import clojure.lang.Keyword;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
+/**
+ * This class is the core entry point to using JCascalog. Effectively it is a simple Java wrapper
+ * around Clojure based Cascalog method calls.
+ * <p/>
+ * A crucial and important caveat to using this class
+ * is that it is completely <strong>not safe</strong> to use across multiple threads. All of the
+ * methods below are <em>static</em> and rely on <strong>hidden</strong> static state created
+ * inside Clojure based calls. All of the publicly exposed methods of this class have been
+ * made <em>synchronized</em> (and as such holding {@code Api.class} lock) to minimize this
+ * problem. This is however <strong>not</strong> sufficient. The way Cascading {@link Flow}s
+ * are build with JCascalog is through a <em>sequence of multiple calls</em> to this class.
+ * Thus the actual operation is <strong>compound</strong>, and therefore the whole build flow logic must
+ * be guarded with the same shared global lock (i.e. {@code synchronized(Api.class)}).
+ * <p/>
+ * Furthermore, care must be taken not to execute the actual Hadoop jobs with this shared lock
+ * as this would defeat the purpose of running multiple jobs from a single JVM (presumably
+ * this would be the reason to allow multi-threaded access in the first place).
+ * The desired pattern thus is to 1) build the actual Cascading {@link Flow} using the shared lock
+ * but 2) call {@link Flow#complete()} outside the _synchronized_ block to enable multi-threaded
+ * execution of Hadoop jobs.
+ *
+ */
 
 public class Api {
   public static synchronized Object hfsTextline(String path) {
