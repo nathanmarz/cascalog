@@ -7,6 +7,7 @@
            [cascading.pipe Pipe Merge]
            [cascading.tap Tap]
            [cascading.tuple Fields Tuple]
+           [cascading.flow.hadoop HadoopFlow]
            [com.twitter.maple.tap MemorySourceTap]
            [jcascalog Subquery]))
 
