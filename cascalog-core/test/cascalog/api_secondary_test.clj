@@ -195,3 +195,11 @@
     (test?- [[3 4] [2 1]]
             (c/first-n sq 2 :sort "?a" :reverse true))
     (is (= 2 (count (first (??- (c/first-n sq 2))))))))
+
+(deftest test-sequence-source
+  (test?<- [[1] [2] [3]]
+           [?n]
+           ([[1] [2] [3]] ?n))
+  (test?<- [[1] [2] [3]]
+           [?n]
+           ([1 2 3] ?n)))
