@@ -3,6 +3,13 @@
         clojure.test
         [midje sweet cascalog]))
 
+(use-fixtures :once
+  (fn [f]
+    (set-cascading-platform!)
+    (f)
+    (set-in-memory-platform!)
+    (f)))
+
 (defmapop ident [x] x)
 
 (defmapop ident-doc

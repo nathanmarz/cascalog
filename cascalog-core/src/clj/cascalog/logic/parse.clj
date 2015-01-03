@@ -14,7 +14,8 @@
   (:import [cascalog.logic.predicate
             Operation FilterOperation Aggregator Generator
             GeneratorSet RawPredicate RawSubquery]
-           [clojure.lang IPersistentVector]))
+           [clojure.lang IPersistentVector]
+           [jcascalog Subquery]))
 
 ;; ## Variable Parsing
 
@@ -140,7 +141,7 @@
 (defn validate-predicates! [preds opts]
   (let [grouped (group-by (fn [x]
                             (condp #(%1 %2) (:op x)
-                              platform/gen? :gens
+                              (partial platform/generator? platform/*platform*) :gens
                               d/bufferop? :buffers
                               d/aggregateop? :aggs
                               :ops))
@@ -213,7 +214,7 @@
   (make-node [node children]
              (assoc node :source (first children))))
 
-(p/defnode Rename [source fields]
+(p/defnode Rename [source input output]
   zip/TreeNode
   (branch? [_] true)
   (children [_] [source])
@@ -638,7 +639,7 @@ This won't work in distributed mode because of the ->Record functions."
                     fields
                     available))
     (-> tail
-        (chain #(->Rename % fields))
+        (chain #(->Rename % available fields))
         (assoc :available-fields fields)
         (assoc :ground? (v/fully-ground? fields)))))
 
@@ -716,3 +717,62 @@ This won't work in distributed mode because of the ->Record functions."
   [outvars & predicates]
   `(v/with-logic-vars
      (parse-subquery ~outvars [~@(map vec predicates)])))
+
+(defn parse-exec-args
+  "Accept a sequence of (maybe) string and other items and returns a
+  vector of [theString or \"\", [other items]]."
+  [[f & rest :as args]]
+  (if (string? f)
+    [f rest]
+    ["" args]))
+
+(defprotocol IOutputFields
+  (get-out-fields [_] "Get the fields of a generator."))
+
+(extend-protocol IOutputFields
+
+  TailStruct
+  (get-out-fields [tail]
+    (:available-fields tail))
+
+  Subquery
+  (get-out-fields [sq]
+    (get-out-fields (.getCompiledSubquery sq))))
+
+(defprotocol INumOutFields
+  (num-out-fields [_]))
+
+(extend-protocol INumOutFields
+  Subquery
+  (num-out-fields [sq]
+    (count (seq (.getOutputFields sq))))
+
+  clojure.lang.ISeq
+  (num-out-fields [x]
+    (count (s/collectify (first x))))
+
+  clojure.lang.IPersistentVector
+  (num-out-fields [x]
+    (count (s/collectify (peek x))))
+
+  TailStruct
+  (num-out-fields [x]
+    (count (:available-fields x))))
+
+(defprotocol ISelectFields
+  (select-fields [gen fields]
+    "Select fields of a named generator.
+
+  Example:
+  (<- [?a ?b ?sum]
+      (+ ?a ?b :> ?sum)
+      ((select-fields generator [\"?a\" \"?b\"]) ?a ?b))"))
+
+(extend-protocol ISelectFields
+  TailStruct
+  (select-fields [sq fields]
+    (project sq fields))
+
+  Subquery
+  (select-fields [sq fields]
+    (select-fields (.getCompiledSubquery sq) fields)))

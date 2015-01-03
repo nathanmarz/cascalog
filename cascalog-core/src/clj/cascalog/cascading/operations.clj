@@ -4,9 +4,10 @@
             [cascalog.logic.fn :as serfn]
             [cascalog.logic.vars :as v]
             [cascalog.logic.algebra :refer (sum)]
+            [cascalog.logic.platform :refer (generator)]
             [cascalog.cascading.util :as casc :refer (fields default-output)]
             [cascalog.cascading.tap :as tap]
-            [cascalog.cascading.types :refer (generator to-sink)]
+            [cascalog.cascading.types :refer (to-sink)]
             [jackknife.core :refer (safe-assert throw-illegal uuid)]
             [jackknife.seq :as s :refer (unweave collectify)])
   (:import [cascading.tuple Fields]
@@ -114,8 +115,6 @@
   ([flow percent seed]
      (add-op flow #(Each. % (Sample. percent seed)))))
 
-;; TODO: rename* should accept a map of old fieldname -> new
-;; fieldname.
 (defn rename*
   "rename old-fields to new-fields."
   ([flow new-fields]

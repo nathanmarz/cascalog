@@ -1,49 +1,71 @@
 (ns cascalog.logic.platform
-  "The execution platform class, plus a basic Cascading implementation."
-  (:require [jackknife.core :as u]
-            [cascalog.cascading.operations :as ops]
-            [cascalog.cascading.types :as types]))
+  "The execution platform class."
+  (:require [cascalog.logic.zip :as zip]
+            [jackknife.core :as u]))
 
+;; ## Platform Protocol
 (defprotocol IPlatform
   (generator? [p x]
     "Returns true if the supplied x is a generator, false
     otherwise.")
-  (generator [p gen fields options]
-    "Returns some source representation."))
+  
+  (generator-builder [p gen fields options]
+    "Returns some source representation.")
+  
+  (run! [p name bindings])
 
-(defn- init-pipe-name [options]
-  (or (:name (:trap options))
-      (u/uuid)))
+  (run-to-memory! [p name queries]))
 
-(defn- init-trap-map [options]
-  (if-let [trap (:trap options)]
-    {(:name trap) (types/to-sink (:tap trap))}
-    {}))
-
-(defrecord CascadingPlatform []
+;; This is required so that the *platform* var isn't nil
+(defrecord EmptyPlatform []
   IPlatform
-  (generator? [_ x]
-    (satisfies? types/IGenerator x))
+  (generator? [p _]
+    (u/throw-illegal (str p " isn't a valid platform.")))
 
-  (generator [_ gen fields options]
-    (-> (types/generator gen)
-        (update-in [:trap-map] #(merge % (init-trap-map options)))
-        (ops/rename-pipe (init-pipe-name options))
-        (ops/rename* fields)
-        (ops/filter-nullable-vars fields))))
+  (generator-builder [p _ _ _]
+    (u/throw-illegal (str p " isn't a valid platform.")))
 
-(def ^:dynamic *context* (CascadingPlatform.))
+  (run! [p _ _]
+    (u/throw-illegal (str p " isn't a valid platform.")))
 
-(defn gen? [g]
-  (generator? *context* g))
+  (run-to-memory! [p _ _]
+    (u/throw-illegal (str p " isn't a valid platform."))))
 
-(comment
-  (require '[cascalog.cascading.flow :as f])
-  "TODO: Convert to test."
-  (let [gen (-> (types/generator [1 2 3 4])
-                (ops/rename* "?x"))
-        pred (to-predicate * ["?a" "?a"] ["?b"])]
-    (fact
-     (f/to-memory
-      ((:op pred) gen ["?x" "?x"] "?z"))
-     => [[1 1] [2 4] [3 9] [4 16]])))
+(def ^:dynamic *platform* (EmptyPlatform.))
+
+(defn set-platform! [c]
+  (alter-var-root #'*platform* (constantly c)))
+
+(defmacro with-platform
+  [platform & body]
+  `(binding [*platform* ~platform]
+     ~@body))
+
+(defn gen-dispatch
+  "Dispatch for the generator multimethod."
+  [gen]
+  [(type *platform*) (type gen)])
+
+(defmulti generator
+  "Accepts some type and returns a platform specific representation
+   that can be used as a generator."
+  gen-dispatch)
+
+(defn platform-generator?
+  "Evaluates whether there is a method to dispatch to for the
+  generator multimethod."
+  [g]
+  (not (nil?
+        (.getMethod generator (gen-dispatch g)))))
+
+(defmulti to-generator
+  (fn [item]
+    [(type *platform*) (type item)]))
+
+(defn compile-query [query]
+  (zip/postwalk-edit
+   (zip/cascalog-zip query)
+   identity
+   (fn [x _] (to-generator x))
+   :encoder (fn [x]
+              (or (:identifier x) x))))

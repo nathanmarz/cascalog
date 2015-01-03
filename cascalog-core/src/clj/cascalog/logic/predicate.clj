@@ -8,8 +8,7 @@
   (:import [clojure.lang IFn]
            [cascalog.logic.def ParallelAggregator
             ParallelBuffer Prepared]
-           [jcascalog Subquery ClojureOp]
-           [cascalog CascalogFunction CascalogBuffer CascalogAggregator ParallelAgg]))
+           [jcascalog Subquery ClojureOp]))
 
 (defprotocol IOperation
   (to-operation [_]
@@ -132,10 +131,10 @@
 
 (defrecord Aggregator [op input output])
 
-(def can-generate?
-  (some-fn node?
-           (partial p/generator? p/*context*)
-           #(instance? GeneratorSet %)))
+(defn can-generate? [op]
+  (or (node? op)
+      (p/generator? p/*platform* op)
+      (instance? GeneratorSet op)))
 
 (defn generator-node
   "Converts the supplied generator into the proper type of node."
@@ -144,10 +143,10 @@
   {:pre [(empty? input)]}
   (if (instance? GeneratorSet gen)
     (let [{:keys [generator] :as op} gen]
-      (assert ((some-fn node? (partial p/generator? p/*context*)) generator)
+      (assert ((some-fn node? (partial p/generator? p/*platform*)) generator)
               (str "Only Nodes or Generators allowed: " generator))
       (assoc op :generator (generator-node generator input output options)))
-    (->Generator (p/generator p/*context* gen output options)
+    (->Generator (p/generator-builder p/*platform* gen output options)
                  output)))
 
 ;; The following multimethod converts operations (in the first
@@ -181,10 +180,6 @@
   [op input output]
   (Operation. op input output))
 
-(defmethod to-predicate CascalogFunction
-  [op input output]
-  (Operation. op input output))
-
 ;; ## Aggregators
 
 (defmethod to-predicate ::d/buffer
@@ -211,15 +206,11 @@
   [op input output]
   (Aggregator. op input output))
 
-(defmethod to-predicate CascalogAggregator
-  [op input output]
-  (Aggregator. op input output))
-
 (defn build-predicate
   "Accepts an option map and a raw predicate and returns a node in the
   Cascalog graph."
   [options {:keys [op input output] :as pred}]
-  (cond (or (p/gen? op)
+  (cond (or (p/generator? p/*platform* op)
             (instance? GeneratorSet op))
         (generator-node op input output options)
 

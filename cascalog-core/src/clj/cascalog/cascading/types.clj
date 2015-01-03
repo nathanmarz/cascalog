@@ -1,15 +1,23 @@
 (ns cascalog.cascading.types
   (:require [jackknife.core :as u]
             [cascalog.logic.algebra :refer (plus Semigroup)]
+            [cascalog.logic.platform :refer (generator compile-query)]
+            [cascalog.logic.parse :refer (build-rule)]
             [cascalog.cascading.tap :as tap])
   (:import [cascalog Util]
            [cascalog.cascading.tap CascalogTap]
            [cascading.pipe Pipe Merge]
            [cascading.tap Tap]
            [cascading.tuple Fields Tuple]
+           [cascalog.logic.parse TailStruct]
+           [cascalog.logic.predicate RawSubquery]
            [cascading.flow.hadoop HadoopFlow]
            [com.twitter.maple.tap MemorySourceTap]
            [jcascalog Subquery]))
+
+;; ## Platform
+
+(defrecord CascadingPlatform [])
 
 ;; ## Tuple Conversion
 ;;
@@ -31,53 +39,51 @@
   Object
   (to-tuple [v] (to-tuple [v])))
 
-;; ## Generator Protocol
-
-(defprotocol IGenerator
-  "Accepts some type and returns a ClojureFlow that can be used as a
-  generator. The idea is that a clojure flow can always be used
-  directly as a generator."
-  (generator [x]))
-
-(defn generator?
-  "Returns true if the supplied item can be used as a Cascalog
-  generator, false otherwise."
-  [x]
-  (satisfies? IGenerator x))
+;; ## Generators
 
 ;; Note that we need to use getIdentifier on the taps.
 
 ;; source-map is a map of identifier to tap, or source. Pipe is the
 ;; current pipe that the user needs to operate on.
 
-(defrecord ClojureFlow [source-map sink-map trap-map tails pipe name]
-  IGenerator
-  (generator [x] x))
+(defrecord ClojureFlow [source-map sink-map trap-map tails pipe name])
 
-(extend-protocol IGenerator
-  Subquery
-  (generator [sq]
-    (generator (.getCompiledSubquery sq)))
+(defmethod generator [CascadingPlatform ClojureFlow]
+  [x] x)
 
-  CascalogTap
-  (generator [tap] (generator (:source tap)))
+(defmethod generator [CascadingPlatform Subquery]
+  [sq]
+  (generator (.getCompiledSubquery sq)))
 
-  clojure.lang.IPersistentVector
-  (generator [v] (generator (or (seq v) ())))
+(defmethod generator [CascadingPlatform CascalogTap]
+  [tap]
+  (generator (:source tap)))
 
-  clojure.lang.ISeq
-  (generator [v]
-    (generator
-     (MemorySourceTap. (map to-tuple v) Fields/ALL)))
+(defmethod generator [CascadingPlatform clojure.lang.IPersistentVector]
+  [v]
+  (generator (or (seq v) ())))
 
-  java.util.ArrayList
-  (generator [coll]
-    (generator (into [] coll)))
+(defmethod generator [CascadingPlatform clojure.lang.ISeq]
+  [v]
+  (generator
+   (MemorySourceTap. (map to-tuple v) Fields/ALL)))
 
-  Tap
-  (generator [tap]
-    (let [id (u/uuid)]
-      (ClojureFlow. {id tap} nil nil nil (Pipe. id) nil))))
+(defmethod generator [CascadingPlatform java.util.ArrayList]
+  [coll]
+  (generator (into [] coll)))
+
+(defmethod generator [CascadingPlatform Tap]
+  [tap]
+  (let [id (u/uuid)]
+    (ClojureFlow. {id tap} nil nil nil (Pipe. id) nil)))
+
+(defmethod generator [CascadingPlatform TailStruct]
+  [sq]
+  (compile-query sq))
+
+(defmethod generator [CascadingPlatform RawSubquery]
+  [sq]
+  (generator (build-rule sq)))
 
 ;; ## Sink Typeclasses
 

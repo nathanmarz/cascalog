@@ -91,6 +91,14 @@ public class Api {
     execute(null, taps, gens);
   }
 
+  public static synchronized void setCascadingPlatform() {
+      getApiFn("set-cascading-platform!").invoke();
+  }
+
+  public static synchronized void setInMemoryPlatform() {
+      getApiFn("set-in-memory-platform!").invoke();
+  }
+
   public static synchronized Object union(Object... gens) {
     return union(Util.toList(gens));
   }

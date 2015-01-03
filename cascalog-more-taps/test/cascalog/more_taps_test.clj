@@ -6,6 +6,10 @@
             [hadoop-util.core :as hadoop])
   (:import [org.apache.hadoop.io BytesWritable]))
 
+(background
+ (before :facts
+         (set-cascading-platform!)))
+
 (deftest delimited-roundtrip-test
   (fact
     (io/with-fs-tmp [_ tmp]

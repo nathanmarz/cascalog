@@ -2,6 +2,7 @@
   (:use [midje sweet cascalog]
         clojure.test
         cascalog.logic.testing
+        cascalog.cascading.testing
         cascalog.api)
   (:require [cascalog.cascading.io :as io]
             [cascalog.cascading.tap :as tap]
@@ -10,6 +11,10 @@
            [cascading.tuple Fields]
            [cascading.tap Tap]
            [cascading.tap.hadoop Hfs Lfs GlobHfs TemplateTap]))
+
+(background
+ (before :facts
+         (set-cascading-platform!)))
 
 (defn tap-source [tap]
   (if (map? tap)
