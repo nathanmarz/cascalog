@@ -81,7 +81,8 @@
   (p/generator (or (seq v) ())))
 
 (defmethod p/generator [InMemoryPlatform clojure.lang.ISeq]
-  [v] v) 
+  [v]
+  (map s/collectify v))
 
 (defmethod p/generator [InMemoryPlatform java.util.ArrayList]
   [coll]
