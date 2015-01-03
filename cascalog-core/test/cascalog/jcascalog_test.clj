@@ -4,7 +4,10 @@
         cascalog.logic.testing
         cascalog.cascading.testing
         cascalog.in-memory.testing)
-  (:import [jcascalog Api Option Predicate PredicateMacroTemplate
+  (:require [cascalog.cascading.tap :as tap]
+            [cascalog.cascading.io :as io])
+  (:import [cascalog.test MultiplyAgg RangeOp DoubleOp]
+           [jcascalog Api Option Predicate PredicateMacroTemplate
             PredicateMacro Subquery Api$FirstNArgs]
            [jcascalog.op Avg Count Div Limit Sum Plus Multiply Equals]))
 
@@ -80,3 +83,25 @@
     (test?- [["c"]]
             (-> (Subquery. ["?l"])
                 (.predicate firstn ["?l" 2])))))
+
+(deftest test-java-each
+  (let [data [[1 2 3] [4 5 6]]]
+    (test?- [[2 4 6] [8 10 12]]
+            (-> (Subquery. ["?x" "?y" "?z"])
+                (.predicate data ["?a" "?b" "?c"])
+                (.predicate (Api/each (DoubleOp.))
+                            ["?a" "?b" "?c"]) (.out ["?x" "?y" "?z"])))))
+
+(deftest test-compile-flow
+  (io/with-fs-tmp [_ sink-path]
+   (let [sink (mk-test-sink ["?letter" "?doublesum"] sink-path)
+         value [["a" 1] ["a" 2] ["b" 10]
+                ["c" 3] ["b" 2] ["a" 6]]
+         expected [["a" 18] ["b" 24] ["c" 6]]
+         flow (Api/compileFlow "testFlow" sink 
+                               (-> (Subquery. ["?letter" "?doublesum"])
+                                   (.predicate value ["?letter" "?v"])
+                                   (.predicate (Multiply.) ["?v" 2]) (.out ["?double"])
+                                   (.predicate (Sum.) ["?double"]) (.out ["?doublesum"])))]
+     (.complete flow)
+     (is-tuplesets= expected (tap/get-sink-tuples sink)))))

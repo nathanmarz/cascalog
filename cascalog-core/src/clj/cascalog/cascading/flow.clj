@@ -86,6 +86,16 @@
         (sum)
         (ops/name-flow name))))
 
+(defn jflow-def
+  [& args]
+  (let [flow (apply compile-flow args)]
+    (flow-def flow)))
+
+(defn jcompile-flow
+  [& args]
+  (compile-hadoop (apply jflow-def args)))
+
+
 (defn all-to-memory
   "Return the results of the supplied workflows as data
   structures. Accepts many workflows, and (optionally) a flow name as
