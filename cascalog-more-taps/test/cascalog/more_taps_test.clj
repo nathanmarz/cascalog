@@ -40,6 +40,24 @@
             ((hfs-delimited tmp :delimiter "," :compress? true) ?a ?b ?c)) =>
         (produces [["Proin" "false" "3"]])))))
 
+(deftest delimited-compression-test
+  (fact
+   (io/with-fs-tmp [_ tmp]
+     (?- (hfs-delimited tmp :delimiter "," :compression :disable) ;; write line
+         [["Proin" false 3]])
+     (fact "Compression with hfs-delimited"
+           (<- [?a ?b ?c]
+               ((hfs-delimited tmp :delimiter "," :compression :disable) ?a ?b ?c)) =>
+               (produces [["Proin" "false" "3"]]))))
+  (fact
+    (io/with-fs-tmp [_ tmp]
+      (?- (hfs-delimited tmp :delimiter "," :compression :enable) ;; write line
+          [["Proin" false 3]])
+      (fact "Compression with hfs-delimited"
+        (<- [?a ?b ?c]
+            ((hfs-delimited tmp :delimiter "," :compression :enable) ?a ?b ?c)) =>
+        (produces [["Proin" "false" "3"]])))))
+
 (deftest delimited-inner-quotes-read-delimiter-test
   (fact
    (io/with-fs-tmp [_ tmp]
