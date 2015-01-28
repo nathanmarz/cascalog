@@ -10,7 +10,8 @@
 
 (defn- delimited
   [field-seq delim
-   & {:keys [classes compress? skip-header? quote write-header? strict? safe?]
+   & {:keys [classes compress? compression skip-header? quote
+             write-header? strict? safe?]
       :or {quote "\"", strict? true, safe? true}}]
   (let [[skip-header? write-header? strict? safe?]
         (map boolean [skip-header? write-header? strict? safe?])
@@ -18,11 +19,16 @@
         field-seq    (if (and classes (not (.isDefined field-seq)))
                        (w/fields (v/gen-nullable-vars (count classes)))
                        field-seq)
-        compression (if compress? TextLine$Compress/ENABLE TextLine$Compress/DEFAULT)]
+        compress-setting (if compress? ;; compress? available for backwards compat
+                           TextLine$Compress/ENABLE
+                           (case compression
+                             :enable  TextLine$Compress/ENABLE
+                             :disable TextLine$Compress/DISABLE
+                             TextLine$Compress/DEFAULT))]
     (if classes
-      (TextDelimited. field-seq compression skip-header? write-header?
+      (TextDelimited. field-seq compress-setting skip-header? write-header?
                       delim strict? quote (into-array classes) safe?)
-      (TextDelimited. field-seq compression skip-header? write-header? delim quote))))
+      (TextDelimited. field-seq compress-setting skip-header? write-header? delim quote))))
 
 (defn hfs-delimited
   "
@@ -31,10 +37,13 @@
   prefixes for `path`.
 
   Supports TextDelimited keyword option for `:outfields`, `:classes`,
-  `:compress?`, `:skip-header?`, `:delimiter`, `:write-header?`,
-  `:strict?`, `safe?`, and `:quote`.
+  `:skip-header?`, `:delimiter`, `:write-header?`, `:strict?`,
+  `safe?`, and `:quote`.
 
-  See `cascalog.tap/hfs-tap` for more keyword arguments.
+  Also supports:
+  `:compression` - one of `:enable`, `:disable` or `:default`
+
+  See `cascalog.cascading.tap/hfs-tap` for more keyword arguments.
 
   See http://www.cascading.org/javadoc/cascading/tap/Hfs.html and
   http://www.cascading.org/javadoc/cascading/scheme/TextDelimited.html
@@ -57,7 +66,7 @@
   `:compress?`, `:skip-header?`, `:delimiter`, `:write-header?`,
   `:strict?`, `safe?`, and `:quote`.
 
-  See `cascalog.tap/hfs-tap` for more keyword arguments.
+  See `cascalog.cascading.tap/hfs-tap` for more keyword arguments.
 
   See http://www.cascading.org/javadoc/cascading/tap/Hfs.html and
   http://www.cascading.org/javadoc/cascading/scheme/TextDelimited.html
