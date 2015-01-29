@@ -15,7 +15,7 @@
            [cascading.operation Identity Debug NoOp]
            [cascading.operation.filter Sample]
            [cascading.operation.aggregator First Count Sum Min Max]
-           [cascading.pipe Pipe Each Every GroupBy CoGroup Merge HashJoin]
+           [cascading.pipe Pipe Each Every GroupBy CoGroup Merge HashJoin Checkpoint]
            [cascading.pipe.joiner Joiner InnerJoin LeftJoin RightJoin OuterJoin]
            [cascading.pipe.joiner CascalogJoiner CascalogJoiner$JoinType]
            [cascading.pipe.assembly Rename AggregateBy]
@@ -613,12 +613,19 @@
         (rename-pipe id)
         (update-in [:trap-map] assoc id trap))))
 
+(defn checkpoint*
+  "Forces results of the flow so far to be written to temp file, ensuring
+   a M/R job boundary at this point in the flow.
+
+  TODO: allow specifying a tap for checkpoint"
+  [flow]
+  (add-op flow #(Checkpoint. %)))
+
 ;; TODO: Figure out if I really understand what's going on with the
 ;; trap options. Do this by testing the traps with a few throws inside
 ;; and one after. Make sure the throw after causes a failure, but not
 ;; inside.
 ;;
-;; TODO: Add "checkpoint" function, injecting a checkpoint pipe.
 
 (defn with-trap*
   "Applies a trap to everything that occurs within the supplied
