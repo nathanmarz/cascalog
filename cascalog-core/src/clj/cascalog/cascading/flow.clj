@@ -18,6 +18,24 @@
            [cascalog.cascading.types ClojureFlow]
            [cascading.flow.hadoop HadoopFlow HadoopFlowConnector]))
 
+;; ## Stats
+
+(def ^:dynamic *stats-fn* nil)
+
+(defmacro with-stats
+  "Executes the supplied body with the supplied stats fn."
+  [f & body]
+  `(binding [*stats-fn* ~f]
+     ~@body))
+
+(s/defn handle-stats! :- stats/StatsMap
+  "If the stats function is bound, passes the supplied stats map in
+  and returns it unchanged."
+  [sm :- stats/StatsMap]
+  (when-let [f *stats-fn*]
+    (f sm))
+  sm)
+
 ;; ## Flow Building
 
 (s/defn flow-def :- FlowDef
@@ -50,6 +68,10 @@
 ;; stage. Not sure if we're going to be able to apply the name to the
 ;; HadoopFlow.
 
+(s/defn assert-success! [sm :- stats/StatsMap]
+  (or (:successful? sm)
+      (throw (ex-info "Flow failed to complete." sm))))
+
 (defprotocol IRunnable
   "All runnable items should implement this function."
   (run! [x] "Runs the flow and returns an instance of
@@ -59,10 +81,8 @@
   HadoopFlow
   (run! [flow]
     (.complete flow)
-    (let [sm (stats/stats-map (.getFlowStats flow))]
-      (prn sm)
-      (when-not (:successful? sm)
-        (throw (RuntimeException. "Flow failed to complete.")))))
+    (handle-stats!
+     (stats/stats-map (.getFlowStats flow))))
 
   FlowDef
   (run! [fd]
@@ -72,7 +92,7 @@
   (run! [flow]
     (run! (flow-def flow))))
 
-(defn compile-flow
+(s/defn compile-flow :- ClojureFlow
   "Attaches output taps to some number of subqueries and creates a
   Cascading flow. The flow can be executed with `.complete`, or
   introspection can be done on the flow.
@@ -90,15 +110,14 @@
                       gens sinks))
             (not-empty name) (ops/name-flow name))))
 
-(defn jflow-def
+(s/defn jflow-def :- FlowDef
   [& args]
   (let [flow (apply compile-flow args)]
     (flow-def flow)))
 
-(defn jcompile-flow
+(s/defn jcompile-flow :- HadoopFlow
   [& args]
   (compile-hadoop (apply jflow-def args)))
-
 
 (defn all-to-memory
   "Return the results of the supplied workflows as data
@@ -111,7 +130,8 @@
       (let [taps (->> (u/unique-rooted-paths tmp)
                       (map tap/hfs-seqfile)
                       (take (count flows)))]
-        (run! (apply compile-flow name (interleave taps flows)))
+        (assert-success!
+         (run! (apply compile-flow name (interleave taps flows))))
         (doall (map tap/get-sink-tuples taps))))))
 
 (defn to-memory
