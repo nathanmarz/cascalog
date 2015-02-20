@@ -28,6 +28,7 @@ import clojure.lang.IFn;
 import clojure.lang.ISeq;
 import clojure.lang.IteratorSeq;
 import clojure.lang.RT;
+import clojure.lang.Var;
 
 public class ClojureMultibuffer extends ClojureCascadingBase implements MultiBuffer {
 
@@ -37,16 +38,24 @@ public class ClojureMultibuffer extends ClojureCascadingBase implements MultiBuf
 
   public void operate(MultiBufferContext context) {
     List inputTuples = new ArrayList();
+
     for (int i = 0; i < context.size(); i++) {
       inputTuples
           .add(IteratorSeq.create(new RegularTupleSeqConverter(context.getArgumentsIterator(i))));
     }
 
-    ISeq resultSeq = RT.seq(applyFunction(RT.seq(inputTuples)));
-    while (resultSeq != null) {
-      Object obj = resultSeq.first();
-      context.emit(Util.coerceToTuple(obj));
-      resultSeq = resultSeq.next();
+    Var.pushThreadBindings(bindingMap);
+    try {
+      ISeq resultSeq = RT.seq(applyFunction(RT.seq(inputTuples)));
+      while (resultSeq != null) {
+        Object obj = resultSeq.first();
+        context.emit(Util.coerceToTuple(obj));
+        resultSeq = resultSeq.next();
+      }
+
+
+    } finally {
+      Var.popThreadBindings();
     }
   }
 }

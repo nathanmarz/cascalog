@@ -27,6 +27,8 @@
                  [com.twitter/chill-hadoop "0.3.5"]
                  [com.twitter/carbonite "1.4.0"]
                  [com.twitter/maple "0.2.2"]
+                 [prismatic/schema "0.3.7"
+                  :exclusions [org.clojure/clojurescript]]
                  [jackknife "0.1.7"]
                  [hadoop-util "0.3.0"]]
   :profiles {:1.3 {:dependencies [[org.clojure/clojure "1.3.0"]]}
@@ -35,5 +37,7 @@
              :provided {:dependencies [[org.apache.hadoop/hadoop-core ~HADOOP-VERSION]]}
              :dev {:resource-paths ["dev"]
                    :plugins [[lein-midje "3.1.3"]]
+                   :injections [(require 'schema.core)
+                                (schema.core/set-fn-validation! true)]
                    :dependencies
                    [[cascalog/midje-cascalog ~VERSION]]}})

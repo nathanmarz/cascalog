@@ -6,7 +6,8 @@
             [cascalog.cascading.tap :as tap]
             [cascalog.cascading.platform :refer (normalize-sink-connection)]
             [jackknife.core :as u]
-            [jackknife.seq :refer (unweave multi-set)])
+            [jackknife.seq :refer (unweave multi-set)]
+            [schema.core :as s])
   (:import [cascalog.cascading.types CascadingPlatform]
            [java.io File]
            [cascading.tuple Fields]))
@@ -33,7 +34,7 @@
         tmpforms  (->> tmpfiles
                        (mapcat (fn [f]
                                  [f `(File.
-                                      (str (cascalog.cascading.io/temp-dir ~(str f))
+                                      (str (io/temp-dir ~(str f))
                                            "/"
                                            (u/uuid)))])))]
     [tmpfiles (vec tmpforms)]))
@@ -82,4 +83,3 @@
 
 (defmacro with-expected-sink-sets [bindings & body]
   (with-expected-sinks-helper check-tap-spec-sets bindings body))
-

@@ -8,7 +8,7 @@
             [cascalog.cascading.io :as io]
             [cascalog.logic.def :as d]
             [cascalog.cascading.def :as cd]
-            )
+            [cascalog.cascading.stats :as stats])
   (:import [cascading.tuple Fields]
            [cascalog.test KeepEven OneBuffer CountAgg SumAgg]
            [cascalog.ops IdentityBuffer]
@@ -349,3 +349,32 @@
          (get-out-fields (memory-source-tap ["!age"] []))))
   (is (= ["?age" "field2"]
          (get-out-fields (memory-source-tap ["?age" "field2"] [])))))
+
+;; ## Stats Interface Tests
+
+(deftest stats-test
+  (let [stats (atom nil)
+        square (mapfn [x]
+                      (stats/inc-by! "counter" x)
+                      (* x x))]
+    (io/with-tmp-files [path (io/unique-tmp-file "stats")]
+      (??<- [?x ?y]
+            ([1 2 3] ?x)
+            (:name "StatsTestJob")
+            (:stats-fn (comp
+                        (stats/clojure-file path)
+                        #(reset! stats %)))
+            (square ?x :> ?y))
+
+      (is (= "StatsTestJob" (:name @stats))
+          "The name keyword sets the job's name.")
+
+      (is (:successful? @stats) "The job's successful!")
+
+      (is (= 6 (-> @stats :counters (get-in [stats/default-group "counter"])))
+          "The counter is equal to (+ 1 2 3) = 6.")
+
+      (is (= @stats (read-string (slurp path)))
+          "stats/clojure-file writes the stats out to the temporary
+          path. Slurping it back up gives you the same data structure
+          as is in the atom."))))

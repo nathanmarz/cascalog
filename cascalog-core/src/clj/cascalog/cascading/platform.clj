@@ -30,7 +30,7 @@
            [cascalog.cascading.operations IAggregateBy IAggregator
             Inner Outer Existence]
            [cascalog.logic.def ParallelAggregator ParallelBuffer Prepared]
-           [cascalog.cascading.types CascadingPlatform ClojureFlow]
+           [cascalog.cascading.types CascadingPlatform]
            [com.twitter.maple.tap MemorySourceTap]
            [cascading.tap Tap]
            [cascalog.cascading.tap CascalogTap]
@@ -303,13 +303,13 @@
 
 (defmethod p/to-generator [CascadingPlatform TailStruct]
   [item]
-  (:node item))
+  (assoc (:node item) :name (-> item :options :name)))
 
 ;; ## Platform Implementation
 
 (defn- init-pipe-name [options]
   (or (:name (:trap options))
-      (u/uuid))) 
+      (u/uuid)))
 
 (defn- init-trap-map [options]
   (if-let [trap (:trap options)]
@@ -338,10 +338,14 @@
   (run! [_ name bindings]
     (let [bindings (mapcat (partial apply normalize-sink-connection)
                            (partition 2 bindings))]
-      (flow/run! (apply flow/compile-flow name bindings))))
+      (let [stats (flow/run! (apply flow/compile-flow name bindings))]
+        (flow/assert-success! stats))))
 
   (run-to-memory! [_ name queries]
-    (apply flow/all-to-memory name (map p/compile-query queries))))
+    (flow/with-stats (fn [stats]
+                       (doseq [q queries :let [f (-> q :options :stats-fn)] :when f]
+                         (f stats)))
+      (apply flow/all-to-memory name (map p/compile-query queries)))))
 
 ;; ## Output Fields
 
@@ -363,7 +367,6 @@
 ;; define output fields, rather than just throwing immediately.
 
 (extend-protocol parse/INumOutFields
-
   CascalogTap
   (num-out-fields [tap]
     (parse/num-out-fields (:source tap)))
@@ -373,7 +376,6 @@
     (count (parse/get-out-fields x))))
 
 (extend-protocol parse/ISelectFields
-
   Tap
   (select-fields [tap fields]
     (-> (p/generator tap)
@@ -383,35 +385,3 @@
   (select-fields [tap fields]
     (-> (p/generator tap)
         (ops/select* fields))))
-
-(comment
-  "MOVE these to tests."
-  (require '[cascalog.logic.parse :refer (<-)]
-           '[cascalog.cascading.flow :refer (all-to-memory to-memory graph)])
-
-  (def cross-join
-    (<- [:>] (identity 1 :> _)))
-
-  (let [sq (<- [?squared ?squared-minus ?x ?sum]
-               ([1 2 3] ?x)
-               (* ?x ?x :> ?squared)
-               (- ?squared 1 :> ?squared-minus)
-               ((d/parallelagg* +) ?squared :> ?sum))]
-    (to-memory sq))
-
-  (let [sq (<- [?x ?y]
-               ([1 2 3] ?x)
-               ([1 2 3] ?y)
-               (cross-join)
-               (* ?x ?y :> ?z))]
-    (to-memory sq))
-
-  (let [x (<- [?x ?y :> ?z]
-              (* ?x ?x :> 10)
-              (* ?x ?y :> ?z))
-        sq (<- [?a ?b ?z]
-               ([[1 2 3]] ?a)
-               (x ?a ?a :> 4)
-               ((d/bufferop* +) ?a :> ?z)
-               ((d/mapcatop* +) ?a 10 :> ?b))]
-    (clojure.pprint/pprint (build-rule sq))))

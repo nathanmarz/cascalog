@@ -20,7 +20,26 @@
 
   clojure.lang.IPersistentMap
   (plus [l r]
-    (merge-with plus l r)))
+    (merge-with plus l r))
+
+  clojure.lang.LazySeq
+  (plus [l r]
+    (lazy-cat l r))
+
+  java.lang.Integer
+  (plus [l r] (+ l r))
+
+  java.lang.Double
+  (plus [l r] (+ l r))
+
+  java.lang.Float
+  (plus [l r] (+ l r))
+
+  java.lang.Long
+  (plus [l r] (+ l r))
+
+  clojure.lang.Ratio
+  (plus [l r] (+ l r)))
 
 (defn sum [items]
   (reduce plus items))

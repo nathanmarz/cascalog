@@ -20,7 +20,7 @@
             [cascalog.in-memory.platform]
             [hadoop-util.core :as hadoop]
             [jackknife.core :as u]
-            [jackknife.def :as jd :refer (defalias)])
+            [jackknife.def :as jd :refer [defalias]])
   (:import [cascading.flow Flow]
            [cascading.tap Tap]
            [cascalog.logic.parse TailStruct]

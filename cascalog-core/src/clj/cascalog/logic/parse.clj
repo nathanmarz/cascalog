@@ -178,7 +178,7 @@
   (make-node [node children]
              (assoc node :sources children)))
 
-(p/defnode TailStruct [node ground? available-fields operations]
+(p/defnode TailStruct [node ground? available-fields operations options]
   algebra/Semigroup
   (plus [l r]
         (assert (and (:ground? l) (:ground? r))
@@ -468,7 +468,8 @@ This won't work in distributed mode because of the ->Record functions."
     (conj remaining (->TailStruct join-node
                                   (s/some? :ground? join-set)
                                   available-fields
-                                  (vec new-ops)))))
+                                  (vec new-ops)
+                                  {}))))
 
 ;; ## Aggregation Operations
 ;;
@@ -553,7 +554,8 @@ This won't work in distributed mode because of the ->Record functions."
                 (->TailStruct node
                               (v/fully-ground? (:fields gen))
                               (:fields gen)
-                              operations))))))
+                              operations
+                              {}))))))
 
 (defn validate-projection!
   [remaining-ops needed available]
@@ -667,7 +669,8 @@ This won't work in distributed mode because of the ->Record functions."
         agg-tail (build-agg-tail joined aggs grouping-fields options)
         {:keys [operations available-fields] :as tail} (add-ops-fixed-point agg-tail)]
     (validate-projection! operations fields available-fields)
-    (project tail fields)))
+    (-> (project tail fields)
+        (assoc :options options))))
 
 ;; ## Predicate Parsing
 ;;

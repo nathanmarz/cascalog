@@ -23,6 +23,7 @@ import cascading.operation.Filter;
 import cascading.operation.FilterCall;
 import clojure.lang.IFn;
 import clojure.lang.ISeq;
+import clojure.lang.Var;
 
 public class ClojureFilter extends ClojureCascadingBase implements Filter {
   public ClojureFilter(IFn fn) {
@@ -30,7 +31,12 @@ public class ClojureFilter extends ClojureCascadingBase implements Filter {
   }
 
   public boolean isRemove(FlowProcess fp, FilterCall call) {
-    ISeq fnArgs = Util.coerceFromTuple(call.getArguments().getTuple());
-    return !Util.truthy(applyFunction(fnArgs));
+    Var.pushThreadBindings(bindingMap);
+    try {
+      ISeq fnArgs = Util.coerceFromTuple(call.getArguments().getTuple());
+      return !Util.truthy(applyFunction(fnArgs));
+    } finally {
+      Var.popThreadBindings();
+    }
   }
 }
