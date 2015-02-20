@@ -143,16 +143,6 @@
              (c/sum ?n :> ?s)
              (+ ?s ?c :> ?a))))
 
-(deftest test-multi-agg
-  (let [value [["a" 1] ["a" 2] ["b" 10]
-               ["c" 3] ["b" 2] ["a" 6]] ]
-    (test?<- [["a" 12] ["b" 14] ["c" 4]]
-             [?v ?a]
-             (value ?v ?n)
-             (c/count ?c)
-             (c/sum ?n :> ?s)
-             (+ ?s ?c :> ?a))))
-
 (deftest test-joins-aggs
   (let [friend [["n" "a"] ["n" "j"] ["n" "q"]
                 ["j" "n"] ["j" "a"]
