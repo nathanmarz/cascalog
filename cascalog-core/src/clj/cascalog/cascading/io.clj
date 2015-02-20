@@ -3,8 +3,9 @@
   (:require [clojure.java.io :as io]
             [hadoop-util.core :as hadoop]
             [cascalog.cascading.conf :as conf]
-            [jackknife.core :refer (uuid)])
-  (:import [java.io PrintWriter]
+            [jackknife.core :refer (uuid)]
+            [schema.core :as s])
+  (:import [java.io File PrintWriter]
            [org.apache.log4j Logger Level]
            [org.apache.hadoop.io BytesWritable]))
 
@@ -55,6 +56,10 @@ Raise an exception if any deletion fails unless silently is true."
     (or (.exists tmp-dir) (.mkdir tmp-dir))
     (.deleteOnExit tmp-dir)
     tmp-dir))
+
+(s/defn unique-tmp-file :- File
+  [s :- s/Str]
+  (File. (str (temp-dir s) "/" (uuid))))
 
 (defn delete-all
   "delete-file-recursively is preemptive delete on exiting the code
