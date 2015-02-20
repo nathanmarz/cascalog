@@ -1,12 +1,18 @@
 # 3.0.0
 
 - in-memory planner!
+
+From https://github.com/nathanmarz/cascalog/pull/270:
 - `:name` option allows you to supply a name to your flow via (:name "some name")
 - Schema validation on internal functions
-- New stats interface via `:stats-fn`
+- New stats output interface via `:stats-fn`
+- Added `stdout`, `clojure-file` and `json-file` stats reporters
+- `inc!` and `inc-by!` global stats functions in `cascalog.cascading.stats`
 - Options are now printed in `explain-query` readout
 
 ## 2.0.0
+
+Lots of unrecorded changes between this release and 3.0.0. Looking to get better at this as we move forward.
 
 ### Core changes
 
