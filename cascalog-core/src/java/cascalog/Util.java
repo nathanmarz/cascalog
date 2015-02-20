@@ -24,6 +24,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import org.apache.hadoop.conf.Configuration;
+
 import cascading.tuple.Tuple;
 import cascading.tuple.TupleEntry;
 import clojure.lang.IFn;
@@ -32,8 +34,6 @@ import clojure.lang.IteratorSeq;
 import clojure.lang.MultiFn;
 import clojure.lang.RT;
 import clojure.lang.Var;
-
-import org.apache.hadoop.conf.Configuration;
 
 public class Util {
   static final Var require = RT.var("clojure.core", "require");

@@ -89,7 +89,11 @@
   (def java-m
     (cascalog.ClojureMap. (fields "num") inc))
   (def clj-m
-    (cascalog-map inc (fields "num"))))
+    (cascalog-map inc (fields "num")))
+
+  ;; TODO: If we ever use these, not that we'll need to wrap the
+  ;; dynamic stats variables in cascalog.cascading.stats.
+  )
 
 (defn collect-to
   [^TupleEntryCollector collector v]

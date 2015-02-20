@@ -15,7 +15,7 @@
 * Functions as guards
 * Standalone Cascading DSL
 
-(Much more, to be detailed!)
+And more, as detailed here: http://www.samritchie.io/cascalog-2-0-in-depth
 
 ### Minor improvements
 

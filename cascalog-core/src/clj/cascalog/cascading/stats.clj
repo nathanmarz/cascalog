@@ -13,11 +13,11 @@
   {CounterGroup {CounterName s/Int}})
 
 (s/defschema StatsMap
-  {:counters CounterMap
+  {:name (s/maybe s/Str)
+   :counters CounterMap
    :duration s/Int
    :finished-time s/Int
    :id s/Str
-   :name s/Str
    :run-time s/Int
    :start-time s/Int
    :submit-time s/Int
@@ -26,7 +26,38 @@
    :stopped? s/Bool
    :successful? s/Bool})
 
-;; ## Code
+;; ## Dynamic Variables
+;;
+;; These variables are bound within the context of a Cascalog job. You
+;; can access them from your operations without worry about prepfn
+;; craziness.
+
+(def ^:dynamic *flow-process* nil)
+(def ^:dynamic *op-call* nil)
+
+(def default-group "CascalogStats")
+
+;; ## Stats Entry
+
+(s/defn inc-by!
+  "Increments the supplied counter in the supplied group by, you
+  guessed it, the supplied amount. Only takes effect in the context of
+  a Cascading flow."
+  ([counter :- CounterName value :- s/Int]
+     (inc-by! default-group counter value))
+  ([group :- CounterGroup counter :- CounterName value :- s/Int]
+     (when-let [fp *flow-process*]
+       (.increment fp group counter value))))
+
+(s/defn inc!
+  "Increments the supplied counter in the supplied group by 1. Only
+  takes effect in the context of a Cascading flow."
+  ([counter :- CounterName]
+     (inc-by! default-group counter 1))
+  ([group :- CounterGroup counter :- CounterName]
+     (inc-by! group counter 1)))
+
+;; ## Stats Output
 
 (defn map-by [f xs]
   (into {} (for [x xs] [x (f x)])))
@@ -57,3 +88,5 @@
    :skipped? (.isSkipped stats)
    :stopped? (.isStopped stats)
    :successful? (.isSuccessful stats)})
+
+;; ## Canned Stats Functions

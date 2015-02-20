@@ -35,6 +35,9 @@ import cascading.operation.FunctionCall;
 import cascading.operation.OperationCall;
 import cascading.tuple.Fields;
 import cascading.tuple.Tuple;
+import clojure.lang.Associative;
+import clojure.lang.PersistentHashMap;
+import clojure.lang.Var;
 
 public abstract class ClojureCombinerBase extends BaseOperation implements Function {
   private List<ParallelAgg> aggs;
@@ -45,6 +48,8 @@ public abstract class ClojureCombinerBase extends BaseOperation implements Funct
   private String cacheConfArg;
   private int defaultCacheSize;
   private int cacheSize;
+  protected Associative bindingMap;
+
 
   private static Fields appendFields(Fields start, Fields... rest) {
     for (Fields f : rest) {
@@ -76,11 +81,20 @@ public abstract class ClojureCombinerBase extends BaseOperation implements Funct
 
   @Override
   public void prepare(FlowProcess flowProcess, OperationCall operationCall) {
+    this.bindingMap = PersistentHashMap
+        .create(Util.getVar("cascalog.cascading.stats", "*flow-process*"), flowProcess,
+            Util.getVar("cascalog.cascading.stats", "*op-call*"), operationCall);
+
     JobConf jc = ((HadoopFlowProcess) flowProcess).getJobConf();
     this.cacheSize = jc.getInt(this.cacheConfArg, this.defaultCacheSize);
     combined = new LinkedHashMap<Tuple, Map<Integer, List<Object>>>(1000, (float) 0.75, true);
-    for (ParallelAgg agg : aggs) {
-      agg.prepare(flowProcess);
+    Var.pushThreadBindings(bindingMap);
+    try {
+      for (ParallelAgg agg : aggs) {
+        agg.prepare(flowProcess);
+      }
+    } finally {
+      Var.popThreadBindings();
     }
   }
 
@@ -99,31 +113,36 @@ public abstract class ClojureCombinerBase extends BaseOperation implements Funct
       vals = new HashMap<Integer, List<Object>>(aggs.size());
       combined.put(group, vals);
     }
-    for (int i = 0; i < aggs.size(); i++) {
-      try {
-        Fields specArgFields = argFields.get(i);
-        List<Object> val;
-        ParallelAgg agg = aggs.get(i);
-        if (specArgFields == null) {
-          val = agg.init(new ArrayList<Object>());
-        } else {
-          Tuple args = fc.getArguments().selectTuple(specArgFields);
-          List<Object> toApply = new ArrayList<Object>();
-          if (sortArgs != null) {
-            toApply.add(Util.tupleToList(sortArgs));
+    Var.pushThreadBindings(bindingMap);
+    try {
+      for (int i = 0; i < aggs.size(); i++) {
+        try {
+          Fields specArgFields = argFields.get(i);
+          List<Object> val;
+          ParallelAgg agg = aggs.get(i);
+          if (specArgFields == null) {
+            val = agg.init(new ArrayList<Object>());
+          } else {
+            Tuple args = fc.getArguments().selectTuple(specArgFields);
+            List<Object> toApply = new ArrayList<Object>();
+            if (sortArgs != null) {
+              toApply.add(Util.tupleToList(sortArgs));
+            }
+            Util.tupleIntoList(toApply, args);
+            val = agg.init(toApply);
           }
-          Util.tupleIntoList(toApply, args);
-          val = agg.init(toApply);
-        }
 
-        if (vals.get(i) != null) {
-          List<Object> existing = vals.get(i);
-          val = agg.combine(existing, val);
+          if (vals.get(i) != null) {
+            List<Object> existing = vals.get(i);
+            val = agg.combine(existing, val);
+          }
+          vals.put(i, val);
+        } catch (Exception e) {
+          throw new RuntimeException(e);
         }
-        vals.put(i, val);
-      } catch (Exception e) {
-        throw new RuntimeException(e);
       }
+    } finally {
+      Var.popThreadBindings();
     }
 
     combined.put(group, vals);
@@ -147,8 +166,13 @@ public abstract class ClojureCombinerBase extends BaseOperation implements Funct
 
   @Override
   public void cleanup(FlowProcess flowProcess, OperationCall operationCall) {
-    for (Entry<Tuple, Map<Integer, List<Object>>> e : combined.entrySet()) {
-      writeMap(e.getKey(), e.getValue(), operationCall);
+    Var.pushThreadBindings(bindingMap);
+    try {
+      for (Entry<Tuple, Map<Integer, List<Object>>> e : combined.entrySet()) {
+        writeMap(e.getKey(), e.getValue(), operationCall);
+      }
+    } finally {
+      Var.popThreadBindings();
     }
   }
 }
