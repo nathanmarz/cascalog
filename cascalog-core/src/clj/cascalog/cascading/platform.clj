@@ -30,7 +30,7 @@
            [cascalog.cascading.operations IAggregateBy IAggregator
             Inner Outer Existence]
            [cascalog.logic.def ParallelAggregator ParallelBuffer Prepared]
-           [cascalog.cascading.types CascadingPlatform ClojureFlow]
+           [cascalog.cascading.types CascadingPlatform]
            [com.twitter.maple.tap MemorySourceTap]
            [cascading.tap Tap]
            [cascalog.cascading.tap CascalogTap]
@@ -303,13 +303,13 @@
 
 (defmethod p/to-generator [CascadingPlatform TailStruct]
   [item]
-  (:node item))
+  (assoc (:node item) :name (-> item :options :name)))
 
 ;; ## Platform Implementation
 
 (defn- init-pipe-name [options]
   (or (:name (:trap options))
-      (u/uuid))) 
+      (u/uuid)))
 
 (defn- init-trap-map [options]
   (if-let [trap (:trap options)]
@@ -363,7 +363,6 @@
 ;; define output fields, rather than just throwing immediately.
 
 (extend-protocol parse/INumOutFields
-
   CascalogTap
   (num-out-fields [tap]
     (parse/num-out-fields (:source tap)))
@@ -373,7 +372,6 @@
     (count (parse/get-out-fields x))))
 
 (extend-protocol parse/ISelectFields
-
   Tap
   (select-fields [tap fields]
     (-> (p/generator tap)

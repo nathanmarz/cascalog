@@ -4,7 +4,8 @@
             [cascalog.logic.vars :as v]
             [cascalog.logic.def :as d]
             [cascalog.logic.fn :refer (search-for-var)]
-            [cascalog.logic.platform :as p])
+            [cascalog.logic.platform :as p]
+            [schema.core :as s])
   (:import [clojure.lang IFn]
            [cascalog.logic.def ParallelAggregator
             ParallelBuffer Prepared]
@@ -44,8 +45,9 @@
 ;;
 ;; The following methods allow a predicate to print properly.
 
-(defmethod print-method RawPredicate
-  [{:keys [op input output]} ^java.io.Writer writer]
+(s/defmethod print-method RawPredicate
+  [{:keys [op input output]} :- RawPredicate
+   writer :- java.io.Writer]
   (binding [*out* writer]
     (let [op (if (ifn? op)
                (let [op (or (::d/op (meta op)) op)]
@@ -60,10 +62,14 @@
           (print v)))
       (println ")"))))
 
-(defmethod print-method RawSubquery
-  [{:keys [fields predicates]} ^java.io.Writer writer]
+(s/defmethod print-method RawSubquery
+  [{:keys [fields predicates options] :as s} :- RawSubquery
+   writer :- java.io.Writer]
   (binding [*out* writer]
     (println "(<-" (vec fields))
+    (doseq [[opt v] options :when v]
+      (print "    ")
+      (println (format "(%s %s)" opt v)))
     (doseq [pred predicates]
       (print "    ")
       (print-method pred writer))
@@ -139,7 +145,6 @@
 (defn generator-node
   "Converts the supplied generator into the proper type of node."
   [gen input output options]
-
   {:pre [(empty? input)]}
   (if (instance? GeneratorSet gen)
     (let [{:keys [generator] :as op} gen]

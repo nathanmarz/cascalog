@@ -1,4 +1,10 @@
-# 2.x
+# 3.0.0
+
+- in-memory planner!
+- `:name` option allows you to supply a name to your flow via (:name "some name")
+- Schema validation on internal functions
+- New stats interface via `:stat-fn`
+- Options are now printed in `explain-query` readout
 
 ## 2.0.0
 

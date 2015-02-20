@@ -5,10 +5,12 @@
             [cascalog.cascading.conf :as conf]
             [cascalog.cascading.types :as types]
             [cascalog.cascading.tap :as tap]
+            [cascalog.cascading.stats :as stats]
             [cascalog.cascading.io :as io]
             [cascalog.cascading.operations :as ops]
             [cascalog.logic.algebra :refer (sum)]
-            [cascalog.logic.parse :refer (parse-exec-args)])
+            [cascalog.logic.parse :refer (parse-exec-args)]
+            [schema.core :as s])
   (:import [cascalog Util]
            [cascading.pipe Pipe Merge]
            [cascading.tap Tap]
@@ -18,9 +20,9 @@
 
 ;; ## Flow Building
 
-(defn flow-def
+(s/defn flow-def :- FlowDef
   "Generates an instance of FlowDef off of the supplied ClojureFlow."
-  [{:keys [source-map sink-map trap-map tails name]}]
+  [{:keys [source-map sink-map trap-map tails name]} :- ClojureFlow]
   (doto (FlowDef.)
     (.setName name)
     (.addSources source-map)
@@ -28,17 +30,17 @@
     (.addTraps trap-map)
     (.addTails (into-array Pipe tails))))
 
-(defn compile-hadoop
+(s/defn compile-hadoop :- HadoopFlow
   "Compiles the supplied FlowDef into a Hadoop flow."
-  [fd]
+  [fd :- FlowDef]
   (-> (HadoopFlowConnector.
        (conf/project-merge (conf/project-conf)
                            {"cascading.flow.job.pollinginterval" 10}))
       (.connect fd)))
 
-(defn graph
+(s/defn graph :- ClojureFlow
   "Writes a dotfile for the flow at hand to the supplied path."
-  [flow path]
+  [flow :- ClojureFlow path :- s/Str]
   (-> (flow-def flow)
       compile-hadoop
       (.writeDOT path))
@@ -50,14 +52,17 @@
 
 (defprotocol IRunnable
   "All runnable items should implement this function."
-  (run! [x]))
+  (run! [x] "Runs the flow and returns an instance of
+  cascalog.cascading.stats/StatsMap."))
 
 (extend-protocol IRunnable
   HadoopFlow
   (run! [flow]
     (.complete flow)
-    (when-not (-> flow .getFlowStats .isSuccessful)
-      (throw (RuntimeException. "Flow failed to complete."))))
+    (let [sm (stats/stats-map (.getFlowStats flow))]
+      (prn sm)
+      (when-not (:successful? sm)
+        (throw (RuntimeException. "Flow failed to complete.")))))
 
   FlowDef
   (run! [fd]
@@ -81,10 +86,9 @@
   (let [strip-pipe (fn [m] (assoc m :pipe nil))
         [name bindings] (parse-exec-args args)
         [sinks gens] (unweave bindings)]
-    (-> (map (comp strip-pipe ops/write*)
-             gens sinks)
-        (sum)
-        (ops/name-flow name))))
+    (cond-> (sum (map (comp strip-pipe ops/write*)
+                      gens sinks))
+            (not-empty name) (ops/name-flow name))))
 
 (defn jflow-def
   [& args]
