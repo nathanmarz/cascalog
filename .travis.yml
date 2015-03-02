@@ -7,6 +7,9 @@ lein: lein2
 script: lein2 sub with-profile dev,provided test
 before_install:
     - lein2 sub install
+    - sudo apt-get install -qq liblzo2-dev
+env:
+  - C_INCLUDE_PATH=/usr/include/lzo LIBRARY_PATH=/usr/lib/x86_64-linux-gnu
 branches:
   only:
     - develop
