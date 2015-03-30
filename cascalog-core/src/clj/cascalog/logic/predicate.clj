@@ -181,9 +181,10 @@
 
 (defmethod to-predicate ::d/map
   [op input output]
+  (def cake op)
   (if-let [output (not-empty output)]
     (Operation. op input output)
-    (FilterOperation. (-> op meta ::d/op) input)))
+    (FilterOperation. (d/filterop (-> op meta ::d/op)) input)))
 
 (defmethod to-predicate ::d/mapcat
   [op input output]
