@@ -175,11 +175,15 @@
 
 (defmethod to-predicate ::d/filter
   [op input output]
-  (FilterOperation. op input))
+  (if-let [output (not-empty output)]
+    (Operation. (d/mapop (-> op meta ::d/op)) input output)
+    (FilterOperation. op input)))
 
 (defmethod to-predicate ::d/map
   [op input output]
-  (Operation. op input output))
+  (if-let [output (not-empty output)]
+    (Operation. op input output)
+    (FilterOperation. (-> op meta ::d/op) input)))
 
 (defmethod to-predicate ::d/mapcat
   [op input output]
