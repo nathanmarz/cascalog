@@ -640,6 +640,32 @@
               (people ?person)
               (bob-set ?person)) => (produces [["bob"]]))))
 
+(deftest test-filter-capture
+  (let [src [[1] [2]]]
+
+    (fact
+     "The result of filterops can be captured."
+     (<- [?x ?z]
+         (src ?x)
+         ((d/filterop odd?) ?x :> ?z)) => (produces [[1 true] [2 false]]))
+
+    (fact
+     "You can filter against the output of a filter too using a
+     literal:"
+     (<- [?x]
+         (src ?x)
+         ((d/filterop odd?) ?x :> false)) => (produces [[2]])
+
+     ", OR with a function:"
+     (<- [?x]
+         (src ?x)
+         ((d/filterop odd?) ?x :> false?)) => (produces [[2]]))
+
+    (fact "mapops can be used as filters if there are no output
+    variables:"
+          (<- [?x]
+              (src ?x)
+              ((d/mapop even?) ?x)) => (produces [[2]]))))
 
 (future-fact "test outer join with functions.")
 
