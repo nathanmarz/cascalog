@@ -250,18 +250,26 @@
 
 (defn- groupby
   "Adds a raw GroupBy operation to the pipe. Don't use this directly."
-  [pipe group-fields sort-fields reverse?]
-  (if sort-fields
-    (GroupBy. pipe group-fields
-              (fields sort-fields)
-              (boolean reverse?))
-    (GroupBy. pipe group-fields)))
+  [name pipe group-fields sort-fields reverse?]
+  (if (seq name)
+    (if sort-fields
+      (GroupBy. name pipe group-fields
+                (fields sort-fields)
+                (boolean reverse?))
+      (GroupBy. name pipe group-fields))
+    (if sort-fields
+      (GroupBy. pipe group-fields
+                (fields sort-fields)
+                (boolean reverse?))
+      (GroupBy. pipe group-fields))))
 
-(defn- aggby [pipe group-fields spill-threshold aggs]
+(defn- aggby [name pipe group-fields spill-threshold aggs]
   (let [aggs (->> aggs
                   (map aggregate-by)
                   (into-array AggregateBy))]
-    (AggregateBy. pipe (fields group-fields) spill-threshold aggs)))
+    (if (seq name)
+      (AggregateBy. name pipe (fields group-fields) spill-threshold aggs)
+      (AggregateBy. pipe (fields group-fields) spill-threshold aggs))))
 
 ;; TODO: Add proper assertions around sorting. (We can't sort when
 ;; we're in AggregateBy, for example.
@@ -271,13 +279,13 @@
 (defop group-by*
   "Applies a grouping operation to the supplied generator."
   [group-fields aggs
-   & {:keys [reducers spill-threshold sort-fields reverse? reduce-only]
+   & {:keys [reducers spill-threshold sort-fields reverse? reduce-only name]
       :or {spill-threshold 0}}]
   (fn [pipe]
     (let [group-fields (fields group-fields)
           build-group  (fn [thunk]
                          (thunk
-                          (groupby pipe group-fields
+                          (groupby name pipe group-fields
                                    (fields sort-fields)
                                    reverse?)))
           mode (aggregate-mode aggs (or reduce-only sort-fields))]
@@ -287,7 +295,7 @@
                                    (reduce (fn [p op]
                                              (add-aggregator op p))
                                            grouped aggs)))
-        ::parallel  (aggby pipe group-fields spill-threshold aggs)
+        ::parallel  (aggby name pipe group-fields spill-threshold aggs)
         (throw-illegal "Unsupported aggregation mode: " mode)))))
 
 (defn unique-aggregator []
@@ -321,12 +329,14 @@
       (throw-illegal "Can't create joiner from " join))))
 
 (defmacro build-join-group
-  [group-op pipes group-fields decl-fields join]
+  [group-op group-name pipes group-fields decl-fields join]
   `(let [group-fields# (into-array Fields (map fields ~group-fields))
          joiner#       (join->joiner ~join)
          d#            ~decl-fields
          decl-fields#  (when d# (fields d#))]
-     (~group-op ~pipes group-fields# decl-fields# joiner#)))
+     (if (seq ~group-name)
+       (~group-op ~group-name ~pipes group-fields# decl-fields# joiner#)
+       (~group-op ~pipes group-fields# decl-fields# joiner#))))
 
 (defn- add-co-group-aggs
   [pipe aggs]
@@ -344,13 +354,13 @@
   (map rename-pipe flows))
 
 (defn co-group*
-  [flows group-fields & {:keys [decl-fields aggs reducers join] :or {join :inner}}]
+  [flows group-fields & {:keys [decl-fields aggs reducers join name] :or {join :inner}}]
   (-> flows
       ensure-unique-pipes
       lift-pipes
       sum
       (add-op (fn [pipes]
-                (-> (build-join-group CoGroup. pipes group-fields decl-fields join)
+                (-> (build-join-group CoGroup. name pipes group-fields decl-fields join)
                     (set-reducers reducers)
                     (add-co-group-aggs (or aggs [])))))))
 
@@ -407,7 +417,7 @@
 
    Note: full or right outer joins have odd behavior in hash joins.
          See Cascading documentation for details."
-  [flows join-fields & {:keys [join decl-fields] :or {join :inner}}]
+  [flows join-fields & {:keys [join decl-fields name] :or {join :inner}}]
   (safe-assert (= (count flows) (count join-fields))
                "Expected same number of flows and join fields")
   (-> flows
@@ -415,7 +425,7 @@
       lift-pipes
       sum
       (add-op (fn [pipes]
-                (build-join-group HashJoin. pipes join-fields decl-fields join)))))
+                (build-join-group HashJoin. name pipes join-fields decl-fields join)))))
 
 (defn hash-join-with-tiny
   [larger-flow fields1 tiny-flow fields2]

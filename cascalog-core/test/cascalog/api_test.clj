@@ -131,7 +131,8 @@
              [?w ?c]
              (sentence ?s)
              (split ?s :> ?w)
-             (c/count ?c))))
+             (c/count ?c)
+             (:name "test-countall"))))
 
 (deftest test-multi-agg
   (let [value [["a" 1] ["a" 2] ["b" 10]
@@ -318,7 +319,8 @@
              [?p ?a !!f1 !!f2 !!f3]
              (age ?p ?a)
              (rec1 ?p !!f1 !!f2)
-             (rec2 ?p ?a !!f3))))
+             (rec2 ?p ?a !!f3)
+             (:name "outer-join-complex"))))
 
 (deftest test-outer-join-assertions
   (let [age [["a" 20] ["b" 30] ["c" 27] ["d" 40]]
@@ -375,7 +377,8 @@
              (age ?p !!a)
              (gender ?p !!g)
              (outer-join-tester3 !!a :> ?t)
-             (c/count ?c))
+             (c/count ?c)
+             (:name "count-test"))
 
     (test?<- [["A" "a"] ["E" nil]]
              [?p !!t]
@@ -477,7 +480,8 @@
     (test?<- [[4]]
              [?avg]
              (num1 ?n)
-             (c/avg ?n :> ?avg))
+             (c/avg ?n :> ?avg)
+             (:name "test-avg-1"))
 
     (test?<- [["a" 2] ["b" 3]]
              [?l ?avg]
