@@ -64,7 +64,7 @@
       (cascalog-join [(->Inner a ["a" "b" "c"])
                       (->Inner b ["a" "b"])]
                      ["a" "b"]
-                     [] :name "cascalog-test")
+                     [:name "cascalog-test"])
       => (produces [[3 4 16] [4 5 25]]))))
 
 (future-fact
