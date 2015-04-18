@@ -64,7 +64,7 @@
       (cascalog-join [(->Inner a ["a" "b" "c"])
                       (->Inner b ["a" "b"])]
                      ["a" "b"]
-                     [])
+                     [:name "cascalog-test"])
       => (produces [[3 4 16] [4 5 25]]))))
 
 (future-fact
@@ -134,9 +134,9 @@
         b      (-> source
                    (rename* ["x" "y"]))]
     (fact "Join joins stuff"
-      (-> (co-group* [a b] [["a"] ["x"]] :decl-fields ["a" "x" "b" "c" "y"])
+      (-> (co-group* [a b] [["a"] ["x"]] :decl-fields ["a" "x" "b" "c" "y"] :name "jjs")
           (map* str "y" "q"))
-      => (produces [[3 3 9 3 3 "3"] [4 4 16 4 4 "4"]]))
+      => (produces [[3 3 9 3 3 "3"] [4 4 16 4 4 "4"]] :info))
 
     (let [a (-> (generator [[1 1] [1 2] [2 2]]) (rename* ["a" "b"]))
           b (-> (generator [[1 10] [2 15]]) (rename* ["x" "y"]))
