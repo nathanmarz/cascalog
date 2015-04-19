@@ -642,31 +642,50 @@ This won't work in distributed mode because of the ->Record functions."
         (assoc :available-fields fields)
         (assoc :ground? (v/fully-ground? fields)))))
 
+(defn necessary-ops
+  "Return only operations whose outvars intersect with necessary-fields"
+  [necessary-fields ops]
+  (filter #(seq (clojure.set/intersection
+                   (set (:output %))
+                   (set necessary-fields)))
+          ops))
+
+(defn fixed-point-prune
+  "Handle pruning chained operation"
+  [base-necessary-fields ops-invar-fields ops]
+  (let [next-ops (necessary-ops (concat base-necessary-fields
+                                        ops-invar-fields)
+                                ops)
+        next-invars (mapcat :input next-ops)]
+    (if (= ops next-ops)
+      next-ops
+      (fixed-point-prune base-necessary-fields next-invars next-ops))))
+
 (defn prune-operations
   "Remove non-generator & non-filter operations whose outvar(s) is not used, i.e., when the outvar(s)
   do *not* intersect with the query's out-fields, generators outvars (for joins), invars of other operations,
   and :sort option. Additionally, do not prune operations if a no-input operator exists"
   [fields grouped options]
-  (let [check-input-operations (concat (grouped Operation)
-                                       (grouped FilterOperation)
-                                       (grouped Aggregator))]
-  (if (some #(empty? (:input %)) check-input-operations)
+  (if (some #(empty? (:input %)) (concat (grouped Operation)
+                                         (grouped FilterOperation)
+                                         (grouped Aggregator)))
     (concat (grouped Operation)
             (grouped FilterOperation))
     (let [generators (concat (grouped Generator)
                              (grouped GeneratorSet))
-          necessary-fields (->> check-input-operations
-                                (mapcat :input)
-                                (concat fields)
-                                (concat (mapcat :fields generators))
-                                (concat (:sort options)))
-          pruned-operations (filter #(seq
-                                       (clojure.set/intersection
-                                            (set (:output %))
-                                            (set necessary-fields)))
-                                    (grouped Operation))]
+          base-necessary-fields (->> (concat (grouped FilterOperation)
+                                             (grouped Aggregator))
+                                     (mapcat :input)
+                                     (concat fields)
+                                     (concat (mapcat :fields generators))
+                                     (concat (:sort options)))
+          ops-invar-fields (mapcat :input (grouped Operation))
+          pruned-operations (fixed-point-prune base-necessary-fields
+                                               ops-invar-fields
+                                               (grouped Operation))]
       (concat pruned-operations
-              (grouped FilterOperation))))))
+              (grouped FilterOperation)))))
+
 
 (defn build-rule
   [{:keys [fields predicates options] :as input}]

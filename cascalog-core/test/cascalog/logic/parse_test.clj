@@ -54,10 +54,19 @@
         plus-pred [#'+ "?b" "?a" :> "?plus"]
         count-pred [#'c/count "?count"]
         even?-pred [#'even? "?plus"]
+        inc-plus-pred [#'inc "?plus" :> "?inc-plus"]
         sort-pred [:sort "?plus"]]
 
     "Prune the plus-pred since it's out var it is not requested in out-fields"
     (let [{:keys [grouped options]} (mk-grouped-and-options [gen-pred minus-pred plus-pred])
+          out-fields ["?minus"]
+          minus-op (predicate->operation options minus-pred)
+          pruned-operations (prune-operations out-fields grouped options)]
+      (is (= 1 (count pruned-operations)))
+      (is (contains-op? minus-op pruned-operations)))
+
+    "Prune chained operations, i.e., remove both plus-pred and inc-plus-pred"
+    (let [{:keys [grouped options]} (mk-grouped-and-options [gen-pred minus-pred plus-pred inc-plus-pred])
           out-fields ["?minus"]
           minus-op (predicate->operation options minus-pred)
           pruned-operations (prune-operations out-fields grouped options)]
