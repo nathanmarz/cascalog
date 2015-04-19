@@ -643,9 +643,9 @@ This won't work in distributed mode because of the ->Record functions."
         (assoc :ground? (v/fully-ground? fields)))))
 
 (defn prune-operations
-  "Remove any operations whose output is not used; ie, output does not intersect with the set
-  of fields that is the query's out-fields, generators (joins), inputs of other operations,
-  and :sort option. Additionally, don't try to prune operations if a no input operator exists"
+  "Remove non-generator & non-filter operations whose outvar(s) is not used, i.e., when the outvar(s)
+  do *not* intersect with the query's out-fields, generators outvars (for joins), invars of other operations,
+  and :sort option. Additionally, do not prune operations if a no-input operator exists"
   [fields grouped options]
   (let [check-input-operations (concat (grouped Operation)
                                        (grouped FilterOperation)

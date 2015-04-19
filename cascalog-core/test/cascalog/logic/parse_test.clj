@@ -76,6 +76,16 @@
       (is (contains-op? plus-op pruned-operations))
       (is (contains-op? even?-op pruned-operations)))
 
+    "Do not prune filter predicates"
+    (let [{:keys [grouped options]} (mk-grouped-and-options [gen-pred plus-pred even?-pred])
+          out-fields ["?plus"]
+          plus-op (predicate->operation options plus-pred)
+          even?-op (predicate->operation options even?-pred)
+          pruned-operations (prune-operations out-fields grouped options)]
+      (is (= 2 (count pruned-operations)))
+      (is (contains-op? plus-op pruned-operations))
+      (is (contains-op? even?-op pruned-operations)))
+
     "Do not prune since a no-input predicate (count-pred) exists"
     (let [{:keys [grouped options]} (mk-grouped-and-options [gen-pred minus-pred plus-pred count-pred])
           out-fields ["?minus" "?count"]
