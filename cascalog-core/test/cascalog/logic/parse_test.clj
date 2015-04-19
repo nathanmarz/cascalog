@@ -53,9 +53,10 @@
         minus-pred [#'- "?b" "?a" :> "?minus"]
         plus-pred [#'+ "?b" "?a" :> "?plus"]
         count-pred [#'c/count "?count"]
+        even?-pred [#'even? "?plus"]
         sort-pred [:sort "?plus"]]
 
-    "Check that we prune the plus-pred since it is not requested in out-fields"
+    "Prune the plus-pred since it's out var it is not requested in out-fields"
     (let [{:keys [grouped options]} (mk-grouped-and-options [gen-pred minus-pred plus-pred])
           out-fields ["?minus"]
           minus-op (predicate->operation options minus-pred)
@@ -63,17 +64,31 @@
       (is (= 1 (count pruned-operations)))
       (is (contains-op? minus-op pruned-operations)))
 
-    "Check that we don't prune since a no-input predicate (count-pred) exists"
+    "Do not prune if predicate outvar is used as input to another predicate"
+    (let [{:keys [grouped options]} (mk-grouped-and-options [gen-pred minus-pred plus-pred even?-pred])
+          out-fields ["?minus"]
+          minus-op (predicate->operation options minus-pred)
+          plus-op (predicate->operation options plus-pred)
+          even?-op (predicate->operation options even?-pred)
+          pruned-operations (prune-operations out-fields grouped options)]
+      (is (= 3 (count pruned-operations)))
+      (is (contains-op? minus-op pruned-operations))
+      (is (contains-op? plus-op pruned-operations))
+      (is (contains-op? even?-op pruned-operations)))
+
+    "Do not prune since a no-input predicate (count-pred) exists"
     (let [{:keys [grouped options]} (mk-grouped-and-options [gen-pred minus-pred plus-pred count-pred])
           out-fields ["?minus" "?count"]
           minus-op (predicate->operation options minus-pred)
           plus-op (predicate->operation options plus-pred)
+          count-op (predicate->operation options count-pred)
           pruned-operations (prune-operations out-fields grouped options)]
       (is (= 3 (count pruned-operations)))
       (is (contains-op? minus-op pruned-operations))
-      (is (contains-op? plus-op pruned-operations)))
+      (is (contains-op? plus-op pruned-operations))
+      (is (contains-op? count-op pruned-operations)))
 
-    "Check that we don't prune if we use predicate outfield in option :sort"
+    "Do not prune if predicate outvar is used in an option (:sort)"
     (let [{:keys [grouped options]} (mk-grouped-and-options [gen-pred minus-pred plus-pred sort-pred])
           out-fields ["?minus"]
           minus-op (predicate->operation options minus-pred)
@@ -83,7 +98,7 @@
       (is (contains-op? minus-op pruned-operations))
       (is (contains-op? plus-op pruned-operations)))
 
-    "Check that we don't prune if output is used in generators field (ie, a join)"
+    "Do not prune if predicate outvar is used in generators field (ie, a join)"
     (let [join-gen-pred [[[3 "a"][7 "b"]] :> "?plus" "!!alpha"]
           {:keys [grouped options]} (mk-grouped-and-options [gen-pred minus-pred plus-pred join-gen-pred])
           out-fields ["?minus" "!!alpha"]
