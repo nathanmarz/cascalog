@@ -11,6 +11,7 @@ From https://github.com/nathanmarz/cascalog/pull/270:
 - Options are now printed in `explain-query` readout
 
 - propagate query names to co-group steps (https://github.com/nathanmarz/cascalog/pull/277)
+- prune unused operations per subquery (https://github.com/nathanmarz/cascalog/pull/247)
 
 ## 2.0.0
 
