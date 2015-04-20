@@ -4,9 +4,9 @@
 
 language: clojure
 lein: lein2
-script: JVM_OPTS="-Djava.library.path=$PWD/hadoop-lzo-native/lib" lein2 sub with-profile dev,provided test
+script: JVM_OPTS="-Djava.library.path=$PWD/hadoop-lzo-native/lib" lein2 modules with-profile dev,provided test
 before_install:
-    - lein2 sub install
+    - lein2 modules install
     - sudo apt-get update -qq
     - sudo apt-get install -qq protobuf-compiler
     - sudo apt-get install -qq libboost-dev libboost-test-dev libboost-program-options-dev libevent-dev automake libtool flex bison pkg-config g++ libssl-dev
