@@ -22,4 +22,3 @@
                            "cascalog-math/src"
                            "cascalog-lzo/src"
                            "midje-cascalog/src"]}))
-
