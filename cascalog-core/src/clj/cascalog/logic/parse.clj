@@ -160,14 +160,6 @@
   [vars]
   (not (some v/selector? vars)))
 
-(comment
-  "TODO: Make a test."
-  (v/with-logic-vars
-    (parse-subquery [?x ?y ?z]
-                    [[[[1 2 3]] ?x]
-                     [* ?x ?x :> ?y]
-                     [* ?x ?y :> ?z]])))
-
 ;; this is the root of the tree, used to account for all variables as
 ;; they're built up.
 
@@ -762,7 +754,7 @@ This won't work in distributed mode because of the ->Record functions."
   predicates. Predicate macros support destructuring of the input and
   output variables."
   [outvars & predicates]
-  `(v/with-logic-vars
+  `(v/with-logic-vars ~(cons outvars (map rest predicates))
      (parse-subquery ~outvars [~@(map vec predicates)])))
 
 (defn parse-exec-args
