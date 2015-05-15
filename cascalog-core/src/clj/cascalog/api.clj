@@ -91,7 +91,7 @@
   Syntax: (expand-query outvars & predicates)
 
   Ex: (expand-query [?person] (age ?person 25))"
-  `(v/with-logic-vars
+  `(v/with-logic-vars ~(cons outvars (map rest predicates))
      (let [{outvars# :output-fields
             predicates# :predicates}
            (parse/prepare-subquery ~outvars [~@(map vec predicates)])]

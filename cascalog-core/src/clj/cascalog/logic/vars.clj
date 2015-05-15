@@ -133,14 +133,16 @@ interpreted as a logic variable."
   (every-pred symbol? reserved?))
 
 (defmacro with-logic-vars
-  "Binds all logic variables within the body of `with-logic-vars` to
-  their string equivalents, allowing the user to write bare symbols. For example:
+  "Binds all logic variables within the `to-search` of `with-logic-vars` to
+  their string equivalents, allowing the user to write bare symbols within the body.
 
-  (with-logic-vars
+ For example:
+
+  (with-logic-vars [?a ?b :see]
     (str ?a ?b :see))
   ;=>  \"?a?b:see\""
-  [& body]
-  (let [syms (->> (s/flatten body)
+  [to-search & body]
+  (let [syms (->> (s/flatten to-search)
                   (filter logic-sym?)
                   (distinct))]
     `(let [~@(mapcat (fn [s] [s (str s)]) syms)]
