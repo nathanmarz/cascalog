@@ -12,6 +12,7 @@ From https://github.com/nathanmarz/cascalog/pull/270:
 
 - propagate query names to co-group steps (https://github.com/nathanmarz/cascalog/pull/277)
 - prune unused operations per subquery (https://github.com/nathanmarz/cascalog/pull/247)
+- Fix leak in tuple sequence with custom buffer ops (https://github.com/nathanmarz/cascalog/issues/251)
 
 ## 2.0.0
 

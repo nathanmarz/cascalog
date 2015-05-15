@@ -447,6 +447,28 @@
              (person ?p)
              (follows ?p !!p2 _))))
 
+(defbufferfn some-op [tuples]
+  (partition 2 1 tuples))
+
+(deftest test-buffer-leak
+  "Makes sure that the iterator created off of Iterator<TupleEntry>
+  doesn't get its state switched out from under it.
+
+  https://github.com/nathanmarz/cascalog/issues/251"
+  (let [test-data [["u1", 1, "p1"]
+                   ["u1", 3, "p2"]
+                   ["u1", 5, "p1"]
+                   ["u1", 8, "p2"]]]
+    (<- [?user ?first ?second]
+        (test-data :> ?user ?timeindex ?p)
+        (:sort ?timeindex)
+        (some-op :< ?p ?timeindex :> ?first ?second))
+    => (produces [["u1" ["p1" 1] ["p2" 3]]
+                  ["u1" ["p2" 3] ["p1" 5]]
+                  ["u1" ["p1" 5] ["p2" 8]]])))
+
+(defbufferfn some-op2 [tuples] (prn (vec tuples)) (partition 2 1 tuples))
+
 (deftest test-negate-join
   (let [left  [["a" 1]
                ["b" 2]]
