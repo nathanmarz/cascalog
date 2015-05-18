@@ -13,7 +13,7 @@
   (:import [cascading.tuple Fields]
            [cascalog.ops KryoInsert]
            [cascading.operation Identity Debug NoOp]
-           [cascading.operation.filter Sample]
+           [cascading.operation.filter Sample FilterNull]
            [cascading.operation.aggregator First Count Sum Min Max]
            [cascading.pipe Pipe Each Every GroupBy CoGroup Merge HashJoin Checkpoint]
            [cascading.pipe.joiner Joiner InnerJoin LeftJoin RightJoin OuterJoin]
@@ -713,15 +713,12 @@
   (map (fn [v] (if (= "_" v) (v/gen-nullable-var) v))
        (collectify vars)))
 
-(defn not-nil? [& xs]
-  (every? (complement nil?) xs))
-
 (defn filter-nullable-vars
   "If there are any nullable variables present in the output, filter
   nulls out now."
-  [flow fields]
-  (if-let [non-null-fields (seq (filter v/non-nullable-var? fields))]
-    (filter* flow #'not-nil? non-null-fields)
+  [flow all-fields]
+  (if-let [non-null-fields (seq (filter v/non-nullable-var? all-fields))]
+    (add-op flow #(Each. % (fields non-null-fields) (FilterNull.)))
     flow))
 
 (defn no-overlap? [large small]
