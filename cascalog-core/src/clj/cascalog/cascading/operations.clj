@@ -12,14 +12,14 @@
             [jackknife.seq :as s :refer (unweave collectify)])
   (:import [cascading.tuple Fields]
            [cascalog.ops KryoInsert]
-           [cascading.operation Identity Debug NoOp]
+           [cascading.operation Identity Debug NoOp BufferCall AggregatorCall]
            [cascading.operation.filter Sample FilterNull]
            [cascading.operation.aggregator First Count Sum Min Max]
            [cascading.pipe Pipe Each Every GroupBy CoGroup Merge HashJoin Checkpoint]
            [cascading.pipe.joiner Joiner InnerJoin LeftJoin RightJoin OuterJoin]
            [cascading.pipe.joiner CascalogJoiner CascalogJoiner$JoinType]
            [cascading.pipe.assembly Rename AggregateBy]
-           [cascalog ClojureFilter ClojureMapcat ClojureMap
+           [cascalog Util ClojureFilter ClojureMapcat ClojureMap
             ClojureBuffer ClojureBufferIter FastFirst
             MultiGroupBy ClojureMultibuffer]
            [cascalog.aggregator ClojureAggregator
@@ -323,6 +323,31 @@
   tuples."
   [& flows]
   (unique (sum flows)))
+
+(defn combine*
+  "Merges flows and returns all tuples"
+  [& flows]
+  (sum flows))
+
+(defprotocol IGroupKeys
+  (get-group-keys [op] "Returns groupping keys for `io`"))
+
+(extend-protocol IGroupKeys
+  Object
+  (get-group-keys [op]
+    (throw (UnsupportedOperationException. (str "Can't get group tuple from " (class op)))))
+
+  BufferCall
+  (get-group-keys [^BufferCall op]
+    (Util/tupleToList (.getGroup op)))
+
+  AggregatorCall
+  (get-group-keys [^AggregatorCall op]
+    (Util/tupleToList (.getGroup op))))
+
+(defn group-keys
+  []
+  (get-group-keys *op-call*))
 
 ;; ## Join Operations
 
