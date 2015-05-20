@@ -26,6 +26,15 @@
             ClojureMonoidAggregator ClojureMonoidFunctor
             ClojureAggregateBy CombinerSpec]))
 
+;; ## Dynamic Variables
+;;
+;; These variables are bound within the context of a Cascalog job. You
+;; can access them from your operations without worry about prepfn
+;; craziness.
+
+(def ^:dynamic *flow-process* nil)
+(def ^:dynamic *op-call* nil)
+
 ;; ## Operations
 ;;
 ;; All of these operations work on implementers of the Generator

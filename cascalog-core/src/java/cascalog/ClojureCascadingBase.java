@@ -53,8 +53,8 @@ public class ClojureCascadingBase extends BaseOperation {
   @Override
   public void prepare(FlowProcess fp, OperationCall call) {
     this.bindingMap = PersistentHashMap
-      .create(Util.getVar("cascalog.cascading.stats", "*flow-process*"), fp,
-              Util.getVar("cascalog.cascading.stats", "*op-call*"), call);
+      .create(Util.getVar("cascalog.cascading.operations", "*flow-process*"), fp,
+              Util.getVar("cascalog.cascading.operations", "*op-call*"), call);
 
     IFn fn = Util.deserializeFn(serializedFn);
 

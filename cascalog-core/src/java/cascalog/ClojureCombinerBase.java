@@ -1,14 +1,14 @@
 /*
     Copyright 2010 Nathan Marz
- 
-    Project and contact information: http://www.cascalog.org/ 
+
+    Project and contact information: http://www.cascalog.org/
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
     You may obtain a copy of the License at
-   
+
         http://www.apache.org/licenses/LICENSE-2.0
-   
+
     Unless required by applicable law or agreed to in writing, software
     distributed under the License is distributed on an "AS IS" BASIS,
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -82,8 +82,8 @@ public abstract class ClojureCombinerBase extends BaseOperation implements Funct
   @Override
   public void prepare(FlowProcess flowProcess, OperationCall operationCall) {
     this.bindingMap = PersistentHashMap
-        .create(Util.getVar("cascalog.cascading.stats", "*flow-process*"), flowProcess,
-            Util.getVar("cascalog.cascading.stats", "*op-call*"), operationCall);
+        .create(Util.getVar("cascalog.cascading.operations", "*flow-process*"), flowProcess,
+            Util.getVar("cascalog.cascading.operations", "*op-call*"), operationCall);
 
     JobConf jc = ((HadoopFlowProcess) flowProcess).getJobConf();
     this.cacheSize = jc.getInt(this.cacheConfArg, this.defaultCacheSize);
