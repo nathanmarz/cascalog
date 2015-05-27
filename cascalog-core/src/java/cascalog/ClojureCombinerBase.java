@@ -28,7 +28,7 @@ import java.util.Map.Entry;
 import org.apache.hadoop.mapred.JobConf;
 
 import cascading.flow.FlowProcess;
-import cascading.flow.hadoop.HadoopFlowProcess;
+import cascading.flow.tez.Hadoop2TezFlowProcess;
 import cascading.operation.BaseOperation;
 import cascading.operation.Function;
 import cascading.operation.FunctionCall;
@@ -85,7 +85,7 @@ public abstract class ClojureCombinerBase extends BaseOperation implements Funct
         .create(Util.getVar("cascalog.cascading.stats", "*flow-process*"), flowProcess,
             Util.getVar("cascalog.cascading.stats", "*op-call*"), operationCall);
 
-    JobConf jc = ((HadoopFlowProcess) flowProcess).getJobConf();
+    JobConf jc = new JobConf(((Hadoop2TezFlowProcess) flowProcess).getConfiguration());
     this.cacheSize = jc.getInt(this.cacheConfArg, this.defaultCacheSize);
     combined = new LinkedHashMap<Tuple, Map<Integer, List<Object>>>(1000, (float) 0.75, true);
     Var.pushThreadBindings(bindingMap);

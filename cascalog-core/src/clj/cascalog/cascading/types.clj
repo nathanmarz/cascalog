@@ -10,8 +10,7 @@
            [cascading.tap Tap]
            [cascading.tuple Fields Tuple]
            [cascalog.logic.parse TailStruct]
-           [cascalog.logic.predicate RawSubquery]
-           [cascading.flow.hadoop HadoopFlow]
+           [cascalog.logic.predicate RawSubquery]         
            [com.twitter.maple.tap MemorySourceTap]
            [jcascalog Subquery]))
 
