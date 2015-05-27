@@ -1,6 +1,15 @@
 
 # NOTE: Currently, work in progress to support tez on which Cascalog can be run.
 
+To build cascalog-core:
+
+
+    cd cascalog-core;
+    lein jar;
+    
+
+
+
 # Cascalog
 
 [![Build Status](https://secure.travis-ci.org/nathanmarz/cascalog.png?branch=develop)](http://travis-ci.org/nathanmarz/cascalog)
