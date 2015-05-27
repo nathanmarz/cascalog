@@ -1,3 +1,6 @@
+
+# NOTE: Currently, work in progress to support tez on which Cascalog can be run.
+
 # Cascalog
 
 [![Build Status](https://secure.travis-ci.org/nathanmarz/cascalog.png?branch=develop)](http://travis-ci.org/nathanmarz/cascalog)
