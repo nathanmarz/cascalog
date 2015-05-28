@@ -1,5 +1,5 @@
 
-# NOTE: Currently, work in progress to support tez on which Cascalog can be run.
+# NOTE: work in progress to support Tez on which Cascalog can be run.
 
 To build cascalog-core:
 
