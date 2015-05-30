@@ -1,12 +1,17 @@
 
-# NOTE: work in progress to support Tez on which Cascalog can be run.
+# Cascalog Tez Support
+I have modified Cascalog to run on Tez:
+- project module cascalog-core modified to conform to Cascading Tez 3.0 API.
+- TemplateTap.java, BaseTemplateTap.java added which have been removed from Cascading 3.0 source tree.
+- Cascading Tez Dependencies added to cascalog-core/project.clj.
 
 To build cascalog-core:
 
-
     cd cascalog-core;
     lein jar;
-    
+
+
+You can also see JCascalog Parquet Tez example using this tez supported cascalog-core: https://github.com/mykidong/jcascalog-parquet-tez-example     
 
 
 
