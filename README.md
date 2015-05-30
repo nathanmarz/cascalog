@@ -1,9 +1,10 @@
 
 # Cascalog Tez Support
 I have modified Cascalog to run on Tez:
+- Cascading Tez Dependencies added to cascalog-core/project.clj.
 - project module cascalog-core modified to conform to Cascading Tez 3.0 API.
 - TemplateTap.java, BaseTemplateTap.java added which have been removed from Cascading 3.0 source tree.
-- Cascading Tez Dependencies added to cascalog-core/project.clj.
+
 
 To build cascalog-core:
 
