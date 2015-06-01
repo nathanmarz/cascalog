@@ -568,6 +568,31 @@
                                                       op)))))))
 
 
+;; ## Output Operations
+;;
+;; This section covers output and traps
+
+(defn lazy-generator
+  "Returns a cascalog generator on the supplied sequence of
+  tuples. `lazy-generator` serializes each item in the lazy sequence
+  into a sequencefile located at the supplied temporary directory and returns
+  a tap for the data in that directory.
+  It's recommended to wrap queries that use this tap with
+  `cascalog.cascading.io/with-fs-tmp`; for example,
+    (with-fs-tmp [_ tmp-dir]
+      (let [lazy-tap (lazy-generator tmp-dir lazy-seq)]
+        (?<- (stdout)
+             [?field1 ?field2 ... etc]
+             (lazy-tap ?field1 ?field2)
+             ...)))"
+  [tmp-path [tuple :as l-seq]]
+  {:pre [(coll? tuple)]}
+  (let [tap (:sink (tap/hfs-seqfile tmp-path))
+        n-fields (count tuple)]
+    (tap/fill-tap! tap l-seq)
+    (rename* tap (v/gen-nullable-vars n-fields))))
+
+
 (defn in-branch
   "Accepts a temporary name and a function from flow => flow and
   performs the operation within a renamed branch."
