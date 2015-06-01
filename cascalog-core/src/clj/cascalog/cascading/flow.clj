@@ -16,7 +16,7 @@
            [cascading.tap Tap]
            [cascading.flow FlowDef]
            [cascalog.cascading.types ClojureFlow]
-           [cascading.flow.hadoop HadoopFlow HadoopFlowConnector]))
+           [cascading.flow.tez Hadoop2TezFlow Hadoop2TezFlowConnector]))
 
 ;; ## Stats
 
@@ -48,10 +48,10 @@
     (.addTraps trap-map)
     (.addTails (into-array Pipe tails))))
 
-(s/defn compile-hadoop :- HadoopFlow
+(s/defn compile-hadoop :- Hadoop2TezFlow
   "Compiles the supplied FlowDef into a Hadoop flow."
   [fd :- FlowDef]
-  (-> (HadoopFlowConnector.
+  (-> (Hadoop2TezFlowConnector.
        (conf/project-merge (conf/project-conf)
                            {"cascading.flow.job.pollinginterval" 10}))
       (.connect fd)))
@@ -66,7 +66,7 @@
 
 ;; TODO: Add support for supplying a name to the flow-def at this
 ;; stage. Not sure if we're going to be able to apply the name to the
-;; HadoopFlow.
+;; Hadoop2TezFlow.
 
 (s/defn assert-success! [sm :- stats/StatsMap]
   (or (:successful? sm)
@@ -78,7 +78,7 @@
   cascalog.cascading.stats/StatsMap."))
 
 (extend-protocol IRunnable
-  HadoopFlow
+  Hadoop2TezFlow
   (run! [flow]
     (.complete flow)
     (handle-stats!
@@ -115,7 +115,7 @@
   (let [flow (apply compile-flow args)]
     (flow-def flow)))
 
-(s/defn jcompile-flow :- HadoopFlow
+(s/defn jcompile-flow :- Hadoop2TezFlow
   [& args]
   (compile-hadoop (apply jflow-def args)))
 

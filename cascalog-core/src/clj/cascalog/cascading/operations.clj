@@ -13,8 +13,7 @@
   (:import [cascading.tuple Fields]
            [cascalog.ops KryoInsert]
            [cascading.operation Identity Debug NoOp]
-           [cascading.operation.filter Sample FilterNull]
-           [cascading.operation.aggregator First Count Sum Min Max]
+           [cascading.operation.filter Sample FilterNull]           
            [cascading.pipe Pipe Each Every GroupBy CoGroup Merge HashJoin Checkpoint]
            [cascading.pipe.joiner Joiner InnerJoin LeftJoin RightJoin OuterJoin]
            [cascading.pipe.joiner CascalogJoiner CascalogJoiner$JoinType]
@@ -568,6 +567,7 @@
                                  (ClojureMultibuffer. (casc/fields out-fields)
                                                       op)))))))
 
+
 ;; ## Output Operations
 ;;
 ;; This section covers output and traps
@@ -577,10 +577,8 @@
   tuples. `lazy-generator` serializes each item in the lazy sequence
   into a sequencefile located at the supplied temporary directory and returns
   a tap for the data in that directory.
-
   It's recommended to wrap queries that use this tap with
   `cascalog.cascading.io/with-fs-tmp`; for example,
-
     (with-fs-tmp [_ tmp-dir]
       (let [lazy-tap (lazy-generator tmp-dir lazy-seq)]
         (?<- (stdout)
@@ -593,6 +591,7 @@
         n-fields (count tuple)]
     (tap/fill-tap! tap l-seq)
     (rename* tap (v/gen-nullable-vars n-fields))))
+
 
 (defn in-branch
   "Accepts a temporary name and a function from flow => flow and
