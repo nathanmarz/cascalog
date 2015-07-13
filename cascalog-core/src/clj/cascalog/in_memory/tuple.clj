@@ -11,7 +11,7 @@
   [names v]
   (if (= (count names) (count v))
     (zipmap names v)
-    (u/throw-illegal "Output variables arity and function output arity do not match")))
+    (u/throw-illegal (str "Output variables arity and function output arity do not match: " names " -> " v))))
 
 (defn to-tuples
   "turns [\"n\"] and [[1] [2]] into [{\"n\" 1} {\"n\" 2}]"
