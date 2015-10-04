@@ -1,5 +1,6 @@
 (ns cascalog.logic.platform
   "The execution platform class."
+  (:refer-clojure :exclude [run!])
   (:require [cascalog.logic.zip :as zip]
             [jackknife.core :as u]))
 
@@ -8,10 +9,10 @@
   (generator? [p x]
     "Returns true if the supplied x is a generator, false
     otherwise.")
-  
+
   (generator-builder [p gen fields options]
     "Returns some source representation.")
-  
+
   (run! [p name bindings])
 
   (run-to-memory! [p name queries]))

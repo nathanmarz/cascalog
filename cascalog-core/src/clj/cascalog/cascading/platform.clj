@@ -1,4 +1,5 @@
 (ns cascalog.cascading.platform
+  (:refer-clojure :exclude [run!])
   (:require [jackknife.seq :as s]
             [jackknife.core :as u]
             [cascalog.cascading.operations :as ops]
