@@ -16,6 +16,7 @@
   (* x x))
 
 (deftest to-memory-test
+  (println "T" (type (p/generator [1 2 3 4])))
   (let [gen (-> (p/generator [1 2 3 4])
                 (ops/rename* "?x")
                 (ops/map* square "?x" "?x2"))]
