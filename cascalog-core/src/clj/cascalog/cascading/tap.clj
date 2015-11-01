@@ -122,8 +122,8 @@ identity.  identity."
 
   See f.ex. the
   http://docs.cascading.org/cascading/2.0/javadoc/cascading/scheme/local/TextDelimited.html
-  scheme."  
-  [^Scheme scheme path-or-file & {:keys [sinkmode sinkparts sink-template 
+  scheme."
+  [^Scheme scheme path-or-file & {:keys [sinkmode sinkparts sink-template
                                          source-pattern templatefields]
                                   :as options}]
   (-> scheme
@@ -151,7 +151,7 @@ identity.  identity."
   naming scheme."
 
   [scheme path-or-file & {:keys [sinkmode sinkparts sink-template
-                                 source-pattern templatefields] 
+                                 source-pattern templatefields]
                           :as options}]
   (-> scheme
       (set-sinkparts! sinkparts)
@@ -252,7 +252,7 @@ identity.  identity."
                                    (.openTapForRead sink))]
                   (doall
                    (for [^TupleEntry t (iterator-seq it)]
-                     (into [] (Tuple. (.getTuple t)))))))))
+                     (into [] (Tuple. (.getTupleCopy t)))))))))
 
 (defn fill-tap! [^Tap tap xs]
   (with-open [^TupleEntryCollector collector
