@@ -236,6 +236,11 @@ identity.  identity."
        (MemorySourceTap. tuples (fields fields-in)))))
 
 ;; ## Tap Helpers
+(defn iter-seq [iter f]
+  (if (.hasNext iter)
+    (lazy-seq
+      (cons (f (.next iter))
+            (iter-seq iter f)))))
 
 (defn pluck-tuple [^Tap tap]
   (with-open [it (-> (HadoopFlowProcess. (hadoop/job-conf (conf/project-conf)))
@@ -251,8 +256,8 @@ identity.  identity."
           :else (with-open [it (-> (HadoopFlowProcess. conf)
                                    (.openTapForRead sink))]
                   (doall
-                   (for [^TupleEntry t (iterator-seq it)]
-                     (into [] (Tuple. (.getTuple t)))))))))
+                   (for [^Tuple t (iter-seq it #(.getTupleCopy %))]
+                     (into [] (Tuple. t))))))))
 
 (defn fill-tap! [^Tap tap xs]
   (with-open [^TupleEntryCollector collector
