@@ -245,8 +245,8 @@ identity.  identity."
 (defn pluck-tuple [^Tap tap]
   (with-open [it (-> (HadoopFlowProcess. (hadoop/job-conf (conf/project-conf)))
                      (.openTapForRead tap))]
-    (if-let [iter (iterator-seq it)]
-      (-> iter first .getTuple Tuple. Util/coerceFromTuple vec)
+    (if-let [iter (iter-seq it #(.getTupleCopy %))]
+      (-> iter first Tuple. Util/coerceFromTuple vec)
       (throw-illegal "Cascading tap is empty -- tap must contain tuples."))))
 
 (defn get-sink-tuples [^Tap sink]
