@@ -6,6 +6,10 @@ language: clojure
 lein: lein2
 script: JVM_OPTS="-Djava.library.path=$PWD/hadoop-lzo-native/lib" lein2 sub with-profile dev,provided test
 before_install:
+    - cat /etc/hosts # optionally check the content *before*
+    - sudo hostname "$(hostname | cut -c1-63)"
+    - sed -e "s/^\\(127\\.0\\.0\\.1.*\\)/\\1 $(hostname | cut -c1-63)/" /etc/hosts | sudo tee /etc/hosts
+    - cat /etc/hosts # optionally check the content *after*
     - lein2 sub install
     - sudo apt-get update -qq
     - sudo apt-get install -qq protobuf-compiler
