@@ -7,7 +7,7 @@
            [cascalog Util]
            [cascading.tap Tap SinkMode]
            [cascading.tap.hadoop Hfs Lfs GlobHfs TemplateTap]
-           [cascading.tuple TupleEntryCollector]
+           [cascading.tuple TupleEntryCollector TupleEntryIterator]
            [cascading.scheme Scheme]
            [cascading.scheme.hadoop TextLine TextLine$Compress SequenceFile TextDelimited]
            [cascading.flow.hadoop HadoopFlowProcess]
@@ -236,7 +236,7 @@ identity.  identity."
        (MemorySourceTap. tuples (fields fields-in)))))
 
 ;; ## Tap Helpers
-(defn iter-seq [iter f]
+(defn iter-seq [^TupleEntryIterator iter f]
   (if (.hasNext iter)
     (lazy-seq
       (cons (f (.next iter))
