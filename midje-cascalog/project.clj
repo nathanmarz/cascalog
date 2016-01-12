@@ -7,7 +7,8 @@
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :repositories {"conjars.org" "http://conjars.org/repo"}
-  :dependencies [[midje "1.8.3" :exclusions [org.clojure/clojure]]]
+  :dependencies [[midje "1.8.3" :exclusions [org.clojure/clojure]]
+                 [org.codehaus.jsr166-mirror/jsr166y "1.7.0"]]
   :profiles {:1.3 {:dependencies [[org.clojure/clojure "1.3.0"]]}
              :1.4 {:dependencies [[org.clojure/clojure "1.4.0"]]}
              :1.5.1 {:dependencies [[org.clojure/clojure "1.5.1"]]}
