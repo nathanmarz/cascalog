@@ -19,7 +19,7 @@
 (defn produces
   ([gen] (produces gen :fatal))
   ([gen log-level]
-     (chatty-checker
+     (fn
       [query]
       (fact
         (io/with-log-level log-level
