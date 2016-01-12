@@ -7,7 +7,7 @@
            [cascalog Util]
            [cascading.tap Tap SinkMode]
            [cascading.tap.hadoop Hfs Lfs GlobHfs TemplateTap]
-           [cascading.tuple TupleEntryCollector]
+           [cascading.tuple TupleEntryCollector TupleEntryIterator]
            [cascading.scheme Scheme]
            [cascading.scheme.hadoop TextLine TextLine$Compress SequenceFile TextDelimited]
            [cascading.flow.hadoop HadoopFlowProcess]
@@ -236,12 +236,17 @@ identity.  identity."
        (MemorySourceTap. tuples (fields fields-in)))))
 
 ;; ## Tap Helpers
+(defn iter-seq [^TupleEntryIterator iter f]
+  (if (.hasNext iter)
+    (lazy-seq
+      (cons (f (.next iter))
+            (iter-seq iter f)))))
 
 (defn pluck-tuple [^Tap tap]
   (with-open [it (-> (HadoopFlowProcess. (hadoop/job-conf (conf/project-conf)))
                      (.openTapForRead tap))]
-    (if-let [iter (iterator-seq it)]
-      (-> iter first .getTuple Tuple. Util/coerceFromTuple vec)
+    (if-let [iter (iter-seq it #(.getTupleCopy %))]
+      (-> iter first Tuple. Util/coerceFromTuple vec)
       (throw-illegal "Cascading tap is empty -- tap must contain tuples."))))
 
 (defn get-sink-tuples [^Tap sink]
@@ -251,8 +256,8 @@ identity.  identity."
           :else (with-open [it (-> (HadoopFlowProcess. conf)
                                    (.openTapForRead sink))]
                   (doall
-                   (for [^TupleEntry t (iterator-seq it)]
-                     (into [] (Tuple. (.getTuple t)))))))))
+                   (for [^Tuple t (iter-seq it #(.getTupleCopy %))]
+                     (into [] (Tuple. t))))))))
 
 (defn fill-tap! [^Tap tap xs]
   (with-open [^TupleEntryCollector collector

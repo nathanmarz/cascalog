@@ -800,3 +800,15 @@
     (test?<- ["a"]
              [?l]
              (kv ?l ?n))))
+
+(deftest test-multi-query-parallel
+  (let [test-data [["ben" 35]
+                   ["jerry" 41]]]
+    (??- (<- [?name ?age]
+             (test-data ?name ?age)
+             (< ?age 40))
+         (<- [?name ?age]
+             (test-data ?name ?age)
+             (< ?age 50)))
+    => (produces [["ben" 35]
+                  [["ben" 35] ["jerry" 41]]])))
