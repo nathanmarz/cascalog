@@ -801,7 +801,7 @@
              [?l]
              (kv ?l ?n))))
 
-(deftest test-multi-query-parrel
+(deftest test-multi-query-parallel
   (let [test-data [["ben" 35]
                    ["jerry" 41]]]
     (??- (<- [?name ?age]
