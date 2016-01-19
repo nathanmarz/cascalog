@@ -1,6 +1,6 @@
 License:
 
-  Copyright (c) 2010-2011 Nathan Marz. All Rights Reserved.
+  Copyright (c) 2010-2014 Nathan Marz. All Rights Reserved.
 
   Project and contact information: http://www.cascalog.org/
 
