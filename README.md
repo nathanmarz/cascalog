@@ -14,7 +14,7 @@ To get started with JCascalog, Cascalog's pure-Java API, see [this wiki page](ht
 
 The latest release version of Cascalog is hosted on [Clojars](https://clojars.org):
 
-[![Current Version](https://clojars.org/cascalog/latest-version.svg)](https://clojars.org/cascalog)
+[![Current Version](https://img.shields.io/clojars/v/cascalog/cascalog-core.svg)](https://clojars.org/cascalog/cascalog-core)
 
 # Getting started with Clojure Cascalog
 
