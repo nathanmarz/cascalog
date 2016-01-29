@@ -8,7 +8,9 @@
   (let [form (with-meta (cons `fn (rest form))
                (meta form))
         namespace (str *ns*)
-        savers (for [b bindings] [(str (.sym b)) (.sym b)])
+        savers (for [b bindings
+                      :when (instance? clojure.lang.Compiler$LocalBinding b)]
+                    [(str (.sym b)) (.sym b)])
         env-form `(into {} ~(vec savers))]
     ;; without the print-dup, it sometimes serializes invalid code
     ;; strings (with subforms replaced with "#")
