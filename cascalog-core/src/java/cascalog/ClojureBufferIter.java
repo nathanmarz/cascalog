@@ -26,6 +26,7 @@ import cascading.tuple.TupleEntryCollector;
 import clojure.lang.IFn;
 import clojure.lang.ISeq;
 import clojure.lang.RT;
+import clojure.lang.Var;
 
 public class ClojureBufferIter extends ClojureCascadingBase implements Buffer {
 
@@ -34,13 +35,18 @@ public class ClojureBufferIter extends ClojureCascadingBase implements Buffer {
   }
 
   public void operate(FlowProcess flow_process, BufferCall call) {
-    ISeq resultSeq =
-        RT.seq(invokeFunction(new TupleSeqConverter(call.getArgumentsIterator())));
-    TupleEntryCollector collector = call.getOutputCollector();
-    while (resultSeq != null) {
-      Object obj = resultSeq.first();
-      collector.add(Util.coerceToTuple(obj));
-      resultSeq = resultSeq.next();
+    Var.pushThreadBindings(bindingMap);
+    try {
+      ISeq resultSeq =
+          RT.seq(invokeFunction(new TupleSeqConverter(call.getArgumentsIterator())));
+      TupleEntryCollector collector = call.getOutputCollector();
+      while (resultSeq != null) {
+        Object obj = resultSeq.first();
+        collector.add(Util.coerceToTuple(obj));
+        resultSeq = resultSeq.next();
+      }
+    } finally {
+      Var.popThreadBindings();
     }
   }
 }

@@ -14,7 +14,8 @@
   (:import [cascalog.logic.predicate
             Operation FilterOperation Aggregator Generator
             GeneratorSet RawPredicate RawSubquery]
-           [clojure.lang IPersistentVector]))
+           [clojure.lang IPersistentVector]
+           [jcascalog Subquery]))
 
 ;; ## Variable Parsing
 
@@ -140,7 +141,7 @@
 (defn validate-predicates! [preds opts]
   (let [grouped (group-by (fn [x]
                             (condp #(%1 %2) (:op x)
-                              platform/gen? :gens
+                              (partial platform/generator? platform/*platform*) :gens
                               d/bufferop? :buffers
                               d/aggregateop? :aggs
                               :ops))
@@ -159,14 +160,6 @@
   [vars]
   (not (some v/selector? vars)))
 
-(comment
-  "TODO: Make a test."
-  (v/with-logic-vars
-    (parse-subquery [?x ?y ?z]
-                    [[[[1 2 3]] ?x]
-                     [* ?x ?x :> ?y]
-                     [* ?x ?y :> ?z]])))
-
 ;; this is the root of the tree, used to account for all variables as
 ;; they're built up.
 
@@ -177,7 +170,7 @@
   (make-node [node children]
              (assoc node :sources children)))
 
-(p/defnode TailStruct [node ground? available-fields operations]
+(p/defnode TailStruct [node ground? available-fields operations options]
   algebra/Semigroup
   (plus [l r]
         (assert (and (:ground? l) (:ground? r))
@@ -213,7 +206,7 @@
   (make-node [node children]
              (assoc node :source (first children))))
 
-(p/defnode Rename [source fields]
+(p/defnode Rename [source input output]
   zip/TreeNode
   (branch? [_] true)
   (children [_] [source])
@@ -237,7 +230,7 @@
 
 ;; TODO: Potentially add aggregations into the join. This node
 ;; combines many sources.
-(p/defnode Join [sources join-fields type-seq]
+(p/defnode Join [sources join-fields type-seq options]
   zip/TreeNode
   (branch? [_] true)
   (children [_] sources)
@@ -440,7 +433,7 @@ This won't work in distributed mode because of the ->Record functions."
 
 (defn attempt-join
   "Attempt to reduce the supplied set of tails by joining."
-  [tails]
+  [tails options]
   (let [max-join (select-join tails)
         [join-set remaining] (s/separate #(joinable? % max-join) tails)
         ;; All join fields survive from normal generators; from
@@ -460,13 +453,15 @@ This won't work in distributed mode because of the ->Record functions."
                                     :outer
                                     (or (existence-field g)
                                         :inner))])
-                               join-set))
+                               join-set)
+                          options)
         new-ops (when-let [ops (seq (map (comp set :operations) join-set))]
                   (apply intersection ops))]
     (conj remaining (->TailStruct join-node
                                   (s/some? :ground? join-set)
                                   available-fields
-                                  (vec new-ops)))))
+                                  (vec new-ops)
+                                  {}))))
 
 ;; ## Aggregation Operations
 ;;
@@ -492,6 +487,15 @@ This won't work in distributed mode because of the ->Record functions."
        (apply union (set grouping-fields))
        (vec)))
 
+(defn projection-input
+  "These are the fields that go into a projection."
+  [aggs grouping-fields options]
+  (let [sort-fields (:sort options)]
+    (->> aggs
+        (map #(set (:input %)))
+        (apply union (set (concat grouping-fields sort-fields)))
+        (vec))))
+
 (defn validate-aggregation!
   "Makes sure that all fields are available for the aggregation."
   [tail aggs options]
@@ -508,11 +512,11 @@ This won't work in distributed mode because of the ->Record functions."
     (if (:distinct options)
       (chain tail #(->Unique % grouping-fields options))
       tail)
-    (let [total-fields (grouping-output aggs grouping-fields)]
+    (let [total-fields (grouping-output aggs grouping-fields)
+          projection-fields (projection-input aggs grouping-fields options)]
       (validate-aggregation! tail aggs options)
       (-> tail
-          ;; TODO: Make this work properly.
-          ;; (chain #(->Projection % total-fields))
+          (chain #(->Projection % projection-fields))
           (chain #(->Grouping % aggs grouping-fields options))
           (assoc :available-fields total-fields)))))
 
@@ -521,12 +525,12 @@ This won't work in distributed mode because of the ->Record functions."
    list of operations that could be applied. Based on the op-allowed
    logic, these tails try to consume as many operations as possible
    before giving up at a fixed point."
-  [tails]
+  [tails options]
   (assert (not-empty tails) "Tails required in merge-tails.")
   (if (= 1 (count tails))
     (add-ops-fixed-point (assoc (first tails) :ground? true))
     (let [tails (map add-ops-fixed-point tails)]
-      (recur (attempt-join tails)))))
+      (recur (attempt-join tails options) options))))
 
 (defn initial-tails
   "Builds up a sequence of tail structs from the supplied generators
@@ -542,7 +546,8 @@ This won't work in distributed mode because of the ->Record functions."
                 (->TailStruct node
                               (v/fully-ground? (:fields gen))
                               (:fields gen)
-                              operations))))))
+                              operations
+                              {}))))))
 
 (defn validate-projection!
   [remaining-ops needed available]
@@ -611,7 +616,7 @@ This won't work in distributed mode because of the ->Record functions."
         available (:available-fields tail)]
     (u/safe-assert (subset? (set fields)
                             (set available))
-                   (format "Cannot select % from %."
+                   (format "Cannot select %s from %s."
                            fields
                            available))
     (-> tail
@@ -624,12 +629,58 @@ This won't work in distributed mode because of the ->Record functions."
     (u/safe-assert (= (count available)
                       (count fields))
                    (format
-                    "Must rename to the same number of fields. % to % is invalid."
+                    "Must rename to the same number of fields. %s to %s is invalid."
                     fields
                     available))
     (-> tail
-        (chain #(->Rename % fields))
-        (assoc :available-fields fields))))
+        (chain #(->Rename % available fields))
+        (assoc :available-fields fields)
+        (assoc :ground? (v/fully-ground? fields)))))
+
+(defn necessary-ops
+  "Return only operations whose outvars intersect with necessary-fields"
+  [necessary-fields ops]
+  (filter #(seq (clojure.set/intersection
+                   (set (:output %))
+                   (set necessary-fields)))
+          ops))
+
+(defn fixed-point-prune
+  "Handle pruning chained operation"
+  [base-necessary-fields ops-invar-fields ops]
+  (let [next-ops (necessary-ops (concat base-necessary-fields
+                                        ops-invar-fields)
+                                ops)
+        next-invars (mapcat :input next-ops)]
+    (if (= ops next-ops)
+      next-ops
+      (fixed-point-prune base-necessary-fields next-invars next-ops))))
+
+(defn prune-operations
+  "Remove non-generator & non-filter operations whose outvar(s) is not used, i.e., when the outvar(s)
+  do *not* intersect with the query's out-fields, generators outvars (for joins), invars of other operations,
+  and :sort option. Additionally, do not prune operations if a no-input operator exists"
+  [fields grouped options]
+  (if (some #(empty? (:input %)) (concat (grouped Operation)
+                                         (grouped FilterOperation)
+                                         (grouped Aggregator)))
+    (concat (grouped Operation)
+            (grouped FilterOperation))
+    (let [generators (concat (grouped Generator)
+                             (grouped GeneratorSet))
+          base-necessary-fields (->> (concat (grouped FilterOperation)
+                                             (grouped Aggregator))
+                                     (mapcat :input)
+                                     (concat fields)
+                                     (concat (mapcat :fields generators))
+                                     (concat (:sort options)))
+          ops-invar-fields (mapcat :input (grouped Operation))
+          pruned-operations (fixed-point-prune base-necessary-fields
+                                               ops-invar-fields
+                                               (grouped Operation))]
+      (concat pruned-operations
+              (grouped FilterOperation)))))
+
 
 (defn build-rule
   [{:keys [fields predicates options] :as input}]
@@ -639,8 +690,7 @@ This won't work in distributed mode because of the ->Record functions."
                      (group-by type))
         generators (concat (grouped Generator)
                            (grouped GeneratorSet))
-        operations (concat (grouped Operation)
-                           (grouped FilterOperation))
+        operations (prune-operations fields grouped options)
         aggs       (grouped Aggregator)
         tails      (concat (initial-tails generators operations)
                            (map (fn [{:keys [op output]}]
@@ -648,14 +698,15 @@ This won't work in distributed mode because of the ->Record functions."
                                       (rename output)
                                       (assoc :operations operations)))
                                 nodes))
-        joined     (merge-tails tails)
-        grouping-fields (seq (intersection
-                              (set (:available-fields joined))
-                              (set fields)))
+        joined     (merge-tails tails options)
+        grouping-fields (filter
+                         (set (:available-fields joined))
+                         fields)
         agg-tail (build-agg-tail joined aggs grouping-fields options)
         {:keys [operations available-fields] :as tail} (add-ops-fixed-point agg-tail)]
     (validate-projection! operations fields available-fields)
-    (project tail fields)))
+    (-> (project tail fields)
+        (assoc :options options))))
 
 ;; ## Predicate Parsing
 ;;
@@ -678,11 +729,18 @@ This won't work in distributed mode because of the ->Record functions."
     (validate-predicates! expanded options)
     (p/RawSubquery. output-fields expanded options)))
 
+(defn prepare-subquery [output-fields raw-predicates]
+  (let [output-fields (v/sanitize output-fields)
+        raw-predicates (mapcat p/normalize raw-predicates)]
+    {:output-fields output-fields
+     :predicates raw-predicates}))
+
 (defn parse-subquery
   "Parses predicates and output fields and returns a proper subquery."
   [output-fields raw-predicates]
-  (let [output-fields (v/sanitize output-fields)
-        raw-predicates (mapcat p/normalize raw-predicates)]
+  (let [{output-fields :output-fields
+         raw-predicates :predicates}
+        (prepare-subquery output-fields raw-predicates)]
     (if (query-signature? output-fields)
       (build-rule
        (build-query output-fields raw-predicates))
@@ -696,5 +754,64 @@ This won't work in distributed mode because of the ->Record functions."
   predicates. Predicate macros support destructuring of the input and
   output variables."
   [outvars & predicates]
-  `(v/with-logic-vars
+  `(v/with-logic-vars ~(cons outvars (map rest predicates))
      (parse-subquery ~outvars [~@(map vec predicates)])))
+
+(defn parse-exec-args
+  "Accept a sequence of (maybe) string and other items and returns a
+  vector of [theString or \"\", [other items]]."
+  [[f & rest :as args]]
+  (if (string? f)
+    [f rest]
+    ["" args]))
+
+(defprotocol IOutputFields
+  (get-out-fields [_] "Get the fields of a generator."))
+
+(extend-protocol IOutputFields
+
+  TailStruct
+  (get-out-fields [tail]
+    (:available-fields tail))
+
+  Subquery
+  (get-out-fields [sq]
+    (get-out-fields (.getCompiledSubquery sq))))
+
+(defprotocol INumOutFields
+  (num-out-fields [_]))
+
+(extend-protocol INumOutFields
+  Subquery
+  (num-out-fields [sq]
+    (count (seq (.getOutputFields sq))))
+
+  clojure.lang.ISeq
+  (num-out-fields [x]
+    (count (s/collectify (first x))))
+
+  clojure.lang.IPersistentVector
+  (num-out-fields [x]
+    (count (s/collectify (peek x))))
+
+  TailStruct
+  (num-out-fields [x]
+    (count (:available-fields x))))
+
+(defprotocol ISelectFields
+  (select-fields [gen fields]
+    "Select fields of a named generator.
+
+  Example:
+  (<- [?a ?b ?sum]
+      (+ ?a ?b :> ?sum)
+      ((select-fields generator [\"?a\" \"?b\"]) ?a ?b))"))
+
+(extend-protocol ISelectFields
+  TailStruct
+  (select-fields [sq fields]
+    (project sq fields))
+
+  Subquery
+  (select-fields [sq fields]
+    (select-fields (.getCompiledSubquery sq) fields)))

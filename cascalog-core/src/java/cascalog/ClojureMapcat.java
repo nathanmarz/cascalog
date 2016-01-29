@@ -26,6 +26,7 @@ import cascading.tuple.TupleEntryCollector;
 import clojure.lang.IFn;
 import clojure.lang.ISeq;
 import clojure.lang.RT;
+import clojure.lang.Var;
 
 public class ClojureMapcat extends ClojureCascadingBase implements Function {
 
@@ -34,13 +35,18 @@ public class ClojureMapcat extends ClojureCascadingBase implements Function {
   }
 
   public void operate(FlowProcess fp, FunctionCall call) {
-    ISeq fnArgs = Util.coerceFromTuple(call.getArguments().getTuple());
-    ISeq resultSeq = RT.seq(applyFunction(fnArgs));
-    TupleEntryCollector collector = call.getOutputCollector();
-    while (resultSeq != null) {
-      Object obj = resultSeq.first();
-      collector.add(Util.coerceToTuple(obj));
-      resultSeq = resultSeq.next();
+    Var.pushThreadBindings(bindingMap);
+    try {
+      ISeq fnArgs = Util.coerceFromTuple(call.getArguments().getTuple());
+      ISeq resultSeq = RT.seq(applyFunction(fnArgs));
+      TupleEntryCollector collector = call.getOutputCollector();
+      while (resultSeq != null) {
+        Object obj = resultSeq.first();
+        collector.add(Util.coerceToTuple(obj));
+        resultSeq = resultSeq.next();
+      }
+    } finally {
+      Var.popThreadBindings();
     }
   }
 }

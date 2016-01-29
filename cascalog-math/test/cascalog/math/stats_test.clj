@@ -5,6 +5,10 @@
         [midje sweet cascalog])
   (:import (cern.jet.random.tdouble DoubleUniform)))
 
+(background
+ (before :facts
+         (set-cascading-platform!)))
+
 (defn sample-uniform [size min-val max-val seed]
   (let [dist (DoubleUniform. (double min-val) (double max-val) seed)]
     (for [_ (range size)] (. dist nextDouble))))

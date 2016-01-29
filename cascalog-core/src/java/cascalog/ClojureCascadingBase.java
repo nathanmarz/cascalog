@@ -24,14 +24,18 @@ import cascading.flow.FlowProcess;
 import cascading.operation.BaseOperation;
 import cascading.operation.OperationCall;
 import cascading.tuple.Fields;
+import clojure.lang.Associative;
 import clojure.lang.IFn;
 import clojure.lang.ISeq;
 import clojure.lang.Keyword;
+import clojure.lang.PersistentHashMap;
+import clojure.lang.Var;
 
 public class ClojureCascadingBase extends BaseOperation {
   private byte[] serializedFn;
   protected IFn fn;
   protected IFn cleanupFn;
+  protected Associative bindingMap;
 
   public void initialize(IFn fn) {
     serializedFn = Util.serializeFn(fn);
@@ -48,25 +52,34 @@ public class ClojureCascadingBase extends BaseOperation {
 
   @Override
   public void prepare(FlowProcess fp, OperationCall call) {
+    this.bindingMap = PersistentHashMap
+      .create(Util.getVar("cascalog.cascading.stats", "*flow-process*"), fp,
+              Util.getVar("cascalog.cascading.stats", "*op-call*"), call);
+
     IFn fn = Util.deserializeFn(serializedFn);
 
     Boolean isPrepared =
-        (Boolean) Util.bootSimpleFn("cascalog.logic.def", "prepared?").invoke(fn);
+      (Boolean) Util.bootSimpleFn("cascalog.cascading.def", "prepared?").invoke(fn);
 
-    if (isPrepared.booleanValue()) {
-      Object res = fn.invoke(fp, call);
+    Var.pushThreadBindings(bindingMap);
+    try {
+      if (isPrepared) {
+        Object res = fn.invoke(fp, call);
 
-      if(res instanceof Map) {
-        Map resmap = (Map) res;
-        this.fn = (IFn) resmap.get(Keyword.intern("operate"));
-        this.cleanupFn = (IFn) resmap.get(Keyword.intern("cleanup"));
+        if(res instanceof Map) {
+          Map resmap = (Map) res;
+          this.fn = (IFn) resmap.get(Keyword.intern("operate"));
+          this.cleanupFn = (IFn) resmap.get(Keyword.intern("cleanup"));
+        } else {
+          this.fn = (IFn) res;
+          this.cleanupFn = null;
+        }
       } else {
-        this.fn = (IFn) res;
+        this.fn = fn;
         this.cleanupFn = null;
       }
-    } else {
-      this.fn = fn;
-      this.cleanupFn = null;
+    } finally {
+      Var.popThreadBindings();
     }
   }
 
@@ -88,7 +101,12 @@ public class ClojureCascadingBase extends BaseOperation {
     super.cleanup(flowProcess, call);
 
     if(cleanupFn != null) {
-      cleanupFn.invoke();
+      Var.pushThreadBindings(bindingMap);
+      try {
+        cleanupFn.invoke();
+      } finally {
+         Var.popThreadBindings();
+      }
     }
   }
 }

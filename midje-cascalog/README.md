@@ -2,14 +2,14 @@
 
 Midje-Cascalog is a thin layer over [midje](https://github.com/marick/Midje) that makes it easy and fun to test [Cascalog](https://github.com/nathanmarz/cascalog) queries! Scroll down for an in-depth example.
 
-[Cascalog Testing 2.0](http://sritchie.github.com/2012/01/22/cascalog-testing-20.html) gives a long discussion on various midje-cascalog idioms.
+[Cascalog Testing 2.0](http://sritchie.github.com/2012/01/22/cascalog-testing-20/) gives a long discussion on various midje-cascalog idioms.
 
 ## Usage Instructions
 
-To use midje-cascalog in your own project, add the following two entries to `:dev-dependencies` inside  of your `project.cj` file:
+To use midje-cascalog in your own project, add the following two entries to `:dev-dependencies` inside  of your `project.clj` file:
 
     [lein-midje "3.0.1"]
-    [cascalog/midje-cascalog "1.10.1"]
+    [cascalog/midje-cascalog "3.0.0"]
 
 Midje-Cascalog supports Clojure 1.3+ and Cascalog 1.8+. Add `(:use [midje sweet cascalog])` to your testing namespace to get started.
 

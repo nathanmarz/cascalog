@@ -82,12 +82,15 @@
 (def ^:dynamic *JOB-CONF* {})
 
 ;; TODO: Replace io.serializations with the proper info.
+;; cheating here and hardcoding the ConfiguredInstantiator class
 (defn project-conf []
   (project-merge {FlowProps/DEFAULT_ELEMENT_COMPARATOR
-                  "cascalog.hadoop.DefaultComparator"}
+                  "cascalog.hadoop.DefaultComparator"
+                  "com.twitter.chill.config.configuredinstantiator"
+                  "cascalog.kryo.ClojureKryoInstantiator"}
                  (project-settings)
                  *JOB-CONF*
-                 {"io.serializations" "cascalog.hadoop.ClojureKryoSerialization"
+                 {"io.serializations" "com.twitter.chill.hadoop.KryoSerialization"
                   "cascading.compatibility.retain.collector" true}))
 
 (defn set-job-conf! [amap]
@@ -105,7 +108,7 @@
 
 ;; being a good citizen in the cascading ecosystem and set the
 ;; framework property
-(System/setProperty AppProps/APP_FRAMEWORKS
+(AppProps/addApplicationFramework nil
                     (str "cascalog:" (get-version "cascalog/cascalog-core")))
 
 (defmacro with-job-conf

@@ -1,6 +1,25 @@
-# 2.x
+# 3.0.0
+
+- in-memory planner!
+
+From https://github.com/nathanmarz/cascalog/pull/270:
+- `:name` option allows you to supply a name to your flow via (:name "some name")
+- Schema validation on internal functions
+- New stats output interface via `:stats-fn`
+- Added `stdout`, `clojure-file` and `json-file` stats reporters
+- `inc!` and `inc-by!` global stats functions in `cascalog.cascading.stats`
+- Options are now printed in `explain-query` readout
+
+- use `FilterNull` to enforce `?var` filtering (https://github.com/nathanmarz/cascalog/pull/283)
+- fix `run!` warnings (https://github.com/nathanmarz/cascalog/pull/293)
+- allow ops that look like logic vars to be used without namespace (https://github.com/nathanmarz/cascalog/pull/281)
+- propagate query names to co-group steps (https://github.com/nathanmarz/cascalog/pull/277)
+- prune unused operations per subquery (https://github.com/nathanmarz/cascalog/pull/247)
+- Fix leak in tuple sequence with custom buffer ops (https://github.com/nathanmarz/cascalog/issues/251)
 
 ## 2.0.0
+
+Lots of unrecorded changes between this release and 3.0.0. Looking to get better at this as we move forward.
 
 ### Core changes
 
@@ -9,7 +28,7 @@
 * Functions as guards
 * Standalone Cascading DSL
 
-(Much more, to be detailed!)
+And more, as detailed here: http://www.samritchie.io/cascalog-2-0-in-depth
 
 ### Minor improvements
 

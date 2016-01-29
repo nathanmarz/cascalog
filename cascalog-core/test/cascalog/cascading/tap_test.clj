@@ -2,6 +2,7 @@
   (:use [midje sweet cascalog]
         clojure.test
         cascalog.logic.testing
+        cascalog.cascading.testing
         cascalog.api)
   (:require [cascalog.cascading.io :as io]
             [cascalog.cascading.tap :as tap]
@@ -10,6 +11,10 @@
            [cascading.tuple Fields]
            [cascading.tap Tap]
            [cascading.tap.hadoop Hfs Lfs GlobHfs TemplateTap]))
+
+(background
+ (before :facts
+         (set-cascading-platform!)))
 
 (defn tap-source [tap]
   (if (map? tap)
@@ -95,7 +100,11 @@
 (deftest sink-template-test
   (fact
     ":sink-template option should set path template on cascading tap."
-    (.getPathTemplate (hfs-test-sink :sink-template "%s/")) => "%s/"))
+    (.getPathTemplate (hfs-test-sink :sink-template "%s/")) => "%s/")
+  (fact 
+   ":open-threshold should set open taps threshold"
+   (.getOpenTapsThreshold 
+    (hfs-test-sink :sink-template "%s/" :open-threshold 10)) => 10))
 
 (deftest template-tap-test
   (fact
@@ -110,3 +119,21 @@
           temp-tap
           (?<- temp-tap [?a ?b] (tuples ?a ?b))
           temp-tap => (produces [[1 2] [2 3]]))))))
+
+(deftest glob-test
+  (tabular
+   (fact "GlobHfs testing with various globs."
+     (let [glob-tap (hfs-tap (tap/text-line) "src" :source-pattern ?pattern)
+           child-taps (iterator-seq (.getChildTaps (tap-source glob-tap)))]
+       (map #(-> (.getPath %) (.getName)) child-taps)) => ?files)
+       ?pattern   ?files
+       "/*"        ["clj" "java"]
+       "/**"       ["clj" "java"]
+       "/*/"       ["clj" "java"]
+       "/../src/*" ["clj" "java"]
+       "*/*"       ["clj" "java"]
+       "/clj"      ["clj"]
+       "/*/*"      ["cascalog" "cascading" "cascalog" "jcascalog"]
+       "/."        ["src"]
+       "*"         ["src"]
+       "/"         ["src"]))

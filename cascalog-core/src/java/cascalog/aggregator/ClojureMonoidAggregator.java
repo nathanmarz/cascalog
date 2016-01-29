@@ -22,6 +22,7 @@ import cascading.flow.FlowProcess;
 import cascading.operation.Aggregator;
 import cascading.operation.AggregatorCall;
 import cascading.operation.BaseOperation;
+import cascading.operation.OperationCall;
 import cascading.tuple.Fields;
 import cascading.tuple.Tuple;
 import cascalog.Util;
@@ -30,21 +31,25 @@ import clojure.lang.ISeq;
 import clojure.lang.RT;
 
 public class ClojureMonoidAggregator extends BaseOperation<Tuple> implements Aggregator<Tuple> {
-  protected final CombinerSpec combinerSpec;
-  protected IFn prepareFn;
-  protected IFn combineFn;
-  protected IFn presentFn;
+  private final CombinerSpec combinerSpec;
+  private transient IFn prepareFn;
+  private transient IFn combineFn;
+  private transient IFn presentFn;
 
   public ClojureMonoidAggregator(Fields fields, CombinerSpec combinerSpec) {
     super(fields);
     this.combinerSpec = combinerSpec;
   }
 
-  public void start(FlowProcess fp, AggregatorCall<Tuple> call) {
-    call.setContext(null);
+  @Override
+  public void prepare(FlowProcess flowProcess, OperationCall<Tuple> operationCall) {
     prepareFn = combinerSpec.getPrepareFn();
     combineFn = combinerSpec.getCombineFn();
     presentFn = combinerSpec.getPresentFn();
+  }
+
+  public void start(FlowProcess fp, AggregatorCall<Tuple> call) {
+    call.setContext(null);
   }
 
   public void aggregate(FlowProcess fp, AggregatorCall<Tuple> call) {

@@ -5,11 +5,13 @@
             [cascalog.logic.vars :as v])
   (:import [cascading.scheme.hadoop TextDelimited WritableSequenceFile]
            cascading.scheme.hadoop.TextLine$Compress
-           [cascading.tuple Fields]))
+           [cascading.tuple Fields]
+           [cascalog.moreTaps WholeFile]))
 
 (defn- delimited
   [field-seq delim
-   & {:keys [classes compress? skip-header? quote write-header? strict? safe?]
+   & {:keys [classes compress? compression skip-header? quote
+             write-header? strict? safe?]
       :or {quote "\"", strict? true, safe? true}}]
   (let [[skip-header? write-header? strict? safe?]
         (map boolean [skip-header? write-header? strict? safe?])
@@ -17,11 +19,16 @@
         field-seq    (if (and classes (not (.isDefined field-seq)))
                        (w/fields (v/gen-nullable-vars (count classes)))
                        field-seq)
-        compression (if compress? TextLine$Compress/ENABLE TextLine$Compress/DEFAULT)]
+        compress-setting (if compress? ;; compress? available for backwards compat
+                           TextLine$Compress/ENABLE
+                           (case compression
+                             :enable  TextLine$Compress/ENABLE
+                             :disable TextLine$Compress/DISABLE
+                             TextLine$Compress/DEFAULT))]
     (if classes
-      (TextDelimited. field-seq compression skip-header? write-header?
+      (TextDelimited. field-seq compress-setting skip-header? write-header?
                       delim strict? quote (into-array classes) safe?)
-      (TextDelimited. field-seq compression skip-header? write-header? delim quote))))
+      (TextDelimited. field-seq compress-setting skip-header? write-header? delim quote))))
 
 (defn hfs-delimited
   "
@@ -30,10 +37,13 @@
   prefixes for `path`.
 
   Supports TextDelimited keyword option for `:outfields`, `:classes`,
-  `:compress?`, `:skip-header?`, `:delimiter`, `:write-header?`,
-  `:strict?`, `safe?`, and `:quote`.
+  `:skip-header?`, `:delimiter`, `:write-header?`, `:strict?`,
+  `safe?`, and `:quote`.
 
-  See `cascalog.tap/hfs-tap` for more keyword arguments.
+  Also supports:
+  `:compression` - one of `:enable`, `:disable` or `:default`
+
+  See `cascalog.cascading.tap/hfs-tap` for more keyword arguments.
 
   See http://www.cascading.org/javadoc/cascading/tap/Hfs.html and
   http://www.cascading.org/javadoc/cascading/scheme/TextDelimited.html
@@ -56,7 +66,7 @@
   `:compress?`, `:skip-header?`, `:delimiter`, `:write-header?`,
   `:strict?`, `safe?`, and `:quote`.
 
-  See `cascalog.tap/hfs-tap` for more keyword arguments.
+  See `cascalog.cascading.tap/hfs-tap` for more keyword arguments.
 
   See http://www.cascading.org/javadoc/cascading/tap/Hfs.html and
   http://www.cascading.org/javadoc/cascading/scheme/TextDelimited.html
@@ -100,3 +110,18 @@
   (let [scheme (-> (:outfields (apply array-map opts) Fields/ALL)
                    (writable-sequence-file key-type value-type))]
     (apply tap/lfs-tap scheme path opts)))
+
+(defn- whole-file
+  "Custom scheme for dealing with entire files."
+  [field-names]
+  (WholeFile. (w/fields field-names)))
+
+(defn hfs-wholefile
+  "Subquery to return distinct files in the supplied directory. Files
+  will be returned as 2-tuples, formatted as `<filename, file>` The
+  filename is a text object, while the entire, unchopped file is
+  encoded as a Hadoop `BytesWritable` object."
+  [path & opts]
+  (let [scheme (-> (:outfields (apply array-map opts) Fields/ALL)
+                   (whole-file))]
+    (apply hfs-tap scheme path opts)))

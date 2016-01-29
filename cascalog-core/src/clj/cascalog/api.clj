@@ -8,7 +8,7 @@
             [cascalog.logic.platform :as platform]
             [cascalog.logic.parse :as parse]
             [cascalog.logic.predmacro :as pm]
-            [cascalog.cascading.platform :refer (compile-query)]
+            [cascalog.cascading.def :as cd]
             [cascalog.cascading.tap :as tap]
             [cascalog.cascading.conf :as conf]
             [cascalog.cascading.flow :as flow]
@@ -16,14 +16,17 @@
             [cascalog.cascading.tap :as tap]
             [cascalog.cascading.types :as types]
             [cascalog.cascading.io :as io]
-            [cascalog.cascading.util :refer (generic-cascading-fields?)]
+            [cascalog.cascading.platform]
+            [cascalog.in-memory.platform]
             [hadoop-util.core :as hadoop]
             [jackknife.core :as u]
-            [jackknife.def :as jd :refer (defalias)])
+            [jackknife.def :as jd :refer [defalias]])
   (:import [cascading.flow Flow]
            [cascading.tap Tap]
            [cascalog.logic.parse TailStruct]
            [cascalog.cascading.tap CascalogTap]
+           [cascalog.cascading.types CascadingPlatform]
+           [cascalog.in_memory.platform InMemoryPlatform]
            [jcascalog Subquery]))
 
 ;; Functions for creating taps and tap helpers
@@ -42,61 +45,9 @@
 
 ;; ## Query introspection
 
-(defprotocol IOutputFields
-  (get-out-fields [_] "Get the fields of a generator."))
+(defalias get-out-fields parse/get-out-fields)
 
-(extend-protocol IOutputFields
-  Tap
-  (get-out-fields [tap]
-    (let [cfields (.getSourceFields tap)]
-      (u/safe-assert
-       (not (generic-cascading-fields? cfields))
-       (str "Cannot get specific out-fields from tap. Tap source fields: "
-            cfields))
-      (vec (seq cfields))))
-
-  TailStruct
-  (get-out-fields [tail]
-    (:available-fields tail))
-
-  Subquery
-  (get-out-fields [sq]
-    (get-out-fields (.getCompiledSubquery sq)))
-
-  CascalogTap
-  (get-out-fields [tap]
-    (get-out-fields (:source tap))))
-
-(defprotocol INumOutFields
-  (num-out-fields [_]))
-
-;; TODO: num-out-fields should try and pluck from Tap if it doesn't
-;; define output fields, rather than just throwing immediately.
-
-(extend-protocol INumOutFields
-  Subquery
-  (num-out-fields [sq]
-    (count (seq (.getOutputFields sq))))
-
-  CascalogTap
-  (num-out-fields [tap]
-    (num-out-fields (:source tap)))
-
-  clojure.lang.ISeq
-  (num-out-fields [x]
-    (count (collectify (first x))))
-
-  clojure.lang.IPersistentVector
-  (num-out-fields [x]
-    (count (collectify (peek x))))
-
-  Tap
-  (num-out-fields [x]
-    (count (get-out-fields x)))
-
-  TailStruct
-  (num-out-fields [x]
-    (count (:available-fields x))))
+(defalias num-out-fields parse/num-out-fields)
 
 ;; ## Knobs for Hadoop
 
@@ -113,6 +64,9 @@
   (<- [:>] (identity 1 :> _)))
 
 (defalias compile-flow flow/compile-flow)
+(defalias compile-hadoop flow/compile-hadoop)
+(defalias jcompile-flow flow/jcompile-flow)
+(defalias jflow-def flow/jflow-def)
 
 (defn explain
   "Explains a query (by outputting a DOT file).
@@ -131,11 +85,17 @@
      (let [^Flow flow (compile-flow sink-tap query)]
        (flow/graph flow outfile))))
 
-(defn normalize-sink-connection [sink subquery]
-  (cond (fn? sink) (sink subquery)
-        (instance? CascalogTap sink)
-        (normalize-sink-connection (:sink sink) subquery)
-        :else [sink subquery]))
+(defmacro expand-query [outvars & predicates]
+  "Printes Expanded operations and predicates
+
+  Syntax: (expand-query outvars & predicates)
+
+  Ex: (expand-query [?person] (age ?person 25))"
+  `(v/with-logic-vars ~(cons outvars (map rest predicates))
+     (let [{outvars# :output-fields
+            predicates# :predicates}
+           (parse/prepare-subquery ~outvars [~@(map vec predicates)])]
+       (print (parse/build-query outvars# predicates#)))))
 
 (defn ?-
   "Executes 1 or more queries and emits the results of each query to
@@ -147,10 +107,8 @@
    If the first argument is a string, that will be used as the name
   for the query and will show up in the JobTracker UI."
   [& bindings]
-  (let [[name bindings] (flow/parse-exec-args bindings)
-        bindings (mapcat (partial apply normalize-sink-connection)
-                         (partition 2 bindings))]
-    (flow/run! (apply compile-flow name bindings))))
+  (let [[name bindings] (parse/parse-exec-args bindings)]
+    (platform/run! platform/*platform* name bindings)))
 
 (defn ??-
   "Executes one or more queries and returns a seq of seqs of tuples
@@ -161,8 +119,8 @@
   If the first argument is a string, that will be used as the name
   for the query and will show up in the JobTracker UI."
   [& args]
-  (let [[name args] (flow/parse-exec-args args)]
-    (apply flow/all-to-memory name (map compile-query args))))
+  (let [[name args] (parse/parse-exec-args args)]
+    (platform/run-to-memory! platform/*platform* name args)))
 
 (defmacro ?<-
   "Helper that both defines and executes a query in a single call.
@@ -173,13 +131,22 @@
   [& args]
   ;; This is the best we can do... if want non-static name should just
   ;; use ?-
-  (let [[name [output & body]] (flow/parse-exec-args args)]
+  (let [[name [output & body]] (parse/parse-exec-args args)]
     `(?- ~name ~output (<- ~@body))))
 
 (defmacro ??<-
   "Like ??-, but for ?<-. Returns a seq of tuples."
   [& args]
   `(first (??- (<- ~@args))))
+
+(defn set-cascading-platform! []
+  (platform/set-platform! (CascadingPlatform.)))
+
+(defn set-in-memory-platform! []
+  (platform/set-platform! (InMemoryPlatform.)))
+
+;; default to the CascadingPlatform
+(set-cascading-platform!)
 
 (defalias predmacro* pm/predmacro*)
 (defalias predmacro pm/predmacro)
@@ -199,12 +166,12 @@
 
 (defn to-tail [g & {:keys [fields]}]
   (cond (parse/tail? g) g
-        (types/generator? g)
+        (platform/generator? platform/*platform* g)
         (if (and (coll? g) (empty? g))
           (u/throw-illegal
            "Data structure is empty -- memory sources must contain tuples.")
           (let [names (or fields (v/gen-nullable-vars (num-out-fields g)))
-                gen (types/generator g)]
+                gen (platform/generator g)]
             (name-vars gen names)))
         :else (u/throw-illegal "Can't combine " g)))
 
@@ -215,7 +182,7 @@
   (let [g (to-tail g)
         names (get-out-fields g)
         gens (cons g (map #(to-tail % :fields names) gens))]
-    (types/generator
+    (platform/generator
      (algebra/sum gens))))
 
 (defn union
@@ -224,33 +191,12 @@
   [& gens]
   (ops/unique (apply combine gens)))
 
-(defprotocol ISelectFields
-  (select-fields [gen fields]
-    "Select fields of a named generator.
-
-  Example:
-  (<- [?a ?b ?sum]
-      (+ ?a ?b :> ?sum)
-      ((select-fields generator [\"?a\" \"?b\"]) ?a ?b))"))
-
-(extend-protocol ISelectFields
-  TailStruct
-  (select-fields [sq fields]
-    (parse/project sq fields))
-
-  Subquery
-  (select-fields [sq fields]
-    (select-fields (.getCompiledSubquery sq) fields))
-
-  Tap
-  (select-fields [tap fields]
-    (-> (types/generator tap)
-        (ops/select* fields))))
+(defalias select-fields parse/select-fields)
 
 ;; ## Defining custom operations
 
-(defalias prepfn d/prepfn)
-(defalias defprepfn d/defprepfn)
+(defalias prepfn cd/prepfn)
+(defalias defprepfn cd/defprepfn)
 
 ;; These functions allow you to lift a vanilla function up into
 ;; Cascalog. For example, (mapcatop vector) is identical to

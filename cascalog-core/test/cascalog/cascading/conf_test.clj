@@ -2,9 +2,13 @@
   (:use midje.sweet
         cascalog.cascading.conf)
   (:require [clojure.string :as s]
-            [cascalog.api :refer (??<-)])
+            [cascalog.api :refer (??<- set-cascading-platform!)])
   (:import [cascalog.hadoop DefaultComparator]
            [cascading.flow.planner PlannerException]))
+
+(background
+ (before :facts
+         (set-cascading-platform!)))
 
 (def comma
   (partial s/join ","))
@@ -58,14 +62,14 @@
 
 (facts "Tests of various aspects of Kryo serialization."
   (with-job-conf
-    {"cascading.kryo.serializations" "java.util.DoesntExist"
-     "cascading.kryo.skip.missing" true
-     "cascading.kryo.accept.all" true}
+    {"com.twitter.chill.config.reflectinginstantiator.registrations" "java.util.DoesntExist,someSerializer"
+     "com.twitter.chill.config.reflectinginstantiator.skipmissing" true
+     "com.twitter.chill.config.reflectinginstantiator.registrationrequired" false}
     (let [cal-tuple [[(java.util.GregorianCalendar.)]]]
       (??<- [?a] (cal-tuple ?a)) => cal-tuple))
 
   (with-job-conf
-    {"cascading.kryo.accept.all" false}
+    {"com.twitter.chill.config.reflectinginstantiator.registrationrequired" true}
     (let [cal-tuple [[(java.util.GregorianCalendar.)]]]
       (fact
         "Attempting to serialize an unregistered object when

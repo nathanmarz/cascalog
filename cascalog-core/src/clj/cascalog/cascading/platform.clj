@@ -1,20 +1,20 @@
 (ns cascalog.cascading.platform
+  (:refer-clojure :exclude [run!])
   (:require [jackknife.seq :as s]
             [jackknife.core :as u]
             [cascalog.cascading.operations :as ops]
             [cascalog.cascading.util :as casc]
             [cascalog.cascading.types :as types]
-            [cascalog.logic.predicate :as p]
+            [cascalog.cascading.flow :as flow]
+            [cascalog.logic.predicate :as pred]
             [cascalog.logic.def :as d]
             [cascalog.logic.parse :as parse]
             [cascalog.logic.algebra :refer (sum)]
-            [cascalog.logic.zip :as zip]
             [cascalog.logic.fn :as serfn]
             [cascalog.logic.vars :as v]
-            [cascalog.logic.parse :as parse]
-            [cascalog.cascading.types :refer (IGenerator generator)])
-  (:import [cascading.pipe Each Every]
-           [cascading.tuple Fields]
+            [cascalog.logic.platform :as p])
+  (:import [cascading.pipe Each Every Pipe]
+           [cascading.tuple Fields Tuple]
            [cascading.operation Function Filter]
            [cascalog.aggregator CombinerSpec ClojureMonoidAggregator
             ClojureParallelAggregator]
@@ -31,32 +31,43 @@
            [cascalog.cascading.operations IAggregateBy IAggregator
             Inner Outer Existence]
            [cascalog.logic.def ParallelAggregator ParallelBuffer Prepared]
-           [cascalog.cascading.types ClojureFlow]
-           [jcascalog Predicate]))
+           [cascalog.cascading.types CascadingPlatform]
+           [com.twitter.maple.tap MemorySourceTap]
+           [cascading.tap Tap]
+           [cascalog.cascading.tap CascalogTap]
+           [jcascalog Predicate Subquery]))
 
-(extend-protocol p/IRawPredicate
+(extend-protocol pred/IRawPredicate
   Predicate
   (normalize [p]
-    (p/normalize (into [] (.toRawCascalogPredicate p)))))
+    (pred/normalize (into [] (.toRawCascalogPredicate p)))))
 
 ;; ## Allowed Predicates
 
-(defmethod p/to-predicate Filter
+(defmethod pred/to-predicate Filter
   [op input output]
   (u/safe-assert (#{0 1} (count output)) "Must emit 0 or 1 fields from filter")
   (if (empty? output)
     (FilterOperation. op input)
     (Operation. op input output)))
 
-(defmethod p/to-predicate Function
+(defmethod pred/to-predicate Function
   [op input output]
   (Operation. op input output))
 
-(defmethod p/to-predicate ParallelAgg
+(defmethod pred/to-predicate ParallelAgg
   [op input output]
   (Aggregator. op input output))
 
-(defmethod p/to-predicate CascalogBuffer
+(defmethod pred/to-predicate CascalogBuffer
+  [op input output]
+  (Aggregator. op input output))
+
+(defmethod pred/to-predicate CascalogFunction
+  [op input output]
+  (Operation. op input output))
+
+(defmethod pred/to-predicate CascalogAggregator
   [op input output]
   (Aggregator. op input output))
 
@@ -89,7 +100,7 @@
 (defmacro filter-assem [argv & more]
   `(filter-assem* (ops/assembly ~argv ~@more)))
 
-(extend-protocol p/ICouldFilter
+(extend-protocol pred/ICouldFilter
   cascading.operation.Filter
   (filter? [_] true))
 
@@ -168,12 +179,13 @@
 
 (defmethod agg-cascading ParallelAgg
   [op input output]
-  (ops/parallel-agg (serfn/fn [l r]
-                      (-> op
-                          (.combine (s/collectify l)
-                                    (s/collectify r))))
+  (ops/parallel-agg (serfn/fn [& x]
+                      (let [[l r] (split-at (/ (count x) 2) x)]
+                       (-> op
+                           (.combine (s/collectify l)
+                                     (s/collectify r)))))
                     input output
-                    :init-var (serfn/fn [x]
+                    :init-var (serfn/fn [& x]
                                 (.init op (s/collectify x)))))
 
 (defmethod agg-cascading CascalogBuffer
@@ -199,150 +211,178 @@
        (filter (comp (complement nil?) second))
        (apply concat)))
 
-(defprotocol IRunner
-  (to-generator [item]))
-
 ;; TODO: Generator should just be a projection.
 ;; TODO: Add a validation here that checks if this thing is a
 ;; generator and sends a proper error message otherwise.
-(extend-protocol IRunner
-  Object
-  (to-generator [x]
-    (types/generator x))
 
-  cascalog.logic.predicate.Generator
-  (to-generator [{:keys [gen]}] gen)
+;; ## To Generators
 
-  Application
-  (to-generator [{:keys [source operation]}]
-    (let [{:keys [op input output]} operation]
-      (op-cascading op source input output)))
+(defmethod p/to-generator [CascadingPlatform Object]
+  [x]
+  (p/generator x))
 
-  FilterApplication
-  (to-generator [{:keys [source filter]}]
-    (let [{:keys [op input]} filter]
-      (filter-cascading op source input)))
+(defmethod p/to-generator [CascadingPlatform cascalog.logic.predicate.Generator]
+  [{:keys [gen]}] gen)
 
-  ExistenceNode
-  (to-generator [{:keys [source]}] source)
+(defmethod p/to-generator [CascadingPlatform Application]
+  [{:keys [source operation]}]
+  (let [{:keys [op input output]} operation]
+    (op-cascading op source input output)))
 
-  Join
-  (to-generator [{:keys [sources join-fields type-seq]}]
-    (-> (ops/cascalog-join (map (fn [source [available type]]
-                                  (condp = type
-                                    :inner (ops/Inner. source available)
-                                    :outer (ops/Outer. source available)
-                                    (ops/Existence. source available type)))
-                                sources type-seq)
-                           join-fields)
-        (ops/rename-pipe (.getName (:pipe (first sources))))))
+(defmethod p/to-generator [CascadingPlatform FilterApplication]
+  [{:keys [source filter]}]
+  (let [{:keys [op input]} filter]
+    (filter-cascading op source input)))
 
-  Grouping
-  (to-generator [{:keys [source aggregators grouping-fields options]}]
-    (if-let [bufs (not-empty
-                   (filter #(instance? ParallelBuffer (:op %)) aggregators))]
-      (do (assert (= (count aggregators) 1)
-                  "Only one buffer allowed per subquery.")
-          (let [{:keys [op input output]} (first bufs)
-                {:keys [init-var combine-var present-var
-                        num-intermediate-vars-fn buffer-var]} op
-                temps (v/gen-nullable-vars
-                       (num-intermediate-vars-fn input output))
-                spec (-> (CombinerSpec. combine-var)
-                         (.setPrepareFn init-var)
-                         (.setPresentFn present-var))
-                source (-> source
-                           (ops/add-op #(Each. % Fields/ALL
-                                               (ClojureBufferCombiner.
-                                                (casc/fields grouping-fields)
-                                                (casc/fields (:sort options))
-                                                (casc/fields input)
-                                                (casc/fields temps)
-                                                spec))))]
-            (apply ops/group-by*
-                   source
-                   grouping-fields
-                   [(ops/buffer buffer-var temps output)]
-                   (opt-seq options))))
-      (let [aggs (map (fn [{:keys [op input output]}]
-                        (agg-cascading op input output))
-                      aggregators)]
-        (apply ops/group-by*
-               source grouping-fields aggs (opt-seq options)))))
+(defmethod p/to-generator [CascadingPlatform ExistenceNode]
+  [{:keys [source]}] source)
 
-  Unique
-  (to-generator [{:keys [source fields options]}]
-    (apply ops/unique source fields (opt-seq options)))
+(defmethod p/to-generator [CascadingPlatform Join]
+  [{:keys [sources join-fields type-seq options]}]
+  (-> (ops/cascalog-join (map (fn [source [available type]]
+                                (condp = type
+                                  :inner (ops/Inner. source available)
+                                  :outer (ops/Outer. source available)
+                                  (ops/Existence. source available type)))
+                              sources type-seq)
+                         join-fields
+                         (opt-seq options))
+                  (ops/rename-pipe (.getName (:pipe (first sources))))))
 
-  Merge
-  (to-generator [{:keys [sources]}]
-    (sum sources))
+(defmethod p/to-generator [CascadingPlatform Grouping]
+  [{:keys [source aggregators grouping-fields options]}]
+  (if-let [bufs (not-empty
+                 (filter #(instance? ParallelBuffer (:op %)) aggregators))]
+    (do (assert (= (count aggregators) 1)
+                "Only one buffer allowed per subquery.")
+        (let [{:keys [op input output]} (first bufs)
+              {:keys [init-var combine-var present-var
+                      num-intermediate-vars-fn buffer-var]} op
+                      temps (v/gen-nullable-vars
+                             (num-intermediate-vars-fn input output))
+                      spec (-> (CombinerSpec. combine-var)
+                               (.setPrepareFn init-var)
+                               (.setPresentFn present-var))
+                      source (-> source
+                                 (ops/add-op #(Each. % Fields/ALL
+                                                     (ClojureBufferCombiner.
+                                                      (casc/fields grouping-fields)
+                                                      (casc/fields (:sort options))
+                                                      (casc/fields input)
+                                                      (casc/fields temps)
+                                                      spec))))]
+          (apply ops/group-by*
+                 source
+                 grouping-fields
+                 [(ops/buffer buffer-var temps output)]
+                 (opt-seq options))))
+    (let [aggs (map (fn [{:keys [op input output]}]
+                      (agg-cascading op input output))
+                    aggregators)]
+      (apply ops/group-by*
+             source grouping-fields aggs (opt-seq options)))))
 
-  Projection
-  (to-generator [{:keys [source fields]}]
-    (-> source
-        (ops/select* fields)
-        (ops/filter-nullable-vars fields)))
+(defmethod p/to-generator [CascadingPlatform Unique]
+  [{:keys [source fields options]}]
+  (apply ops/unique source fields (opt-seq options)))
 
-  Rename
-  (to-generator [{:keys [source fields]}]
-    (-> source
+(defmethod p/to-generator [CascadingPlatform Merge]
+  [{:keys [sources]}]
+  (sum sources))
+
+(defmethod p/to-generator [CascadingPlatform Projection]
+  [{:keys [source fields]}]
+  (-> source
+      (ops/select* fields)
+      (ops/filter-nullable-vars fields)))
+
+(defmethod p/to-generator [CascadingPlatform Rename]
+  [{:keys [source input output]}]
+  (-> source
+      (ops/rename* input output)
+      (ops/filter-nullable-vars output)))
+
+(defmethod p/to-generator [CascadingPlatform TailStruct]
+  [item]
+  (assoc (:node item) :name (-> item :options :name)))
+
+;; ## Platform Implementation
+
+(defn- init-pipe-name [options]
+  (or (:name (:trap options))
+      (u/uuid)))
+
+(defn- init-trap-map [options]
+  (if-let [trap (:trap options)]
+    {(:name trap) (types/to-sink (:tap trap))}
+    {}))
+
+(defn normalize-sink-connection [sink subquery]
+  (cond (fn? sink) (sink subquery)
+        (instance? CascalogTap sink)
+        (normalize-sink-connection (:sink sink) subquery)
+        :else [sink subquery]))
+
+(extend-protocol p/IPlatform
+  CascadingPlatform
+  (generator? [_ x]
+    (p/platform-generator? x))
+
+  (generator-builder [_ gen fields options]
+    (-> (p/generator gen)
+        (update-in [:trap-map] #(merge % (init-trap-map options)))
+        (ops/rename-pipe (init-pipe-name options))
         (ops/rename* fields)
+        ;; All generators if the fields aren't ungrounded discard null values
         (ops/filter-nullable-vars fields)))
 
-  TailStruct
-  (to-generator [item]
-    (:node item)))
+  (run! [_ name bindings]
+    (let [bindings (mapcat (partial apply normalize-sink-connection)
+                           (partition 2 bindings))]
+      (let [stats (flow/run! (apply flow/compile-flow name bindings))]
+        (flow/assert-success! stats))))
 
-;; TODO: This needs to move back into the logic DSL. We need a dynamic
-;; variable with the "runner", which will need to supply a
-;; "to-generator" method.
+  (run-to-memory! [_ name queries]
+    (flow/with-stats (fn [stats]
+                       (doseq [q queries :let [f (-> q :options :stats-fn)] :when f]
+                         (f stats)))
+      (apply flow/all-to-memory name (map p/compile-query queries)))))
 
-(defn compile-query [query]
-  (zip/postwalk-edit
-   (zip/cascalog-zip query)
-   identity
-   (fn [x _] (to-generator x))
-   :encoder (fn [x]
-              (or (:identifier x) x))))
+;; ## Output Fields
 
-(extend-protocol IGenerator
-  TailStruct
-  (generator [sq]
-    (compile-query sq))
+(extend-protocol parse/IOutputFields
+  Tap
+  (get-out-fields [tap]
+    (let [cfields (.getSourceFields tap)]
+      (u/safe-assert
+       (not (casc/generic-cascading-fields? cfields))
+       (str "Cannot get specific out-fields from tap. Tap source fields: "
+            cfields))
+      (vec (seq cfields))))
 
-  RawSubquery
-  (generator [sq]
-    (generator (parse/build-rule sq))))
+  CascalogTap
+  (get-out-fields [tap]
+    (parse/get-out-fields (:source tap))))
 
-(comment
-  "MOVE these to tests."
-  (require '[cascalog.logic.parse :refer (<-)]
-           '[cascalog.cascading.flow :refer (all-to-memory to-memory graph)])
+;; TODO: num-out-fields should try and pluck from Tap if it doesn't
+;; define output fields, rather than just throwing immediately.
 
-  (def cross-join
-    (<- [:>] (identity 1 :> _)))
+(extend-protocol parse/INumOutFields
+  CascalogTap
+  (num-out-fields [tap]
+    (parse/num-out-fields (:source tap)))
 
-  (let [sq (<- [?squared ?squared-minus ?x ?sum]
-               ([1 2 3] ?x)
-               (* ?x ?x :> ?squared)
-               (- ?squared 1 :> ?squared-minus)
-               ((d/parallelagg* +) ?squared :> ?sum))]
-    (to-memory sq))
+  Tap
+  (num-out-fields [x]
+    (count (parse/get-out-fields x))))
 
-  (let [sq (<- [?x ?y]
-               ([1 2 3] ?x)
-               ([1 2 3] ?y)
-               (cross-join)
-               (* ?x ?y :> ?z))]
-    (to-memory sq))
+(extend-protocol parse/ISelectFields
+  Tap
+  (select-fields [tap fields]
+    (-> (p/generator tap)
+        (ops/select* fields)))
 
-  (let [x (<- [?x ?y :> ?z]
-              (* ?x ?x :> 10)
-              (* ?x ?y :> ?z))
-        sq (<- [?a ?b ?z]
-               ([[1 2 3]] ?a)
-               (x ?a ?a :> 4)
-               ((d/bufferop* +) ?a :> ?z)
-               ((d/mapcatop* +) ?a 10 :> ?b))]
-    (clojure.pprint/pprint (build-rule sq))))
+  CascalogTap
+  (select-fields [tap fields]
+    (-> (p/generator tap)
+        (ops/select* fields))))

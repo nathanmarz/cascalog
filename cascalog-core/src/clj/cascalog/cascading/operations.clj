@@ -4,18 +4,18 @@
             [cascalog.logic.fn :as serfn]
             [cascalog.logic.vars :as v]
             [cascalog.logic.algebra :refer (sum)]
+            [cascalog.logic.platform :refer (generator)]
             [cascalog.cascading.util :as casc :refer (fields default-output)]
             [cascalog.cascading.tap :as tap]
-            [cascalog.cascading.types :refer (generator to-sink)]
+            [cascalog.cascading.types :refer (to-sink)]
             [jackknife.core :refer (safe-assert throw-illegal uuid)]
             [jackknife.seq :as s :refer (unweave collectify)])
   (:import [cascading.tuple Fields]
            [cascalog.ops KryoInsert]
-           [cascading.tuple Fields]
            [cascading.operation Identity Debug NoOp]
-           [cascading.operation.filter Sample]
+           [cascading.operation.filter Sample FilterNull]
            [cascading.operation.aggregator First Count Sum Min Max]
-           [cascading.pipe Pipe Each Every GroupBy CoGroup Merge HashJoin]
+           [cascading.pipe Pipe Each Every GroupBy CoGroup Merge HashJoin Checkpoint]
            [cascading.pipe.joiner Joiner InnerJoin LeftJoin RightJoin OuterJoin]
            [cascading.pipe.joiner CascalogJoiner CascalogJoiner$JoinType]
            [cascading.pipe.assembly Rename AggregateBy]
@@ -115,8 +115,6 @@
   ([flow percent seed]
      (add-op flow #(Each. % (Sample. percent seed)))))
 
-;; TODO: rename* should accept a map of old fieldname -> new
-;; fieldname.
 (defn rename*
   "rename old-fields to new-fields."
   ([flow new-fields]
@@ -252,18 +250,26 @@
 
 (defn- groupby
   "Adds a raw GroupBy operation to the pipe. Don't use this directly."
-  [pipe group-fields sort-fields reverse?]
-  (if sort-fields
-    (GroupBy. pipe group-fields
-              (fields sort-fields)
-              (boolean reverse?))
-    (GroupBy. pipe group-fields)))
+  [name pipe group-fields sort-fields reverse?]
+  (if (seq name)
+    (if sort-fields
+      (GroupBy. name pipe group-fields
+                (fields sort-fields)
+                (boolean reverse?))
+      (GroupBy. name pipe group-fields))
+    (if sort-fields
+      (GroupBy. pipe group-fields
+                (fields sort-fields)
+                (boolean reverse?))
+      (GroupBy. pipe group-fields))))
 
-(defn- aggby [pipe group-fields spill-threshold aggs]
+(defn- aggby [name pipe group-fields spill-threshold aggs]
   (let [aggs (->> aggs
                   (map aggregate-by)
                   (into-array AggregateBy))]
-    (AggregateBy. pipe (fields group-fields) spill-threshold aggs)))
+    (if (seq name)
+      (AggregateBy. name pipe (fields group-fields) spill-threshold aggs)
+      (AggregateBy. pipe (fields group-fields) spill-threshold aggs))))
 
 ;; TODO: Add proper assertions around sorting. (We can't sort when
 ;; we're in AggregateBy, for example.
@@ -273,13 +279,13 @@
 (defop group-by*
   "Applies a grouping operation to the supplied generator."
   [group-fields aggs
-   & {:keys [reducers spill-threshold sort-fields reverse? reduce-only]
-      :or {spill-threshold 10000}}]
+   & {:keys [reducers spill-threshold sort-fields reverse? reduce-only name]
+      :or {spill-threshold 0}}]
   (fn [pipe]
     (let [group-fields (fields group-fields)
           build-group  (fn [thunk]
                          (thunk
-                          (groupby pipe group-fields
+                          (groupby name pipe group-fields
                                    (fields sort-fields)
                                    reverse?)))
           mode (aggregate-mode aggs (or reduce-only sort-fields))]
@@ -289,7 +295,7 @@
                                    (reduce (fn [p op]
                                              (add-aggregator op p))
                                            grouped aggs)))
-        ::parallel  (aggby pipe group-fields spill-threshold aggs)
+        ::parallel  (aggby name pipe group-fields spill-threshold aggs)
         (throw-illegal "Unsupported aggregation mode: " mode)))))
 
 (defn unique-aggregator []
@@ -323,12 +329,14 @@
       (throw-illegal "Can't create joiner from " join))))
 
 (defmacro build-join-group
-  [group-op pipes group-fields decl-fields join]
+  [group-op group-name pipes group-fields decl-fields join]
   `(let [group-fields# (into-array Fields (map fields ~group-fields))
          joiner#       (join->joiner ~join)
          d#            ~decl-fields
          decl-fields#  (when d# (fields d#))]
-     (~group-op ~pipes group-fields# decl-fields# joiner#)))
+     (if (seq ~group-name)
+       (~group-op ~group-name ~pipes group-fields# decl-fields# joiner#)
+       (~group-op ~pipes group-fields# decl-fields# joiner#))))
 
 (defn- add-co-group-aggs
   [pipe aggs]
@@ -346,13 +354,13 @@
   (map rename-pipe flows))
 
 (defn co-group*
-  [flows group-fields & {:keys [decl-fields aggs reducers join] :or {join :inner}}]
+  [flows group-fields & {:keys [decl-fields aggs reducers join name] :or {join :inner}}]
   (-> flows
       ensure-unique-pipes
       lift-pipes
       sum
       (add-op (fn [pipes]
-                (-> (build-join-group CoGroup. pipes group-fields decl-fields join)
+                (-> (build-join-group CoGroup. name pipes group-fields decl-fields join)
                     (set-reducers reducers)
                     (add-co-group-aggs (or aggs [])))))))
 
@@ -392,13 +400,13 @@
   "Takes a sequence of [pipe, join-fields, join-type] triplets along
    with other co-group arguments and performs a mixed join. Allowed
    join types are :inner, :outer, and :exists."
-  [flow-joins decl-fields & opts]
+  [flow-joins decl-fields options]
   (let [[flows group-fields join-types] (apply map vector flow-joins)
         join-types (map cascalog-joiner-type join-types)]
     (apply co-group*
            flows
            group-fields
-           (concat opts [:decl-fields decl-fields :join (CascalogJoiner. join-types)]))))
+           (concat options [:decl-fields decl-fields :join (CascalogJoiner. join-types)]))))
 
 
 (defn hash-join*
@@ -409,7 +417,7 @@
 
    Note: full or right outer joins have odd behavior in hash joins.
          See Cascading documentation for details."
-  [flows join-fields & {:keys [join decl-fields] :or {join :inner}}]
+  [flows join-fields & {:keys [join decl-fields name] :or {join :inner}}]
   (safe-assert (= (count flows) (count join-fields))
                "Expected same number of flows and join fields")
   (-> flows
@@ -417,7 +425,7 @@
       lift-pipes
       sum
       (add-op (fn [pipes]
-                (build-join-group HashJoin. pipes join-fields decl-fields join)))))
+                (build-join-group HashJoin. name pipes join-fields decl-fields join)))))
 
 (defn hash-join-with-tiny
   [larger-flow fields1 tiny-flow fields2]
@@ -511,7 +519,7 @@
                             Outer :outer
                             Existence :exists)])
 (defn cascalog-join
-  [gen-seq join-fields]
+  [gen-seq join-fields options]
   (let [final-name (new-pipe-name gen-seq)
         gen-seq (ensure-project gen-seq)
         in-fields (map :available-fields gen-seq)
@@ -528,7 +536,8 @@
                                        (-> flow (identity* in out)))
                                      joined)))]
     (-> (join-many (map #(build-triplet % join-fields) gen-seq)
-                   declared)
+                   declared
+                   options)
         (select-exists)
         (map* (join-fields-selector join-size)
               (flatten renames)
@@ -614,12 +623,19 @@
         (rename-pipe id)
         (update-in [:trap-map] assoc id trap))))
 
+(defn checkpoint*
+  "Forces results of the flow so far to be written to temp file, ensuring
+   a M/R job boundary at this point in the flow.
+
+  TODO: allow specifying a tap for checkpoint"
+  [flow]
+  (add-op flow #(Checkpoint. %)))
+
 ;; TODO: Figure out if I really understand what's going on with the
 ;; trap options. Do this by testing the traps with a few throws inside
 ;; and one after. Make sure the throw after causes a failure, but not
 ;; inside.
 ;;
-;; TODO: Add "checkpoint" function, injecting a checkpoint pipe.
 
 (defn with-trap*
   "Applies a trap to everything that occurs within the supplied
@@ -677,7 +693,7 @@
 (defn insert-subs [flow sub-m]
   (if (empty? sub-m)
     flow
-    (apply insert* flow (s/flatten sub-m))))
+    (apply insert* flow (apply concat sub-m))))
 
 (defn with-constants
   "Allows constant substitution on inputs."
@@ -697,15 +713,12 @@
   (map (fn [v] (if (= "_" v) (v/gen-nullable-var) v))
        (collectify vars)))
 
-(defn not-nil? [& xs]
-  (every? (complement nil?) xs))
-
 (defn filter-nullable-vars
   "If there are any nullable variables present in the output, filter
   nulls out now."
-  [flow fields]
-  (if-let [non-null-fields (seq (filter v/non-nullable-var? fields))]
-    (filter* flow #'not-nil? non-null-fields)
+  [flow all-fields]
+  (if-let [non-null-fields (seq (filter v/non-nullable-var? all-fields))]
+    (add-op flow #(Each. % (fields non-null-fields) (FilterNull.)))
     flow))
 
 (defn no-overlap? [large small]
