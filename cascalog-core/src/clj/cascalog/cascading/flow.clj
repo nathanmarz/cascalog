@@ -1,4 +1,5 @@
 (ns cascalog.cascading.flow
+  (:refer-clojure :exclude [run!])
   (:require [jackknife.core :as u]
             [jackknife.seq :refer (unweave)]
             [hadoop-util.core :as hadoop]

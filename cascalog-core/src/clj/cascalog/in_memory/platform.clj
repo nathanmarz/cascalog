@@ -6,6 +6,7 @@
    First, Cascalog converts the generators into tuples (which are just a
    sequence of maps).  Cascalog then maps, filters, and aggregates
    the tuples.  Finally, it uses sinks to output the resulting tuples."
+  (:refer-clojure :exclude [run!])
   (:require [cascalog.logic.predicate]
             [cascalog.logic.platform :as p]
             [cascalog.logic.parse :as parse]
@@ -63,7 +64,7 @@
   clojure.lang.IFn
   (to-sink [f tuples fields]
     (f tuples fields))
-  
+
   StdOutSink
   (to-sink [_ tuples fields]
     (system-println "")
@@ -257,4 +258,3 @@
 (defmethod agg-clojure ParallelBuffer
   [coll {:keys [init-var combine-var present-var buffer-var]}]
   (buffer-var coll))
-
