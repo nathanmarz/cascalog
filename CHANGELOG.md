@@ -10,6 +10,9 @@ From https://github.com/nathanmarz/cascalog/pull/270:
 - `inc!` and `inc-by!` global stats functions in `cascalog.cascading.stats`
 - Options are now printed in `explain-query` readout
 
+- use `FilterNull` to enforce `?var` filtering (https://github.com/nathanmarz/cascalog/pull/283)
+- fix `run!` warnings (https://github.com/nathanmarz/cascalog/pull/293)
+- allow ops that look like logic vars to be used without namespace (https://github.com/nathanmarz/cascalog/pull/281)
 - propagate query names to co-group steps (https://github.com/nathanmarz/cascalog/pull/277)
 - prune unused operations per subquery (https://github.com/nathanmarz/cascalog/pull/247)
 - Fix leak in tuple sequence with custom buffer ops (https://github.com/nathanmarz/cascalog/issues/251)
