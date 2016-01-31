@@ -205,12 +205,13 @@
 
 (defmethod op-clojure ::d/map
   [coll op input output]
-  (map
-   (fn [tuple]
-     (let [v (s/collectify (apply op (t/select-values input tuple)))
-           new-tuple (t/to-tuple output v)]
-       (merge tuple new-tuple)))
-   coll))
+  (->> coll
+       (map
+         (fn [tuple]
+           (let [v (s/collectify (or (apply op (t/select-values input tuple)) [nil]))
+                 new-tuple (t/to-tuple output v)]
+             (merge tuple new-tuple))))
+       (filter #(not-any? (fn [[name v]] (and (.startsWith name "?") (nil? v))) %))))
 
 (defmethod op-clojure ::d/mapcat
   [coll op input output]

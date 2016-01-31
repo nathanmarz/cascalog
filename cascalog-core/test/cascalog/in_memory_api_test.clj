@@ -26,3 +26,14 @@
       (is (= [{"?n" 1} {"?n" 2} {"?n" 3}]
              @results)))))
 
+(deftest test-nil-collect
+  (is (= [[nil]]
+         (??<- [!nilval]
+               ([1] :> ?val)
+               (identity nil :> !nilval)))))
+
+(deftest test-nil-collect-to-not-nil-var
+  (is (= []
+         (??<- [?nilval]
+               ([1] :> ?val)
+               (identity nil :> ?nilval)))))
