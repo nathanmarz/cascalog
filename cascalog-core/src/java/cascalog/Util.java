@@ -145,7 +145,7 @@ public class Util {
   }
 
   public static List<Object> tupleToList(Tuple tuple) {
-    List<Object> ret = new ArrayList<Object>();
+    List<Object> ret = new ArrayList<Object>(tuple.size());
     tupleIntoList(ret, tuple);
     return ret;
   }
@@ -155,9 +155,7 @@ public class Util {
   }
 
   public static List<Object> toList(Object[] arr) {
-    List<Object> ret = new ArrayList<Object>();
-    Collections.addAll(ret, arr);
-    return ret;
+      return Arrays.asList((Object[])arr);
   }
 
   public static Configuration clojureConf() {

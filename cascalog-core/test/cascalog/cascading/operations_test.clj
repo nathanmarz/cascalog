@@ -52,6 +52,39 @@
                     ["sam" 2 4]
                     ["oscar" 3 9]]))))
 
+(defn map-keys
+  ([] {})
+  ([state v] (let [k (first (group-keys))]
+               (assoc state k (conj (state k []) v))))
+  ([state] (seq state)))
+
+(deftest test-group-agg
+  (let [src (generator [["k1" 1]
+                        ["k2" 10]
+                        ["k1" 2]])]
+    (fact
+     (-> src
+         (rename* ["k" "v"])
+         (group-by* ["k"] [(agg map-keys ["v"] ["kk" "vv"])]))
+     => (produces [["k1" "k1" [1 2]]
+                   ["k2" "k2" [10]]]))))
+
+(defn pair-with-key
+  [tuples]
+  [[(group-keys) (mapv first tuples)]])
+
+(deftest test-group-buffer
+  (let [src (generator [["k1" 1]
+                        ["k2" 10]
+                        ["k1" 2]])]
+    (fact
+     (-> src
+         (rename* ["k" "v"])
+         (group-by* ["k"] [(buffer pair-with-key ["v"] ["kk" "vv"])])
+         (select* ["k" "kk" "vv"]))
+     => (produces [["k1" ["k1"] [1 2]]
+                   ["k2" ["k2"] [10]]]))))
+
 (deftest inner-join-test
   (let [source (-> (generator [[1 2] [2 3] [3 4] [4 5]]))
         a      (-> source
