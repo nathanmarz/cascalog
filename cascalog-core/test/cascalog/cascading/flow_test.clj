@@ -54,3 +54,14 @@
                ((d/bufferop* +) ?a :> ?z)
                ((d/mapcatop* +) ?a 10 :> ?b))]
     (clojure.pprint/pprint (build-rule sq))))
+
+
+(deftest select-from-flow
+  (let [data [[1] [2] [3] [4]]
+        flow (-> (p/generator data)
+                 (ops/rename* ["a"])
+                 (ops/map* square "a" "a2"))
+        gen (select-fields flow ["a"]) ]
+    (fact (<- [?b]
+              (gen ?b))
+          => (produces data))))

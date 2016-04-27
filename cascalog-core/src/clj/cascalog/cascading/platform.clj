@@ -31,7 +31,7 @@
            [cascalog.cascading.operations IAggregateBy IAggregator
             Inner Outer Existence]
            [cascalog.logic.def ParallelAggregator ParallelBuffer Prepared]
-           [cascalog.cascading.types CascadingPlatform]
+           [cascalog.cascading.types CascadingPlatform ClojureFlow]
            [com.twitter.maple.tap MemorySourceTap]
            [cascading.tap Tap]
            [cascalog.cascading.tap CascalogTap]
@@ -385,4 +385,8 @@
   CascalogTap
   (select-fields [tap fields]
     (-> (p/generator tap)
-        (ops/select* fields))))
+        (ops/select* fields)))
+
+  ClojureFlow
+  (select-fields [flow fields]
+    (ops/select* flow fields)))
