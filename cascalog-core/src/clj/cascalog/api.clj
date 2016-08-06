@@ -232,6 +232,8 @@
 
 (defalias defparallelagg d/defparallelagg)
 
+(defalias counterfn d/counterfn)
+
 ;; ## Miscellaneous helpers
 
 (defn div
