@@ -12,13 +12,13 @@
                         :post "cascalog-user@googlegroups.com"}
          :dependencies [~@DEPENDENCIES]
          :plugins [[~'lein-sub "0.3.0"]
-                   [~'codox "0.6.6"]]
+                   [~'lein-codox "0.10.7"]]
          :sub [~@MODULES]
-         :codox {:src-dir-uri "http://github.com/nathanmarz/cascalog/blob/master"
+         :codox {:source-uri "http://github.com/nathanmarz/cascalog/blob/{version}/{filepath}#L{line}"
                  :src-linenum-anchor-prefix "L"
-                 :sources ["cascalog-core/src"
-                           "cascalog-checkpoint/src"
-                           "cascalog-more-taps/src"
-                           "cascalog-math/src"
-                           "cascalog-lzo/src"
-                           "midje-cascalog/src"]}))
+                 :source-paths ["cascalog-core/src"
+                                "cascalog-checkpoint/src"
+                                "cascalog-more-taps/src"
+                                "cascalog-math/src"
+                                "cascalog-lzo/src"
+                                "midje-cascalog/src"]}))

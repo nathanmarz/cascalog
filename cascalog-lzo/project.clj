@@ -1,12 +1,13 @@
 (def ROOT-DIR (subs *file* 0 (- (count *file*) (count "project.clj"))))
-(def HADOOP-VERSION (-> ROOT-DIR (str "/../HADOOP-VERSION") slurp))
-(def VERSION (-> ROOT-DIR (str "/../VERSION") slurp))
+(def HADOOP-VERSION (-> ROOT-DIR (str "/../HADOOP-VERSION") slurp clojure.string/trim-newline))
+(def VERSION (-> ROOT-DIR (str "/../VERSION") slurp clojure.string/trim-newline))
 
 (defproject cascalog/cascalog-lzo VERSION
   :description "Lzo compression taps for Cascalog."
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
-  :repositories {"conjars.org" "http://conjars.org/repo" "twttr.com" "http://maven.twttr.com/"}
+  :repositories {"conjars.org" "https://conjars.org/repo"
+                 "twttr.com" "https://maven.twttr.com/"}
   :dependencies [[com.twitter.elephantbird/elephant-bird-cascading2 "4.6"
                   :exclusions [cascading/cascading-hadoop]]
                  [com.hadoop.gplcompression/hadoop-lzo "0.4.19"]]
