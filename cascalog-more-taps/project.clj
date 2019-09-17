@@ -1,6 +1,6 @@
 (def ROOT-DIR (subs *file* 0 (- (count *file*) (count "project.clj"))))
-(def HADOOP-VERSION (-> ROOT-DIR (str "/../HADOOP-VERSION") slurp))
-(def VERSION (-> ROOT-DIR (str "/../VERSION") slurp))
+(def HADOOP-VERSION (-> ROOT-DIR (str "/../HADOOP-VERSION") slurp clojure.string/trim-newline))
+(def VERSION (-> ROOT-DIR (str "/../VERSION") slurp clojure.string/trim-newline))
 
 (defproject cascalog/cascalog-more-taps VERSION
   :description "More taps for Cascalog"
@@ -10,11 +10,11 @@
   :source-paths ["src/clj"]
   :java-source-paths ["src/java"]
   :jar-exclusions [#"\.java$"]
-  :repositories {"conjars.org" "http://conjars.org/repo"}
+  :repositories {"conjars.org" "https://conjars.org/repo"}
   :profiles {:1.3 {:dependencies [[org.clojure/clojure "1.3.0"]]}
              :1.4 {:dependencies [[org.clojure/clojure "1.4.0"]]}
              :provided {:dependencies [[cascalog/cascalog-core ~VERSION]
-                                       [org.apache.hadoop/hadoop-core ~HADOOP-VERSION]]}
+                                       [org.apache.hadoop/hadoop-client ~HADOOP-VERSION]]}
              :dev {:plugins [[lein-midje "3.1.3"]]
                    :dependencies
                    [[cascalog/midje-cascalog ~VERSION]
