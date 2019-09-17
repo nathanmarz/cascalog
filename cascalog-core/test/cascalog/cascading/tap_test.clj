@@ -125,7 +125,9 @@
    (fact "GlobHfs testing with various globs."
      (let [glob-tap (hfs-tap (tap/text-line) "src" :source-pattern ?pattern)
            child-taps (iterator-seq (.getChildTaps (tap-source glob-tap)))]
-       (map #(-> (.getPath %) (.getName)) child-taps)) => ?files)
+       (->> child-taps
+            (map #(-> (.getPath %) (.getName)))
+            (sort))) => ?files)
        ?pattern   ?files
        "/*"        ["clj" "java"]
        "/**"       ["clj" "java"]
@@ -133,7 +135,7 @@
        "/../src/*" ["clj" "java"]
        "*/*"       ["clj" "java"]
        "/clj"      ["clj"]
-       "/*/*"      ["cascalog" "cascading" "cascalog" "jcascalog"]
+       "/*/*"      ["cascading" "cascalog" "cascalog" "jcascalog"]
        "/."        ["src"]
        "*"         ["src"]
        "/"         ["src"]))
