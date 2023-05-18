@@ -53,7 +53,7 @@ Note that Cascalog is compatible with Clojure 1.2.0, 1.2.1, 1.3.0, 1.4.0, and 1.
 # Documentation and Issue Tracker
 
 - The [Cascalog website](http://cascalog.org/) contains more information and links to Various articles and tutorials.
-- API documentation can be found at http://nathanmarz.github.com/cascalog/.
+- API documentation can be found at http://nathanmarz.github.io/cascalog/.
 - [Issue Tracker on Github](https://github.com/nathanmarz/cascalog/issues).
 
 Come chat with us in the Google group: [cascalog-user](http://groups.google.com/group/cascalog-user)
