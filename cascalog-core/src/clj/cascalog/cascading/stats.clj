@@ -1,7 +1,8 @@
 (ns cascalog.cascading.stats
   "Namespace implementing stats processing for the Cascading planner."
   (:require [clojure.string :refer [join]]
-            [schema.core :as s])
+            [schema.core :as s]
+            [cascalog.cascading.operations :refer [*flow-process*]])
   (:import [cascading.stats CascadingStats]))
 
 ;; ## Schemas
@@ -29,15 +30,6 @@
    :skipped? s/Bool
    :stopped? s/Bool
    :successful? s/Bool})
-
-;; ## Dynamic Variables
-;;
-;; These variables are bound within the context of a Cascalog job. You
-;; can access them from your operations without worry about prepfn
-;; craziness.
-
-(def ^:dynamic *flow-process* nil)
-(def ^:dynamic *op-call* nil)
 
 (def default-group
   "This is the default group name for any stats recorded in the course

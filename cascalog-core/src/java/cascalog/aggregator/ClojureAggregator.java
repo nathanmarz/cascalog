@@ -31,6 +31,7 @@ import cascalog.Util;
 import clojure.lang.IFn;
 import clojure.lang.ISeq;
 import clojure.lang.RT;
+import clojure.lang.Var;
 
 public class ClojureAggregator extends ClojureCascadingBase implements Aggregator {
 
@@ -39,23 +40,38 @@ public class ClojureAggregator extends ClojureCascadingBase implements Aggregato
   }
 
   public void start(FlowProcess flow_process, AggregatorCall ag_call) {
-    ag_call.setContext(invokeFunction());
+    Var.pushThreadBindings(bindingMap);
+    try {
+	ag_call.setContext(invokeFunction());
+    } finally {
+	Var.popThreadBindings();
+    }
   }
 
   public void aggregate(FlowProcess flow_process, AggregatorCall ag_call) {
-    ISeq fn_args_seq = Util.coerceFromTuple(ag_call.getArguments().getTuple());
-    ag_call.setContext(applyFunction(RT.cons(ag_call.getContext(), fn_args_seq)));
+    Var.pushThreadBindings(bindingMap);
+    try {
+	ISeq fn_args_seq = Util.coerceFromTuple(ag_call.getArguments().getTuple());
+	ag_call.setContext(applyFunction(RT.cons(ag_call.getContext(), fn_args_seq)));
+    } finally {
+	Var.popThreadBindings();
+    }
   }
 
   public void complete(FlowProcess flow_process, AggregatorCall ag_call) {
-    Collection coll = (Collection) invokeFunction(ag_call.getContext());
+    Var.pushThreadBindings(bindingMap);
+    try {
+	Collection coll = (Collection) invokeFunction(ag_call.getContext());
 
-    TupleEntryCollector collector = ag_call.getOutputCollector();
+	TupleEntryCollector collector = ag_call.getOutputCollector();
 
-    if (coll != null) {
-      for (Object o : coll) {
-        collector.add(Util.coerceToTuple(o));
-      }
+	if (coll != null) {
+	    for (Object o : coll) {
+		collector.add(Util.coerceToTuple(o));
+	    }
+	}
+    } finally {
+	Var.popThreadBindings();
     }
   }
 }
